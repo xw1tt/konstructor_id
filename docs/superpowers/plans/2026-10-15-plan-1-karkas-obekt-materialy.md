@@ -117,7 +117,7 @@ README.md                         запуск на Windows
 
 ---
 
-### Задача 1: Каркас монорепозитория
+### Task 1 (Задача 1): Каркас монорепозитория
 
 **Файлы:**
 - Создать: `package.json`, `tsconfig.base.json`, `packages/*/package.json`,
@@ -136,7 +136,7 @@ README.md                         запуск на Windows
 - [ ] **Шаг 4.** Тест → PASS; `npx tsc -p packages/shared --noEmit` без ошибок.
 - [ ] **Шаг 5.** Коммит `chore: каркас монорепозитория`.
 
-### Задача 2: Общие схемы и правила
+### Task 2 (Задача 2): Общие схемы и правила
 
 **Файлы:**
 - Создать: `packages/shared/src/schemas.ts`, `packages/shared/src/rules.ts`
@@ -168,7 +168,7 @@ README.md                         запуск на Windows
 - [ ] **Шаг 4.** Запуск → PASS.
 - [ ] **Шаг 5.** Коммит `feat(shared): схемы сущностей и правила`.
 
-### Задача 3: База данных и миграции
+### Task 3 (Задача 3): База данных и миграции
 
 **Файлы:**
 - Создать: `packages/server/src/config.ts`, `packages/server/src/db.ts`, `packages/server/src/migrations/001_init.sql`
@@ -196,7 +196,7 @@ README.md                         запуск на Windows
 - [ ] **Шаг 4.** Запуск → PASS.
 - [ ] **Шаг 5.** Коммит `feat(server): база и миграции`.
 
-### Задача 4: HTTP-приложение и API «Объект»
+### Task 4 (Задача 4): HTTP-приложение и API «Объект»
 
 **Файлы:**
 - Создать: `http/router.ts`, `app.ts`, `repo/organizations.ts`, `repo/objectInfo.ts`, `repo/sections.ts`, `repo/representatives.ts`, `routes/object.ts`
@@ -227,7 +227,7 @@ README.md                         запуск на Windows
 - [ ] **Шаг 4.** Запуск → PASS.
 - [ ] **Шаг 5.** Коммит `feat(server): API объекта, организаций, разделов, представителей`.
 
-### Задача 5: Файлы, материалы и документы качества
+### Task 5 (Задача 5): Файлы, материалы и документы качества
 
 **Файлы:**
 - Создать: `files/store.ts`, `repo/materials.ts`, `repo/qualityDocs.ts`, `routes/materials.ts`, `routes/files.ts`
@@ -258,7 +258,7 @@ README.md                         запуск на Windows
 - [ ] **Шаг 4.** Запуск → PASS.
 - [ ] **Шаг 5.** Коммит `feat(server): файлы, материалы, документы качества`.
 
-### Задача 6: TLS-сертификаты, запуск сервера, резервные копии
+### Task 6 (Задача 6): TLS-сертификаты, запуск сервера, резервные копии
 
 **Файлы:**
 - Создать: `tls/x509.ts`, `tls/ensureCerts.ts`, `backup.ts`, `http/static.ts`, `main.ts`, `scripts/install-cert.ps1`
@@ -288,7 +288,7 @@ README.md                         запуск на Windows
 - [ ] **Шаг 4.** Запуск → PASS. Дополнительно: `npm start` в фоне, `curl --cacert <ca.pem> https://localhost:3443/api/object` → `200`.
 - [ ] **Шаг 5.** Коммит `feat(server): TLS с ограничением имён, запуск, резервные копии`.
 
-### Задача 7: Оболочка панели, связь с сервером, манифест
+### Task 7 (Задача 7): Оболочка панели, связь с сервером, манифест
 
 **Файлы:**
 - Создать: `packages/addin/manifest.xml`, `src/index.html`, `src/main.tsx`, `src/api.ts`, `src/App.tsx`, `src/tabs/Placeholder.tsx`, `src/styles.css`, `build.mjs`
@@ -313,7 +313,7 @@ README.md                         запуск на Windows
 - [ ] **Шаг 4.** Запуск → PASS; `npm run build` без ошибок. Проверка Playwright (Chromium): открыть `https://localhost:3443/addin/index.html` с `ignoreHTTPSErrors`, увидеть 6 вкладок. Остановить сервер, нажать «Повторить» и увидеть баннер «Сервер не запущен». Скриншот приложить к отчёту.
 - [ ] **Шаг 5.** Коммит `feat(addin): оболочка панели, связь с сервером, манифест`.
 
-### Задача 8: Вкладка «Объект»
+### Task 8 (Задача 8): Вкладка «Объект»
 
 **Файлы:**
 - Создать: `src/tabs/ObjectTab.tsx`, `src/tabs/object/OrganizationsSection.tsx`, `src/tabs/object/ObjectSection.tsx`, `src/tabs/object/SectionsSection.tsx`, `src/tabs/object/RepresentativesSection.tsx`, `src/tabs/object/repOrder.ts`
@@ -336,7 +336,7 @@ README.md                         запуск на Windows
 - [ ] **Шаг 4.** Запуск → PASS. Проверка Playwright при ширине окна 350 px: в контрольном примере ввести СБД, Велесстрой, Техноинжиниринг и МАРКС ИНЖИНИРИНГ, назначить роли (СБД — застройщик и лицо, осуществляющее строительство), добавить Королёва и Вострова в роль `performer` и поменять их местами. После перезагрузки страницы всё на месте. Нет горизонтальной прокрутки при 350 px. Скриншот приложить.
 - [ ] **Шаг 5.** Коммит `feat(addin): вкладка «Объект»`.
 
-### Задача 9: Вкладка «Материалы» и загрузка с листа Excel
+### Task 9 (Задача 9): Вкладка «Материалы» и загрузка с листа Excel
 
 **Файлы:**
 - Создать: `src/tabs/MaterialsTab.tsx`, `src/tabs/materials/QualityDocForm.tsx`, `src/sheetMapping.ts`, `src/excel.ts`
@@ -370,7 +370,7 @@ README.md                         запуск на Windows
   - скриншот приложить.
 - [ ] **Шаг 5.** Коммит `feat(addin): вкладка «Материалы», загрузка с листа`.
 
-### Задача 10: Запуск на Windows и итоговая проверка
+### Task 10 (Задача 10): Запуск на Windows и итоговая проверка
 
 **Файлы:**
 - Создать: `README.md`, `scripts/start.cmd`, `scripts/register-autostart.ps1`

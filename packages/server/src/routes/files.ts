@@ -1,7 +1,7 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, statSync } from "node:fs";
 import { join } from "node:path";
 import type { Db } from "../db.ts";
-import { Router, Reply, notFound } from "../http/router.ts";
+import { Router, Reply, HttpError, notFound } from "../http/router.ts";
 import { saveFile, getFile, tooBig } from "../files/store.ts";
 
 export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: number) {
@@ -23,11 +23,17 @@ export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: numb
   r.get("/api/files/:id", (c) => {
     const f = getFile(db, c.id());
     if (!f) throw notFound("Файл");
+    const abs = join(dataDir, "files", f.path);
+    try {
+      statSync(abs);
+    } catch {
+      throw new HttpError(404, "Файл скана отсутствует на диске. Загрузите его заново или восстановите из резервной копии");
+    }
     c.res.writeHead(200, {
       "content-type": f.mime,
       "content-length": f.size,
-      "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(f.name)}`,
+      "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(f.name).replace(/['()*]/g, (ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase())}`,
     });
-    createReadStream(join(dataDir, "files", f.path)).pipe(c.res);
+    createReadStream(abs).on("error", () => c.res.destroy()).pipe(c.res);
   });
 }

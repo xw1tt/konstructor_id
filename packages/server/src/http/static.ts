@@ -12,7 +12,12 @@ const TYPES: Record<string, string> = {
 export function serveStatic(prefix: string, dir: string, req: IncomingMessage, res: ServerResponse): boolean {
   const url = new URL(req.url ?? "/", "http://localhost");
   if (req.method !== "GET" || !url.pathname.startsWith(prefix)) return false;
-  let rel = decodeURIComponent(url.pathname.slice(prefix.length)) || "index.html";
+  let rel: string;
+  try {
+    rel = decodeURIComponent(url.pathname.slice(prefix.length)) || "index.html";
+  } catch {
+    return false;
+  }
   if (rel.endsWith("/")) rel += "index.html";
   const file = normalize(join(dir, rel));
   if (!file.startsWith(normalize(dir) + sep)) return false;
@@ -22,6 +27,6 @@ export function serveStatic(prefix: string, dir: string, req: IncomingMessage, r
     return false;
   }
   res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream", "cache-control": "no-cache" });
-  createReadStream(file).pipe(res);
+  createReadStream(file).on("error", () => res.destroy()).pipe(res);
   return true;
 }

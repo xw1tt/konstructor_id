@@ -1,4 +1,4 @@
-# Добавляет запуск сервера Конструктора ИД в автозагрузку текущего пользователя (папка shell:startup).
+﻿# Добавляет запуск сервера Конструктора ИД в автозагрузку текущего пользователя (папка shell:startup).
 $root = Split-Path -Parent $PSScriptRoot
 $startup = [Environment]::GetFolderPath("Startup")
 $link = Join-Path $startup "Конструктор ИД.lnk"

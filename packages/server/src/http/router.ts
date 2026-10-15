@@ -38,6 +38,9 @@ export function sendJson(res: ServerResponse, status: number, data?: unknown) {
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
+  const type = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+  const hasBody = Number(req.headers["content-length"] ?? 0) > 0 || req.headers["transfer-encoding"] !== undefined;
+  if (hasBody && type !== "application/json") throw new HttpError(415, "Ожидается тело в формате JSON (application/json)");
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const c of req) {
@@ -61,6 +64,9 @@ function zodMessage(e: ZodError): string {
 export class Router {
   private routes: Route[] = [];
 
+  /** Изменяющие запросы с заголовком Origin принимаются только с этих адресов (защита от CSRF). */
+  constructor(private allowedOrigins: string[] = []) {}
+
   add(method: string, pattern: string, handler: Handler) {
     const keys: string[] = [];
     const re = new RegExp(
@@ -77,13 +83,23 @@ export class Router {
   /** true, если путь обработан роутером. */
   async handle(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
     const url = new URL(req.url ?? "/", "http://localhost");
-    const path = decodeURIComponent(url.pathname);
+    let path: string;
+    try {
+      path = decodeURIComponent(url.pathname);
+    } catch {
+      sendJson(res, 400, { error: "Неверная кодировка адреса" });
+      return true;
+    }
     let matched: { route: Route; m: RegExpMatchArray } | undefined;
     for (const route of this.routes) {
       const m = path.match(route.re);
       if (m && route.method === req.method) { matched = { route, m }; break; }
     }
     if (!matched) return false;
+    if (req.method !== "GET" && req.headers.origin && !this.allowedOrigins.includes(req.headers.origin)) {
+      sendJson(res, 403, { error: "Запрос с чужого сайта отклонён" });
+      return true;
+    }
     const params: Record<string, string> = {};
     matched.route.keys.forEach((k, i) => (params[k] = matched!.m[i + 1]));
     const ctx: Ctx = {

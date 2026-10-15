@@ -68,7 +68,7 @@ export async function saveFile(
     else rmSync(tmp, { force: true });
     const r = db.prepare("INSERT INTO files (sha256, name, mime, size, pages, path) VALUES (?,?,?,?,?,?)")
       .run(sha256, meta.name, meta.mime, size, pages, rel);
-    return getFile(db, Number(r.lastInsertRowid))!;
+    return toRow(db.prepare("SELECT * FROM files WHERE id=?").get(Number(r.lastInsertRowid)));
   } catch (e) {
     out.destroy();
     rmSync(tmp, { force: true });

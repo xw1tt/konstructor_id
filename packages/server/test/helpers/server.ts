@@ -6,6 +6,7 @@ import { createApp, type AppOptions } from "@idk/server/app";
 import { tmpDir } from "./tmp.ts";
 
 export interface TestServer {
+  dataDir: string;
   url: string;
   req: (method: string, path: string, body?: unknown) => Promise<{ status: number; json: any }>;
   raw: (method: string, path: string, init?: RequestInit) => Promise<Response>;
@@ -28,5 +29,5 @@ export async function startTestServer(opts: Partial<AppOptions> = {}): Promise<T
     const text = await res.text();
     return { status: res.status, json: text ? JSON.parse(text) : null };
   };
-  return { url, req, raw };
+  return { url, req, raw, dataDir };
 }

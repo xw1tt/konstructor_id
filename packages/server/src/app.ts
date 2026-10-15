@@ -13,16 +13,27 @@ export interface AppOptions {
   dataDir: string;
   addinDir?: string;
   uploadLimit?: number;
+  /** Адреса, с которых разрешены изменяющие запросы (панель). */
+  allowedOrigins?: string[];
 }
 
+export const defaultOrigins = (port = 3443) => [`https://localhost:${port}`, `https://127.0.0.1:${port}`];
+
 export function createApp(opts: AppOptions) {
-  const api = new Router();
+  const api = new Router(opts.allowedOrigins ?? defaultOrigins());
   objectRoutes(api, opts.db);
   materialRoutes(api, opts.db);
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {
-    if (await api.handle(req, res)) return;
-    if (opts.addinDir && serveStatic("/addin/", opts.addinDir, req, res)) return;
-    sendJson(res, 404, { error: "Не найдено: " + (req.url ?? "") });
+    try {
+      if (await api.handle(req, res)) return;
+      if (opts.addinDir && serveStatic("/addin/", opts.addinDir, req, res)) return;
+      sendJson(res, 404, { error: "Не найдено: " + (req.url ?? "") });
+    } catch (e) {
+      // Последний рубеж: одна плохая заявка не должна останавливать сервер.
+      console.error(e);
+      if (!res.headersSent) sendJson(res, 500, { error: "Внутренняя ошибка сервера" });
+      else res.destroy();
+    }
   };
 }

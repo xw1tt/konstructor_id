@@ -1,5 +1,5 @@
 @echo off
-rem Запуск сервера Конструктора ИД. Окно можно свернуть; закрытие окна останавливает сервер.
+rem Konstruktor ID server. Closing this window stops the server.
 cd /d "%~dp0.."
-title Конструктор ИД — сервер
+title Konstruktor ID server
 call npm start

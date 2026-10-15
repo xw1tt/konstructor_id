@@ -2,7 +2,11 @@
   "name": "konstruktor-id",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/shared", "packages/server", "packages/addin"],
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/addin"
+  ],
   "scripts": {
     "test": "tsx --test \"packages/*/test/**/*.test.ts\"",
     "build": "node packages/addin/build.mjs",
@@ -13,5 +17,8 @@
     "tsx": "4.23.12",
     "typescript": "6.0.3",
     "@types/node": "26.2.0"
+  },
+  "engines": {
+    "node": ">=22.13"
   }
 }

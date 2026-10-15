@@ -47,6 +47,13 @@ function time(d: Date): Buffer {
 }
 const ipBytes = (ip: string) => Buffer.from(ip.split(".").map(Number));
 
+/** 16 случайных байт; старший байт 0x40–0x7f — положительное число минимальной DER-длины. */
+export function serialBytes(): Buffer {
+  const b = randomBytes(16);
+  b[0] = (b[0] & 0x3f) | 0x40;
+  return b;
+}
+
 // ---- X.509 ----
 const SHA256_RSA = seq(oid("1.2.840.113549.1.1.11"), nul());
 const name = (cn: string) => seq(set(seq(oid("2.5.4.3"), utf8(cn))));
@@ -72,7 +79,7 @@ function build(opts: {
   ];
   const tbs = seq(
     ctx(0, intN(2)),
-    int(randomBytes(16)),
+    int(serialBytes()),
     SHA256_RSA,
     name(opts.issuer),
     seq(time(now), time(notAfter)),

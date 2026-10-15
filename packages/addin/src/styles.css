@@ -1,0 +1,84 @@
+/* Палитра «синька»: исполнительная документация — это чертежи и штампы. */
+:root {
+  --ink: #1f2a37;
+  --ink-soft: #52606d;
+  --paper: #ffffff;
+  --surface: #f3f5f8;
+  --line: #d5dbe3;
+  --blue: #1e4e8c;
+  --blue-weak: #e7eef8;
+  --warn: #8a4b07;
+  --warn-bg: #fff4e5;
+  --danger: #b42318;
+  --ok: #1f7a4d;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+.app-head { padding: 10px 12px 8px; }
+.app-title { font-size: 15px; font-weight: 600; margin: 0; }
+.app-sub { color: var(--ink-soft); font-size: 12px; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Вкладки в виде основной надписи чертежа: сетка ячеек с тонкими линиями. */
+.stamp { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 12px; border: 1.5px solid var(--ink); }
+.stamp button {
+  background: var(--paper); border: 0; border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
+  padding: 6px 4px; font-size: 12px; cursor: pointer; text-align: center; min-height: 34px;
+}
+.stamp button:nth-child(3n) { border-right: 0; }
+.stamp button:nth-last-child(-n + 3) { border-bottom: 0; }
+.stamp button[aria-selected="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
+.stamp button:hover:not([aria-selected="true"]) { background: var(--blue-weak); }
+
+.content { padding: 12px; flex: 1; }
+
+.banner { margin: 10px 12px 0; padding: 8px 10px; border-left: 3px solid var(--danger); background: #fdecea; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.banner p { margin: 0; }
+.notice { color: var(--ink-soft); padding: 16px 0; }
+.error { color: var(--danger); font-size: 12px; margin: 4px 0; }
+.warn { color: var(--warn); background: var(--warn-bg); padding: 1px 6px; border-radius: 3px; font-size: 11px; }
+
+.btn { border: 1px solid var(--line); background: var(--paper); padding: 4px 10px; border-radius: 3px; cursor: pointer; }
+.btn:hover { border-color: var(--ink-soft); }
+.btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn-primary:hover { background: #173d6e; }
+.btn-danger { color: var(--danger); }
+.btn-icon { padding: 2px 7px; }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+/* Разделы вкладки */
+details.section { border-top: 1px solid var(--line); }
+details.section > summary { cursor: pointer; padding: 8px 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; }
+details.section > summary::after { content: "+"; color: var(--ink-soft); }
+details.section[open] > summary::after { content: "−"; }
+details.section > .body { padding-bottom: 12px; }
+
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: flex; align-items: center; gap: 6px; padding: 5px 4px; border-bottom: 1px solid var(--surface); }
+.list li .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.list li.selected { background: var(--blue-weak); }
+.list li button.link { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muted { color: var(--ink-soft); font-size: 12px; }
+
+.form { display: grid; gap: 6px; background: var(--surface); padding: 8px; margin-top: 8px; }
+.form label { display: grid; gap: 2px; font-size: 12px; color: var(--ink-soft); }
+.form input, .form select, .form textarea { border: 1px solid var(--line); border-radius: 3px; padding: 4px 6px; background: #fff; width: 100%; min-width: 0; }
+.form .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.preview { font-size: 12px; background: #fff; border: 1px dashed var(--line); padding: 6px; }
+
+.role-group { margin-bottom: 10px; }
+.role-group h4 { font-size: 12px; font-weight: 600; margin: 6px 0 2px; }
+
+.drop { border: 1.5px dashed var(--line); padding: 10px; text-align: center; color: var(--ink-soft); cursor: pointer; background: #fff; }
+.drop.over { border-color: var(--blue); background: var(--blue-weak); }
+.search { width: 100%; border: 1px solid var(--line); border-radius: 3px; padding: 5px 8px; margin-bottom: 6px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

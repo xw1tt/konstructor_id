@@ -1,0 +1,8 @@
+{
+  "name": "@idk/addin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./*": "./src/*.ts" },
+  "dependencies": { "@idk/shared": "0.1.0", "react": "19.2.8", "react-dom": "19.2.8" }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "konstruktor-id",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/shared", "packages/server", "packages/addin"],
+  "scripts": {
+    "test": "tsx --test \"packages/*/test/**/*.test.ts\"",
+    "build": "node packages/addin/build.mjs",
+    "start": "tsx packages/server/src/main.ts"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "tsx": "4.23.12",
+    "typescript": "6.0.3",
+    "@types/node": "26.2.0"
+  }
+}

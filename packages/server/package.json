@@ -1,0 +1,8 @@
+{
+  "name": "@idk/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./*": "./src/*.ts" },
+  "dependencies": { "@idk/shared": "0.1.0", "pdf-lib": "1.17.1" }
+}

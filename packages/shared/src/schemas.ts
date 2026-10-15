@@ -2,13 +2,14 @@ import { z } from "zod";
 import { ROLE_CODES, ORG_ROLE_CODES, QUALITY_DOC_TYPES } from "./roles.ts";
 
 const str = z.string().default("");
+const req = (msg: string) => z.string({ required_error: msg }).trim().min(1, msg);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Дата в формате ГГГГ-ММ-ДД");
 const optDate = isoDate.nullable().default(null);
 const id = z.number().int().positive();
 
 export const OrganizationInput = z.object({
-  shortName: z.string().min(1, "Укажите краткое наименование"),
-  fullName: z.string().min(1, "Укажите полное наименование"),
+  shortName: req("Укажите краткое наименование"),
+  fullName: req("Укажите полное наименование"),
   ogrn: str, inn: str, address: str, phone: str,
   sroName: str, sroOgrn: str, sroInn: str,
 });
@@ -28,7 +29,7 @@ export const ObjectInfo = z.object({
 export type ObjectInfo = z.infer<typeof ObjectInfo>;
 
 export const SectionInput = z.object({
-  code: z.string().min(1, "Укажите шифр"),
+  code: req("Укажите шифр"),
   name: str,
   designerOrgId: id.nullable().default(null),
 });
@@ -39,7 +40,7 @@ export type Section = z.infer<typeof Section>;
 export const RepresentativeInput = z.object({
   role: z.enum(ROLE_CODES),
   position: str,
-  fullName: z.string().min(1, "Укажите ФИО"),
+  fullName: req("Укажите ФИО"),
   orgId: id,
   authorityDoc: str,
   nrsNumber: str,
@@ -53,7 +54,7 @@ export type RepresentativeInput = z.infer<typeof RepresentativeInput>;
 export type Representative = z.infer<typeof Representative>;
 
 export const MaterialInput = z.object({
-  name: z.string().min(1, "Укажите наименование"),
+  name: req("Укажите наименование"),
   mark: str, article: str, manufacturer: str, unit: str,
 });
 export const Material = MaterialInput.extend({ id });

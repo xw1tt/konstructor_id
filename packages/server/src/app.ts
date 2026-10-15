@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Db } from "./db.ts";
 import { Router, sendJson } from "./http/router.ts";
+import { serveStatic } from "./http/static.ts";
 import { objectRoutes } from "./routes/object.ts";
 import { materialRoutes } from "./routes/materials.ts";
 import { fileRoutes } from "./routes/files.ts";
@@ -21,6 +22,7 @@ export function createApp(opts: AppOptions) {
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {
     if (await api.handle(req, res)) return;
+    if (opts.addinDir && serveStatic("/addin/", opts.addinDir, req, res)) return;
     sendJson(res, 404, { error: "Не найдено: " + (req.url ?? "") });
   };
 }

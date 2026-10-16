@@ -10,7 +10,7 @@ test("db: миграции применяются один раз", () => {
   openDb(p).close();
   const db = openDb(p);
   const rows = db.prepare("SELECT name FROM schema_migrations").all();
-  assert.equal(rows.length, 2);
+  assert.equal(rows.length, 3);
   db.close();
 });
 
@@ -39,7 +39,7 @@ test("db: миграция 002 применяется к базе плана 1",
   raw.prepare("INSERT INTO organizations (short_name, full_name) VALUES ('ООО \"СБД\"', 'x')").run();
   raw.close();
   const db = openDb(p);
-  assert.equal((db.prepare("SELECT COUNT(*) n FROM schema_migrations").get() as any).n, 2);
+  assert.equal((db.prepare("SELECT COUNT(*) n FROM schema_migrations").get() as any).n, 3);
   assert.equal((db.prepare("SELECT short_name FROM organizations").get() as any).short_name, 'ООО "СБД"');
   db.prepare("SELECT registry_name FROM quality_docs").all();
   db.prepare("SELECT act_text FROM representatives").all();

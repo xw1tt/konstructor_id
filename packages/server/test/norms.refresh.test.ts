@@ -77,7 +77,7 @@ test("первая страница раздела без строк — оши�
   const bad = portal("", { "https://protect.gost.ru/sp?page=1": async () => new Response("", { status: 503 }) });
   const r3 = createRefresher(db, { fetchImpl: bad.f, sleep: async () => {}, now });
   r3.start(); await r3.done();
-  assert.equal(r3.state().error, "Нет связи с порталом protect.gost.ru");
+  assert.equal(r3.state().error, "Нет связи с порталом protect.gost.ru (ответ 503)");
 });
 
 test("заголовок User-Agent и пауза между запросами", async () => {
@@ -88,7 +88,9 @@ test("заголовок User-Agent и пауза между запросами"
   const f = (async (u: any, init?: RequestInit) => { seen.push(new Headers(init?.headers).get("user-agent") ?? ""); return base.f(u, init); }) as typeof fetch;
   const r = createRefresher(db, { fetchImpl: f, sleep: async (ms) => { pauses.push(ms); }, now });
   r.start(); await r.done();
-  assert.ok(seen.every((h) => h === "Konstruktor-ID (справочник нормативов)"));
+  assert.equal(r.state().error, null);
+  assert.ok(seen.length >= 8);
+  assert.ok(seen.every((h) => h === "Konstruktor-ID/0.5 (normative catalog)"));
   assert.ok(pauses.length >= seen.length - 1 && pauses.every((p) => p === 300));
 });
 
@@ -141,4 +143,26 @@ test("ревью: портал игнорирует номер страницы 
   assert.equal(r.state().error, null);
   assert.equal(spCalls, 2);
   assert.equal(normCatalog(db).search({ section: "sp" }).total, 2);
+});
+
+test("заголовки запроса допустимы для настоящего fetch (только латиница)", async () => {
+  const db = fresh();
+  const base = portal();
+  // Как настоящий fetch: заголовки проверяются до отправки (Headers бросает TypeError на не-Latin1).
+  const strict = (async (u: any, init?: RequestInit) => { new Headers(init?.headers); return base.f(u, init); }) as typeof fetch;
+  const r = createRefresher(db, { fetchImpl: strict, sleep: async () => {}, now });
+  r.start(); await r.done();
+  assert.equal(r.state().error, null);
+  assert.equal(normCatalog(db).search({}).total, 8);
+});
+
+test("причина «нет связи» видна в сообщении: код ошибки сети или код ответа", async () => {
+  const db = fresh();
+  const err = Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error("x"), { code: "ENOTFOUND" }) });
+  const r = createRefresher(db, { fetchImpl: (async () => { throw err; }) as typeof fetch, sleep: async () => {}, now });
+  r.start(); await r.done();
+  assert.equal(r.state().error, "Нет связи с порталом protect.gost.ru (ENOTFOUND)");
+  const r2 = createRefresher(db, { fetchImpl: (async () => new Response("", { status: 403 })) as typeof fetch, sleep: async () => {}, now });
+  r2.start(); await r2.done();
+  assert.equal(r2.state().error, "Нет связи с порталом protect.gost.ru (ответ 403)");
 });

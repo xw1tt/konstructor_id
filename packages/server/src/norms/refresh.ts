@@ -6,7 +6,8 @@ import { normCatalog } from "../repo/normCatalog.ts";
 
 export type { RefreshState };
 
-export const USER_AGENT = "Konstruktor-ID (справочник нормативов)";
+/** Только латиница: fetch в Node.js отказывается отправлять заголовки с другими символами. */
+export const USER_AGENT = "Konstruktor-ID/0.5 (normative catalog)";
 export const PAUSE_MS = 300;
 export const TIMEOUT_MS = 20_000;
 /** Предохранитель от бесконечного обхода, если портал перестанет отдавать пустую страницу. */
@@ -38,10 +39,12 @@ export function createRefresher(db: Db, deps: RefresherDeps = {}) {
     let res: Response;
     try {
       res = await fetchImpl(url, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
-    } catch {
-      throw new RefreshError(NO_LINK);
+    } catch (e) {
+      const cause = (e as any)?.cause;
+      const code = cause?.code ?? (e as any)?.code ?? ((e as Error)?.name === "TimeoutError" ? "таймаут" : null);
+      throw new RefreshError(code ? `${NO_LINK} (${code})` : NO_LINK);
     }
-    if (res.status >= 400) throw new RefreshError(NO_LINK);
+    if (res.status >= 400) throw new RefreshError(`${NO_LINK} (ответ ${res.status})`);
     const type = res.headers.get("content-type") ?? "";
     const body = await res.text();
     if (type && !/html/i.test(type)) return "";

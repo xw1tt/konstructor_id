@@ -7,6 +7,7 @@ import { materialRoutes } from "./routes/materials.ts";
 import { fileRoutes } from "./routes/files.ts";
 import { actRoutes } from "./routes/acts.ts";
 import { printRoutes } from "./routes/print.ts";
+import { exportRoutes } from "./routes/export.ts";
 
 export const DEFAULT_UPLOAD_LIMIT = 200 * 1024 * 1024;
 
@@ -27,6 +28,7 @@ export function createApp(opts: AppOptions) {
   materialRoutes(api, opts.db);
   actRoutes(api, opts.db);
   printRoutes(api);
+  exportRoutes(api, opts.db);
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {

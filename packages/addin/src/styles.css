@@ -72,7 +72,7 @@ details.section > .body { padding-bottom: 12px; }
 .form { display: grid; gap: 6px; background: var(--surface); padding: 8px; margin-top: 8px; }
 .form label { display: grid; gap: 2px; font-size: 12px; color: var(--ink-soft); }
 .form input, .form select, .form textarea { border: 1px solid var(--line); border-radius: 3px; padding: 4px 6px; background: #fff; width: 100%; min-width: 0; }
-.form .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .preview { font-size: 12px; background: #fff; border: 1px dashed var(--line); padding: 6px; }
 
 .role-group { margin-bottom: 10px; }
@@ -83,3 +83,6 @@ details.section > .body { padding-bottom: 12px; }
 .search { width: 100%; border: 1px solid var(--line); border-radius: 3px; padding: 5px 8px; margin-bottom: 6px; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.mini label { display: grid; gap: 2px; font-size: 12px; color: var(--ink-soft); }
+.mini input, .list li > input { border: 1px solid var(--line); border-radius: 3px; padding: 3px 5px; background: #fff; width: 100%; min-width: 0; }
+.list li > input { width: 70px; flex: 0 0 auto; }

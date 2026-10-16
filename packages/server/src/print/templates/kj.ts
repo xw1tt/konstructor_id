@@ -3,6 +3,7 @@ import type { KjData } from "../cableData.ts";
 import type { JournalLine } from "@idk/shared/acts/cableDocs";
 import { JOURNAL_LINES_PER_SHEET } from "@idk/shared/acts/cableDocs";
 import { e, page } from "./common.ts";
+import { formatNumber } from "@idk/shared/acts/format";
 
 const STYLE = `<style>
 @page { size: A4 portrait; margin: 0; }
@@ -15,10 +16,10 @@ body.kj { font-family: Arial, "Liberation Sans", sans-serif; font-size: 7pt; }
 .side div:last-child { border-bottom: 0; }
 .side span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 6pt; width: 5mm; border-right: 0.3mm solid #000; text-align: center; }
 table.kj-t { width: 100%; border-collapse: collapse; table-layout: fixed; }
-table.kj-t th, table.kj-t td { border: 0.3mm solid #000; padding: 0 1mm; text-align: center; overflow: hidden; white-space: nowrap; }
+table.kj-t th, table.kj-t td { border: 0.3mm solid #000; padding: 0 1mm; text-align: center; overflow: hidden; }
 table.kj-t th { font-weight: normal; height: 5.8mm; font-size: 6.5pt; white-space: normal; line-height: 1.05; }
-table.kj-t td { height: 7.1mm; }
-table.kj-t td.mark { white-space: normal; font-size: 5.5pt; line-height: 1.05; }
+table.kj-t td { height: 7.1mm; padding: 0 0.7mm; }
+.fit { overflow: hidden; display: flex; align-items: center; justify-content: center; white-space: normal; line-height: 1.12; word-break: break-word; }
 table.kj-t tr.grp td { font-weight: bold; }
 table.kj-t tr.tot td.lbl { text-align: right; padding-right: 2mm; }
 .stamp { position: absolute; left: 0; right: 0; bottom: 0; height: 55mm; border-top: 0.7mm solid #000; display: flex; }
@@ -29,6 +30,7 @@ table.kj-t tr.tot td.lbl { text-align: right; padding-right: 2mm; }
 .st-right > div { border-bottom: 0.3mm solid #000; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 2mm; }
 .st-right > div:last-child { border-bottom: 0; }
 .st-code { font-size: 11pt; }
+.st-right > div > .fit, .st-row > div > .fit { width: 100%; }
 .st-obj { font-size: 6pt; line-height: 1.15; }
 .st-row { display: flex; padding: 0 !important; align-items: stretch !important; }
 .st-row > div { display: flex; align-items: center; justify-content: center; text-align: center; border-right: 0.3mm solid #000; padding: 0 1.5mm; }
@@ -42,19 +44,43 @@ table.kj-t tr.tot td.lbl { text-align: right; padding-right: 2mm; }
 </style>`;
 
 const COLS = [22, 18, 18, 22, 38, 13, 20, 12, 22];
+/** Ширина рабочего поля рамки, мм (185 мм минус линии рамки). */
+const INNER = 183.6;
+const ROW_H = 7.1;
+
+/** Кегль, при котором текст помещается в блок ширины w и высоты h (мм): строки не раздвигаются. */
+export function fitFont(text: string, w: number, h: number, maxPt: number, minPt = 3): number {
+  const len = Math.max(1, text.length);
+  for (let pt = maxPt; pt > minPt; pt -= 0.25) {
+    const charW = pt * 0.3528 * 0.62;   // средняя ширина знака Arial (кириллица), с запасом
+    const lineH = pt * 0.3528 * 1.18;
+    const perLine = Math.max(1, Math.floor(w / charW));
+    if (Math.ceil(len / perLine) * lineH <= h) return Math.round(pt * 100) / 100;
+  }
+  return minPt;
+}
+
+/** Текст в блоке фиксированного размера: кегль подбирается, лишнее обрезается — строка не растёт. */
+function fit(text: string, w: number, h: number, maxPt: number, align = "center"): string {
+  const pt = fitFont(text, w, h, maxPt);
+  const justify = align === "right" ? "flex-end" : align === "left" ? "flex-start" : "center";
+  return `<div class="fit" style="height:${h}mm;font-size:${pt}pt;text-align:${align};justify-content:${justify}">${e(text)}</div>`;
+}
+const colW = (i: number, span = 1) => COLS.slice(i, i + span).reduce((a, b) => a + b, 0) * INNER / 185 - 1.4;
+const cell = (text: string, i: number, span = 1, align = "center") =>
+  `<td${span > 1 ? ` colspan="${span}"` : ""}>${fit(text, colW(i, span), ROW_H - 0.8, 7, align)}</td>`;
 
 function line(l: JournalLine | undefined): string {
   if (!l) return `<tr>${COLS.map(() => "<td></td>").join("")}</tr>`;
-  if (l.kind === "group") return `<tr class="grp"><td colspan="9">${e(l.title)}</td></tr>`;
+  if (l.kind === "group") return `<tr class="grp">${cell(l.title, 0, 9)}</tr>`;
   if (l.kind === "total") {
     return l.pipe
-      ? `<tr class="tot"><td colspan="6" class="lbl">${e(l.label)}</td><td class="mark">${e(l.mark)}</td><td>${e(l.length)}</td><td></td></tr>`
-      : `<tr class="tot"><td colspan="4" class="lbl">${e(l.label)}</td><td class="mark">${e(l.mark)}</td><td>${e(l.length)}</td><td></td><td></td><td></td></tr>`;
+      ? `<tr class="tot">${cell(l.label, 0, 6, "right")}${cell(l.mark, 6)}${cell(l.length, 7)}<td></td></tr>`
+      : `<tr class="tot">${cell(l.label, 0, 4, "right")}${cell(l.mark, 4)}${cell(l.length, 5)}<td></td><td></td><td></td></tr>`;
   }
   const r = l.row;
-  const n = (x: number | null) => (x === null ? "" : String(Math.round(x * 1000) / 1000).replace(".", ","));
-  return `<tr><td>${e(r.designation)}</td><td>${e(r.from)}</td><td>${e(r.to)}</td><td>${e(r.direction)}</td>` +
-    `<td class="mark">${e(r.cableMark)}</td><td>${n(r.cableLength)}</td><td class="mark">${e(r.pipeMark)}</td><td>${n(r.pipeLength)}</td><td>${e(r.note)}</td></tr>`;
+  return `<tr>${cell(r.designation, 0)}${cell(r.from, 1)}${cell(r.to, 2)}${cell(r.direction, 3)}${cell(r.cableMark, 4)}` +
+    `${cell(formatNumber(r.cableLength), 5)}${cell(r.pipeMark, 6)}${cell(formatNumber(r.pipeLength), 7)}${cell(r.note, 8)}</tr>`;
 }
 
 function stamp(d: KjData, no: number, total: number): string {
@@ -71,10 +97,10 @@ function stamp(d: KjData, no: number, total: number): string {
   return `<div class="stamp">
     <div class="st-left"><table><colgroup><col style="width:9mm"><col style="width:9mm"><col style="width:9mm"><col style="width:12mm"><col style="width:14mm"><col style="width:12mm"></colgroup>${rows}</table></div>
     <div class="st-right">
-      <div class="st-code">${e(s.code)}</div>
-      <div class="st-obj">${e(s.object)}</div>
-      <div class="st-row"><div class="st-name">${e(s.section)}</div><div class="st-meta"><span>Стадия</span><span>Лист</span><span>Листов</span><span>ИД</span><span>${no}</span><span>${total}</span></div></div>
-      <div class="st-row"><div class="st-name">Кабельный журнал</div><div class="st-org">${e(s.org)}</div></div>
+      <div class="st-code">${fit(s.code, 114, 11, 11)}</div>
+      <div class="st-obj">${fit(s.object, 114, 12, 7)}</div>
+      <div class="st-row"><div class="st-name">${fit(s.section, 66, 14, 9)}</div><div class="st-meta"><span>Стадия</span><span>Лист</span><span>Листов</span><span>ИД</span><span>${no}</span><span>${total}</span></div></div>
+      <div class="st-row"><div class="st-name">${fit("Кабельный журнал", 66, 14, 9)}</div><div class="st-org">${fit(s.org, 46, 14, 8)}</div></div>
     </div>
   </div>`;
 }

@@ -27,7 +27,13 @@ export function buildCableBundle(book: Book, actNumber: string, important: Impor
 
   const docRow = ofAct("ДокументыКабелей")[0];
   if (!docRow) c.push("ДокументыКабелей", null, "Акт", `Нет строки акта «${n}» в таблице «ДокументыКабелей»`);
-  const doc = docRow ? c.checkRow("ДокументыКабелей", docRow) : null;
+  // Важные поля строки документов — только те, что нужны печатаемому документу.
+  const KJ_ONLY = ["journalCode", "journalDate"], IP_ONLY = ["protocolNumber", "dateFrom", "dateTo"];
+  const skip = new Set((kind === "kj" ? IP_ONLY : KJ_ONLY).map((k) => column("ДокументыКабелей", k).header));
+  const docImportant: ImportantMap = { ...important, "ДокументыКабелей": (important["ДокументыКабелей"] ?? []).filter((h) => !skip.has(h)) };
+  const dc = createChecker(book, docImportant);
+  const doc = docRow ? dc.checkRow("ДокументыКабелей", docRow) : null;
+  for (const i of dc.issues) c.push(i.table, i.row, i.column, i.message);
   if (docRow) c.checkDuplicates("ДокументыКабелей", [docRow]);
 
   const markRows = new Map<string, BookRow>();

@@ -92,3 +92,19 @@ test("Собрать марки из журнала", async () => {
   assert.equal(t!.rows[0][3], 0.5);
   assert.equal(await collectMarks(wb, await readBook(wb)), 0);
 });
+
+test("ревью: журнал не требует полей протокола в «ДокументыКабелей»", async () => {
+  const b = await book((r) => {
+    const d = r["ДокументыКабелей"][0];
+    d["№ протокола"] = null; d["Измерения с"] = null; d["Измерения по"] = null;
+  });
+  assert.deepEqual(buildCableBundle(b, AOV1, defaultImportant(), "kj").issues, []);
+  const ip = msgs(buildCableBundle(b, AOV1, defaultImportant(), "ip"));
+  assert.equal(ip.filter((m) => m === "Не заполнено").length, 3);
+});
+
+test("ревью: протокол не требует шифра и даты журнала", async () => {
+  const b = await book((r) => { const d = r["ДокументыКабелей"][0]; d["Шифр журнала"] = null; d["Дата журнала"] = null; });
+  assert.deepEqual(buildCableBundle(b, AOV1, defaultImportant(), "ip").issues, []);
+  assert.equal(msgs(buildCableBundle(b, AOV1, defaultImportant(), "kj")).filter((m) => m === "Не заполнено").length, 2);
+});

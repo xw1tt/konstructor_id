@@ -5,6 +5,7 @@ import { serveStatic } from "./http/static.ts";
 import { objectRoutes } from "./routes/object.ts";
 import { materialRoutes } from "./routes/materials.ts";
 import { fileRoutes } from "./routes/files.ts";
+import { actRoutes } from "./routes/acts.ts";
 
 export const DEFAULT_UPLOAD_LIMIT = 200 * 1024 * 1024;
 
@@ -23,6 +24,7 @@ export function createApp(opts: AppOptions) {
   const api = new Router(opts.allowedOrigins ?? defaultOrigins());
   objectRoutes(api, opts.db);
   materialRoutes(api, opts.db);
+  actRoutes(api, opts.db);
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {

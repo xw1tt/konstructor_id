@@ -3,6 +3,7 @@ import { Router, Reply, HttpError, notFound } from "../http/router.ts";
 import { MaterialInput, QualityDocInput } from "@idk/shared/schemas";
 import { materials } from "../repo/materials.ts";
 import { qualityDocs } from "../repo/qualityDocs.ts";
+import { acts } from "../repo/acts.ts";
 
 const fk = <T>(fn: () => T): T => {
   try { return fn(); } catch (e) {
@@ -19,7 +20,12 @@ export function materialRoutes(r: Router, db: Db) {
   r.get("/api/materials", () => mats.list());
   r.post("/api/materials", async (c) => new Reply(201, mats.create(await c.body(MaterialInput))));
   r.put("/api/materials/:id", async (c) => { const id = c.id(); return mats.update(id, await c.body(MaterialInput)) ?? Promise.reject(notFound("Материал")); });
-  r.delete("/api/materials/:id", (c) => { if (!mats.delete(c.id())) throw notFound("Материал"); });
+  r.delete("/api/materials/:id", (c) => {
+    const id = c.id();
+    const used = acts(db).actsUsingMaterial(id);
+    if (used.length) throw new HttpError(409, `Материал используется в актах: ${used.join(", ")}`);
+    if (!mats.delete(id)) throw notFound("Материал");
+  });
   r.get("/api/materials/:id/quality-docs", (c) => docs.forMaterial(c.id()));
 
   r.get("/api/quality-docs", () => docs.list());

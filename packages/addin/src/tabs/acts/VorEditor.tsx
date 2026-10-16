@@ -5,22 +5,26 @@ import { apiSend } from "../../api.ts";
 import { useGuard } from "../../server.tsx";
 import { useList } from "../common.tsx";
 import { cloneGroup, groupsOf, normalize, renameGroup } from "./vorMath.ts";
+import { parseDecimalDraft, showDecimal } from "./decimal.ts";
 
 export function VorEditor({ full, reload }: { full: ActFull; reload: () => void }) {
   const guard = useGuard();
   const [catalog] = useList<Material>("/api/materials");
   const [lines, setLines] = useState<VorLineInput[]>(() => normalize(full.vor));
   const [newName, setNewName] = useState("");
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const byId = useMemo(() => new Map(catalog.map((m) => [m.id, m])), [catalog]);
   const actMats = [...full.materials].sort((a, b) => a.sortOrder - b.sortOrder).map((m) => m.materialId);
-  const change = (next: VorLineInput[]) => { setStatus(""); setLines(normalize(next)); };
-  const groups = groupsOf(lines);
-  const indexed = lines.map((l, idx) => ({ l, idx }));
+  const change = (next: VorLineInput[]) => { setStatus(""); setDrafts({}); setLines(normalize(next)); };
+  // строки материалов, которых уже нет в акте, не показываем и не сохраняем
+  const valid = lines.filter((l) => actMats.includes(l.materialId));
+  const groups = groupsOf(valid);
+  const indexed = lines.map((l, idx) => ({ l, idx })).filter((x) => actMats.includes(x.l.materialId));
   const save = async () => {
     setError("");
-    const r = await guard(apiSend("PUT", `/api/acts/${full.act.id}/vor`, lines), setError);
+    const r = await guard(apiSend("PUT", `/api/acts/${full.act.id}/vor`, normalize(valid)), setError);
     if (r) { setStatus("Сохранено"); reload(); }
   };
   if (!actMats.length) return <p className="muted">Сначала добавьте материалы акта (п.3) и сохраните их.</p>;
@@ -40,11 +44,15 @@ export function VorEditor({ full, reload }: { full: ActFull; reload: () => void 
                 <li key={idx}>
                   <span className="grow" title={byId.get(l.materialId)?.name}>{byId.get(l.materialId)?.name ?? "…"}</span>
                   <input style={{ width: 70 }} inputMode="decimal" aria-label={`Объём ${byId.get(l.materialId)?.name ?? ""} (${g})`}
-                    value={String(l.quantity).replace(".", ",")}
+                    value={drafts[idx] ?? showDecimal(l.quantity)}
                     onChange={(e) => {
-                      const v = Number(e.target.value.replace(",", "."));
-                      if (Number.isFinite(v) && v >= 0) change(lines.map((x, k) => (k === idx ? { ...x, quantity: v } : x)));
-                    }} />
+                      const p = parseDecimalDraft(e.target.value);
+                      if (!p.ok) return;
+                      setStatus("");
+                      setDrafts({ ...drafts, [idx]: e.target.value });
+                      setLines(lines.map((x, k) => (k === idx ? { ...x, quantity: p.value ?? 0 } : x)));
+                    }}
+                    onBlur={() => { const { [idx]: _d, ...rest } = drafts; setDrafts(rest); }} />
                   <span className="muted">{byId.get(l.materialId)?.unit}</span>
                   <button className="btn btn-icon btn-danger" aria-label="Убрать строку" onClick={() => change(lines.filter((_, k) => k !== idx))}>✕</button>
                 </li>

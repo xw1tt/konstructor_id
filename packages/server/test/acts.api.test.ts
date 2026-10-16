@@ -41,6 +41,7 @@ test("acts: замена материалов — порядок сохраня�
 test("acts: ВОР — строки с группами; документы п.4", async () => {
   const { s, m1 } = await setup();
   const a = (await s.req("POST", "/api/acts", { baseNumber: "A1", date: "2026-07-28" })).json;
+  await s.req("PUT", `/api/acts/${a.id}/materials`, [{ materialId: m1.id }]);
   await s.req("PUT", `/api/acts/${a.id}/vor`, [
     { group: "Этаж П5", materialId: m1.id, quantity: 430, sortOrder: 0 },
     { group: "Этаж П4", materialId: m1.id, quantity: 436.6, sortOrder: 1 },
@@ -63,10 +64,13 @@ test("acts: удаление акта удаляет его строки, но �
 test("materials: удаление используемого → 409", async () => {
   const { s, m1 } = await setup();
   const a = (await s.req("POST", "/api/acts", { baseNumber: "К32.В.СТ.АОВ1.01.00.1", date: "2026-07-28" })).json;
+  await s.req("PUT", `/api/acts/${a.id}/materials`, [{ materialId: m1.id }]);
   await s.req("PUT", `/api/acts/${a.id}/vor`, [{ group: "", materialId: m1.id, quantity: 1 }]);
   const d = await s.req("DELETE", `/api/materials/${m1.id}`);
   assert.equal(d.status, 409);
   assert.match(d.json.error, /К32\.В\.СТ\.АОВ1\.01\.00\.1/);
+  const full = (await s.req("GET", `/api/acts/${a.id}/full`)).json;
+  assert.equal(full.vor.length, 1, "данные акта не потеряны");
 });
 
 test("acts: несуществующий материал в строках → 400, прежние строки целы", async () => {

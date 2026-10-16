@@ -9,3 +9,12 @@ export function nextBaseNumber(prev: string): string {
 }
 
 export const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const trailingNumber = (s: string) => Number(s.trim().match(/(\d+)$/)?.[1] ?? -1);
+
+/** Номер следующего акта по списку: от акта с наибольшим числом в конце номера. */
+export function nextNumberFor(list: { baseNumber: string }[]): string {
+  if (!list.length) return "1";
+  const top = list.reduce((a, b) => (trailingNumber(b.baseNumber) > trailingNumber(a.baseNumber) ? b : a));
+  return nextBaseNumber(top.baseNumber);
+}

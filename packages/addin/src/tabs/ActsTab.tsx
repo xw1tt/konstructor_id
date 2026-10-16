@@ -5,7 +5,7 @@ import { apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
 import { Section, useList } from "./common.tsx";
 import { ActCard, type ActCardSlots } from "./acts/ActCard.tsx";
-import { nextBaseNumber, todayIso } from "./acts/actDefaults.ts";
+import { nextNumberFor, todayIso } from "./acts/actDefaults.ts";
 
 export function ActsTab({ slots }: { slots?: ActCardSlots }) {
   const guard = useGuard();
@@ -15,9 +15,8 @@ export function ActsTab({ slots }: { slots?: ActCardSlots }) {
 
   const create = async () => {
     setError("");
-    const last = list[list.length - 1];
     const a = await guard(apiSend<Act>("POST", "/api/acts", {
-      baseNumber: nextBaseNumber(last?.baseNumber ?? ""), date: todayIso(),
+      baseNumber: nextNumberFor(list), date: todayIso(),
     }), setError);
     if (a) { reload(); setOpenId(a.id); }
   };

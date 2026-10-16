@@ -4,6 +4,7 @@ import type { Material, QualityDoc } from "@idk/shared/schemas";
 import { vorTotals, MATERIALS_INLINE_LIMIT } from "@idk/shared/acts/rows";
 import { formatNumber } from "@idk/shared/acts/format";
 import { apiSend } from "../../api.ts";
+import { parseDecimalDraft, showDecimal } from "./decimal.ts";
 import { useGuard } from "../../server.tsx";
 import { useList } from "../common.tsx";
 
@@ -13,6 +14,8 @@ export function ActMaterials({ full, reload }: { full: ActFull; reload: () => vo
   const [docs] = useList<QualityDoc>("/api/quality-docs");
   const [rows, setRows] = useState<ActMaterialInput[]>(() => [...full.materials].sort((a, b) => a.sortOrder - b.sortOrder));
   const [query, setQuery] = useState("");
+  // текст, который пользователь набирает в поле количества (чтобы «436,» не превращалось в «436»)
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const byId = useMemo(() => new Map(catalog.map((m) => [m.id, m])), [catalog]);
@@ -55,12 +58,15 @@ export function ActMaterials({ full, reload }: { full: ActFull; reload: () => vo
                   <input value={r.position} onChange={(e) => update(i, { position: e.target.value })} />
                 </label>
                 <label className="muted">Кол-во, {m?.unit || "ед."}
-                  <input inputMode="decimal" value={r.quantity === null ? "" : String(r.quantity).replace(".", ",")}
+                  <input inputMode="decimal" value={drafts[r.materialId] ?? showDecimal(r.quantity)}
                     placeholder={vor !== undefined ? `по ВОР: ${formatNumber(vor)}` : "по ВОР"}
                     onChange={(e) => {
-                      const v = e.target.value.trim().replace(",", ".");
-                      update(i, { quantity: v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : r.quantity });
-                    }} />
+                      const p = parseDecimalDraft(e.target.value);
+                      if (!p.ok) return;
+                      setDrafts({ ...drafts, [r.materialId]: e.target.value });
+                      update(i, { quantity: p.value });
+                    }}
+                    onBlur={() => { const { [r.materialId]: _d, ...rest } = drafts; setDrafts(rest); }} />
                 </label>
               </div>
               {!withDocs.has(r.materialId) && <span className="warn">нет документов качества</span>}

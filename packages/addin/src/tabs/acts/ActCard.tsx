@@ -24,12 +24,16 @@ export function ActCard({ id, onClose, onChanged, slots = {} }: {
   const [sections] = useList<Sec>("/api/sections");
   const [reps] = useList<Representative>("/api/representatives");
 
+  // Полная загрузка (форма + строки) — при открытии и после сохранения самой формы.
   const load = () => void guard(apiGet<ActFull>(`/api/acts/${id}/full`), setError).then((f) => {
     if (!f) return;
     setFull(f);
     const { id: _id, ...data } = f.act;
     setForm(data);
   });
+  // После сохранения материалов, документов или ВОР обновляем только строки:
+  // несохранённый текст пунктов акта в форме не должен пропадать.
+  const reloadRows = () => void guard(apiGet<ActFull>(`/api/acts/${id}/full`), setError).then((f) => f && setFull(f));
   useEffect(load, [id]);
   if (!form || !full) return <p className="muted">Загрузка…</p>;
 
@@ -90,15 +94,15 @@ export function ActCard({ id, onClose, onChanged, slots = {} }: {
           </div>
         </div>
       </Section>
-      {slots.materials && <Section title="П.3 Материалы">{slots.materials(full, load)}</Section>}
-      {slots.documents && <Section title="П.4 Документы">{slots.documents(full, load)}</Section>}
+      {slots.materials && <Section title="П.3 Материалы">{slots.materials(full, reloadRows)}</Section>}
+      {slots.documents && <Section title="П.4 Документы">{slots.documents(full, reloadRows)}</Section>}
       <Section title="П.6–7">
         <div className="form">
           {area("6. Работы выполнены в соответствии с", "normative", 4)}
           {area("7. Разрешается производство последующих работ", "nextWorks", 3)}
         </div>
       </Section>
-      {slots.vor && <Section title="ВОР по этажам">{slots.vor(full, load)}</Section>}
+      {slots.vor && <Section title="ВОР по этажам">{slots.vor(full, reloadRows)}</Section>}
       <Section title="Подписи ВОР">
         <div className="form">
           {area("Комплекс работ (строка в шапке ВОР)", "vorTitle", 2)}

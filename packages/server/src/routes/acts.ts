@@ -9,6 +9,8 @@ import { htmlToPdf } from "../print/browser.ts";
 import { acts } from "../repo/acts.ts";
 import { objectInfo } from "../repo/objectInfo.ts";
 import { sections } from "../repo/sections.ts";
+import { representatives } from "../repo/representatives.ts";
+import { activeRepresentatives } from "@idk/shared/rules";
 
 const actNotFound = () => new HttpError(404, "Акт не найден");
 const fk = <T>(fn: () => T): T => {
@@ -28,8 +30,13 @@ export function actRoutes(r: Router, db: Db) {
     const b = await c.body(ActInput);
     const firstSection = sections(db).list()[0];
     const section = b.sectionId !== null ? sections(db).get(b.sectionId) : firstSection;
+    const reps = representatives(db).list();
+    const performers = activeRepresentatives(reps, "performer", b.date);
     const data: ActInput = {
       ...b,
+      // дополнение к спецификации, §5: первый стройконтроль заказчика и последний представитель исполнителя
+      vorCustomerRepId: b.vorCustomerRepId ?? activeRepresentatives(reps, "developer_control", b.date)[0]?.id ?? null,
+      vorContractorRepId: b.vorContractorRepId ?? performers[performers.length - 1]?.id ?? null,
       sectionId: b.sectionId ?? firstSection?.id ?? null,
       performerOrgId: b.performerOrgId ?? objectInfo(db).get().roles.performer,
       vorTitle: b.vorTitle || section?.name || "",
@@ -52,7 +59,8 @@ export function actRoutes(r: Router, db: Db) {
   });
   r.put("/api/acts/:id/materials", async (c) => {
     const id = c.id(); mustAct(id);
-    const rows = await c.body(z.array(ActMaterialInput));
+    const rows = await c.body(z.array(ActMaterialInput).refine(
+      (a) => new Set(a.map((x) => x.materialId)).size === a.length, "Материал указан в акте дважды"));
     fk(() => repo.setMaterials(id, rows));
     return repo.materials(id);
   });
@@ -65,6 +73,9 @@ export function actRoutes(r: Router, db: Db) {
   r.put("/api/acts/:id/vor", async (c) => {
     const id = c.id(); mustAct(id);
     const rows = await c.body(z.array(VorLineInput));
+    const inAct = new Set(repo.materials(id).map((m) => m.materialId));
+    if (rows.some((r) => !inAct.has(r.materialId)))
+      throw new HttpError(400, "Материал строки ВОР не входит в акт: сначала добавьте его в п.3 и сохраните");
     fk(() => repo.setVor(id, rows));
     return repo.vor(id);
   });

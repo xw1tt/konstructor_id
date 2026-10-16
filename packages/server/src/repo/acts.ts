@@ -29,6 +29,9 @@ export const acts = (db: Db) => {
       db.prepare("DELETE FROM act_materials WHERE act_id=?").run(actId);
       const ins = db.prepare("INSERT INTO act_materials (act_id, material_id, position, quantity, sort_order) VALUES (?,?,?,?,?)");
       for (const r of rows) ins.run(actId, r.materialId, r.position, r.quantity, r.sortOrder);
+      // строки ВОР материалов, убранных из акта, иначе итог ВОР разойдётся с ВД
+      const keep = rows.map((r) => r.materialId);
+      db.prepare(`DELETE FROM vor_lines WHERE act_id=? AND material_id NOT IN (${keep.map(() => "?").join(",") || "NULL"})`).run(actId, ...keep);
     }),
     setDocuments: (actId: number, rows: ActDocumentInput[]) => tx(() => {
       db.prepare("DELETE FROM act_documents WHERE act_id=?").run(actId);

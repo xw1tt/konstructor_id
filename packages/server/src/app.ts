@@ -16,6 +16,9 @@ export interface AppOptions {
   uploadLimit?: number;
   /** Адреса, с которых разрешены изменяющие запросы (панель). */
   allowedOrigins?: string[];
+  /** Для тестов: подмена доступа к порталу protect.gost.ru и пауз при обновлении справочника. */
+  fetchImpl?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export const defaultOrigins = (port = 3443) => [`https://localhost:${port}`, `https://127.0.0.1:${port}`];
@@ -24,7 +27,7 @@ export function createApp(opts: AppOptions) {
   const api = new Router(opts.allowedOrigins ?? defaultOrigins());
   printRoutes(api);
   exportRoutes(api, opts.db);
-  normRoutes(api, opts.db);
+  normRoutes(api, opts.db, { fetchImpl: opts.fetchImpl, sleep: opts.sleep });
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {

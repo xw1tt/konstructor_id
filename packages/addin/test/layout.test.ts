@@ -1,13 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { column } from "@idk/shared/workbook/schema";
-import { listSource, strictList, importantRule, duplicateRule, colLetter } from "@idk/addin/book/layout";
+import { listSource, listName, strictList, importantRule, duplicateRule, colLetter } from "@idk/addin/book/layout";
+import { TABLES, TABLE_NAMES } from "@idk/shared/workbook/schema";
 
 test("источник списка", () => {
   assert.equal(listSource(column("ВОР", "material")), '=INDIRECT("Материалы[Наименование]")');
   assert.equal(listSource(column("Акты", "vorCustomer")), '=INDIRECT("Представители[ФИО]")');
-  assert.equal(listSource(column("Схемы", "kind")), "=Список_kind");
-  assert.equal(listSource(column("Представители", "role")), "=Список_role");
+  assert.equal(listSource(column("Схемы", "kind"), "Схемы"), "=Список_Схемы_kind");
+  assert.equal(listSource(column("Представители", "role"), "Представители"), "=Список_Представители_role");
+  assert.equal(listSource(column("Нормативы", "kind"), "Нормативы"), "=Список_Нормативы_kind");
   assert.equal(listSource(column("Материалы", "name")), null);
   assert.equal(strictList(column("ДокументыКачества", "materials")), false);
   assert.equal(strictList(column("ВОР", "material")), true);
@@ -45,4 +47,9 @@ test("текстовый формат ячеек для текстовых ст�
   assert.equal(textFormatted(column("ВОР", "quantity")), false);
   assert.equal(textFormatted(column("Акты", "date")), false);
   assert.equal(textFormatted(column("МатериалыАктов", "vorSum")), false);
+});
+
+test("имена списков перечислений уникальны по всей книге", () => {
+  const names = TABLE_NAMES.flatMap((t) => TABLES[t].columns.filter((c) => c.type === "enum").map((c) => listName(t, c)));
+  assert.equal(new Set(names).size, names.length, names.join(", "));
 });

@@ -390,16 +390,16 @@ export class ExcelPort implements TableStore {
   /** Скрытый лист «Списки» с именованными диапазонами для перечислений (роль, тип, вид). */
   private async ensureLists(ctx: any, sheetNames: Set<string>) {
     const ws = sheetNames.has(LISTS_SHEET) ? ctx.workbook.worksheets.getItem(LISTS_SHEET) : ctx.workbook.worksheets.add(LISTS_SHEET);
-    const enums = TABLE_NAMES.flatMap((t) => TABLES[t].columns.filter((c) => c.type === "enum"));
+    const enums = TABLE_NAMES.flatMap((t) => TABLES[t].columns.filter((c) => c.type === "enum").map((col) => ({ t, col })));
     const names = ctx.workbook.names;
     names.load("items/name");
     await ctx.sync();
     const existing = new Set((names.items as any[]).map((n) => n.name));
-    enums.forEach((col, i) => {
+    enums.forEach(({ t, col }, i) => {
       const values = col.values!.map((v) => [v]);
       const range = ws.getRangeByIndexes(0, i, values.length, 1);
       range.values = values;
-      if (!existing.has(listName(col))) names.add(listName(col), range);
+      if (!existing.has(listName(t, col))) names.add(listName(t, col), range);
     });
     ws.visibility = "Hidden";
     await ctx.sync();
@@ -415,7 +415,7 @@ export class ExcelPort implements TableStore {
       if (col.type === "date") body.numberFormat = fill("dd.mm.yyyy");
       if (textFormatted(col)) body.numberFormat = fill("@");
       if (col.type === "formula" && col.formula) body.formulas = fill(col.formula);
-      const source = listSource(col);
+      const source = listSource(col, def.name);
       if (source) {
         body.dataValidation.clear();
         body.dataValidation.rule = { list: { inCellDropDown: true, source } };

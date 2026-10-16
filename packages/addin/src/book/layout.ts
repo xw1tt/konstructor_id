@@ -1,5 +1,5 @@
 // Разметка книги: источники выпадающих списков и формулы условного форматирования (чистые функции).
-import { TABLES, keyColumn, type ColumnDef } from "@idk/shared/workbook/schema";
+import { TABLES, keyColumn, type ColumnDef, type TableName } from "@idk/shared/workbook/schema";
 
 export const COLORS = {
   header: "#1F4E78", important: "#C00000", service: "#7F7F7F", empty: "#FFC7CE", duplicate: "#FFEB9C", headerText: "#FFFFFF",
@@ -13,18 +13,20 @@ export function colLetter(i: number): string {
 }
 
 /** Источник списка проверки данных: ссылка → столбец ключа целевой таблицы, перечисление → значения. */
-export function listSource(col: ColumnDef): string | null {
+export function listSource(col: ColumnDef, table?: TableName): string | null {
   if ((col.type === "ref" || col.type === "refs") && col.ref) {
     const key = keyColumn(col.ref);
     return key ? `=INDIRECT("${TABLES[col.ref].name}[${key.header}]")` : null;
   }
-  if (col.type === "enum" && col.values) return `=${listName(col)}`;
+  if (col.type === "enum" && col.values && table) return `=${listName(table, col)}`;
   return null;
 }
 
 /** Имя диапазона со значениями перечисления (на скрытом листе «Списки»): подписи ролей содержат запятые,
  *  поэтому список «через запятую» в проверке данных Excel не подходит. */
-export const listName = (col: ColumnDef) => `Список_${col.key}`;
+/** Имя включает таблицу: ключи столбцов повторяются в разных таблицах («Вид» схем и нормативов).
+ *  Книги 0.3 содержат прежние имена «Список_<ключ>» — их проверки данных продолжают работать. */
+export const listName = (table: TableName, col: ColumnDef) => `Список_${table}_${col.key}`;
 export const LISTS_SHEET = "Списки";
 
 /** Запрещать ли ввод вне списка: для нескольких материалов через «; » — нет. */

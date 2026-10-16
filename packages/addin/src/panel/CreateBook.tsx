@@ -7,6 +7,7 @@ import type { ExcelPort } from "../book/excelPort.ts";
 import { apiGet, ServerUnavailableError } from "../api.ts";
 import type { BookState } from "./useBook.ts";
 import type { CreateFlow } from "./Panel.tsx";
+import { missingNotice } from "./missingNotice.ts";
 
 type Step = { kind: "idle" } | { kind: "busy"; text: string } | { kind: "offer"; data: ExportData } | { kind: "done"; text: string };
 
@@ -53,10 +54,11 @@ export function CreateBook({ port, state, missing, full, flow }: {
   };
 
   if (!fullMode) {
+    const notice = missingNotice(missing);
     return (
       <div className="banner" role="alert">
-        <p>Таблица не найдена: {missing.join(", ")}.</p>
-        <button className="btn" disabled={step.kind === "busy"} onClick={() => void create()}>Восстановить разметку</button>
+        <p>{notice.text}</p>
+        <button className="btn" disabled={step.kind === "busy"} onClick={() => void create()}>{notice.button}</button>
         {error && <p className="error">{error}</p>}
       </div>
     );

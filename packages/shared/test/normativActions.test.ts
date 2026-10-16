@@ -45,3 +45,11 @@ test("filterNormativ", async () => {
   assert.equal(filterNormativ(rows, "пуэ").length, 1);
   assert.equal(filterNormativ(rows, "  ").length, 4);
 });
+
+test("appendToP6 замечает повтор обозначений, которые не распознаются (СНиП, СТО)", () => {
+  assert.equal(appendToP6("СНиП 3.05.06-85", "СНиП 3.05.06-85"), null);
+  assert.equal(appendToP6("по СТО 123-2020 и ПУЭ", "сто 123-2020"), null);
+  assert.equal(appendToP6("СНиП 3.05.06-85", "СНиП 3.05.06"), "СНиП 3.05.06-85, СНиП 3.05.06");
+  assert.equal(appendToP6("по СНиП 3.05.06-85.", "СНиП 3.05.06-85"), null);
+  assert.equal(appendToP6("СТО 1.2.3", "СТО 1.2"), "СТО 1.2.3, СТО 1.2");
+});

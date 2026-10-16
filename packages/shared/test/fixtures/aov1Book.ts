@@ -5,6 +5,15 @@ import { isoToExcelSerial, type CellValue } from "@idk/shared/workbook/values";
 import { ROLE_BOOK_LABELS } from "@idk/shared/workbook/schema";
 import { QUALITY_DOC_LABELS } from "@idk/shared/roles";
 
+export const cablesData = JSON.parse(readFileSync(new URL("./aov1-cables.json", import.meta.url), "utf8")) as {
+  cables: { designation: string; from: string; to: string; direction: string; cableMark: string; cableLength: number | null; pipeMark: string; pipeLength: number | null; note: string; group: string }[];
+  lab: { nameAddress: string; certificate: string; head: string; tester: string };
+  instruments: { name: string; type: string; range: string; accuracy: string; serial: string; certificate: string; checkedOn: string; nextCheck: string; authority: string }[];
+  mark: { mark: string; purpose: string; voltage: number; allowed: number; values: string[] };
+  doc: { journalCode: string; journalDate: string; protocolNumber: string; dateFrom: string; dateTo: string; temperature: number; humidity: number };
+};
+const MEASURE_HEADERS = ["А-В", "В-С", "С-А", "A-N (PEN)", "B-N (PEN)", "C-N (PEN)", "A-PE", "B-PE", "C-PE", "N-PE"];
+
 const data = JSON.parse(readFileSync(new URL("../../../server/src/seed/sbd-aov1.data.json", import.meta.url), "utf8")) as {
   materials: { name: string; mark: string; article: string; manufacturer: string; unit: string }[];
   docs: { type: keyof typeof QUALITY_DOC_LABELS; number: string; issueDate: string; validUntil: string | null; sheets: number; materials: number[]; registryName: string }[];
@@ -78,6 +87,29 @@ export function aov1Records(): Partial<Record<string, Record<string, CellValue>[
     ].map((name, i) => ({ "Акт": AOV1, "Вид": "Схема", "Номер": `К32.В.СТ.АОВ1.01.00.${i + 1}`, "Наименование": name, "Дата": d("2026-06-06") })),
     "МатериалыАктов": names.map((n) => ({ "Акт": AOV1, "Материал": n, "№ поз. по УСР": "б/н", "Кол-во": null })),
     "ВОР": data.vor.map((v) => ({ "Акт": AOV1, "Этаж / участок": v.group, "Материал": names[v.material - 1], "Объём": v.quantity })),
+    "КабельныйЖурнал": cablesData.cables.map((c) => ({
+      "Акт": AOV1, "Группа": c.group, "Обозначение кабеля, жгута, трубы": c.designation, "Откуда": c.from, "Куда": c.to,
+      "Направление по планам расположения": c.direction, "Кабель: марка, число жил, сечение": c.cableMark, "Кабель: длина, м": c.cableLength,
+      "Труба: марка, диаметр": c.pipeMark, "Труба: длина, м": c.pipeLength, "Примечание": c.note,
+    })),
+    "Электролаборатория": [{
+      "Организация и адрес": cablesData.lab.nameAddress, "Свидетельство": cablesData.lab.certificate,
+      "Руководитель электролаборатории": cablesData.lab.head, "Испытания провёл": cablesData.lab.tester,
+    }],
+    "СредстваИзмерений": cablesData.instruments.map((i) => ({
+      "Наименование СИ": i.name, "Тип": i.type, "Диапазон": i.range, "Точность": i.accuracy, "Заводской №": i.serial,
+      "№ свидетельства о поверке": i.certificate, "Дата поверки": d(i.checkedOn), "Дата очередной поверки": d(i.nextCheck), "Орган поверки": i.authority,
+    })),
+    "ИзмеренияМарок": [{
+      "Марка": cablesData.mark.mark, "Назначение": cablesData.mark.purpose, "Напряжение мегаомметра, В": cablesData.mark.voltage,
+      "Допустимое сопротивление, МОм": cablesData.mark.allowed,
+      ...Object.fromEntries(MEASURE_HEADERS.map((h, i) => [h, cablesData.mark.values[i]])),
+    }],
+    "ДокументыКабелей": [{
+      "Акт": AOV1, "Шифр журнала": cablesData.doc.journalCode, "Дата журнала": d(cablesData.doc.journalDate),
+      "№ протокола": cablesData.doc.protocolNumber, "Измерения с": d(cablesData.doc.dateFrom), "Измерения по": d(cablesData.doc.dateTo),
+      "Температура, °C": cablesData.doc.temperature, "Влажность, %": cablesData.doc.humidity,
+    }],
   };
 }
 

@@ -10,6 +10,7 @@ import {
 import { cellText, parseDateCell, parseNumberCell, splitRefs, type CellValue } from "./values.ts";
 import type { Book, BookRow } from "./records.ts";
 import type { ImportantMap } from "./important.ts";
+import { CablesData } from "./cableTypes.ts";
 
 export const ActBundle = z.object({
   object: ObjectInfo,
@@ -22,6 +23,8 @@ export const ActBundle = z.object({
   actMaterials: z.array(ActMaterialInput),
   documents: z.array(ActDocumentInput),
   vor: z.array(VorLineInput),
+  /** Кабельный журнал и протокол изоляции акта — только в заданиях печати КЖ и протокола. */
+  cables: CablesData.optional(),
 });
 export type ActBundle = z.infer<typeof ActBundle>;
 
@@ -30,28 +33,16 @@ export interface Issue { table: TableName; row: number | null; column: string; m
 /** Поля объекта, без которых не напечатать шапку АОСР. */
 const OBJECT_REQUIRED = new Set(["name", "developer", "builder"]);
 
-export function buildBundle(book: Book, actNumber: string, important: ImportantMap): { bundle: ActBundle | null; issues: Issue[] } {
+/** Проверка ячеек и строк книги с накоплением ошибок — общая для документов акта и кабелей. */
+export function createChecker(book: Book, important: ImportantMap) {
   const issues: Issue[] = [];
   const rows = (t: TableName): BookRow[] => book.tables[t] ?? [];
   const key = (t: TableName, r: BookRow) => cellText(r.v[keyColumn(t)!.key]);
-  const idOf = (r: BookRow) => r.row + 1;
   const find = (t: TableName, k: string) => (k ? rows(t).find((r) => key(t, r) === k) : undefined);
   const push = (table: TableName, row: number | null, column: string, message: string) => {
     if (!issues.some((i) => i.table === table && i.row === row && i.column === column && i.message === message))
       issues.push({ table, row, column, message });
   };
-
-  const n = actNumber.trim();
-  const actRow = find("Акты", n);
-  if (!actRow) {
-    push("Акты", null, "Номер акта", `Акт «${n}» не найден на листе «База актов»`);
-    return { bundle: null, issues };
-  }
-
-  const ofAct = (t: TableName) => rows(t).filter((r) => cellText(r.v.act) === n);
-  const schemeRows = ofAct("Схемы");
-  const actMatRows = ofAct("МатериалыАктов");
-  const vorRows = ofAct("ВОР");
 
   /** Проверка значения одной ячейки; возвращает разобранное значение (или null). */
   const check = (t: TableName, r: BookRow, col: ColumnDef, required = false): unknown => {
@@ -99,6 +90,24 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
       if (k && rows(t).filter((x) => key(t, x) === k).length > 1) push(t, r.row, col.header, "Значение повторяется");
     }
   };
+  return { issues, rows, key, find, push, check, checkRow, checkDuplicates };
+}
+
+export function buildBundle(book: Book, actNumber: string, important: ImportantMap): { bundle: ActBundle | null; issues: Issue[] } {
+  const { issues, rows, key, find, push, checkRow, checkDuplicates } = createChecker(book, important);
+  const idOf = (r: BookRow) => r.row + 1;
+
+  const n = actNumber.trim();
+  const actRow = find("Акты", n);
+  if (!actRow) {
+    push("Акты", null, "Номер акта", `Акт «${n}» не найден на листе «База актов»`);
+    return { bundle: null, issues };
+  }
+
+  const ofAct = (t: TableName) => rows(t).filter((r) => cellText(r.v.act) === n);
+  const schemeRows = ofAct("Схемы");
+  const actMatRows = ofAct("МатериалыАктов");
+  const vorRows = ofAct("ВОР");
 
   // Строка акта и его строки на связанных листах.
   const a = checkRow("Акты", actRow, ["date"]);

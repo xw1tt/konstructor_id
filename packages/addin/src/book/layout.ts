@@ -2,6 +2,7 @@
 import { TABLES, keyColumn, type ColumnDef, type TableName } from "@idk/shared/workbook/schema";
 
 export const COLORS = {
+  example: "#7F7F7F",
   header: "#1F4E78", important: "#C00000", service: "#7F7F7F", empty: "#FFC7CE", duplicate: "#FFEB9C", headerText: "#FFFFFF",
 } as const;
 
@@ -53,3 +54,13 @@ export const nextTableTop = (usedLastRow: number | null) => (usedLastRow === nul
 
 /** Текстовый формат «@»: Excel не превращает ИНН «0274…» в число, «1.10» в 1,1, а текст — в дату. */
 export const textFormatted = (col: ColumnDef) => ["text", "longtext", "ref", "refs", "enum", "file"].includes(col.type);
+
+/** Всплывающая подсказка проверки данных Excel: заголовок до 32 символов, текст до 255. */
+export function promptFor(col: ColumnDef): { title: string; message: string } {
+  const title = col.header.length > 32 ? col.header.slice(0, 31) + "…" : col.header;
+  return { title, message: col.hint.slice(0, 255) };
+}
+
+/** Строка-пример: в строке есть ячейка, начинающаяся с «Пример:» (оформляется серым курсивом). */
+export const exampleRule = (firstCol: string, lastCol: string, firstRow: number) =>
+  `=COUNTIF($${firstCol}${firstRow}:$${lastCol}${firstRow},"Пример:*")>0`;

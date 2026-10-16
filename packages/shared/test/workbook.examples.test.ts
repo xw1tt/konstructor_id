@@ -54,3 +54,16 @@ test("листа «Нормативы» в схеме нет", () => {
   assert.equal(SHEETS.some((s) => (s.name as string) === "Нормативы"), false);
   assert.equal((TABLE_NAMES as string[]).includes("Нормативы"), false);
 });
+
+test("примеры записываются в свежую книгу (пустая строка таблиц, подписи «Объекта») на свои места", async () => {
+  const { OBJECT_FIELDS: F } = await import("@idk/shared/workbook/schema");
+  const { writeBook } = await import("@idk/shared/workbook/migrate");
+  const wb = new MemoryWorkbook({ "Объект": F.map((f) => ({ "Поле": f.label })) }, { placeholder: true });
+  await writeBook(wb, exampleRows(), {});
+  const obj = await wb.read("Объект");
+  assert.equal(obj!.rows.length, F.length);
+  assert.ok(String(obj!.rows[0][1]).startsWith(EXAMPLE_PREFIX));
+  const mats = await wb.read("Материалы");
+  assert.equal(mats!.rows.length, 1);
+  assert.ok(String(mats!.rows[0][0]).startsWith(EXAMPLE_PREFIX));
+});

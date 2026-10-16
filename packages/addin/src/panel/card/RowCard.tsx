@@ -13,6 +13,7 @@ import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { SECTIONS, sectionForSheet } from "../sections.ts";
 import { Field } from "./fields.tsx";
+import { isExampleRow } from "@idk/shared/workbook/examples";
 import { toCellFor } from "./editValue.ts";
 import { MaterialExtras } from "../extras/MaterialExtras.tsx";
 import { ActExtras } from "../extras/ActExtras.tsx";
@@ -25,9 +26,10 @@ function effectiveColumn(table: TableName, col: ColumnDef, row: CellValue[], hea
   if (table !== "Объект" || col.key !== "value") return col;
   const label = cellText(row[headers.indexOf("Поле")] ?? null);
   const f = OBJECT_FIELDS.find((x) => x.label === label);
-  if (f?.type === "ref") return { ...col, type: "ref", ref: "Организации" };
-  if (f?.type === "date") return { ...col, type: "date" };
-  return col;
+  const withHint = f ? { ...col, hint: f.hint } : col;
+  if (f?.type === "ref") return { ...withHint, type: "ref", ref: "Организации" };
+  if (f?.type === "date") return { ...withHint, type: "date" };
+  return withHint;
 }
 
 const keysOf = (book: Book | null, t: TableName) => {
@@ -130,6 +132,7 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
   return (
     <section className="card" aria-label="Карточка строки">
       <h2 className="tools-title">Строка {rowIdx + 1} · {sheet}</h2>
+      {isExampleRow(row) && <p className="example-note" role="note">Это строка-пример: замените значения своими или удалите строку.</p>}
       <div className="form">
         {TABLES[table].columns.map((c) => {
           const col = effectiveColumn(table, c, row, t.headers);

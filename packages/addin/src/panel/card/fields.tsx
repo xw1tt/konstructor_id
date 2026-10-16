@@ -31,6 +31,7 @@ export function Field(p: FieldProps) {
     <label className={"field" + (p.error ? " field-error" : "")}>
       <span className="field-label">{col.header}{col.important ? " *" : ""}</span>
       <Input {...p} />
+      {col.hint && <span className="field-hint">{col.hint}</span>}
       {p.error && <span className="error" role="alert">{p.error}</span>}
     </label>
   );

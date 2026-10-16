@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { column } from "@idk/shared/workbook/schema";
-import { listSource, listName, strictList, importantRule, duplicateRule, colLetter } from "@idk/addin/book/layout";
+import { listSource, listName, strictList, importantRule, duplicateRule, colLetter, promptFor, exampleRule } from "@idk/addin/book/layout";
 import { TABLES, TABLE_NAMES } from "@idk/shared/workbook/schema";
 
 test("источник списка", () => {
@@ -51,4 +51,17 @@ test("текстовый формат ячеек для текстовых ст�
 test("имена списков перечислений уникальны по всей книге", () => {
   const names = TABLE_NAMES.flatMap((t) => TABLES[t].columns.filter((c) => c.type === "enum").map((c) => listName(t, c)));
   assert.equal(new Set(names).size, names.length, names.join(", "));
+});
+
+test("подсказка проверки данных", () => {
+  const p = promptFor(column("Акты", "normative"));
+  assert.equal(p.title, "Нормативы (п.6)");
+  assert.equal(p.message, column("Акты", "normative").hint);
+  const long = promptFor({ ...column("Акты", "normative"), header: "Очень длинный заголовок столбца для проверки" });
+  assert.equal(long.title.length, 32);
+  assert.ok(long.title.endsWith("…"));
+});
+
+test("правило оформления примеров", () => {
+  assert.equal(exampleRule("A", "K", 5), '=COUNTIF($A5:$K5,"Пример:*")>0');
 });

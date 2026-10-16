@@ -7,7 +7,7 @@ import type { ExcelPort } from "../book/excelPort.ts";
 import { apiGet, ServerUnavailableError } from "../api.ts";
 import type { BookState } from "./useBook.ts";
 import type { CreateFlow } from "./Panel.tsx";
-import { missingNotice } from "./missingNotice.ts";
+import { exampleRows } from "@idk/shared/workbook/examples";
 
 type Step = { kind: "idle" } | { kind: "busy"; text: string } | { kind: "offer"; data: ExportData } | { kind: "done"; text: string };
 
@@ -33,12 +33,23 @@ export function CreateBook({ port, state, missing, full, flow }: {
         if (!(e instanceof ServerUnavailableError)) throw e;
       }
       if (data && !isEmptyExport(data)) setStep({ kind: "offer", data });
-      else flow.finish();
+      else await withExamples();
     } catch (e) {
       setError((e as Error).message);
       setStep({ kind: "idle" });
       if (fullMode) flow.finish();
     }
+  };
+
+  /** Новая книга без переноса: строки-примеры во всех таблицах. */
+  const withExamples = async () => {
+    setStep({ kind: "busy", text: "Добавляю строки-примеры…" });
+    try {
+      await writeBook(port, exampleRows(), {});
+    } catch (e) {
+      setError(`Примеры не добавлены: ${(e as Error).message}`);
+    }
+    flow.finish();
   };
 
   const migrate = async (data: ExportData) => {
@@ -54,11 +65,10 @@ export function CreateBook({ port, state, missing, full, flow }: {
   };
 
   if (!fullMode) {
-    const notice = missingNotice(missing);
     return (
       <div className="banner" role="alert">
-        <p>{notice.text}</p>
-        <button className="btn" disabled={step.kind === "busy"} onClick={() => void create()}>{notice.button}</button>
+        <p>Таблица не найдена: {missing.join(", ")}.</p>
+        <button className="btn" disabled={step.kind === "busy"} onClick={() => void create()}>Восстановить разметку</button>
         {error && <p className="error">{error}</p>}
       </div>
     );
@@ -68,7 +78,7 @@ export function CreateBook({ port, state, missing, full, flow }: {
     <main className="content">
       <h2 className="app-title">Книга объекта</h2>
       <p>В этой книге ещё нет листов конструктора. Программа создаст листы «Реквизиты», «Представители», «Материалы»,
-        «Документы качества», «База актов», «Исполнительные схемы», «Материалы в актах», «ВОР», «Кабельный журнал», «Нормативы».</p>
+        «Документы качества», «База актов», «Исполнительные схемы», «Материалы в актах», «ВОР», «Кабельный журнал». В каждой таблице будет строка-пример, а при выделении ячейки — подсказка, что в неё вносить.</p>
       {step.kind === "idle" && <button className="btn btn-primary" onClick={() => void create()}>Создать книгу объекта</button>}
       {step.kind === "busy" && <p className="notice">{step.text}</p>}
       {step.kind === "offer" && (
@@ -79,7 +89,7 @@ export function CreateBook({ port, state, missing, full, flow }: {
           </p>
           <div className="row-actions">
             <button className="btn btn-primary" onClick={() => void migrate(step.data)}>Перенести</button>
-            <button className="btn" onClick={() => flow.finish()}>Не переносить</button>
+            <button className="btn" onClick={() => void withExamples()}>Не переносить</button>
           </div>
         </div>
       )}

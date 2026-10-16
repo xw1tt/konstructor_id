@@ -8,7 +8,7 @@ import type { RowData, RowsTarget, TableData, TableStore } from "@idk/shared/wor
 import type { ImportantMap } from "@idk/shared/workbook/important";
 import { currentHost, type HostStatus } from "./host.ts";
 import {
-  COLORS, LISTS_SHEET, colLetter, duplicateRule, importantRule, listName, listSource, strictList,
+  COLORS, LISTS_SHEET, colLetter, duplicateRule, exampleRule, importantRule, listName, listSource, promptFor, strictList,
   nextTableTop, textFormatted, visibleTableRows,
 } from "./layout.ts";
 
@@ -233,6 +233,20 @@ export class ExcelPort implements TableStore {
 
   // ---------- Выделение и навигация ----------
 
+  /** Пишет в выделенную ячейку (левую верхнюю) значение fn(текущее); null от fn — ничего не писать. */
+  async writeActiveCell(fn: (current: CellValue) => CellValue | null): Promise<{ written: boolean }> {
+    return Excel.run(async (ctx: any) => {
+      const cell = ctx.workbook.getSelectedRange().getCell(0, 0);
+      cell.load("values");
+      await ctx.sync();
+      const next = fn((cell.values?.[0]?.[0] ?? null) === "" ? null : cell.values[0][0]);
+      if (next === null) return { written: false };
+      cell.values = [[next]];
+      await ctx.sync();
+      return { written: true };
+    });
+  }
+
   async getSelection(): Promise<Selection> {
     return Excel.run(async (ctx: any) => {
       const sel = ctx.workbook.getSelectedRange().load("rowIndex,columnIndex,rowCount");
@@ -375,7 +389,13 @@ export class ExcelPort implements TableStore {
           t.style = "TableStyleLight9";
           t.getHeaderRowRange().values = [def.columns.map((c) => c.header)];
           this.formatTable(t, def, important[name] ?? [], top + 2, bodyRows);
-          if (name === "Объект") t.getDataBodyRange().getColumn(0).values = OBJECT_FIELDS.map((f) => [f.label]);
+          if (name === "Объект") {
+            const values = t.getDataBodyRange().getColumn(1);
+            t.getDataBodyRange().getColumn(0).values = OBJECT_FIELDS.map((f) => [f.label]);
+            OBJECT_FIELDS.forEach((f, i) => {
+              values.getCell(i, 0).dataValidation.prompt = { showPrompt: true, ...promptFor({ ...def.columns[1], header: f.label, hint: f.hint }) };
+            });
+          }
           await ctx.sync();
           created.push(name);
         }
@@ -416,6 +436,7 @@ export class ExcelPort implements TableStore {
       if (textFormatted(col)) body.numberFormat = fill("@");
       if (col.type === "formula" && col.formula) body.formulas = fill(col.formula);
       const source = listSource(col, def.name);
+      if (def.name !== "Объект" || col.key !== "value") body.dataValidation.prompt = { showPrompt: true, ...promptFor(col) };
       if (source) {
         body.dataValidation.clear();
         body.dataValidation.rule = { list: { inCellDropDown: true, source } };
@@ -439,6 +460,10 @@ export class ExcelPort implements TableStore {
     body.conditionalFormats.clearAll();
     // Формулы правил пишутся для первой ячейки диапазона (таблицы начинаются со столбца A); firstRow — с 1.
     const last = def.columns.length - 1;
+    const ex = body.conditionalFormats.add("Custom");
+    ex.custom.rule.formula = exampleRule(colLetter(0), colLetter(last), firstRow);
+    ex.custom.format.font.color = COLORS.example;
+    ex.custom.format.font.italic = true;
     def.columns.forEach((col: ColumnDef, i: number) => {
       const headCell = t.getHeaderRowRange().getCell(0, i);
       headCell.format.fill.color = important.includes(col.header) ? COLORS.important : col.service ? COLORS.service : COLORS.header;

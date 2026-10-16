@@ -31,6 +31,13 @@ export interface VdData { aosrNumber: string; number: string; rows: VdRow[]; sig
 export interface VorData { objectName: string; title: string; sectionCode: string; rows: VorRow[]; customer: string; contractor: string }
 export type DocData = { aosr: AosrData; rim: RimData; vd: VdData; vor: VorData };
 
+/** Полная форма реквизитов для шапки АОСР — с точкой в конце, как в бланке. */
+const full = (o: Organization | undefined) => {
+  if (!o) return "";
+  const t = orgFullForm(o).trim();
+  return /[.!?]$/.test(t) ? t : `${t}.`;
+};
+
 const AOSR_ROLES: RoleCode[] = ["developer_control", "builder", "builder_control", "designer", "performer"];
 const APPENDIX_ROLES: RoleCode[] = ["developer_control", "builder", "builder_control", "performer"];
 
@@ -59,9 +66,9 @@ export function buildDocData<K extends DocKind>(db: Db, actId: number, kind: K):
       const designer = org(section?.designerOrgId ?? obj.roles.designer);
       return {
         objectName: obj.name,
-        developer: org(obj.roles.developer) ? orgFullForm(org(obj.roles.developer)!) : "",
-        builder: org(obj.roles.builder) ? orgFullForm(org(obj.roles.builder)!) : "",
-        designer: designer ? orgFullForm(designer) : "",
+        developer: full(org(obj.roles.developer)),
+        builder: full(org(obj.roles.builder)),
+        designer: full(designer),
         number: aosrNumber,
         date: formatDateLong(act.date),
         reps: roles.map((role) => {

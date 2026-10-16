@@ -9,7 +9,7 @@ export function orgFullForm(org: Organization): string {
   if (org.address) parts.push(org.address);
   if (org.phone) parts.push(`тел. ${org.phone}`);
   if (org.sroName) {
-    parts.push(`является членом ${org.sroName}`);
+    parts.push(`является членом организации: ${org.sroName}`);
     if (org.sroOgrn) parts.push(`ОГРН ${org.sroOgrn}`);
     if (org.sroInn) parts.push(`ИНН ${org.sroInn}`);
   }

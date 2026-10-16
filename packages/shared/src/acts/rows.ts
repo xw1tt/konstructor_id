@@ -45,13 +45,20 @@ export function point3Lines(
   });
 }
 
-/** П.4 АОСР. */
+/**
+ * П.4 АОСР. Подряд идущие схемы, как в образце СБД: «Исполнительная схема» только перед первой,
+ * строки разделяются «;» (у последней строки списка — без знака).
+ */
 export function point4Lines(docs: ActDocumentInput[]): string[] {
-  return [...docs].sort(byOrder).map((d) =>
-    d.kind === "scheme"
-      ? `Исполнительная схема ${withNo(d.number)}. ${d.name}`.replace(/\s+\.\s/, ". ").trim()
-      : [d.name, withNo(d.number), d.date ? `от ${formatDateShort(d.date)}` : ""].filter(Boolean).join(" "),
-  );
+  const sorted = [...docs].sort(byOrder);
+  return sorted.map((d, i) => {
+    const last = i === sorted.length - 1;
+    if (d.kind !== "scheme")
+      return [d.name, withNo(d.number), d.date ? `от ${formatDateShort(d.date)}` : ""].filter(Boolean).join(" ");
+    const first = i === 0 || sorted[i - 1].kind !== "scheme";
+    const body = [withNo(d.number) && `${withNo(d.number)}.`, d.name].filter(Boolean).join(" ");
+    return `${first ? "Исполнительная схема " : ""}${body}${last ? "" : ";"}`;
+  });
 }
 
 export interface RimRow { name: string; type: string; number: string; date: string; sheets: number }

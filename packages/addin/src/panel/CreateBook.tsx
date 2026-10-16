@@ -6,19 +6,25 @@ import { loadImportant } from "@idk/shared/workbook/important";
 import type { ExcelPort } from "../book/excelPort.ts";
 import { apiGet, ServerUnavailableError } from "../api.ts";
 import type { BookState } from "./useBook.ts";
+import type { CreateFlow } from "./Panel.tsx";
 
 type Step = { kind: "idle" } | { kind: "busy"; text: string } | { kind: "offer"; data: ExportData } | { kind: "done"; text: string };
 
-export function CreateBook({ port, state, missing, full }: { port: ExcelPort; state: BookState; missing: TableName[]; full: boolean }) {
+export function CreateBook({ port, state, missing, full, flow }: {
+  port: ExcelPort; state: BookState; missing: TableName[]; full: boolean; flow: CreateFlow;
+}) {
+  // Полное создание держит экран открытым до конца (flow); восстановление разметки — нет.
   const [step, setStep] = useState<Step>({ kind: "idle" });
   const [error, setError] = useState("");
+  const [fullMode] = useState(full);
 
   const create = async () => {
     setError("");
     setStep({ kind: "busy", text: "Создаю листы…" });
+    if (fullMode) flow.start();
     try {
       await port.ensureBook(await loadImportant(port));
-      if (!full) { setStep({ kind: "done", text: "Разметка восстановлена." }); state.refresh(); return; }
+      if (!fullMode) { setStep({ kind: "done", text: "Разметка восстановлена." }); state.refresh(); return; }
       let data: ExportData | null = null;
       try {
         data = ExportData.parse(await apiGet("/api/export"));
@@ -26,10 +32,11 @@ export function CreateBook({ port, state, missing, full }: { port: ExcelPort; st
         if (!(e instanceof ServerUnavailableError)) throw e;
       }
       if (data && !isEmptyExport(data)) setStep({ kind: "offer", data });
-      else { setStep({ kind: "done", text: "Книга объекта создана." }); state.refresh(); }
+      else flow.finish();
     } catch (e) {
       setError((e as Error).message);
       setStep({ kind: "idle" });
+      if (fullMode) flow.finish();
     }
   };
 
@@ -37,15 +44,15 @@ export function CreateBook({ port, state, missing, full }: { port: ExcelPort; st
     setStep({ kind: "busy", text: "Переношу данные…" });
     try {
       await writeBook(port, exportToBook(data, location.origin), exportLinks(data, location.origin));
-      setStep({ kind: "done", text: "Данные перенесены в книгу." });
+      flow.finish();
     } catch (e) {
-      setError((e as Error).message);
+      setError(`Перенос прерван: ${(e as Error).message}`);
       setStep({ kind: "idle" });
+      flow.finish();
     }
-    state.refresh();
   };
 
-  if (!full) {
+  if (!fullMode) {
     return (
       <div className="banner" role="alert">
         <p>Таблица не найдена: {missing.join(", ")}.</p>
@@ -70,7 +77,7 @@ export function CreateBook({ port, state, missing, full }: { port: ExcelPort; st
           </p>
           <div className="row-actions">
             <button className="btn btn-primary" onClick={() => void migrate(step.data)}>Перенести</button>
-            <button className="btn" onClick={() => { setStep({ kind: "done", text: "Книга объекта создана." }); state.refresh(); }}>Не переносить</button>
+            <button className="btn" onClick={() => flow.finish()}>Не переносить</button>
           </div>
         </div>
       )}

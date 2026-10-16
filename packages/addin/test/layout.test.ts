@@ -23,3 +23,26 @@ test("буква столбца", () => {
   assert.equal(colLetter(25), "Z");
   assert.equal(colLetter(26), "AA");
 });
+
+test("видимые строки таблицы из областей выделения (фильтр скрывает часть строк)", async () => {
+  const { visibleTableRows } = await import("@idk/addin/book/layout");
+  // данные таблицы с 5-й строки листа (rowIndex 4), 10 строк; видимы 4–5 и 8 строки листа (с 0)
+  assert.deepEqual(visibleTableRows([{ rowIndex: 4, rowCount: 2 }, { rowIndex: 8, rowCount: 1 }], 4, 10), [0, 1, 4]);
+  assert.deepEqual(visibleTableRows([{ rowIndex: 0, rowCount: 6 }], 4, 1), [0]);
+});
+
+test("место новой таблицы — ниже занятой части листа", async () => {
+  const { nextTableTop } = await import("@idk/addin/book/layout");
+  assert.equal(nextTableTop(null), 3);
+  assert.equal(nextTableTop(20), 24);
+});
+
+test("текстовый формат ячеек для текстовых столбцов", async () => {
+  const { textFormatted } = await import("@idk/addin/book/layout");
+  assert.equal(textFormatted(column("Организации", "inn")), true);
+  assert.equal(textFormatted(column("ВОР", "material")), true);
+  assert.equal(textFormatted(column("Объект", "value")), true);
+  assert.equal(textFormatted(column("ВОР", "quantity")), false);
+  assert.equal(textFormatted(column("Акты", "date")), false);
+  assert.equal(textFormatted(column("МатериалыАктов", "vorSum")), false);
+});

@@ -1,5 +1,5 @@
 // «Функционал листа»: работает с активным листом — со строками таблицы или с обычными строками листа.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TABLES, keyColumn, type TableName } from "@idk/shared/workbook/schema";
 import { tableRows, type RowsTarget } from "@idk/shared/workbook/store";
 import { addRows, duplicateRow, moveRow, deleteRows } from "@idk/shared/workbook/rowOps";
@@ -16,7 +16,7 @@ interface Props {
   onRowsAdded?: (table: TableName, first: number, n: number) => Promise<void>;
 }
 
-interface PendingDelete { rows: number[]; text: string }
+interface PendingDelete { rows: number[]; text: string; table: TableName | null; sheet: string }
 
 export function SheetTools({ port, state, onRowsAdded }: Props) {
   const { selection: s, book } = state;
@@ -24,10 +24,14 @@ export function SheetTools({ port, state, onRowsAdded }: Props) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState<PendingDelete | null>(null);
   const [importantOpen, setImportantOpen] = useState(false);
+  const [note, setNote] = useState("");
+  // Подтверждение удаления относится к строкам, выделенным в момент нажатия: при смене выделения — сброс.
+  useEffect(() => setPending(null), [s?.sheet, s?.table, s?.row]);
   if (!s) return null;
 
   const inTable = s.table !== null;
-  const target = (): RowsTarget => (inTable ? tableRows(port, s.table!) : port.sheetRows(s.sheet));
+  const targetOf = (table: TableName | null, sheet: string): RowsTarget => (table ? tableRows(port, table) : port.sheetRows(sheet));
+  const target = () => targetOf(s.table, s.sheet);
   const current = inTable ? s.row : s.sheetRow;
   const selected = inTable ? s.rows : s.sheetRows;
 
@@ -36,10 +40,20 @@ export function SheetTools({ port, state, onRowsAdded }: Props) {
     else await port.selectSheetCell(s.sheet, row, s.sheetCol);
   };
 
-  const run = async (fn: () => Promise<number | void>) => {
+  /** Перестановка и вставка в отфильтрованной таблице задели бы скрытые строки других актов — сначала снимаем фильтр. */
+  const unfilter = async () => {
+    if (inTable && (await port.isFiltered(s.table!))) {
+      await port.clearFilters(s.table!);
+      setNote("Фильтр снят, чтобы не задеть скрытые строки.");
+    }
+  };
+
+  const run = async (fn: () => Promise<number | void>, needsAllRows = true) => {
     setBusy(true);
     setError("");
+    setNote("");
     try {
+      if (needsAllRows) await unfilter();
       const row = await fn();
       if (typeof row === "number") await goTo(row);
     } catch (e) {
@@ -72,7 +86,7 @@ export function SheetTools({ port, state, onRowsAdded }: Props) {
         }
       }
     }
-    setPending({ rows, text });
+    setPending({ rows, text, table: s.table, sheet: s.sheet });
   };
 
   const noRow = current === null;
@@ -92,7 +106,7 @@ export function SheetTools({ port, state, onRowsAdded }: Props) {
         <div className="confirm" role="alertdialog" aria-label="Подтверждение удаления">
           <p>{pending.text}</p>
           <div className="row-actions">
-            <button className="btn btn-danger" onClick={() => { const rows = pending.rows; setPending(null); void run(async () => { await deleteRows(target(), rows); }); }}>Удалить</button>
+            <button className="btn btn-danger" onClick={() => { const p = pending; setPending(null); void run(async () => { await deleteRows(targetOf(p.table, p.sheet), p.rows); }, false); }}>Удалить</button>
             <button className="btn" onClick={() => setPending(null)}>Отмена</button>
           </div>
         </div>
@@ -100,6 +114,7 @@ export function SheetTools({ port, state, onRowsAdded }: Props) {
       {importantOpen && state.table && (
         <ImportantDialog port={port} state={state} table={state.table.name} onClose={() => setImportantOpen(false)} />
       )}
+      {note && <p className="muted" role="status">{note}</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </section>
   );

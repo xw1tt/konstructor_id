@@ -11,7 +11,9 @@ declare const Office: { onReady: (cb: () => void) => void } | undefined;
 const port = new ExcelPort();
 
 const slots: PanelSlots = {
-  create: (state, missing) => <CreateBook port={port} state={state} missing={missing} full={missing.length === TABLE_NAMES.length} />,
+  create: (state, missing, flow) => (
+    <CreateBook port={port} state={state} missing={missing} full={missing.length === TABLE_NAMES.length} flow={flow} />
+  ),
   card: (state) => <CardArea port={port} state={state} />,
   onRowsAdded: async (state, table, first, n) => {
     if (!state.book) return;

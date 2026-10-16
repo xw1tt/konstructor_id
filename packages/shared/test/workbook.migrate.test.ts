@@ -47,6 +47,6 @@ test("поля объекта пишутся в существующие стр�
   assert.deepEqual(t!.rows[0], ["Наименование объекта", "Корпус"]);
   const b = await readBook(wb);
   assert.equal(b.object.developer, 'ООО "СБД"');
-  assert.equal(b.object.contractDate, 46024);
+  assert.equal(b.object.contractDate, "02.01.2026");
   assert.equal(t!.rows.filter((r) => r[0] === "Наименование объекта").length, 1);
 });

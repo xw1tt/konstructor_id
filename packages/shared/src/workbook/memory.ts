@@ -5,17 +5,27 @@ import type { TableData, TableStore } from "./store.ts";
 
 interface MemTable { headers: string[]; formula: boolean[]; rows: CellValue[][]; links: (string | null)[][] }
 
+export interface MemoryOptions {
+  /** Как в Excel: в таблице всегда есть хотя бы одна строка данных (пустая у новой таблицы). */
+  placeholder?: boolean;
+}
+
 export class MemoryWorkbook implements TableStore {
   private tables = new Map<TableName, MemTable>();
   private settings = new Map<string, string>();
 
-  constructor(init: Partial<Record<TableName, Record<string, CellValue>[]>> = {}) {
+  constructor(init: Partial<Record<TableName, Record<string, CellValue>[]>> = {}, private opts: MemoryOptions = {}) {
     for (const name of TABLE_NAMES) {
       const cols = TABLES[name].columns;
       const t: MemTable = { headers: cols.map((c) => c.header), formula: cols.map((c) => c.type === "formula"), rows: [], links: [] };
       this.tables.set(name, t);
       for (const rec of init[name] ?? []) this.push(t, t.rows.length, rec);
+      if (opts.placeholder && !t.rows.length) this.push(t, 0, {});
     }
+  }
+
+  private blank(t: MemTable, row: number) {
+    return t.rows[row].every((v, i) => t.formula[i] || v === null || v === "") && t.links[row].every((l) => !l);
   }
 
   private push(t: MemTable, at: number, rec: Record<string, CellValue>) {
@@ -24,6 +34,15 @@ export class MemoryWorkbook implements TableStore {
   }
 
   drop(name: TableName) { this.tables.delete(name); }
+
+  /** Создаёт пустую таблицу, если её нет (для стенда панели: «Создать книгу»). */
+  create(name: TableName) {
+    if (this.tables.has(name)) return;
+    const cols = TABLES[name].columns;
+    const t: MemTable = { headers: cols.map((c) => c.header), formula: cols.map((c) => c.type === "formula"), rows: [], links: [] };
+    this.tables.set(name, t);
+    if (this.opts.placeholder) this.push(t, 0, {});
+  }
 
   private get(name: TableName): MemTable {
     const t = this.tables.get(name);
@@ -47,10 +66,17 @@ export class MemoryWorkbook implements TableStore {
     });
   }
 
-  async insert(name: TableName, at: number, rows: Record<string, CellValue>[]) {
+  async insert(name: TableName, at: number, rows: Record<string, CellValue>[]): Promise<number> {
     const t = this.get(name);
+    if (this.opts.placeholder && t.rows.length === 1 && this.blank(t, 0)) {
+      t.rows.splice(0, 1);
+      t.links.splice(0, 1);
+      rows.forEach((r, i) => this.push(t, i, r));
+      return 0;
+    }
     const pos = Math.max(0, Math.min(at, t.rows.length));
     rows.forEach((r, i) => this.push(t, pos + i, r));
+    return pos;
   }
 
   async remove(name: TableName, rows: number[]) {
@@ -60,6 +86,7 @@ export class MemoryWorkbook implements TableStore {
       t.rows.splice(r, 1);
       t.links.splice(r, 1);
     }
+    if (this.opts.placeholder && !t.rows.length) this.push(t, 0, {});
   }
 
   async setting(key: string) { return this.settings.get(key) ?? null; }

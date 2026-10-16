@@ -8,9 +8,13 @@ import { useBook, type BookState } from "./useBook.ts";
 import { SheetTools } from "./SheetTools.tsx";
 import { TableTools } from "./TableTools.tsx";
 
+/** Создание книги идёт в несколько шагов; пока оно идёт, панель не переключается на разделы,
+ *  хотя таблицы уже появились (иначе экран с предложением переноса пропал бы). */
+export interface CreateFlow { start(): void; finish(): void }
+
 export interface PanelSlots {
   /** Экран создания книги (нет ни одной таблицы программы) и восстановления разметки. */
-  create?: (state: BookState, missing: TableName[]) => ReactNode;
+  create?: (state: BookState, missing: TableName[], flow: CreateFlow) => ReactNode;
   /** Карточка текущей строки. */
   card?: (state: BookState) => ReactNode;
   onRowsAdded?: (state: BookState, table: TableName, first: number, n: number) => Promise<void>;
@@ -44,6 +48,8 @@ function Header() {
 function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const state = useBook(port);
   const [serverDown, setServerDown] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const flow: CreateFlow = { start: () => setCreating(true), finish: () => { setCreating(false); state.refresh(); } };
   const { book, selection } = state;
   const active = selection ? sectionForSheet(selection.sheet) : null;
   const allMissing = !!book && book.missing.length === TABLE_NAMES.length;
@@ -59,7 +65,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
           </div>
         )}
         {state.error && <p className="error" role="alert">{state.error}</p>}
-        {!book ? <p className="notice">Читаю книгу…</p> : allMissing ? slots.create?.(state, book.missing) : (
+        {!book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
           <>
             <nav className="stamp" role="tablist" aria-label="Разделы">
               {SECTIONS.map((s) => (
@@ -68,7 +74,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
                 </button>
               ))}
             </nav>
-            {book.missing.length > 0 && slots.create?.(state, book.missing)}
+            {book.missing.length > 0 && slots.create?.(state, book.missing, flow)}
             <main className="content">
               <SheetTools port={port} state={state} onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))} />
               <TableTools port={port} state={state} />

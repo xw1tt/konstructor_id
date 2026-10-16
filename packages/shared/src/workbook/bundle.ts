@@ -104,9 +104,10 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
   const a = checkRow("Акты", actRow, ["date"]);
   checkDuplicates("Акты", [actRow]);
   const schemes = schemeRows.map((r) => ({ r, v: checkRow("Схемы", r) }));
-  const actMats = actMatRows.map((r) => ({ r, v: checkRow("МатериалыАктов", r) }));
-  const vor = vorRows.map((r) => ({ r, v: checkRow("ВОР", r) }));
-  const actMatNames = new Set(actMats.map((m) => cellText(m.r.v.material)));
+  // Материал в строке акта обязателен всегда: без него строку не напечатать.
+  const actMats = actMatRows.map((r) => ({ r, v: checkRow("МатериалыАктов", r, ["material"]) }));
+  const vor = vorRows.map((r) => ({ r, v: checkRow("ВОР", r, ["material"]) }));
+  const actMatNames = new Set(actMats.map((m) => cellText(m.r.v.material)).filter(Boolean));
   for (const x of vor) {
     const m = cellText(x.r.v.material);
     if (m && find("Материалы", m) && !actMatNames.has(m))

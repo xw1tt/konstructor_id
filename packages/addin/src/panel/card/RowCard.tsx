@@ -13,7 +13,7 @@ import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { SECTIONS, sectionForSheet } from "../sections.ts";
 import { Field } from "./fields.tsx";
-import { toCell } from "./editValue.ts";
+import { toCellFor } from "./editValue.ts";
 import { MaterialExtras } from "../extras/MaterialExtras.tsx";
 import { ActExtras } from "../extras/ActExtras.tsx";
 import { CableExtras } from "../extras/CableExtras.tsx";
@@ -105,7 +105,7 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
   const valueOf = (h: string) => row[t.headers.indexOf(h)] ?? null;
 
   const commit = async (col: ColumnDef, input: string | string[]) => {
-    const parsed = toCell(col, input);
+    const parsed = toCellFor(table, col, input);
     if (!parsed.ok) { setErrors((e) => ({ ...e, [col.header]: parsed.message })); return; }
     setErrors((e) => ({ ...e, [col.header]: "" }));
     const before = cellText(valueOf(col.header));

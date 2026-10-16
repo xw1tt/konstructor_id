@@ -63,7 +63,7 @@ test("tableRows: чтение, вставка, удаление", async () => {
   const t = tableRows(wb, "Материалы");
   await t.insertBlank(1, 2);
   assert.equal(await t.count(), 4);
-  await t.write(1, ["В", null, null, null, null]);
+  await t.write(1, { values: ["В", null, null, null, null], links: [] });
   await t.remove([2]);
   assert.deepEqual((await wb.read("Материалы"))!.rows.map((r) => r[0]), ["А", "В", "Б"]);
 });

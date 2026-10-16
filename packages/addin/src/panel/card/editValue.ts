@@ -1,7 +1,7 @@
 // Значение ячейки ↔ текст поля карточки.
-import type { ColumnDef } from "@idk/shared/workbook/schema";
+import type { ColumnDef, TableName } from "@idk/shared/workbook/schema";
 import {
-  cellText, parseDateCell, parseNumberCell, isoToExcelSerial, joinRefs, type CellValue, type Parsed,
+  cellText, parseDateCell, parseNumberCell, isoToExcelSerial, excelSerialToIso, joinRefs, type CellValue, type Parsed,
 } from "@idk/shared/workbook/values";
 
 const ruDate = (iso: string) => iso.split("-").reverse().join(".");
@@ -35,4 +35,11 @@ export function toCell(col: ColumnDef, input: string | string[]): Parsed<CellVal
     }
     default: return { ok: true, value: col.type === "longtext" ? input.replace(/^\s+|\s+$/g, "") : t };
   }
+}
+
+/** Как toCell, но поля таблицы «Объект» (текстовый столбец «Значение») получают дату текстом «ДД.ММ.ГГГГ». */
+export function toCellFor(table: TableName, col: ColumnDef, input: string | string[]): Parsed<CellValue> {
+  const p = toCell(col, input);
+  if (p.ok && table === "Объект" && col.type === "date" && typeof p.value === "number") return { ok: true, value: ruDate(excelSerialToIso(p.value)) };
+  return p;
 }

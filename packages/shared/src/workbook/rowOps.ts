@@ -4,16 +4,15 @@ import type { RowsTarget } from "./store.ts";
 /** Вставляет n пустых строк под current (null — в конец). Возвращает индекс первой новой строки. */
 export async function addRows(t: RowsTarget, current: number | null, n: number): Promise<number> {
   const at = current === null ? await t.count() : current + 1;
-  await t.insertBlank(at, n);
-  return at;
+  return t.insertBlank(at, n);
 }
 
 /** Копия строки сразу под ней. Возвращает индекс копии. */
 export async function duplicateRow(t: RowsTarget, row: number): Promise<number> {
-  const values = await t.read(row);
-  await t.insertBlank(row + 1, 1);
-  await t.write(row + 1, values);
-  return row + 1;
+  const data = await t.read(row);
+  const at = await t.insertBlank(row + 1, 1);
+  await t.write(at, data);
+  return at;
 }
 
 /** Обмен с соседней строкой; у края — без изменений. Возвращает новый индекс курсора. */

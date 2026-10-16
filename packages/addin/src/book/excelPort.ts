@@ -4,10 +4,13 @@ import {
   TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, SCHEMA_VERSION, keyColumn, type TableName, type ColumnDef,
 } from "@idk/shared/workbook/schema";
 import type { CellValue } from "@idk/shared/workbook/values";
-import type { RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
+import type { RowData, RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
 import type { ImportantMap } from "@idk/shared/workbook/important";
 import { currentHost, type HostStatus } from "./host.ts";
-import { COLORS, LISTS_SHEET, colLetter, duplicateRule, importantRule, listName, listSource, strictList } from "./layout.ts";
+import {
+  COLORS, LISTS_SHEET, colLetter, duplicateRule, importantRule, listName, listSource, strictList,
+  nextTableTop, textFormatted, visibleTableRows,
+} from "./layout.ts";
 
 declare const Office: any;
 declare const Excel: any;
@@ -107,7 +110,8 @@ export class ExcelPort implements TableStore {
         if (col.header in values) cell.values = [[values[col.header] ?? ""]];
         if (col.header in links) {
           const address = links[col.header];
-          if (address) cell.hyperlink = { address, textToDisplay: String(values[col.header] ?? "файл") };
+          // Текст ссылки задаём, только если пишется и значение — иначе в ячейке остаётся имя файла.
+          if (address) cell.hyperlink = col.header in values ? { address, textToDisplay: String(values[col.header] ?? "") } : { address };
           else cell.clear("Hyperlinks");
         }
       }
@@ -115,9 +119,9 @@ export class ExcelPort implements TableStore {
     });
   }
 
-  async insert(name: TableName, at: number, rows: Record<string, CellValue>[]) {
-    if (!rows.length) return;
-    await Excel.run(async (ctx: any) => {
+  async insert(name: TableName, at: number, rows: Record<string, CellValue>[]): Promise<number> {
+    if (!rows.length) return at;
+    return Excel.run(async (ctx: any) => {
       const t = ctx.workbook.tables.getItem(name);
       const head = t.getHeaderRowRange().load("values");
       t.rows.load("count");
@@ -134,10 +138,27 @@ export class ExcelPort implements TableStore {
           only.values = [values[0]];
           if (values.length > 1) t.rows.add(null, values.slice(1));
           await ctx.sync();
-          return;
+          return 0;
         }
       }
       t.rows.add(index >= t.rows.count ? null : index, values);
+      await ctx.sync();
+      return index;
+    });
+  }
+
+  /** Отфильтрована ли таблица (панель сама ставит фильтр по акту). */
+  async isFiltered(table: TableName): Promise<boolean> {
+    return Excel.run(async (ctx: any) => {
+      const f = ctx.workbook.tables.getItem(table).autoFilter.load("isDataFiltered");
+      await ctx.sync();
+      return !!f.isDataFiltered;
+    });
+  }
+
+  async clearFilters(table: TableName) {
+    await Excel.run(async (ctx: any) => {
+      ctx.workbook.tables.getItem(table).clearFilters();
       await ctx.sync();
     });
   }
@@ -187,20 +208,21 @@ export class ExcelPort implements TableStore {
     };
     return {
       count: () => run(async (ctx, ws) => (await width(ctx, ws)).rows),
-      read: (row) => run(async (ctx, ws) => {
+      read: (row) => run(async (ctx, ws): Promise<RowData> => {
         const { cols } = await width(ctx, ws);
         const r = ws.getRangeByIndexes(row, 0, 1, cols).load("formulas");
         await ctx.sync();
-        return r.formulas[0] as CellValue[];
+        return { values: r.formulas[0] as CellValue[], links: [] };
       }),
-      write: (row, values) => run(async (ctx, ws) => {
-        if (!values.length) return;
-        ws.getRangeByIndexes(row, 0, 1, values.length).formulas = [values.map((v) => v ?? "")];
+      write: (row, d) => run(async (ctx, ws) => {
+        if (!d.values.length) return;
+        ws.getRangeByIndexes(row, 0, 1, d.values.length).formulas = [d.values.map((v) => v ?? "")];
         await ctx.sync();
       }),
       insertBlank: (at, n) => run(async (ctx, ws) => {
         ws.getRange(`${at + 1}:${at + n}`).insert("Down");
         await ctx.sync();
+        return at;
       }),
       remove: (rows) => run(async (ctx, ws) => {
         for (const r of [...new Set(rows)].sort((a, b) => b - a)) ws.getRange(`${r + 1}:${r + 1}`).delete("Up");
@@ -218,11 +240,22 @@ export class ExcelPort implements TableStore {
       const ws = ctx.workbook.worksheets.getActiveWorksheet().load("name");
       await ctx.sync();
       const loc = await locate(ctx, ws, active.rowIndex, active.columnIndex, 1);
-      const multi = await locate(ctx, ws, sel.rowIndex, active.columnIndex, sel.rowCount);
-      const sheetRows = Array.from({ length: sel.rowCount }, (_, i) => sel.rowIndex + i);
+      // Только видимые строки выделения: скрытые фильтром строки других актов не трогаем.
+      const visible = sel.getSpecialCellsOrNullObject("Visible");
+      visible.load("areas/items/rowIndex,areas/items/rowCount");
+      await ctx.sync();
+      const areas: { rowIndex: number; rowCount: number }[] = visible.isNullObject
+        ? [] : (visible.areas.items as any[]).map((a) => ({ rowIndex: a.rowIndex, rowCount: a.rowCount }));
+      const sheetRows = areas.length ? visibleTableRows(areas, 0, 1_048_576) : [active.rowIndex];
+      let rows: number[] = loc.row !== null ? [loc.row] : [];
+      if (loc.table) {
+        const body = ctx.workbook.tables.getItem(loc.table).getDataBodyRange().load("rowIndex,rowCount");
+        await ctx.sync();
+        const vis = visibleTableRows(areas, body.rowIndex, body.rowCount);
+        if (vis.length) rows = vis;
+      }
       return {
-        sheet: ws.name, table: loc.table, row: loc.row, column: loc.column,
-        rows: loc.table && multi.table === loc.table && multi.rows.length ? multi.rows : loc.row !== null ? [loc.row] : [],
+        sheet: ws.name, table: loc.table, row: loc.row, column: loc.column, rows,
         sheetRow: active.rowIndex, sheetCol: active.columnIndex, sheetRows,
       };
     });
@@ -326,36 +359,27 @@ export class ExcelPort implements TableStore {
       await this.ensureLists(ctx, sheetNames);
 
       for (const sheet of SHEETS) {
-        const ws = sheetNames.has(sheet.name) ? sheets.getItem(sheet.name) : sheets.add(sheet.name);
-        let top = 3; // строка (с 0) заголовка первой таблицы
+        const fresh = !sheetNames.has(sheet.name);
+        const ws = fresh ? sheets.add(sheet.name) : sheets.getItem(sheet.name);
         for (const name of sheet.tables) {
+          if (tableNames.has(name)) continue;
+          // Новая таблица — ниже занятой части листа, чтобы не наложиться на существующие (в т. ч. переименованные).
+          const used = ws.getUsedRangeOrNullObject(true).load("rowIndex,rowCount");
+          await ctx.sync();
+          const top = nextTableTop(used.isNullObject ? null : used.rowIndex + used.rowCount - 1);
           const def = TABLES[name];
-          const rowsAfter = name === "Объект" ? OBJECT_FIELDS.length : 1;
-          if (!tableNames.has(name)) {
-            if (sheet.tables.length > 1) ws.getRangeByIndexes(top - 1, 0, 1, 1).values = [[name === "Шифры" ? "Шифры рабочей документации" : name]];
-            const range = ws.getRangeByIndexes(top, 0, 1 + rowsAfter, def.columns.length);
-            const t = ws.tables.add(range, true);
-            t.name = name;
-            t.style = "TableStyleLight9";
-            t.getHeaderRowRange().values = [def.columns.map((c) => c.header)];
-            if (name === "Объект") t.getDataBodyRange().getColumn(0).values = OBJECT_FIELDS.map((f) => [f.label]);
-            const bodyTop = t.getDataBodyRange().load("rowIndex");
-            await ctx.sync();
-            this.formatTable(t, def, important[name] ?? [], bodyTop.rowIndex + 1);
-            await ctx.sync();
-            created.push(name);
-          } else {
-            const t = ctx.workbook.tables.getItem(name);
-            const r = t.getRange().load("rowIndex,rowCount");
-            await ctx.sync();
-            top = r.rowIndex;
-            const used = r.rowCount - 1;
-            top += 1 + used + 3;
-            continue;
-          }
-          top += 1 + rowsAfter + 3;
+          const bodyRows = name === "Объект" ? OBJECT_FIELDS.length : 1;
+          if (sheet.tables.length > 1) ws.getRangeByIndexes(top - 1, 0, 1, 1).values = [[name === "Шифры" ? "Шифры рабочей документации" : name]];
+          const t = ws.tables.add(ws.getRangeByIndexes(top, 0, 1 + bodyRows, def.columns.length), true);
+          t.name = name;
+          t.style = "TableStyleLight9";
+          t.getHeaderRowRange().values = [def.columns.map((c) => c.header)];
+          this.formatTable(t, def, important[name] ?? [], top + 2, bodyRows);
+          if (name === "Объект") t.getDataBodyRange().getColumn(0).values = OBJECT_FIELDS.map((f) => [f.label]);
+          await ctx.sync();
+          created.push(name);
         }
-        ws.freezePanes.freezeRows(sheet.tables.length > 1 ? 0 : 4);
+        if (fresh) ws.freezePanes.freezeRows(sheet.tables.length > 1 ? 0 : 4);
       }
       await ctx.sync();
     });
@@ -381,14 +405,16 @@ export class ExcelPort implements TableStore {
     await ctx.sync();
   }
 
-  private formatTable(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number) {
+  private formatTable(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number, bodyRows: number) {
+    const fill = (v: string) => Array.from({ length: bodyRows }, () => [v]);
     def.columns.forEach((col, i) => {
       const column = t.columns.getItemAt(i);
       const body = column.getDataBodyRange();
       body.format.columnWidth = (col.width ?? 16) * 7;
       body.format.wrapText = col.type === "longtext" || (col.width ?? 16) >= 40;
-      if (col.type === "date") body.numberFormat = [["dd.mm.yyyy"]];
-      if (col.type === "formula" && col.formula) body.formulas = [[col.formula]];
+      if (col.type === "date") body.numberFormat = fill("dd.mm.yyyy");
+      if (textFormatted(col)) body.numberFormat = fill("@");
+      if (col.type === "formula" && col.formula) body.formulas = fill(col.formula);
       const source = listSource(col);
       if (source) {
         body.dataValidation.clear();

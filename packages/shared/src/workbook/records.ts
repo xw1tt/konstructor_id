@@ -28,7 +28,9 @@ export function tableToRows(name: TableName, t: TableData): BookRow[] {
       const val = idx[i] >= 0 ? r[idx[i]] ?? null : null;
       v[c.key] = val;
       link[c.key] = idx[i] >= 0 ? t.links[row]?.[idx[i]] ?? null : null;
-      if (c.type !== "formula" && cellText(val) !== "") filled = true;
+      // Строка из одних значений по умолчанию («Порядок» = 1, «Вид» = «Схема») — ещё не данные.
+      const isDefault = c.default !== undefined && cellText(val) === String(c.default);
+      if (c.type !== "formula" && cellText(val) !== "" && !isDefault) filled = true;
     });
     if (filled) out.push({ row, v, link });
   });

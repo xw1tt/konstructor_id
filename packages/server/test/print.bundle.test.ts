@@ -60,13 +60,13 @@ test("задание живёт 30 минут, хранится не больш�
   let now = 0;
   const jobs = createPrintJobs(() => now);
   const b = await bookBundle();
-  const id = jobs.add(b);
+  const id = jobs.add({ bundle: b, template: "sbd" });
   now = 29 * 60_000;
   assert.ok(jobs.get(id));
   now = 31 * 60_000;
   assert.equal(jobs.get(id), undefined);
-  const first = jobs.add(b);
-  for (let i = 0; i < 50; i++) jobs.add(b);
+  const first = jobs.add({ bundle: b, template: "sbd" });
+  for (let i = 0; i < 50; i++) jobs.add({ bundle: b, template: "sbd" });
   assert.equal(jobs.get(first), undefined);
 });
 

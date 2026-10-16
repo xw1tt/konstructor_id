@@ -7,9 +7,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, "dist");
 mkdirSync(out, { recursive: true });
 await build({
-  entryPoints: [join(here, "src/main.tsx")],
+  entryPoints: { main: join(here, "src/main.tsx"), preview: join(here, "src/preview.ts") },
   bundle: true,
-  outfile: join(out, "main.js"),
+  outdir: out,
   format: "iife",
   target: "es2020",
   jsx: "automatic",
@@ -18,6 +18,6 @@ await build({
   define: { "process.env.NODE_ENV": '"production"' },
   logLevel: "warning",
 });
-for (const f of ["index.html", "styles.css", "assets"]) cpSync(join(here, "src", f), join(out, f), { recursive: true });
+for (const f of ["index.html", "preview.html", "styles.css", "assets"]) cpSync(join(here, "src", f), join(out, f), { recursive: true });
 cpSync(join(here, "manifest.xml"), join(out, "manifest.xml"));
 console.log("Панель собрана:", out);

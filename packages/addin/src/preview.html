@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Предпросмотр — Конструктор ИД</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; font-family: "Segoe UI", system-ui, sans-serif; font-size: 13px; color: #1f2a37; }
+    .bar { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid #d5dbe3; background: #f3f5f8; }
+    .bar a { color: #1e4e8c; }
+    #msg { color: #b42318; padding: 16px; }
+    iframe { border: 0; width: 100%; height: calc(100% - 34px); }
+  </style>
+</head>
+<body>
+  <div class="bar"><strong id="title">Предпросмотр</strong><a id="dl" href="#" download>Скачать PDF</a></div>
+  <div id="msg" hidden></div>
+  <iframe id="pdf" title="Документ"></iframe>
+  <script src="preview.js"></script>
+</body>
+</html>

@@ -9,7 +9,6 @@ test("источник списка", () => {
   assert.equal(listSource(column("Акты", "vorCustomer")), '=INDIRECT("Представители[ФИО]")');
   assert.equal(listSource(column("Схемы", "kind"), "Схемы"), "=Список_Схемы_kind");
   assert.equal(listSource(column("Представители", "role"), "Представители"), "=Список_Представители_role");
-  assert.equal(listSource(column("Нормативы", "kind"), "Нормативы"), "=Список_Нормативы_kind");
   assert.equal(listSource(column("Материалы", "name")), null);
   assert.equal(strictList(column("ДокументыКачества", "materials")), false);
   assert.equal(strictList(column("ВОР", "material")), true);

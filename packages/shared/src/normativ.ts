@@ -62,3 +62,32 @@ export function portalTarget(row: { designation: string; kind: string; link: str
   if (!section || !designation) return { ok: false, message: MSG_NOT_ON_PORTAL };
   return { ok: true, url: `${PORTAL_ORIGIN}/${section}?search=${encodeURIComponent(designation)}` };
 }
+
+const loose = (s: string) => s.replace(/\s+/g, " ").trim().toUpperCase().replace(/Ё/g, "Е");
+
+/** Обозначение встречается в тексте целиком (не как часть более длинного номера) — для СНиП, СТО и т.п. */
+function containsDesignation(text: string, designation: string): boolean {
+  const t = loose(text);
+  const d = loose(designation);
+  if (!d) return false;
+  for (let i = t.indexOf(d); i >= 0; i = t.indexOf(d, i + 1)) {
+    const before = i > 0 ? t[i - 1] : "";
+    const after = t[i + d.length] ?? "";
+    const next = t[i + d.length + 1] ?? "";
+    // «.» после обозначения — конец предложения, если за ней не цифра (иначе это продолжение номера).
+    const continues = /[\p{L}\d/\-]/u.test(after) || (after === "." && /\d/.test(next));
+    if (!/[\p{L}\d]/u.test(before) && !continues) return true;
+  }
+  return false;
+}
+
+/** Текст с добавленным обозначением («…, обозначение» перед завершающей точкой); null — оно там уже есть. */
+export function appendDesignation(current: string, designation: string): string | null {
+  const key = normKey(designation);
+  if (extractNormativ(current).some((n) => normKey(n.designation) === key)) return null;
+  if (containsDesignation(current, designation)) return null;
+  const text = current.trim();
+  if (!text) return designation.trim();
+  const dot = text.endsWith(".");
+  return `${dot ? text.slice(0, -1) : text}, ${designation.trim()}${dot ? "." : ""}`;
+}

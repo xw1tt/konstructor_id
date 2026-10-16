@@ -1,6 +1,7 @@
 // Описание книги объекта: листы, «умные таблицы», столбцы. Единственный источник для разметки,
 // карточек, проверок и сборки пакета акта. Заголовки — буква в букву как в спецификации §3.
-import { NORM_KINDS, NORM_STATUSES } from "../normativ.ts";
+import { HELP, OBJECT_HELP } from "./help.ts";
+import type { CellValue } from "./values.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
 export const SCHEMA_VERSION = 1;
@@ -9,11 +10,11 @@ export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" |
 
 export type TableName =
   | "Объект" | "Организации" | "Шифры" | "Представители" | "Материалы" | "ДокументыКачества"
-  | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал" | "Нормативы";
+  | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал";
 
 export type SheetName =
   | "Реквизиты" | "Представители" | "Материалы" | "Документы качества" | "База актов"
-  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Нормативы";
+  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал";
 
 export interface ColumnDef {
   key: string;
@@ -27,6 +28,10 @@ export interface ColumnDef {
   default?: string | number;
   formula?: string;
   width?: number;
+  /** Подсказка: что вносить и в каком формате (≤ 255 символов — ограничение Excel). */
+  hint: string;
+  /** Значение строки-примера в новой книге. */
+  example?: CellValue;
 }
 
 export interface TableDef { name: TableName; sheet: SheetName; columns: ColumnDef[] }
@@ -53,7 +58,7 @@ export function docTypeFromBook(label: string): QualityDocType | null {
 
 export const SCHEME_KINDS = ["Схема", "Прочее"] as const;
 
-export const OBJECT_FIELDS = [
+const OBJECT_FIELDS_RAW = [
   { key: "name", label: "Наименование объекта", type: "text" },
   { key: "address", label: "Адрес", type: "text" },
   { key: "city", label: "Город", type: "text" },
@@ -64,10 +69,13 @@ export const OBJECT_FIELDS = [
   { key: "designer", label: "Лицо, осуществляющее подготовку проектной документации", type: "ref" },
   { key: "performer", label: "Лицо, выполнившее работы (по умолчанию)", type: "ref" },
 ] as const satisfies readonly { key: string; label: string; type: "text" | "date" | "ref" }[];
-export type ObjectFieldKey = (typeof OBJECT_FIELDS)[number]["key"];
+export type ObjectFieldKey = (typeof OBJECT_FIELDS_RAW)[number]["key"];
+
+/** Поля таблицы «Объект» с подсказками и значениями примера. */
+export const OBJECT_FIELDS = OBJECT_FIELDS_RAW.map((f) => ({ ...f, hint: OBJECT_HELP[f.key][0], example: OBJECT_HELP[f.key][1] }));
 
 const c = (key: string, header: string, type: ColType, extra: Partial<ColumnDef> = {}): ColumnDef =>
-  ({ key, header, type, ...extra });
+  ({ key, header, type, hint: "", ...extra });
 const imp = { important: true };
 
 const t = (name: TableName, sheet: SheetName, columns: ColumnDef[]): TableDef => ({ name, sheet, columns });
@@ -178,14 +186,6 @@ export const TABLES: Record<TableName, TableDef> = {
     c("pipeLength", "Труба: длина, м", "number"),
     c("note", "Примечание", "text"),
   ]),
-  "Нормативы": t("Нормативы", "Нормативы", [
-    c("designation", "Обозначение", "text", { ...imp, isKey: true, width: 26 }),
-    c("title", "Наименование", "text", { width: 60 }),
-    c("kind", "Вид", "enum", { ...imp, values: NORM_KINDS, width: 12 }),
-    c("status", "Статус", "enum", { values: NORM_STATUSES, default: "Действует", width: 14 }),
-    c("link", "Ссылка на портал", "text", { width: 40 }),
-    c("note", "Примечание", "text", { width: 30 }),
-  ]),
 };
 
 export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
@@ -198,10 +198,17 @@ export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
   { name: "Материалы в актах", tables: ["МатериалыАктов"] },
   { name: "ВОР", tables: ["ВОР"] },
   { name: "Кабельный журнал", tables: ["КабельныйЖурнал"] },
-  { name: "Нормативы", tables: ["Нормативы"] },
 ];
 
 export const TABLE_NAMES = Object.keys(TABLES) as TableName[];
+
+// Подсказки и примеры — в help.ts, чтобы описание столбцов оставалось читаемым.
+for (const name of TABLE_NAMES) {
+  for (const col of TABLES[name].columns) {
+    const h = HELP[name]?.[col.key];
+    if (h) { col.hint = h[0]; col.example = h[1]; }
+  }
+}
 
 export const keyColumn = (t: TableName): ColumnDef | undefined => TABLES[t].columns.find((c) => c.isKey);
 

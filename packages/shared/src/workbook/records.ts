@@ -2,6 +2,7 @@
 import { TABLES, TABLE_NAMES, OBJECT_FIELDS, type TableName } from "./schema.ts";
 import { cellText, type CellValue } from "./values.ts";
 import type { TableData, TableStore } from "./store.ts";
+import { isExampleRow } from "./examples.ts";
 
 export interface BookRow {
   /** Индекс строки данных в таблице. */
@@ -21,6 +22,7 @@ export function tableToRows(name: TableName, t: TableData): BookRow[] {
   const idx = cols.map((c) => t.headers.indexOf(c.header));
   const out: BookRow[] = [];
   t.rows.forEach((r, row) => {
+    if (isExampleRow(r)) return; // строка-пример новой книги — не данные
     const v: Record<string, CellValue> = {};
     const link: Record<string, string | null> = {};
     let filled = false;

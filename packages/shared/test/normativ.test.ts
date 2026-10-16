@@ -1,9 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { extractNormativ, normKey, portalTarget } from "@idk/shared/normativ";
+import { extractNormativ, normKey, portalTarget, appendDesignation } from "@idk/shared/normativ";
 import { loadTemplate, saveTemplate } from "@idk/shared/templates";
 import { MemoryWorkbook } from "@idk/shared/workbook/memory";
-import { TABLES, SHEETS } from "@idk/shared/workbook/schema";
 
 const P6 = 'Шифр рабочей документации: КУТ03-Р-ПИР-2-26-100-АОВ1.01.00 листы 0210-0230, рев.1 , СП 76.13330.2016 "Электротехнические устройства", ПУЭ "Правила устройства электроустановок" (6-е и 7-е издания), СП 77.13330.2016 "Системы автоматизации", СП 134.13330.2012 "Системы электросвязи зданий и сооружений. Основные положения проектирования".';
 
@@ -35,7 +34,15 @@ test("шаблон: по умолчанию СБД, сохранение", async
   await wb.setSetting("idk.template", "zzz"); assert.equal(await loadTemplate(wb), "sbd");
   await saveTemplate(wb, "sbd"); assert.equal(await wb.setting("idk.template"), "sbd");
 });
-test("таблица Нормативы", () => {
-  assert.deepEqual(TABLES["Нормативы"].columns.map((c) => c.header), ["Обозначение", "Наименование", "Вид", "Статус", "Ссылка на портал", "Примечание"]);
-  assert.equal(SHEETS.at(-1)!.name, "Нормативы");
+test("appendDesignation", () => {
+  assert.equal(appendDesignation("", "СП 1.1"), "СП 1.1");
+  assert.equal(appendDesignation("  ", "СП 1.1"), "СП 1.1");
+  assert.equal(appendDesignation("СП 76.13330.2016.", "ГОСТ 10434-82"), "СП 76.13330.2016, ГОСТ 10434-82.");
+  assert.equal(appendDesignation("ПУЭ", "ГОСТ 1-1"), "ПУЭ, ГОСТ 1-1");
+  assert.equal(appendDesignation("по СП 76.13330.2016", "сп 76.13330.2016"), null);
+  assert.equal(appendDesignation("СНиП 3.05.06-85", "СНиП 3.05.06-85"), null);
+  assert.equal(appendDesignation("по СТО 123-2020 и ПУЭ", "сто 123-2020"), null);
+  assert.equal(appendDesignation("СНиП 3.05.06-85", "СНиП 3.05.06"), "СНиП 3.05.06-85, СНиП 3.05.06");
+  assert.equal(appendDesignation("по СНиП 3.05.06-85.", "СНиП 3.05.06-85"), null);
+  assert.equal(appendDesignation("СТО 1.2.3", "СТО 1.2"), "СТО 1.2.3, СТО 1.2");
 });

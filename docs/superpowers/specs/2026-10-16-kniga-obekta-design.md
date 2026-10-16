@@ -238,9 +238,9 @@
 - **`@idk/shared/workbook/*`** — чистая логика без Office.js:
   преобразование строк ↔ записи; операции над строками (вставка, дублирование, обмен, удаление);
   поиск ссылок и переименование ключей; проверка; сборка пакета акта; перенос из экспорта базы.
-  Работает через интерфейс `WorkbookPort`.
-- **`@idk/addin/excel/port.ts`** — реализация `WorkbookPort` на Office.js (тонкий слой).
-- **`@idk/addin` тестовая модель** — `MemoryWorkbook` реализует `WorkbookPort` в памяти;
+  Работает через интерфейс `TableStore`.
+- **`@idk/addin/excel/port.ts`** — реализация `TableStore` на Office.js (тонкий слой).
+- **Тестовая модель** — `MemoryWorkbook` (в `@idk/shared/workbook/memory.ts`, нужна и тестам сервера) реализует хранилище таблиц в памяти;
   на ней тесты логики.
 - **Сервер:** `POST /api/print/:doc`, `/api/print-jobs`, `GET /api/export`; `print/data.ts`
   получает функцию «пакет → данные шаблонов».

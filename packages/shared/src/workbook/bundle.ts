@@ -219,5 +219,10 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
       group: txt(x.r.v.group), materialId: matId(x.r.v.material), quantity: Math.max(0, (x.v.quantity as number | null) ?? 0), sortOrder: i,
     })),
   };
+  // В пакет — только то, что нужно этому акту (тело запроса к серверу ограничено 1 МБ).
+  const usedMatIds = new Set(bundle.actMaterials.map((m) => m.materialId));
+  bundle.qualityDocs = bundle.qualityDocs.filter((d) => d.materialIds.some((id) => usedMatIds.has(id)));
+  const keepMat = new Set([...usedMatIds, ...bundle.qualityDocs.flatMap((d) => d.materialIds)]);
+  bundle.materials = bundle.materials.filter((m) => keepMat.has(m.id));
   return { bundle, issues };
 }

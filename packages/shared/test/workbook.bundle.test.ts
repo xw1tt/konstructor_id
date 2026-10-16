@@ -97,3 +97,12 @@ test("пробелы по краям ссылки не мешают", async () =
   const { issues } = await build(withRecords((r) => { r["ВОР"][0]["Материал"] += "  "; }));
   assert.deepEqual(issues, []);
 });
+
+test("в пакет попадают только материалы и документы этого акта", async () => {
+  const { bundle } = await build(withRecords((r) => {
+    r["Материалы"].push({ "Наименование": "Чужой", "Завод-изготовитель": "X", "Ед. изм.": "шт." });
+    r["ДокументыКачества"].push({ "Материалы": "Чужой", "Тип": "Паспорт качества", "Номер": "9", "Дата": 46000, "Листов": 1 });
+  }));
+  assert.equal(bundle!.materials.length, 20);
+  assert.equal(bundle!.qualityDocs.length, 24);
+});

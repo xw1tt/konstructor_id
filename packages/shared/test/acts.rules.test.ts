@@ -175,3 +175,10 @@ test("vorTotalTitle: общий префикс «Этаж» и прочие гр
   assert.equal(vorTotalTitle(["Этаж П5", "Этаж П4"]), "Итого по этажам П5, П4");
   assert.equal(vorTotalTitle(["Секция 1", "Кровля"]), "Итого по разделам: Секция 1, Кровля");
 });
+
+test("rimRows: общий документ — после документов последнего своего материала", () => {
+  const p6 = doc(40, { type: "passport", number: "54920", issueDate: "2025-05-19", materialIds: [6] });
+  const p7 = doc(41, { type: "passport", number: "50220", issueDate: "2026-05-14", materialIds: [7] });
+  const rows = rimRows([am(6, 1), am(7, 2)], [m1, m2], new Map([[6, [letter, p6]], [7, [letter, p7]]]));
+  assert.deepEqual(rows.map((r) => r.number), ["№54920", "№50220", "№2448"]);
+});

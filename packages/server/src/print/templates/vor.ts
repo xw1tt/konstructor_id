@@ -10,7 +10,7 @@ export function vorHtml(d: VorData): string {
       : `<tr class="row"><td class="c">${n}</td><td>${e(r.name)}</td><td class="c">${e(r.unit)}</td><td class="c">${e(r.quantity)}</td><td></td></tr>`;
   }).join("");
   const sign = (label: string, who: string) =>
-    `<div class="vor-sign"><div>${e(label)}: ${e(who)}</div><div class="line">&nbsp;</div></div><div class="vor-sign"><div></div><div class="cap">(подпись)</div></div>`;
+    `<div class="vor-sign"><div>${e(label)}: ${e(who)}</div><div><div class="line">&nbsp;</div><div class="cap">(подпись)</div></div></div>`;
   return page("Ведомость объёмов выполненных работ", `
     <p><b>Объект:</b></p>
     <p class="obj">${e(d.objectName)}</p>

@@ -56,7 +56,10 @@ export function point4Lines(docs: ActDocumentInput[]): string[] {
 
 export interface RimRow { name: string; type: string; number: string; date: string; sheets: number }
 
-/** Строки РИМ: один документ — одна строка, по порядку материалов и типов документов. */
+/**
+ * Строки РИМ: один документ — одна строка, по порядку материалов и типов документов.
+ * Документ на несколько материалов акта ставится после документов последнего из них (как в образце СБД).
+ */
 export function rimRows(
   actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>,
 ): RimRow[] {
@@ -64,8 +67,14 @@ export function rimRows(
   const inAct = new Set(actMaterials.map((a) => a.materialId));
   const seen = new Set<number>();
   const rows: RimRow[] = [];
-  for (const am of [...actMaterials].sort(byOrder)) {
-    for (const d of sortDocs(docsByMaterial.get(am.materialId) ?? [])) {
+  const ordered = [...actMaterials].sort(byOrder);
+  const lastIdx = (d: QualityDoc) => Math.max(...ordered.map((x, i) => (d.materialIds.includes(x.materialId) ? i : -1)));
+  for (const [idx, am] of ordered.entries()) {
+    const own = sortDocs(docsByMaterial.get(am.materialId) ?? []);
+    // сначала документы только этого материала (или для которых он последний), общие — в конце
+    const docs = [...own.filter((d) => lastIdx(d) === idx && d.materialIds.filter((m) => inAct.has(m)).length <= 1),
+                  ...own.filter((d) => lastIdx(d) === idx && d.materialIds.filter((m) => inAct.has(m)).length > 1)];
+    for (const d of docs) {
       if (seen.has(d.id)) continue;
       seen.add(d.id);
       const names = actMaterials

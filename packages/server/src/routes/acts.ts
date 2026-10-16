@@ -1,7 +1,11 @@
 import { z } from "zod";
 import type { Db } from "../db.ts";
 import { Router, Reply, HttpError } from "../http/router.ts";
-import { ActInput, ActMaterialInput, ActDocumentInput, VorLineInput } from "@idk/shared/acts/schemas";
+import { ActInput, ActMaterialInput, ActDocumentInput, VorLineInput, DOC_KINDS, type DocKind } from "@idk/shared/acts/schemas";
+import { docNumber } from "@idk/shared/acts/format";
+import { buildDocData } from "../print/data.ts";
+import { renderHtml } from "../print/templates/index.ts";
+import { htmlToPdf } from "../print/browser.ts";
 import { acts } from "../repo/acts.ts";
 import { objectInfo } from "../repo/objectInfo.ts";
 import { sections } from "../repo/sections.ts";
@@ -63,5 +67,20 @@ export function actRoutes(r: Router, db: Db) {
     const rows = await c.body(z.array(VorLineInput));
     fk(() => repo.setVor(id, rows));
     return repo.vor(id);
+  });
+
+  r.get("/api/acts/:id/pdf/:doc", async (c) => {
+    const id = c.id();
+    const act = mustAct(id);
+    const kind = c.params.doc as DocKind;
+    if (!DOC_KINDS.includes(kind)) throw new HttpError(400, "Неизвестный документ: " + c.params.doc);
+    const pdf = await htmlToPdf(renderHtml(kind, buildDocData(db, id, kind)), { pageNumbers: kind === "vor" });
+    const name = (kind === "vor" ? `${act.baseNumber}.ВОР` : docNumber(act.baseNumber, kind)) + ".pdf";
+    c.res.writeHead(200, {
+      "content-type": "application/pdf",
+      "content-length": pdf.length,
+      "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(name)}`,
+    });
+    c.res.end(pdf);
   });
 }

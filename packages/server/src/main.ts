@@ -7,6 +7,7 @@ import { runDailyBackup } from "./backup.ts";
 import { ensureCerts } from "./tls/ensureCerts.ts";
 import { createApp, defaultOrigins } from "./app.ts";
 import { installShutdown } from "./shutdown.ts";
+import { closeBrowser } from "./print/browser.ts";
 
 const cfg = loadConfig();
 const addinDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "addin", "dist");
@@ -21,7 +22,7 @@ const db = openDb(join(cfg.dataDir, "db.sqlite"));
 const tls = ensureCerts(cfg.dataDir);
 const server = createServer({ key: tls.key, cert: tls.cert }, createApp({ db, dataDir: cfg.dataDir, addinDir, allowedOrigins: defaultOrigins(cfg.port) }));
 
-installShutdown(db, server);
+installShutdown(db, server, process, closeBrowser);
 
 server.on("error", (e: NodeJS.ErrnoException) => {
   if (e.code === "EADDRINUSE") console.error(`Порт ${cfg.port} занят: сервер уже запущен?`);

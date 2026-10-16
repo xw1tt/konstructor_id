@@ -12,6 +12,7 @@ export function installShutdown(
   db: Db,
   server: Server,
   proc: EventEmitter & { exit: (code?: number) => void } = process,
+  cleanup: () => Promise<void> = async () => {},
 ) {
   let done = false;
   const stop = () => {
@@ -19,7 +20,7 @@ export function installShutdown(
     done = true;
     server.close();
     try { db.close(); } catch { /* уже закрыта */ }
-    proc.exit(0);
+    void cleanup().catch(() => {}).finally(() => proc.exit(0));
   };
   for (const s of SIGNALS) proc.on(s, stop);
 }

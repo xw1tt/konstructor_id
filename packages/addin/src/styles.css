@@ -118,3 +118,28 @@ details.section > .body { padding-bottom: 12px; }
 .extras { margin-top: 10px; }
 .issues { margin-top: 8px; padding: 8px; background: #fdecea; border-left: 3px solid var(--danger); }
 .issues p { margin: 0 0 4px; }
+
+/* Верхняя строка: ⌂, Норматив, Помощник, Шаблоны, значки помощника. */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--paper); flex-wrap: wrap; }
+.topbar-nav, .topbar-icons { display: flex; align-items: center; gap: 2px; }
+.tb-btn { background: none; border: 0; border-radius: 7px; padding: 4px 8px; cursor: pointer; font-weight: 600; color: var(--ink); display: inline-flex; align-items: center; gap: 4px; min-height: 28px; }
+.tb-btn:hover:not(.tb-active) { background: var(--surface); }
+.tb-active { background: var(--ink); color: var(--paper); }
+.tb-home { padding: 4px 6px; }
+.tb-assistant span { background: linear-gradient(90deg, #4f7cff, #b06cff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tb-assistant.tb-active span { background: linear-gradient(90deg, #9db6ff, #dcb8ff); -webkit-background-clip: text; background-clip: text; }
+.tb-templates { font-weight: 500; }
+.tb-drop { position: relative; }
+.tb-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 10; min-width: 220px; margin: 0; padding: 4px; list-style: none; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 18px rgba(31, 42, 55, .14); }
+.tb-menu button { width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 6px 8px; cursor: pointer; display: flex; gap: 6px; }
+.tb-menu button:hover:not(:disabled) { background: var(--surface); }
+.tb-menu button:disabled { color: var(--ink-soft); cursor: default; }
+.tb-check { width: 14px; display: inline-block; color: var(--blue); }
+.tb-icon { background: none; border: 0; border-radius: 6px; padding: 4px; color: var(--ink-soft); display: inline-flex; }
+.tb-icon:disabled { opacity: .55; cursor: default; }
+
+.norm-list { list-style: none; padding: 0; margin: 8px 0 0; }
+.list li.norm-row { display: block; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+.list li.norm-row button.link { display: block; width: 100%; white-space: normal; color: var(--ink); }
+.norm-row .row-actions { margin-top: 6px; flex-wrap: wrap; }
+.norm-row p { margin: 4px 0 0; padding: 0; }

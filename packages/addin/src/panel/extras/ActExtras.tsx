@@ -1,11 +1,12 @@
 // Дополнение карточки акта: сводка, переход к строкам акта на других листах, проверка и печать.
-import { useState } from "react";
+import { useContext, useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
 import type { DocKind } from "@idk/shared/acts/schemas";
 import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { actSummary } from "./summaries.ts";
+import { TemplateContext } from "../templateContext.ts";
 import { issueLines, printAct, type IssueLine } from "../print.ts";
 
 const DOCS: { kind: DocKind; label: string }[] = [
@@ -19,6 +20,7 @@ const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | 
 
 export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
   const guard = useGuard();
+  const template = useContext(TemplateContext);
   const [busy, setBusy] = useState<DocKind | null>(null);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [error, setError] = useState("");
@@ -29,7 +31,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
     setBusy(doc);
     setError("");
     setLines([]);
-    const issues = await guard(printAct(state.book!, act, state.important, doc), setError);
+    const issues = await guard(printAct(state.book!, act, state.important, doc, template), setError);
     if (issues?.length) {
       const tables = [...new Set(issues.map((i) => i.table))];
       const offsets: Partial<Record<TableName, number>> = {};

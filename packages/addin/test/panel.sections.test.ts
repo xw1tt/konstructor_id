@@ -14,6 +14,7 @@ test("раздел по листу", () => {
   assert.equal(sectionForSheet("ВОР"), "acts");
   assert.equal(sectionForSheet("Исполнительные схемы"), "schemes");
   assert.equal(sectionForSheet("Лист1"), null);
+  assert.equal(sectionForSheet("Изоляция"), "cables");
 });
 
 test("статус столбцов", () => {

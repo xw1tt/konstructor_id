@@ -10,11 +10,12 @@ export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" |
 
 export type TableName =
   | "Объект" | "Организации" | "Шифры" | "Представители" | "Материалы" | "ДокументыКачества"
-  | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал";
+  | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал"
+  | "Электролаборатория" | "СредстваИзмерений" | "ИзмеренияМарок" | "ДокументыКабелей";
 
 export type SheetName =
   | "Реквизиты" | "Представители" | "Материалы" | "Документы качества" | "База актов"
-  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал";
+  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Изоляция";
 
 export interface ColumnDef {
   key: string;
@@ -186,6 +187,45 @@ export const TABLES: Record<TableName, TableDef> = {
     c("pipeLength", "Труба: длина, м", "number"),
     c("note", "Примечание", "text"),
   ]),
+  "Электролаборатория": t("Электролаборатория", "Изоляция", [
+    c("nameAddress", "Организация и адрес", "longtext", { ...imp, isKey: true, width: 50 }),
+    c("certificate", "Свидетельство", "longtext", { width: 60 }),
+    c("head", "Руководитель электролаборатории", "text", { ...imp, width: 24 }),
+    c("tester", "Испытания провёл", "text", { ...imp, width: 24 }),
+  ]),
+  "СредстваИзмерений": t("СредстваИзмерений", "Изоляция", [
+    c("name", "Наименование СИ", "text", { ...imp, isKey: true, width: 34 }),
+    c("type", "Тип", "text", { ...imp, width: 18 }),
+    c("range", "Диапазон", "text", { width: 20 }),
+    c("accuracy", "Точность", "text", { width: 16 }),
+    c("serial", "Заводской №", "text", imp),
+    c("certificate", "№ свидетельства о поверке", "text", { ...imp, width: 26 }),
+    c("checkedOn", "Дата поверки", "date", imp),
+    c("nextCheck", "Дата очередной поверки", "date"),
+    c("authority", "Орган поверки", "text", { width: 40 }),
+  ]),
+  "ИзмеренияМарок": t("ИзмеренияМарок", "Изоляция", [
+    c("mark", "Марка", "text", { ...imp, isKey: true, width: 40 }),
+    c("purpose", "Назначение", "text", { width: 14 }),
+    c("voltage", "Напряжение мегаомметра, В", "number", { ...imp, default: 500 }),
+    c("allowed", "Допустимое сопротивление, МОм", "number", { ...imp, default: 0.5 }),
+    ...([["ab", "А-В"], ["bc", "В-С"], ["ca", "С-А"], ["an", "A-N (PEN)"], ["bn", "B-N (PEN)"], ["cn", "C-N (PEN)"],
+      ["ape", "A-PE"], ["bpe", "B-PE"], ["cpe", "C-PE"], ["npe", "N-PE"]] as const).map(([k, h]) => c(k, h, "text", { width: 9 })),
+  ]),
+  "ДокументыКабелей": t("ДокументыКабелей", "Изоляция", [
+    c("act", "Акт", "ref", { ...imp, isKey: true, ref: "Акты", width: 24 }),
+    c("journalCode", "Шифр журнала", "text", { ...imp, width: 22 }),
+    c("journalDate", "Дата журнала", "date", imp),
+    c("protocolNumber", "№ протокола", "text", imp),
+    c("dateFrom", "Измерения с", "date", imp),
+    c("dateTo", "Измерения по", "date", imp),
+    c("temperature", "Температура, °C", "number", { default: 20 }),
+    c("humidity", "Влажность, %", "number", { default: 60 }),
+    c("purpose", "Цель испытаний", "text", { default: "приемо-сдаточные", width: 18 }),
+    c("normative", "Нормативы", "longtext", { default: "ПУЭ 7 изд. 1.8.37 п.1, таблица 1.8.34", width: 34 }),
+    c("integrity", "Целостность жил", "longtext", { default: "Проведена проверка целостности жил кабельных линий. Замечания отсутствуют.", width: 40 }),
+    c("conclusion", "Заключение", "longtext", { default: "Результаты проведенных измерений соответствуют требованиям ПУЭ 7 изд. 1.8.37 п.1, таблица 1.8.34", width: 40 }),
+  ]),
 };
 
 export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
@@ -198,6 +238,7 @@ export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
   { name: "Материалы в актах", tables: ["МатериалыАктов"] },
   { name: "ВОР", tables: ["ВОР"] },
   { name: "Кабельный журнал", tables: ["КабельныйЖурнал"] },
+  { name: "Изоляция", tables: ["Электролаборатория", "СредстваИзмерений", "ИзмеренияМарок", "ДокументыКабелей"] },
 ];
 
 export const TABLE_NAMES = Object.keys(TABLES) as TableName[];

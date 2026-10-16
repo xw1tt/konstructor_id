@@ -9,7 +9,7 @@ export const SECTIONS: readonly { id: SectionId; label: string; sheets: SheetNam
   { id: "acts", label: "Акты", sheets: ["База актов", "Исполнительные схемы", "Материалы в актах", "ВОР"] },
   { id: "materials", label: "Материалы", sheets: ["Материалы", "Документы качества"] },
   { id: "schemes", label: "Схемы", sheets: ["Исполнительные схемы"] },
-  { id: "cables", label: "Кабельный журнал", sheets: ["Кабельный журнал"] },
+  { id: "cables", label: "Кабельный журнал", sheets: ["Кабельный журнал", "Изоляция"] },
 ];
 
 /** Раздел листа; «Исполнительные схемы» — собственный раздел «Схемы». */

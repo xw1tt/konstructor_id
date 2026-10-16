@@ -19,8 +19,9 @@ export interface Selection {
   /** Индексы строк данных, попавших в выделение. */
   rows: number[];
   column: string | null;
-  /** Строка листа (с 0) активной ячейки. */
+  /** Строка и столбец листа (с 0) активной ячейки. */
   sheetRow: number;
+  sheetCol: number;
   /** Строки листа (с 0), попавшие в выделение. */
   sheetRows: number[];
 }
@@ -222,7 +223,7 @@ export class ExcelPort implements TableStore {
       return {
         sheet: ws.name, table: loc.table, row: loc.row, column: loc.column,
         rows: loc.table && multi.table === loc.table && multi.rows.length ? multi.rows : loc.row !== null ? [loc.row] : [],
-        sheetRow: active.rowIndex, sheetRows,
+        sheetRow: active.rowIndex, sheetCol: active.columnIndex, sheetRows,
       };
     });
   }
@@ -237,6 +238,15 @@ export class ExcelPort implements TableStore {
       const i = (head.values[0] as unknown[]).map(String).indexOf(header);
       if (i < 0) return;
       t.getDataBodyRange().getCell(Math.min(Math.max(row ?? 0, 0), t.rows.count - 1), i).select();
+      await ctx.sync();
+    });
+  }
+
+  async selectSheetCell(sheet: string, row: number, col: number) {
+    await Excel.run(async (ctx: any) => {
+      const ws = ctx.workbook.worksheets.getItem(sheet);
+      ws.activate();
+      ws.getCell(row, col).select();
       await ctx.sync();
     });
   }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { nextBaseNumber } from "@idk/addin/tabs/acts/actDefaults";
+import { nextBaseNumber } from "@idk/addin/book/numbering";
 
 test("nextBaseNumber: увеличивает последнее числовое звено", () => {
   assert.equal(nextBaseNumber("К32.В.СТ.АОВ1.01.00.1"), "К32.В.СТ.АОВ1.01.00.2");

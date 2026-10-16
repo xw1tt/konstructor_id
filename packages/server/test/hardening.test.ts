@@ -8,11 +8,11 @@ import { serialBytes } from "@idk/server/tls/x509";
 
 test("hardening: битая %-кодировка в пути → 400, сервер жив", async () => {
   const s = await startTestServer();
-  const r = await s.raw("GET", "/api/organizations/%E0");
+  const r = await s.raw("GET", "/api/files/%E0");
   assert.equal(r.status, 400);
   const r2 = await s.raw("GET", "/addin/%E0");
   assert.ok(r2.status === 400 || r2.status === 404);
-  assert.equal((await s.req("GET", "/api/object")).status, 200);
+  assert.equal((await s.req("GET", "/api/export")).status, 200);
 });
 
 test("hardening: скан удалён с диска → 404, сервер жив", async () => {
@@ -24,22 +24,21 @@ test("hardening: скан удалён с диска → 404, сервер жи�
   for (const n of readdirSync(dir)) rmSync(join(dir, n));
   const r = await s.raw("GET", `/api/files/${f.id}`);
   assert.equal(r.status, 404);
-  assert.equal((await s.req("GET", "/api/object")).status, 200);
+  assert.equal((await s.req("GET", "/api/export")).status, 200);
 });
 
 test("csrf: тело не JSON (text/plain) → 415", async () => {
   const s = await startTestServer();
-  const r = await s.raw("POST", "/api/organizations", {
-    headers: { "content-type": "text/plain" }, body: JSON.stringify({ shortName: "x", fullName: "x" }),
+  const r = await s.raw("POST", "/api/print-jobs", {
+    headers: { "content-type": "text/plain" }, body: JSON.stringify({ act: {} }),
   });
   assert.equal(r.status, 415);
-  assert.equal((await s.req("GET", "/api/organizations")).json.length, 0);
 });
 
 test("csrf: чужой Origin на изменение → 403, свой — проходит", async () => {
   const s = await startTestServer();
-  const body = JSON.stringify({ shortName: "x", fullName: "x" });
-  const evil = await s.raw("POST", "/api/organizations", {
+  const body = JSON.stringify({ act: {} });
+  const evil = await s.raw("POST", "/api/print-jobs", {
     headers: { "content-type": "application/json", origin: "https://evil.example" }, body,
   });
   assert.equal(evil.status, 403);
@@ -47,10 +46,10 @@ test("csrf: чужой Origin на изменение → 403, свой — пр
     headers: { "content-type": "application/pdf", origin: "https://evil.example" }, body: (await makePdf(1)) as unknown as BodyInit,
   });
   assert.equal(evilUpload.status, 403);
-  const own = await s.raw("POST", "/api/organizations", {
+  const own = await s.raw("POST", "/api/print-jobs", {
     headers: { "content-type": "application/json", origin: "https://localhost:3443" }, body,
   });
-  assert.equal(own.status, 201);
+  assert.equal(own.status, 400, "свой Origin проходит до проверки тела");
 });
 
 test("ответ загрузки не раскрывает внутренний путь", async () => {

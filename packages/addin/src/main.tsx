@@ -3,12 +3,15 @@ import { ExcelPort } from "./book/excelPort.ts";
 import { newRowsDefaults } from "./book/defaults.ts";
 import { Panel, type PanelSlots } from "./panel/Panel.tsx";
 import { CardArea } from "./panel/card/RowCard.tsx";
+import { CreateBook } from "./panel/CreateBook.tsx";
+import { TABLE_NAMES } from "@idk/shared/workbook/schema";
 
 declare const Office: { onReady: (cb: () => void) => void } | undefined;
 
 const port = new ExcelPort();
 
 const slots: PanelSlots = {
+  create: (state, missing) => <CreateBook port={port} state={state} missing={missing} full={missing.length === TABLE_NAMES.length} />,
   card: (state) => <CardArea port={port} state={state} />,
   onRowsAdded: async (state, table, first, n) => {
     if (!state.book) return;

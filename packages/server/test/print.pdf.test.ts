@@ -6,17 +6,22 @@ import { openDb } from "@idk/server/db";
 import { seedSbdAov1 } from "@idk/server/seed/sbdAov1";
 import { closeBrowser } from "@idk/server/print/browser";
 import { join } from "node:path";
+import { bundleFromDb } from "@idk/server/print/fromDb";
 
 after(() => closeBrowser());
+const dbs = new Map<object, ReturnType<typeof openDb>>();
 
 async function seeded() {
   const s = await startTestServer();
   const db = openDb(join(s.dataDir, "db.sqlite"));
   const { actId } = seedSbdAov1(db);
+  dbs.set(s, db);
   return { s, db, actId };
 }
-const pdf = async (s: Awaited<ReturnType<typeof startTestServer>>, actId: number, doc: string) => {
-  const r = await s.raw("GET", `/api/acts/${actId}/pdf/${doc}`);
+const pdf = async (s: Awaited<ReturnType<typeof startTestServer>>, actId: number, doc: string, db = dbs.get(s)!) => {
+  const r = await s.raw("POST", `/api/print/${doc}`, {
+    headers: { "content-type": "application/json" }, body: JSON.stringify(bundleFromDb(db, actId)),
+  });
   assert.equal(r.status, 200, await r.clone().text());
   assert.equal(r.headers.get("content-type"), "application/pdf");
   return { pages: await pdfPages(new Uint8Array(await r.arrayBuffer())), disposition: r.headers.get("content-disposition") ?? "" };
@@ -58,5 +63,7 @@ test("pdf: ВД на 1 странице; ВОР — «Страница 1 из N�
 
 test("pdf: неизвестный документ → 400", async () => {
   const { s, actId } = await seeded();
-  assert.equal((await s.raw("GET", `/api/acts/${actId}/pdf/xxx`)).status, 400);
+  const db = dbs.get(s)!;
+  const r = await s.raw("POST", "/api/print/xxx", { headers: { "content-type": "application/json" }, body: JSON.stringify(bundleFromDb(db, actId)) });
+  assert.equal(r.status, 400);
 });

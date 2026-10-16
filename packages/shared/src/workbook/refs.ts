@@ -36,7 +36,10 @@ export async function renameKey(store: TableStore, book: Book, table: TableName,
   const from = oldKey.trim();
   const to = newKey.trim();
   if (!keyCol || !from || !to || from === to) return { ok: true, updated: 0 };
-  const taken = (book.tables[table] ?? []).some((r) => cellText(r.v[keyCol.key]) === to);
+  // Книга может быть прочитана до или после правки самого ключа: новое значение занято, если оно есть
+  // у двух строк, или у одной строки, пока строка со старым значением ещё не переименована.
+  const count = (k: string) => (book.tables[table] ?? []).filter((r) => cellText(r.v[keyCol.key]) === k).length;
+  const taken = count(to) >= 2 || (count(to) === 1 && count(from) >= 1);
   if (taken) return { ok: false, message: "Такое значение уже есть" };
   const hits = findReferences(book, table, from);
   for (const h of hits) {

@@ -6,6 +6,7 @@ import {
 import type { CellValue } from "@idk/shared/workbook/values";
 import type { RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
 import type { ImportantMap } from "@idk/shared/workbook/important";
+import { currentHost, type HostStatus } from "./host.ts";
 import { COLORS, LISTS_SHEET, colLetter, duplicateRule, importantRule, listName, listSource, strictList } from "./layout.ts";
 
 declare const Office: any;
@@ -65,9 +66,8 @@ const saveSettings = () => new Promise<void>((resolve, reject) =>
   settings().saveAsync((r: any) => (r.status === "succeeded" ? resolve() : reject(new Error(r.error?.message ?? "Не удалось сохранить настройки")))));
 
 export class ExcelPort implements TableStore {
-  isSupported(): boolean {
-    return !!Office?.context?.requirements?.isSetSupported?.("ExcelApi", "1.9");
-  }
+  host(): HostStatus { return currentHost(); }
+  isSupported(): boolean { return this.host() === "ok"; }
 
   // ---------- TableStore ----------
 

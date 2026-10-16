@@ -17,11 +17,16 @@ export interface PanelSlots {
 }
 
 export function Panel({ port, slots = {} }: { port: ExcelPort; slots?: PanelSlots }) {
-  if (!port.isSupported()) {
+  const host = port.host();
+  if (host !== "ok") {
     return (
       <div className="app">
         <Header />
-        <p className="banner" role="alert">Нужен Excel 2019, 2021 или Microsoft 365. В этой версии Excel панель работать не может.</p>
+        <p className="banner" role="alert">
+          {host === "old"
+            ? "Нужен Excel 2019, 2021 или Microsoft 365. В этой версии Excel панель работать не может."
+            : "Панель открыта вне Excel или не загрузилась библиотека Office.js (нужно подключение к интернету). Откройте панель в Excel."}
+        </p>
       </div>
     );
   }

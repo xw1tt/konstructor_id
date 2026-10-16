@@ -62,6 +62,7 @@ export function CardArea({ port, state }: { port: ExcelPort; state: BookState })
   };
 
   const s = state.selection;
+  useEffect(() => setMessage(""), [s?.table]);
   const section = s ? SECTIONS.find((x) => x.id === sectionForSheet(s.sheet)) : undefined;
   return (
     <>

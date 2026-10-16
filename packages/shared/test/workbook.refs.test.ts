@@ -44,3 +44,16 @@ test("организация в таблице Объект тоже счита�
   assert.deepEqual(await renameKey(wb, book, "Организации", 'ООО "СБД"', 'ООО "СБД-2"'), { ok: true, updated: 2 });
   assert.equal((await wb.read("Объект"))!.rows[0][1], 'ООО "СБД-2"');
 });
+
+test("renameKey после того, как ключ уже изменён в ячейке (книга перечитана)", async () => {
+  const wb = make();
+  await wb.write("Материалы", 0, { "Наименование": "Кабель RS-485" });
+  const r = await renameKey(wb, await readBook(wb), "Материалы", "Кабель", "Кабель RS-485");
+  assert.deepEqual(r, { ok: true, updated: 3 });
+});
+
+test("renameKey отказывает, если новое имя теперь у двух строк", async () => {
+  const wb = make();
+  await wb.write("Материалы", 0, { "Наименование": "Труба" });
+  assert.deepEqual(await renameKey(wb, await readBook(wb), "Материалы", "Кабель", "Труба"), { ok: false, message: "Такое значение уже есть" });
+});

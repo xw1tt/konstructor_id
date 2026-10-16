@@ -2,10 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Db } from "./db.ts";
 import { Router, sendJson } from "./http/router.ts";
 import { serveStatic } from "./http/static.ts";
-import { objectRoutes } from "./routes/object.ts";
-import { materialRoutes } from "./routes/materials.ts";
 import { fileRoutes } from "./routes/files.ts";
-import { actRoutes } from "./routes/acts.ts";
 import { printRoutes } from "./routes/print.ts";
 import { exportRoutes } from "./routes/export.ts";
 
@@ -24,9 +21,6 @@ export const defaultOrigins = (port = 3443) => [`https://localhost:${port}`, `ht
 
 export function createApp(opts: AppOptions) {
   const api = new Router(opts.allowedOrigins ?? defaultOrigins());
-  objectRoutes(api, opts.db);
-  materialRoutes(api, opts.db);
-  actRoutes(api, opts.db);
   printRoutes(api);
   exportRoutes(api, opts.db);
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);

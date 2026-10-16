@@ -66,7 +66,7 @@ export function CreateBook({ port, state, missing, full, flow }: {
     <main className="content">
       <h2 className="app-title">Книга объекта</h2>
       <p>В этой книге ещё нет листов конструктора. Программа создаст листы «Реквизиты», «Представители», «Материалы»,
-        «Документы качества», «База актов», «Исполнительные схемы», «Материалы в актах», «ВОР», «Кабельный журнал».</p>
+        «Документы качества», «База актов», «Исполнительные схемы», «Материалы в актах», «ВОР», «Кабельный журнал», «Нормативы».</p>
       {step.kind === "idle" && <button className="btn btn-primary" onClick={() => void create()}>Создать книгу объекта</button>}
       {step.kind === "busy" && <p className="notice">{step.text}</p>}
       {step.kind === "offer" && (

@@ -1,7 +1,8 @@
 // Состояние панели, синхронизированное с книгой через события Excel. Копии данных панель не хранит:
 // выделение и текущая таблица перечитываются при смене выделения, вся книга — при изменении ячеек.
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { TableName } from "@idk/shared/workbook/schema";
+import { column, type TableName } from "@idk/shared/workbook/schema";
+import { cellText } from "@idk/shared/workbook/values";
 import type { TableData } from "@idk/shared/workbook/store";
 import { readBook, type Book } from "@idk/shared/workbook/records";
 import { loadImportant, type ImportantMap } from "@idk/shared/workbook/important";
@@ -15,6 +16,8 @@ export interface BookState {
   book: Book | null;
   important: ImportantMap;
   error: string;
+  /** Номер акта последней выделенной строки «Базы актов» (для «Вставить в п.6»). */
+  lastAct: string | null;
   pickTable(t: TableName | null): void;
   refresh(): void;
   /** Подписка на изменения ячеек (для переименования ключей). */
@@ -29,6 +32,7 @@ export function useBook(port: ExcelPort): BookState {
   const [book, setBook] = useState<Book | null>(null);
   const [important, setImportant] = useState<ImportantMap>({});
   const [error, setError] = useState("");
+  const [lastAct, setLastAct] = useState<string | null>(null);
   const picked = useRef<TableName | null>(null);
   const listeners = useRef(new Set<(e: ChangeEvent) => void>());
   const timers = useRef<{ sel?: ReturnType<typeof setTimeout>; all?: ReturnType<typeof setTimeout> }>({});
@@ -40,7 +44,12 @@ export function useBook(port: ExcelPort): BookState {
       const onSheet = tablesOnSheet(s.sheet);
       if (s.table) picked.current = null;
       const name = s.table ?? (picked.current && onSheet.includes(picked.current) ? picked.current : onSheet[0] ?? null);
-      setTable(name ? await port.read(name) : null);
+      const data = name ? await port.read(name) : null;
+      setTable(data);
+      if (s.table === "Акты" && s.row !== null && data) {
+        const n = cellText(data.rows[s.row]?.[data.headers.indexOf(column("Акты", "baseNumber").header)] ?? null);
+        if (n) setLastAct(n);
+      }
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -79,7 +88,7 @@ export function useBook(port: ExcelPort): BookState {
   }, [port, readAll, readSelection]);
 
   return {
-    selection, table, book, important, error,
+    selection, table, book, important, error, lastAct,
     pickTable: (t) => { picked.current = t; void readSelection(); },
     refresh: () => void readAll(),
     onCellChange: (cb) => { listeners.current.add(cb); return () => listeners.current.delete(cb); },

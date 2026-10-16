@@ -32,7 +32,7 @@ test("orgFullForm: пустые поля пропускаются вместе �
 
 const rep = (o: Partial<Representative>): Representative => ({
   id: 1, role: "performer", position: "Начальник участка", fullName: "Востров В.П.", orgId: 1,
-  authorityDoc: "", nrsNumber: "", nrsDate: null, validFrom: null, validTo: null, sortOrder: 1, ...o,
+  authorityDoc: "", nrsNumber: "", nrsDate: null, validFrom: null, validTo: null, sortOrder: 1, actText: "", ...o,
 });
 
 test("activeRepresentatives: последняя дата включительно", () => {

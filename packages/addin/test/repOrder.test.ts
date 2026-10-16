@@ -5,7 +5,7 @@ import type { Representative } from "@idk/shared/schemas";
 
 const rep = (id: number, sortOrder: number): Representative => ({
   id, role: "performer", position: "", fullName: `R${id}`, orgId: 1, authorityDoc: "", nrsNumber: "",
-  nrsDate: null, validFrom: null, validTo: null, sortOrder,
+  nrsDate: null, validFrom: null, validTo: null, sortOrder, actText: "",
 });
 
 test("moveRep: перемещение вверх меняет местами с соседом", () => {

@@ -1,79 +1,164 @@
-// Экран «Норматив»: реестр нормативов книги (лист «Нормативы») и переход на официальный портал.
-// Тексты нормативов программа не хранит: страница открывается напрямую с protect.gost.ru.
-import { useState, type ReactNode } from "react";
-import { cellText } from "@idk/shared/workbook/values";
-import { portalTarget } from "@idk/shared/normativ";
-import { collectFromActs, filterNormativ, insertIntoP6 } from "@idk/shared/workbook/normativActions";
+// Экран «Норматив»: справочник нормативов портала protect.gost.ru (сведения из списков разделов).
+// Тексты нормативов программа не хранит: «Читать» открывает карточку документа на портале.
+import { useCallback, useEffect, useRef, useState } from "react";
+import { NORM_SECTIONS, statusTone, type NormItem, type NormSearchResult, type NormSection, type RefreshState } from "@idk/shared/normCatalog";
+import { formatDateShort } from "@idk/shared/acts/format";
 import type { ExcelPort } from "../book/excelPort.ts";
-import type { BookState } from "./useBook.ts";
-import { normativState } from "./normativState.ts";
+import { apiGet, apiSend } from "../api.ts";
+import { useGuard } from "../server.tsx";
 import { openPortal } from "./portal.ts";
+import { cellAppend, docsCount, normsQuery, refreshText } from "./normsApi.ts";
 
-export function NormativScreen({ port, state, restore }: { port: ExcelPort; state: BookState; restore: ReactNode }) {
+export const TERMS = "Программа не хранит и не распространяет тексты нормативов. В справочнике — только сведения из открытых списков портала protect.gost.ru (обозначение, наименование, число страниц, статус). Документы открываются напрямую с портала; окно лишь показывает страницы, полученные порталом для вашей сессии.";
+const EMPTY = "Справочник пуст — нажмите «Обновить базу». Понадобится доступ к интернету, обновление займёт несколько минут.";
+
+const lastUpdated = (u: NormSearchResult["updated"]) => {
+  const all = Object.values(u).filter(Boolean) as string[];
+  return all.length ? all.sort().at(-1)!.slice(0, 10) : null;
+};
+
+export function NormativScreen({ port }: { port: ExcelPort }) {
+  // useGuard возвращает новую функцию на каждой отрисовке — держим стабильную обёртку для эффектов.
+  const guardNow = useGuard();
+  const guardRef = useRef(guardNow);
+  guardRef.current = guardNow;
+  const guard = useCallback(<T,>(p: Promise<T>, onError?: (m: string) => void) => guardRef.current(p, onError), []);
+  const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
-  const [note, setNote] = useState<{ row: number | null; text: string; error?: boolean } | null>(null);
-  const book = state.book;
-  if (!book) return <p className="notice">Читаю книгу…</p>;
-  const mode = normativState(book);
+  const [section, setSection] = useState<NormSection | null>(null);
+  const [data, setData] = useState<NormSearchResult | null>(null);
+  const [items, setItems] = useState<NormItem[]>([]);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [card, setCard] = useState(false);
+  const [terms, setTerms] = useState(false);
+  const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);
+  const [refresh, setRefresh] = useState<RefreshState | null>(null);
+  const [error, setError] = useState("");
+  const loading = useRef(false);
 
-  const run = async (row: number | null, fn: () => Promise<string>) => {
+  useEffect(() => { const t = setTimeout(() => setQuery(q), 250); return () => clearTimeout(t); }, [q]);
+
+  const load = useCallback(async (offset: number) => {
+    if (loading.current) return;
+    loading.current = true;
+    const r = await guard(apiGet<NormSearchResult>(normsQuery({ section, q: query, offset })), setError);
+    loading.current = false;
+    if (!r) return;
+    setError("");
+    setData(r);
+    setItems((prev) => (offset === 0 ? r.items : [...prev, ...r.items]));
+    if (offset === 0) setSelected(null);
+  }, [guard, section, query]);
+
+  useEffect(() => { void load(0); }, [load]);
+
+  // Ход обновления: опрос раз в секунду, пока сервер обходит портал.
+  useEffect(() => {
+    if (!refresh?.running) return;
+    const t = setInterval(async () => {
+      const s = await guard(apiGet<RefreshState>("/api/norms/refresh"), setError);
+      if (!s) return;
+      setRefresh(s);
+      if (!s.running) void load(0);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [refresh?.running, guard, load]);
+
+  useEffect(() => { void guard(apiGet<RefreshState>("/api/norms/refresh"), () => undefined).then((s) => s && setRefresh(s)); }, [guard]);
+
+  const startRefresh = async () => {
     setNote(null);
-    try { setNote({ row, text: await fn() }); } catch (e) { setNote({ row, text: (e as Error).message, error: true }); }
+    try {
+      setRefresh(await apiSend<RefreshState>("POST", "/api/norms/refresh"));
+    } catch (e) {
+      setNote({ text: (e as Error).message, error: true });
+    }
   };
 
-  const rows = filterNormativ(book.tables["Нормативы"] ?? [], query);
-  const act = state.lastAct;
+  const item = items.find((i) => i.id === selected) ?? null;
+
+  const toCell = async () => {
+    if (!item) return;
+    setNote(null);
+    let message = "";
+    try {
+      const r = await port.writeActiveCell((cur) => {
+        const res = cellAppend(cur, item.designation);
+        if ("error" in res) { message = res.error; return null; }
+        return res.value;
+      });
+      setNote(r.written ? { text: `Вписано: ${item.designation}` } : { text: message || "Ячейка не изменена", error: true });
+    } catch (e) {
+      setNote({ text: (e as Error).message, error: true });
+    }
+  };
+
+  const onScroll = (e: React.UIEvent<HTMLUListElement>) => {
+    const el = e.currentTarget;
+    if (data && items.length < data.total && el.scrollTop + el.clientHeight > el.scrollHeight - 80) void load(items.length);
+  };
+
+  const totalAll = data ? Object.values(data.counts).reduce((a, b) => a + b, 0) : 0;
+  const updated = data ? lastUpdated(data.updated) : null;
+  const empty = data && !updated && totalAll === 0 && !query;
 
   return (
-    <main className="content">
-      <h2 className="app-title">Реестр нормативов</h2>
-      <p className="muted">
-        Программа не хранит и не распространяет тексты нормативов. Документы открываются напрямую с официального
-        портала protect.gost.ru; окно лишь показывает страницы, полученные порталом для вашей сессии.
-      </p>
-      {mode === "missing" ? restore : (
-        <>
-          <div className="row-actions">
-            <button className="btn" onClick={() => void run(null, async () => {
-              const n = await collectFromActs(port, book);
-              state.refresh();
-              return `Добавлено: ${n}`;
-            })}>Собрать из актов</button>
-            <button className="btn" onClick={() => void port.activateSheet("Нормативы")}>Открыть лист</button>
-          </div>
-          {note?.row === null && <p className={note.error ? "error" : "notice"} role="status">{note.text}</p>}
-          <input className="search" type="search" placeholder="Поиск по обозначению и наименованию" value={query}
-            onChange={(e) => setQuery(e.target.value)} aria-label="Поиск по реестру" />
-          {mode === "empty" && <p className="notice">Реестр пуст. Нажмите «Собрать из актов» или заполните лист «Нормативы».</p>}
-          <ul className="list norm-list">
-            {rows.map((r) => {
-              const designation = cellText(r.v.designation);
-              const target = portalTarget({ designation, kind: cellText(r.v.kind), link: cellText(r.v.link) });
-              return (
-                <li key={r.row} className="norm-row">
-                  <button className="link" onClick={() => void port.selectCell("Нормативы", r.row, "Обозначение")}>
-                    <strong>{designation || "—"}</strong> {cellText(r.v.title)}
-                  </button>
-                  <span className="muted"> {cellText(r.v.status)}</span>
-                  <div className="row-actions">
-                    <button className="btn btn-small" disabled={!target.ok} title={target.ok ? target.url : target.message}
-                      onClick={() => target.ok && openPortal(target.url)}>Открыть на портале</button>
-                    <button className="btn btn-small" disabled={!act || !designation}
-                      title={act ? `Добавить в п.6 акта ${act}` : "Выделите строку акта на листе «База актов»"}
-                      onClick={() => act && void run(r.row, async () => {
-                        const res = await insertIntoP6(port, book, act, designation);
-                        if (!res.ok) throw new Error(res.message);
-                        state.refresh();
-                        return `Добавлено в п.6 акта ${act}`;
-                      })}>{act ? `Вставить в п.6 акта ${act}` : "Вставить в п.6"}</button>
-                  </div>
-                  {!target.ok && <p className="muted">{target.message}</p>}
-                  {note?.row === r.row && <p className={note.error ? "error" : "notice"} role="status">{note.text}</p>}
-                </li>
-              );
-            })}
-          </ul>
-        </>
+    <main className="content norms">
+      <input className="search" type="search" placeholder="Поиск по обозначению и названию" value={q}
+        onChange={(e) => setQ(e.target.value)} aria-label="Поиск по справочнику" />
+      <div className="chips norm-chips" role="group" aria-label="Разделы">
+        {NORM_SECTIONS.map((s) => (
+          <button key={s.code} className={`chip${section === s.code ? " chip-active" : ""}`} aria-pressed={section === s.code}
+            onClick={() => setSection((cur) => (cur === s.code ? null : s.code))}>
+            {s.label} <span className="chip-count">{data?.counts[s.code] ?? 0}</span>
+          </button>
+        ))}
+      </div>
+      <div className="row-actions norm-actions">
+        <button className="btn btn-small" disabled={!item} onClick={() => item && openPortal(item.url)}>Читать</button>
+        <button className="btn btn-small" disabled={!item} onClick={() => setCard((v) => !v)} aria-pressed={card}>Карточка</button>
+        <button className="btn btn-small" disabled={!item} onClick={() => void toCell()}>В ячейку</button>
+        <button className="btn btn-small" disabled={!!refresh?.running} onClick={() => void startRefresh()}>Обновить базу</button>
+        <button className="btn btn-small" disabled title="Скоро" aria-label="Настройки">⚙</button>
+        <button className="btn btn-small" onClick={() => setTerms((v) => !v)} aria-pressed={terms}>Условия</button>
+      </div>
+      {terms && <p className="muted norm-terms">{TERMS}</p>}
+      {refresh && refreshText(refresh) && (
+        <p className={refresh.error && !refresh.running ? "error" : "notice"} role="status">{refreshText(refresh)}</p>
+      )}
+      {note && <p className={note.error ? "error" : "notice"} role="status">{note.text}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+      {data && (
+        <p className="muted norm-total">
+          {docsCount(data.total)}{updated ? `, обновлён ${formatDateShort(updated).replace(/ г\.$/, "")}` : ""}
+        </p>
+      )}
+      {card && item && (
+        <section className="card norm-card" aria-label="Карточка документа">
+          <h3 className="tools-title">{item.designation}</h3>
+          <p>{item.title}</p>
+          <p className="muted">
+            {NORM_SECTIONS.find((s) => s.code === item.section)?.label} · {item.status || "статус не указан"} · {item.pages} с.
+          </p>
+          <p className="muted norm-url">{item.url}</p>
+          <button className="btn btn-small" onClick={() => openPortal(item.url)}>Открыть на портале</button>
+        </section>
+      )}
+      {empty ? <p className="notice">{EMPTY}</p> : (
+        <ul className="list norm-list" onScroll={onScroll} aria-label="Нормативы">
+          {items.map((i) => (
+            <li key={i.id} className={`norm-row${i.id === selected ? " selected" : ""}`}>
+              <button className="link" aria-pressed={i.id === selected} onClick={() => setSelected(i.id)}>
+                <span className="norm-head">
+                  <strong>{i.designation}</strong>
+                  {i.status && <span className={`badge badge-${statusTone(i.status)}`}>{i.status}</span>}
+                  <span className="norm-pages">{i.pages} с.</span>
+                </span>
+                <span className="norm-title">{i.title}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </main>
   );

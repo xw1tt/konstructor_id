@@ -14,6 +14,25 @@ export type NormSection = (typeof NORM_SECTIONS)[number]["code"];
 export const isNormSection = (s: string): s is NormSection => NORM_SECTIONS.some((x) => x.code === s);
 export const sectionLabel = (s: NormSection) => NORM_SECTIONS.find((x) => x.code === s)!.label;
 
+/** Состояние обновления справочника (GET /api/norms/refresh). */
+export interface RefreshState {
+  running: boolean;
+  section: NormSection | null;
+  page: number;
+  pages: number | null;
+  error: string | null;
+  finishedAt: string | null;
+}
+
+/** Строка справочника в ответе GET /api/norms. */
+export interface NormItem extends CatalogRow { id: number; section: NormSection }
+export interface NormSearchResult {
+  total: number;
+  counts: Record<NormSection, number>;
+  updated: Partial<Record<NormSection, string>>;
+  items: NormItem[];
+}
+
 export interface CatalogRow { designation: string; title: string; pages: number; status: string; url: string }
 
 const ENTITIES: Record<string, string> = { quot: '"', amp: "&", lt: "<", gt: ">", nbsp: " ", laquo: "«", raquo: "»", apos: "'", ndash: "–", mdash: "—" };

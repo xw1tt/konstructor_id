@@ -80,7 +80,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
           )}
           {state.error && <p className="error" role="alert">{state.error}</p>}
           {screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
-            <NormativScreen port={port} state={state} restore={book && slots.create?.(state, book.missing, flow)} />
+            <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
             <>
               <nav className="stamp" role="tablist" aria-label="Разделы">

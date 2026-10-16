@@ -138,10 +138,26 @@ details.section > .body { padding-bottom: 12px; }
 .tb-icon { background: none; border: 0; border-radius: 6px; padding: 4px; color: var(--ink-soft); display: inline-flex; }
 .tb-icon:disabled { opacity: .55; cursor: default; }
 
-.norm-list { list-style: none; padding: 0; margin: 8px 0 0; }
-.list li.norm-row { display: block; padding: 8px 2px; border-bottom: 1px solid var(--line); }
-.list li.norm-row button.link { display: block; width: 100%; white-space: normal; color: var(--ink); }
-.norm-row .row-actions { margin-top: 6px; flex-wrap: wrap; }
-.norm-row p { margin: 4px 0 0; padding: 0; }
 .field-hint { display: block; color: var(--ink-soft); font-size: 11px; line-height: 1.3; margin-top: 2px; }
 .example-note { margin: 4px 0 8px; padding: 6px 8px; background: var(--warn-bg); color: var(--warn); border-left: 3px solid var(--warn); }
+
+/* Справочник нормативов */
+.norms .search { width: 100%; margin-bottom: 8px; }
+.norm-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.chip-count { opacity: .7; font-size: 11px; margin-left: 2px; }
+.norm-actions { flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.norm-total { text-align: right; font-size: 12px; margin: 4px 0; }
+.norm-terms { font-size: 12px; }
+.norms .norm-list { max-height: 60vh; overflow-y: auto; border-top: 1px solid var(--line); }
+.list li.norm-row { display: block; padding: 6px 2px; border-bottom: 1px solid var(--line); }
+.list li.norm-row.selected { background: var(--blue-weak); }
+.list li.norm-row button.link { display: block; width: 100%; white-space: normal; color: var(--ink); }
+.norm-head { display: flex; align-items: center; gap: 6px; }
+.norm-pages { margin-left: auto; color: var(--ink-soft); font-size: 11px; white-space: nowrap; }
+.norm-title { display: block; color: var(--ink-soft); font-size: 12px; margin-top: 2px; }
+.badge { font-size: 11px; padding: 0 6px; border-radius: 8px; white-space: nowrap; }
+.badge-ok { background: #e3f4ea; color: var(--ok); }
+.badge-replaced { background: #fff4d6; color: #8a6100; }
+.badge-other { background: var(--surface); color: var(--ink-soft); }
+.norm-card p { margin: 4px 0; }
+.norm-url { word-break: break-all; font-size: 11px; }

@@ -1,17 +1,10 @@
 // Обновление справочника нормативов: обход страниц списков разделов protect.gost.ru.
 // Читаются только страницы списков; раздел записывается целиком после успешного обхода всех его страниц.
 import type { Db } from "../db.ts";
-import { NORM_SECTIONS, parseListPage, type CatalogRow, type NormSection } from "@idk/shared/normCatalog";
+import { NORM_SECTIONS, parseListPage, type CatalogRow, type RefreshState } from "@idk/shared/normCatalog";
 import { normCatalog } from "../repo/normCatalog.ts";
 
-export interface RefreshState {
-  running: boolean;
-  section: NormSection | null;
-  page: number;
-  pages: number | null;
-  error: string | null;
-  finishedAt: string | null;
-}
+export type { RefreshState };
 
 export const USER_AGENT = "Konstruktor-ID (справочник нормативов)";
 export const PAUSE_MS = 300;

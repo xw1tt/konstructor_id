@@ -1,14 +1,8 @@
 import type { Db } from "../db.ts";
-import { NORM_SECTIONS, type CatalogRow, type NormSection } from "@idk/shared/normCatalog";
+import { NORM_SECTIONS, type CatalogRow, type NormSection, type NormItem, type NormSearchResult } from "@idk/shared/normCatalog";
 import { isPortalUrl } from "@idk/shared/normativ";
 
-export interface NormItem extends CatalogRow { id: number; section: NormSection }
-export interface NormSearchResult {
-  total: number;
-  counts: Record<NormSection, number>;
-  updated: Partial<Record<NormSection, string>>;
-  items: NormItem[];
-}
+export type { NormItem, NormSearchResult };
 
 export const DEFAULT_LIMIT = 100;
 export const MAX_LIMIT = 500;

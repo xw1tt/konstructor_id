@@ -7,6 +7,13 @@ import { nextBaseNumber, nextNumberFor, todayIso } from "./numbering.ts";
 export function newRowDefaults(table: TableName, book: Book, today = todayIso()): Record<string, CellValue> {
   const out: Record<string, CellValue> = {};
   for (const c of TABLES[table].columns) if (c.default !== undefined) out[c.header] = c.default;
+  if (table === "ДокументыКабелей") {
+    // Последний акт «Базы актов», у которого ещё нет строки документов кабелей.
+    const has = new Set((book.tables["ДокументыКабелей"] ?? []).map((r) => cellText(r.v.act)));
+    const free = (book.tables["Акты"] ?? []).map((r) => cellText(r.v.baseNumber)).filter((n) => n && !has.has(n));
+    if (free.length) out["Акт"] = free[free.length - 1];
+    return out;
+  }
   if (table !== "Акты") return out;
   const acts = (book.tables["Акты"] ?? []).map((r) => ({ baseNumber: cellText(r.v.baseNumber) })).filter((a) => a.baseNumber);
   const reps = (book.tables["Представители"] ?? []).map((r) => ({

@@ -1,7 +1,8 @@
 // Печать акта из книги: сборка пакета, проверка, задание печати на сервере, окно предпросмотра.
 import { TABLES, type TableName } from "@idk/shared/workbook/schema";
-import type { DocKind } from "@idk/shared/acts/schemas";
+import type { PrintKind } from "@idk/shared/acts/schemas";
 import { buildBundle, type Issue } from "@idk/shared/workbook/bundle";
+import { buildCableBundle } from "@idk/shared/workbook/cables";
 import type { Book } from "@idk/shared/workbook/records";
 import type { ImportantMap } from "@idk/shared/workbook/important";
 import type { TemplateCode } from "@idk/shared/templates";
@@ -21,7 +22,7 @@ export function issueLines(issues: Issue[], offsets: Partial<Record<TableName, n
   });
 }
 
-export const previewJobUrl = (id: string, doc: DocKind, origin: string) =>
+export const previewJobUrl = (id: string, doc: PrintKind, origin: string) =>
   `${origin}/addin/preview.html?src=${encodeURIComponent(`/api/print-jobs/${id}/${doc}`)}`;
 
 function openPreview(url: string) {
@@ -33,8 +34,8 @@ function openPreview(url: string) {
 }
 
 /** Проверяет акт; при ошибках возвращает их, иначе создаёт задание печати и открывает предпросмотр. */
-export async function printAct(book: Book, actNumber: string, important: ImportantMap, doc: DocKind, template: TemplateCode): Promise<Issue[]> {
-  const { bundle, issues } = buildBundle(book, actNumber, important);
+export async function printAct(book: Book, actNumber: string, important: ImportantMap, doc: PrintKind, template: TemplateCode): Promise<Issue[]> {
+  const { bundle, issues } = doc === "kj" || doc === "ip" ? buildCableBundle(book, actNumber, important, doc) : buildBundle(book, actNumber, important);
   if (!bundle) return issues;
   const { id } = await apiSend<{ id: string }>("POST", "/api/print-jobs", { ...bundle, template });
   openPreview(previewJobUrl(id, doc, location.origin));

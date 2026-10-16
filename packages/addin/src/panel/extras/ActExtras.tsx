@@ -1,7 +1,7 @@
 // Дополнение карточки акта: сводка, переход к строкам акта на других листах, проверка и печать.
 import { useContext, useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
-import type { DocKind } from "@idk/shared/acts/schemas";
+import type { PrintKind } from "@idk/shared/acts/schemas";
 import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
@@ -9,8 +9,9 @@ import { actSummary } from "./summaries.ts";
 import { TemplateContext } from "../templateContext.ts";
 import { issueLines, printAct, type IssueLine } from "../print.ts";
 
-const DOCS: { kind: DocKind; label: string }[] = [
+const DOCS: { kind: PrintKind; label: string }[] = [
   { kind: "aosr", label: "АОСР" }, { kind: "rim", label: "РИМ" }, { kind: "vd", label: "ВД" }, { kind: "vor", label: "ВОР" },
+  { kind: "kj", label: "КЖ" }, { kind: "ip", label: "Протокол" },
 ];
 const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | "vor" }[] = [
   { table: "Схемы", label: "Схемы", key: "schemes" },
@@ -21,13 +22,13 @@ const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | 
 export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
   const guard = useGuard();
   const template = useContext(TemplateContext);
-  const [busy, setBusy] = useState<DocKind | null>(null);
+  const [busy, setBusy] = useState<PrintKind | null>(null);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [error, setError] = useState("");
   if (!act || !state.book) return null;
   const sum = actSummary(state.book, act);
 
-  const print = async (doc: DocKind) => {
+  const print = async (doc: PrintKind) => {
     setBusy(doc);
     setError("");
     setLines([]);

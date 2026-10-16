@@ -153,7 +153,8 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
       </div>
       {table === "Материалы" && <MaterialExtras port={port} state={state} name={cellText(valueOf(colOf("Материалы", "name").header))} />}
       {table === "Акты" && <ActExtras port={port} state={state} act={cellText(valueOf(colOf("Акты", "baseNumber").header))} />}
-      {table === "КабельныйЖурнал" && <CableExtras state={state} act={cellText(valueOf(colOf("КабельныйЖурнал", "act").header))} />}
+      {table === "КабельныйЖурнал" && <CableExtras port={port} state={state} act={cellText(valueOf(colOf("КабельныйЖурнал", "act").header))} />}
+      {table === "ИзмеренияМарок" && <CableExtras port={port} state={state} act="" />}
     </section>
   );
 }

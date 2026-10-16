@@ -1,11 +1,24 @@
 import { createRoot } from "react-dom/client";
 import { ExcelPort } from "./book/excelPort.ts";
-import { Panel } from "./panel/Panel.tsx";
+import { newRowsDefaults } from "./book/defaults.ts";
+import { Panel, type PanelSlots } from "./panel/Panel.tsx";
+import { CardArea } from "./panel/card/RowCard.tsx";
 
 declare const Office: { onReady: (cb: () => void) => void } | undefined;
 
+const port = new ExcelPort();
+
+const slots: PanelSlots = {
+  card: (state) => <CardArea port={port} state={state} />,
+  onRowsAdded: async (state, table, first, n) => {
+    if (!state.book) return;
+    const list = newRowsDefaults(table, state.book, n);
+    for (let i = 0; i < n; i++) if (Object.keys(list[i]).length) await port.write(table, first + i, list[i]);
+  },
+};
+
 function start() {
-  createRoot(document.getElementById("root")!).render(<Panel port={new ExcelPort()} />);
+  createRoot(document.getElementById("root")!).render(<Panel port={port} slots={slots} />);
 }
 
 // Внутри Excel ждём готовности Office.js; в обычном браузере запускаемся сразу (панель покажет, что нужен Excel).

@@ -113,7 +113,23 @@ export function vdRows(actMaterials: ActMaterialInput[], materials: Material[], 
 
 export type VorRow = { kind: "group"; title: string } | { kind: "line"; name: string; unit: string; quantity: string };
 
-export function vorRows(lines: VorLineInput[], materials: Material[]): VorRow[] {
+/** Заголовок итогового раздела ВОР: «Итого по этажам П5, П4» для групп «Этаж …». */
+export function vorTotalTitle(groups: string[]): string {
+  const floors = groups.map((g) => g.match(/^этаж\s+(.+)$/i)?.[1]);
+  if (floors.every(Boolean)) return `Итого по этажам ${floors.join(", ")}`;
+  return `Итого по разделам: ${groups.join(", ")}`;
+}
+
+const vorLineName = (m: Material | undefined) => {
+  const extra = [m?.article || m?.mark || "", m?.manufacturer ?? ""].filter(Boolean).join(", ");
+  return extra ? `${m?.name ?? ""} (${extra})` : m?.name ?? "";
+};
+
+/**
+ * Строки ВОР по группам. Если передан порядок материалов акта и групп больше одной,
+ * в конце добавляется итоговый раздел с суммами (это и есть количества ВД).
+ */
+export function vorRows(lines: VorLineInput[], materials: Material[], actMaterials?: ActMaterialInput[]): VorRow[] {
   const mm = matMap(materials);
   const sorted = [...lines].sort(byOrder);
   const groups: string[] = [];
@@ -123,8 +139,17 @@ export function vorRows(lines: VorLineInput[], materials: Material[]): VorRow[] 
     if (g) rows.push({ kind: "group", title: g });
     for (const l of sorted.filter((x) => x.group === g)) {
       const m = mm.get(l.materialId);
-      const extra = [m?.article || m?.mark || "", m?.manufacturer ?? ""].filter(Boolean).join(", ");
-      rows.push({ kind: "line", name: extra ? `${m?.name ?? ""} (${extra})` : m?.name ?? "", unit: m?.unit ?? "", quantity: formatNumber(l.quantity) });
+      rows.push({ kind: "line", name: vorLineName(m), unit: m?.unit ?? "", quantity: formatNumber(l.quantity) });
+    }
+  }
+  const named = groups.filter(Boolean);
+  if (actMaterials && named.length > 1) {
+    const totals = vorTotals(lines);
+    rows.push({ kind: "group", title: vorTotalTitle(named) });
+    for (const am of [...actMaterials].sort(byOrder)) {
+      if (!totals.has(am.materialId)) continue;
+      const m = mm.get(am.materialId);
+      rows.push({ kind: "line", name: vorLineName(m), unit: m?.unit ?? "", quantity: formatNumber(totals.get(am.materialId)!) });
     }
   }
   return rows;

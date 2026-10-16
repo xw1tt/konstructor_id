@@ -161,3 +161,17 @@ test("signers: роль без действующего — пустая под�
   assert.deepEqual(s.map((x) => x.names), [[""], ["Королев Д.М.", "Востров В.П."]]);
   assert.match(s[0].label, /подготовку проектной документации/);
 });
+
+test("vorRows: итог по этажам в порядке материалов акта", () => {
+  const lines = [vor("Этаж П5", 2, 259.4, 1), vor("Этаж П5", 1, 430, 0), vor("Этаж П4", 1, 436.6, 2), vor("Этаж П4", 2, 329.1, 3)];
+  const rows = vorRows(lines, [pipe, cable], [am(1, 0), am(2, 1)]);
+  const t = rows.findIndex((r) => r.kind === "group" && r.title.startsWith("Итого"));
+  assert.deepEqual(rows[t], { kind: "group", title: "Итого по этажам П5, П4" });
+  assert.deepEqual(rows.slice(t + 1).map((r: any) => r.quantity), ["866,6", "588,5"]);
+});
+
+test("vorTotalTitle: общий префикс «Этаж» и прочие группы", async () => {
+  const { vorTotalTitle } = await import("@idk/shared/acts/rows");
+  assert.equal(vorTotalTitle(["Этаж П5", "Этаж П4"]), "Итого по этажам П5, П4");
+  assert.equal(vorTotalTitle(["Секция 1", "Кровля"]), "Итого по разделам: Секция 1, Кровля");
+});

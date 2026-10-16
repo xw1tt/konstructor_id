@@ -1,0 +1,804 @@
+{
+ "materials": [
+  {
+   "name": "Кабель для промышленного интерфейса RS-485, групповой прокладки, с пониженным дымо- и газовыделением",
+   "mark": "СегментКИ-485-ПсЭнг(А)-HF 1х2х0,78-300 В",
+   "article": "",
+   "manufacturer": "ООО \"СегментЭНЕРГО\"",
+   "unit": "м.",
+   "vdQty": 1618.9
+  },
+  {
+   "name": "Труба ПВХ жёсткая гладкая, d20 мм, лёгкая, 3 м, серая",
+   "mark": "",
+   "article": "63920",
+   "manufacturer": "DKC",
+   "unit": "м.",
+   "vdQty": 1067.5
+  },
+  {
+   "name": "Труба ПЛЛ гибкая гофр. не содержит галогенов д.20мм, ПВ-0, с протяжкой,100м, цвет белый",
+   "mark": "",
+   "article": "91920",
+   "manufacturer": "DKC",
+   "unit": "м.",
+   "vdQty": 367.7
+  },
+  {
+   "name": "Держатель-клипса для монтажного пистолета, d20 мм, серый",
+   "mark": "",
+   "article": "51020М",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 1802
+  },
+  {
+   "name": "Усиленные дюбель-гвозди по бетону, металлу тип CN EG Bullet-Point 19",
+   "mark": "",
+   "article": "30519stepEG",
+   "manufacturer": "Тоиа",
+   "unit": "шт.",
+   "vdQty": 1802
+  },
+  {
+   "name": "Муфта труба-труба с ограничителем IP40, d20 мм",
+   "mark": "",
+   "article": "54920",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 522
+  },
+  {
+   "name": "Муфта труба-коробка, IP67, М20х1,5, д.20мм",
+   "mark": "",
+   "article": "50220",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 14
+  },
+  {
+   "name": "Газовый баллон Toua Standard с зеленым клапаном. длина 165 мм",
+   "mark": "",
+   "article": "toua-fcgs",
+   "manufacturer": "Toua",
+   "unit": "шт.",
+   "vdQty": 6
+  },
+  {
+   "name": "Бирка для контрольного кабеля, треугольная, У-136, 60х55 мм",
+   "mark": "",
+   "article": "338726",
+   "manufacturer": "Vell",
+   "unit": "шт.",
+   "vdQty": 244
+  },
+  {
+   "name": "Хомут P6.6 стандартный, белый",
+   "mark": "",
+   "article": "25213",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 691
+  },
+  {
+   "name": "Шпилька М8х1000",
+   "mark": "",
+   "article": "СМ200801",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 100
+  },
+  {
+   "name": "Забивной анкер М8",
+   "mark": "",
+   "article": "CM400830",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 100
+  },
+  {
+   "name": "Шайба с узкими полями М8",
+   "mark": "",
+   "article": "СМ240800",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 300
+  },
+  {
+   "name": "Гайка шестигранная М8",
+   "mark": "",
+   "article": "СМ110800",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 300
+  },
+  {
+   "name": "П-образный профиль PSM, L1000, толщ.2,5 мм",
+   "mark": "",
+   "article": "ВРМ2910",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 14
+  },
+  {
+   "name": "П-образный профиль PSM, L1200, толщ.2,5 мм",
+   "mark": "",
+   "article": "ВРМ2912",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 10
+  },
+  {
+   "name": "П-образный профиль PSM, L1500, толщ.2,5 мм",
+   "mark": "",
+   "article": "ВРМ2915",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 7
+  },
+  {
+   "name": "П-образный профиль PSM, L1800, толщ.2,5 мм",
+   "mark": "",
+   "article": "ВРМ2918",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 6
+  },
+  {
+   "name": "П-образный профиль PSM, L2000, толщ.2,5 мм",
+   "mark": "",
+   "article": "ВРМ2920",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 11
+  },
+  {
+   "name": "П-образный профиль PSM, L2500, толщ.2,5 мм",
+   "mark": "",
+   "article": "ВРМ2925",
+   "manufacturer": "DKC",
+   "unit": "шт.",
+   "vdQty": 2
+  }
+ ],
+ "docs": [
+  {
+   "type": "passport",
+   "number": "№3/405",
+   "issueDate": "2025-05-09",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    1
+   ],
+   "registryName": "Кабель СегментКИ-485-ПсЭнг(А)-HF 1х2х0,78-300 В"
+  },
+  {
+   "type": "certificate",
+   "number": "№ЕАЭС RU C-RU.АД38.В.00024/21",
+   "issueDate": "2021-06-11",
+   "validUntil": "2026-06-10",
+   "sheets": 3,
+   "materials": [
+    1
+   ],
+   "registryName": "Кабель СегментКИ-485-ПсЭнг(А)-HF 1х2х0,78-300 В"
+  },
+  {
+   "type": "passport",
+   "number": "№63920",
+   "issueDate": "2025-05-19",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    2
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "certificate",
+   "number": "№ЕАЭС RU C-RU.ПБ68.В.00389/21",
+   "issueDate": "2021-07-07",
+   "validUntil": "2026-07-06",
+   "sheets": 2,
+   "materials": [
+    2
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "passport",
+   "number": "№81820",
+   "issueDate": "2025-05-19",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    3
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "certificate",
+   "number": "№ЕАЭС RU C-RU.ПБ68.В.00475/21",
+   "issueDate": "2021-08-17",
+   "validUntil": "2026-08-16",
+   "sheets": 3,
+   "materials": [
+    3
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "passport",
+   "number": "№51020M",
+   "issueDate": "2025-05-19",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    4
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "info_letter",
+   "number": "№ЦС/3500/23",
+   "issueDate": "2023-11-03",
+   "validUntil": null,
+   "sheets": 2,
+   "materials": [
+    4
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "info_letter",
+   "number": "№320/11-2014",
+   "issueDate": "2014-11-19",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    5
+   ],
+   "registryName": "Усиленные дюбель-гвозди по бетону, металлу тип CN EG Bullet-Point 19 мм"
+  },
+  {
+   "type": "passport",
+   "number": "№54920",
+   "issueDate": "2025-05-19",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    6
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "passport",
+   "number": "№50220",
+   "issueDate": "2026-05-14",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    7
+   ],
+   "registryName": "Муфта труба-коробка, IP67, М20х1.5, д.20мм"
+  },
+  {
+   "type": "info_letter",
+   "number": "№2448",
+   "issueDate": "2023-02-17",
+   "validUntil": null,
+   "sheets": 2,
+   "materials": [
+    6,
+    7
+   ],
+   "registryName": "Муфта-труба с ограничителем, IP40, д.20мм, муфта труба-коробка, IP67, М20х1.5, д.20мм"
+  },
+  {
+   "type": "certificate",
+   "number": "№РОСС RU.З3023.ОС01.00623",
+   "issueDate": "2025-05-30",
+   "validUntil": "2028-05-29",
+   "sheets": 1,
+   "materials": [
+    8
+   ],
+   "registryName": "Газовый баллон Toua Standard с зеленым клапаном. Длина 165 мм"
+  },
+  {
+   "type": "info_letter",
+   "number": "№20230317",
+   "issueDate": "2023-03-17",
+   "validUntil": null,
+   "sheets": 2,
+   "materials": [
+    9
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "info_letter",
+   "number": "№575и-12/2019",
+   "issueDate": "2019-12-06",
+   "validUntil": null,
+   "sheets": 2,
+   "materials": [
+    10
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "info_letter",
+   "number": "№2125",
+   "issueDate": "2022-11-23",
+   "validUntil": null,
+   "sheets": 3,
+   "materials": [
+    11,
+    12,
+    14
+   ],
+   "registryName": "Винт М6, М8, гайка М6, М8, шпилька М8, забивной анкер М8, саморез 4.8х29"
+  },
+  {
+   "type": "passport",
+   "number": "№BPM2910",
+   "issueDate": "2025-05-21",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    15
+   ],
+   "registryName": "П-образный профиль PSM, L1000, толщина 2,5 мм"
+  },
+  {
+   "type": "passport",
+   "number": "№BPM2912",
+   "issueDate": "2026-04-24",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    16
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "passport",
+   "number": "№BPM2915",
+   "issueDate": "2026-04-24",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    17
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "passport",
+   "number": "№BPM2918",
+   "issueDate": "2026-04-24",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    18
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "passport",
+   "number": "№BPM2920",
+   "issueDate": "2026-04-24",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    19
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "passport",
+   "number": "№BPM2925",
+   "issueDate": "2026-04-24",
+   "validUntil": null,
+   "sheets": 1,
+   "materials": [
+    20
+   ],
+   "registryName": ""
+  },
+  {
+   "type": "info_letter",
+   "number": "№176",
+   "issueDate": "2025-11-12",
+   "validUntil": null,
+   "sheets": 7,
+   "materials": [
+    16,
+    17,
+    18,
+    19,
+    20
+   ],
+   "registryName": "П-образный профиль PSM, L1200, L1500, L1800, L2000, L2500, L3000, L6000 толщ.2,5 мм"
+  },
+  {
+   "type": "info_letter",
+   "number": "№2022",
+   "issueDate": "2022-10-31",
+   "validUntil": null,
+   "sheets": 8,
+   "materials": [
+    15
+   ],
+   "registryName": ""
+  }
+ ],
+ "vor": [
+  {
+   "group": "Этаж П5",
+   "material": 1,
+   "quantity": 430
+  },
+  {
+   "group": "Этаж П5",
+   "material": 2,
+   "quantity": 259.4
+  },
+  {
+   "group": "Этаж П5",
+   "material": 3,
+   "quantity": 78
+  },
+  {
+   "group": "Этаж П5",
+   "material": 4,
+   "quantity": 415
+  },
+  {
+   "group": "Этаж П5",
+   "material": 5,
+   "quantity": 415
+  },
+  {
+   "group": "Этаж П5",
+   "material": 6,
+   "quantity": 126
+  },
+  {
+   "group": "Этаж П5",
+   "material": 7,
+   "quantity": 2
+  },
+  {
+   "group": "Этаж П5",
+   "material": 8,
+   "quantity": 1
+  },
+  {
+   "group": "Этаж П5",
+   "material": 9,
+   "quantity": 43
+  },
+  {
+   "group": "Этаж П5",
+   "material": 10,
+   "quantity": 148
+  },
+  {
+   "group": "Этаж П5",
+   "material": 15,
+   "quantity": 1
+  },
+  {
+   "group": "Этаж П5",
+   "material": 16,
+   "quantity": 5
+  },
+  {
+   "group": "Этаж П5",
+   "material": 17,
+   "quantity": 2
+  },
+  {
+   "group": "Этаж П5",
+   "material": 18,
+   "quantity": 2
+  },
+  {
+   "group": "Этаж П5",
+   "material": 19,
+   "quantity": 1
+  },
+  {
+   "group": "Этаж П5",
+   "material": 11,
+   "quantity": 22
+  },
+  {
+   "group": "Этаж П5",
+   "material": 12,
+   "quantity": 22
+  },
+  {
+   "group": "Этаж П5",
+   "material": 13,
+   "quantity": 66
+  },
+  {
+   "group": "Этаж П5",
+   "material": 14,
+   "quantity": 66
+  },
+  {
+   "group": "Этаж П4",
+   "material": 1,
+   "quantity": 436.6
+  },
+  {
+   "group": "Этаж П4",
+   "material": 2,
+   "quantity": 329.1
+  },
+  {
+   "group": "Этаж П4",
+   "material": 3,
+   "quantity": 64.9
+  },
+  {
+   "group": "Этаж П4",
+   "material": 4,
+   "quantity": 459
+  },
+  {
+   "group": "Этаж П4",
+   "material": 5,
+   "quantity": 459
+  },
+  {
+   "group": "Этаж П4",
+   "material": 6,
+   "quantity": 141
+  },
+  {
+   "group": "Этаж П4",
+   "material": 7,
+   "quantity": 4
+  },
+  {
+   "group": "Этаж П4",
+   "material": 8,
+   "quantity": 2
+  },
+  {
+   "group": "Этаж П4",
+   "material": 9,
+   "quantity": 62
+  },
+  {
+   "group": "Этаж П4",
+   "material": 10,
+   "quantity": 172
+  },
+  {
+   "group": "Этаж П4",
+   "material": 15,
+   "quantity": 1
+  },
+  {
+   "group": "Этаж П4",
+   "material": 16,
+   "quantity": 2
+  },
+  {
+   "group": "Этаж П4",
+   "material": 17,
+   "quantity": 2
+  },
+  {
+   "group": "Этаж П4",
+   "material": 18,
+   "quantity": 1
+  },
+  {
+   "group": "Этаж П4",
+   "material": 19,
+   "quantity": 1
+  },
+  {
+   "group": "Этаж П4",
+   "material": 20,
+   "quantity": 1
+  },
+  {
+   "group": "Этаж П4",
+   "material": 11,
+   "quantity": 16
+  },
+  {
+   "group": "Этаж П4",
+   "material": 12,
+   "quantity": 16
+  },
+  {
+   "group": "Этаж П4",
+   "material": 13,
+   "quantity": 48
+  },
+  {
+   "group": "Этаж П4",
+   "material": 14,
+   "quantity": 48
+  },
+  {
+   "group": "Этаж П3",
+   "material": 1,
+   "quantity": 483.3
+  },
+  {
+   "group": "Этаж П3",
+   "material": 2,
+   "quantity": 296
+  },
+  {
+   "group": "Этаж П3",
+   "material": 3,
+   "quantity": 157.6
+  },
+  {
+   "group": "Этаж П3",
+   "material": 4,
+   "quantity": 611
+  },
+  {
+   "group": "Этаж П3",
+   "material": 5,
+   "quantity": 611
+  },
+  {
+   "group": "Этаж П3",
+   "material": 6,
+   "quantity": 203
+  },
+  {
+   "group": "Этаж П3",
+   "material": 8,
+   "quantity": 2
+  },
+  {
+   "group": "Этаж П3",
+   "material": 9,
+   "quantity": 46
+  },
+  {
+   "group": "Этаж П3",
+   "material": 10,
+   "quantity": 266
+  },
+  {
+   "group": "Этаж П3",
+   "material": 15,
+   "quantity": 10
+  },
+  {
+   "group": "Этаж П3",
+   "material": 16,
+   "quantity": 3
+  },
+  {
+   "group": "Этаж П3",
+   "material": 17,
+   "quantity": 3
+  },
+  {
+   "group": "Этаж П3",
+   "material": 18,
+   "quantity": 3
+  },
+  {
+   "group": "Этаж П3",
+   "material": 19,
+   "quantity": 9
+  },
+  {
+   "group": "Этаж П3",
+   "material": 11,
+   "quantity": 58
+  },
+  {
+   "group": "Этаж П3",
+   "material": 12,
+   "quantity": 58
+  },
+  {
+   "group": "Этаж П3",
+   "material": 13,
+   "quantity": 174
+  },
+  {
+   "group": "Этаж П3",
+   "material": 14,
+   "quantity": 174
+  },
+  {
+   "group": "Этаж П3",
+   "material": 20,
+   "quantity": 1
+  },
+  {
+   "group": "Этаж П2",
+   "material": 1,
+   "quantity": 269
+  },
+  {
+   "group": "Этаж П2",
+   "material": 2,
+   "quantity": 183
+  },
+  {
+   "group": "Этаж П2",
+   "material": 3,
+   "quantity": 67.2
+  },
+  {
+   "group": "Этаж П2",
+   "material": 4,
+   "quantity": 317
+  },
+  {
+   "group": "Этаж П2",
+   "material": 5,
+   "quantity": 317
+  },
+  {
+   "group": "Этаж П2",
+   "material": 6,
+   "quantity": 52
+  },
+  {
+   "group": "Этаж П2",
+   "material": 7,
+   "quantity": 8
+  },
+  {
+   "group": "Этаж П2",
+   "material": 8,
+   "quantity": 1
+  },
+  {
+   "group": "Этаж П2",
+   "material": 9,
+   "quantity": 93
+  },
+  {
+   "group": "Этаж П2",
+   "material": 10,
+   "quantity": 105
+  },
+  {
+   "group": "Этаж П2",
+   "material": 15,
+   "quantity": 2
+  },
+  {
+   "group": "Этаж П2",
+   "material": 11,
+   "quantity": 4
+  },
+  {
+   "group": "Этаж П2",
+   "material": 12,
+   "quantity": 4
+  },
+  {
+   "group": "Этаж П2",
+   "material": 13,
+   "quantity": 12
+  },
+  {
+   "group": "Этаж П2",
+   "material": 14,
+   "quantity": 12
+  }
+ ]
+}

@@ -63,6 +63,8 @@ export function QualityDocForm({ doc, materials, onDone }: {
         {busy ? "Загрузка…" : file ? `Скан: ${file.name}, листов: ${file.pages}` : data.fileId ? "Скан загружен. Перетащите другой файл, чтобы заменить" : "Перетащите скан (PDF, JPG, PNG) или нажмите, чтобы выбрать"}
         <input type="file" accept="application/pdf,image/jpeg,image/png" hidden onChange={(e) => void upload(e.target.files?.[0])} />
       </label>
+      <Field label="Наименование для реестра (если нужно иначе)" value={data.registryName}
+        placeholder="Пусто — наименования материалов через запятую" onChange={(v) => set("registryName", v)} />
       <label>
         Количество листов
         <input type="number" min={0} value={data.sheets} onChange={(e) => set("sheets", Math.max(0, Number(e.target.value) || 0))} />

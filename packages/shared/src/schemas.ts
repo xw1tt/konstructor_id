@@ -48,6 +48,8 @@ export const RepresentativeInput = z.object({
   validFrom: optDate,
   validTo: optDate,
   sortOrder: z.number().int().default(0),
+  /** Если заполнено — печатается в АОСР вместо автоматической строки. */
+  actText: str,
 });
 export const Representative = RepresentativeInput.extend({ id });
 export type RepresentativeInput = z.infer<typeof RepresentativeInput>;
@@ -69,6 +71,8 @@ export const QualityDocInput = z.object({
   sheets: z.number().int().min(0).default(0),
   fileId: id.nullable().default(null),
   materialIds: z.array(id).default([]),
+  /** Наименование в РИМ; пусто — наименования материалов через запятую. */
+  registryName: str,
 });
 export const QualityDoc = QualityDocInput.extend({ id });
 export type QualityDocInput = z.infer<typeof QualityDocInput>;

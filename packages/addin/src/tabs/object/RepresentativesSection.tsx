@@ -8,7 +8,7 @@ import { moveRep } from "./repOrder.ts";
 
 const empty = (role: RoleCode, orgId: number, sortOrder: number): RepresentativeInput => ({
   role, position: "", fullName: "", orgId, authorityDoc: "", nrsNumber: "", nrsDate: null,
-  validFrom: null, validTo: null, sortOrder,
+  validFrom: null, validTo: null, sortOrder, actText: "",
 });
 
 export function RepresentativesSection({ orgs }: { orgs: Organization[] }) {
@@ -83,6 +83,11 @@ export function RepresentativesSection({ orgs }: { orgs: Organization[] }) {
                   <Field label="Полномочия с" type="date" value={dateIn(edit.data.validFrom)} onChange={(v) => set("validFrom", dateOut(v))} />
                   <Field label="по" type="date" value={dateIn(edit.data.validTo)} onChange={(v) => set("validTo", dateOut(v))} />
                 </div>
+                <label>
+                  Текст для акта (если нужно иначе)
+                  <textarea rows={3} value={edit.data.actText} placeholder="Пусто — строка собирается автоматически"
+                    onChange={(e) => set("actText", e.target.value)} />
+                </label>
                 {error && <p className="error" role="alert">{error}</p>}
                 <div className="row-actions">
                   <button className="btn btn-primary" onClick={() => void save()}>Сохранить</button>

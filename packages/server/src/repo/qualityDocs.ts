@@ -30,16 +30,16 @@ export const qualityDocs = (db: Db) => {
     /** sheets = 0 означает «взять число страниц файла». */
     create: (d: QualityDocInput): QualityDoc => tx(() => {
       const sheets = d.sheets || pagesOf(d.fileId);
-      const r = db.prepare("INSERT INTO quality_docs (type, number, issue_date, valid_until, sheets, file_id) VALUES (?,?,?,?,?,?)")
-        .run(d.type, d.number, d.issueDate, d.validUntil, sheets, d.fileId);
+      const r = db.prepare("INSERT INTO quality_docs (type, number, issue_date, valid_until, sheets, file_id, registry_name) VALUES (?,?,?,?,?,?,?)")
+        .run(d.type, d.number, d.issueDate, d.validUntil, sheets, d.fileId, d.registryName);
       const id = Number(r.lastInsertRowid);
       setLinks(id, d.materialIds);
       return api.get(id)!;
     }),
     update: (id: number, d: QualityDocInput): QualityDoc | undefined => tx(() => {
       const sheets = d.sheets || pagesOf(d.fileId);
-      const r = db.prepare("UPDATE quality_docs SET type=?, number=?, issue_date=?, valid_until=?, sheets=?, file_id=? WHERE id=?")
-        .run(d.type, d.number, d.issueDate, d.validUntil, sheets, d.fileId, id);
+      const r = db.prepare("UPDATE quality_docs SET type=?, number=?, issue_date=?, valid_until=?, sheets=?, file_id=?, registry_name=? WHERE id=?")
+        .run(d.type, d.number, d.issueDate, d.validUntil, sheets, d.fileId, d.registryName, id);
       if (!r.changes) return undefined;
       setLinks(id, d.materialIds);
       return api.get(id);

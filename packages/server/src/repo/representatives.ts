@@ -5,6 +5,6 @@ import { crud } from "./crud.ts";
 export const representatives = (db: Db) =>
   crud<Representative, RepresentativeInput>(
     db, "representatives",
-    ["role", "position", "fullName", "orgId", "authorityDoc", "nrsNumber", "nrsDate", "validFrom", "validTo", "sortOrder"],
+    ["role", "position", "fullName", "orgId", "authorityDoc", "nrsNumber", "nrsDate", "validFrom", "validTo", "sortOrder", "actText"],
     "role, sort_order, id",
   );

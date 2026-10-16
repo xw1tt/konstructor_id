@@ -134,7 +134,7 @@ export function MaterialsTab() {
                 <div className="row-actions">
                   <button className="btn" onClick={() => setDocEdit({
                     id: null,
-                    data: { type: "certificate", number: "", issueDate: null, validUntil: null, sheets: 0, fileId: null, materialIds: [edit.id!] },
+                    data: { type: "certificate", number: "", issueDate: null, validUntil: null, sheets: 0, fileId: null, materialIds: [edit.id!], registryName: "" },
                   })}>Добавить документ</button>
                 </div>
               )}

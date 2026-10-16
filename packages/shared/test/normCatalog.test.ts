@@ -42,3 +42,12 @@ test("разделы и тон статуса", () => {
   assert.equal(statusTone("Действует"), "ok");
   assert.equal(statusTone("Отменен"), "other");
 });
+
+test("ревью: ссылки с параметрами, без ведущего «/», абсолютные и в /foundational/details", () => {
+  const u = "a8608e17-1ca1-4945-98e2-7044d5bc11ac";
+  const row = (href: string) => parseListPage(`<tr><td><a class="x" href="${href}">ГОСТ 1.0-2015</a></td><td>Основные положения</td><td>13</td><td>Действует</td></tr>`).rows;
+  assert.equal(row(`https://protect.gost.ru/gost/details/${u}?lang=ru`)[0].url, `https://protect.gost.ru/gost/details/${u}?lang=ru`);
+  assert.equal(row(`gost/details/${u}`)[0].url, `https://protect.gost.ru/gost/details/${u}`);
+  assert.equal(row(`/foundational/details/${u}`)[0].url, `https://protect.gost.ru/foundational/details/${u}`);
+  assert.equal(row(`/gost/details/${u}#top`).length, 1);
+});

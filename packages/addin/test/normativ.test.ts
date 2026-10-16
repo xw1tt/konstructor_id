@@ -36,3 +36,14 @@ import { docsCount } from "@idk/addin/panel/normsApi";
 test("число документов по-русски", () => {
   assert.deepEqual([1, 3, 5, 11, 21, 4999].map(docsCount), ["1 документ", "3 документа", "5 документов", "11 документов", "21 документ", "4999 документов"]);
 });
+
+import { latestOnly } from "@idk/addin/panel/normsApi";
+test("ревью: ответ на устаревший запрос отбрасывается, новый запрос не теряется", async () => {
+  const seq = latestOnly();
+  let release!: (v: string) => void;
+  const slow = seq.run(new Promise<string>((r) => (release = r)));
+  const fast = seq.run(Promise.resolve("новый"));
+  assert.equal(await fast, "новый");
+  release("старый");
+  assert.equal(await slow, undefined);
+});

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { column } from "@idk/shared/workbook/schema";
-import { listSource, listName, strictList, importantRule, duplicateRule, colLetter, promptFor, exampleRule } from "@idk/addin/book/layout";
+import { listSource, listName, strictList, importantRule, duplicateRule, colLetter, promptFor, exampleRule, applyValidation } from "@idk/addin/book/layout";
 import { TABLES, TABLE_NAMES } from "@idk/shared/workbook/schema";
 
 test("источник списка", () => {
@@ -62,6 +62,20 @@ test("подсказка проверки данных", () => {
   assert.ok(long.title.endsWith("…"));
 });
 
-test("правило оформления примеров", () => {
-  assert.equal(exampleRule("A", "K", 5), '=COUNTIF($A5:$K5,"Пример:*")>0');
+test("правило оформления примеров — по ячейке-признаку", () => {
+  assert.equal(exampleRule("C", 5), '=COUNTIF($C5,"Пример:*")>0');
+});
+
+test("ревью: подсказка не стирается очисткой правила списка", () => {
+  // Модель dataValidation Office.js: clear() убирает и правило, и подсказку.
+  const fake = () => {
+    const dv: any = { rule: null, prompt: null, errorAlert: null, clear() { this.rule = null; this.prompt = null; this.errorAlert = null; } };
+    return { dataValidation: dv };
+  };
+  const ref = fake(); applyValidation(ref, column("Акты", "section"), "Акты");
+  assert.equal(ref.dataValidation.prompt.message, column("Акты", "section").hint);
+  assert.ok(ref.dataValidation.rule.list.source.includes("Шифры"));
+  const text = fake(); applyValidation(text, column("Акты", "works"), "Акты");
+  assert.equal(text.dataValidation.prompt.title, "Работы (п.1)");
+  assert.equal(text.dataValidation.rule, null);
 });

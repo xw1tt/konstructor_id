@@ -32,3 +32,15 @@ export function docsCount(n: number): string {
   const word = m10 === 1 && m100 !== 11 ? "документ" : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? "документа" : "документов";
   return `${n} ${word}`;
 }
+
+/** Последовательность запросов: результат устаревшего (не последнего запущенного) запроса — undefined. */
+export function latestOnly() {
+  let seq = 0;
+  return {
+    async run<T>(p: Promise<T>): Promise<T | undefined> {
+      const mine = ++seq;
+      const v = await p;
+      return mine === seq ? v : undefined;
+    },
+  };
+}

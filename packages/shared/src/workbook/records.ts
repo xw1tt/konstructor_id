@@ -22,7 +22,7 @@ export function tableToRows(name: TableName, t: TableData): BookRow[] {
   const idx = cols.map((c) => t.headers.indexOf(c.header));
   const out: BookRow[] = [];
   t.rows.forEach((r, row) => {
-    if (isExampleRow(r)) return; // строка-пример новой книги — не данные
+    if (isExampleRow(r, name, t.headers)) return; // строка-пример новой книги — не данные
     const v: Record<string, CellValue> = {};
     const link: Record<string, string | null> = {};
     let filled = false;

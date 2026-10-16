@@ -61,6 +61,21 @@ export function promptFor(col: ColumnDef): { title: string; message: string } {
   return { title, message: col.hint.slice(0, 255) };
 }
 
-/** Строка-пример: в строке есть ячейка, начинающаяся с «Пример:» (оформляется серым курсивом). */
-export const exampleRule = (firstCol: string, lastCol: string, firstRow: number) =>
-  `=COUNTIF($${firstCol}${firstRow}:$${lastCol}${firstRow},"Пример:*")>0`;
+/** Строка-пример: ячейка-признак строки начинается с «Пример:» (строка оформляется серым курсивом). */
+export const exampleRule = (col: string, firstRow: number) => `=COUNTIF($${col}${firstRow},"Пример:*")>0`;
+
+/** Проверка данных столбца: список (если есть) и подсказка. Подсказка ставится последней —
+ *  clear() в Office.js стирает её вместе с правилом. */
+export function applyValidation(body: { dataValidation: any }, col: ColumnDef, table: TableName, prompt = promptFor(col)) {
+  const dv = body.dataValidation;
+  const source = listSource(col, table);
+  if (source) {
+    dv.clear();
+    dv.rule = { list: { inCellDropDown: true, source } };
+    dv.errorAlert = {
+      showAlert: strictList(col), style: "Stop", title: "Значение не из списка",
+      message: "Выберите значение из списка или добавьте его на соответствующий лист.",
+    };
+  }
+  dv.prompt = { showPrompt: true, ...prompt };
+}

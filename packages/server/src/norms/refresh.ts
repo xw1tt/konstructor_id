@@ -60,11 +60,16 @@ export function createRefresher(db: Db, deps: RefresherDeps = {}) {
           const parsed = parseListPage(await get(`${s.url}?page=${page}`));
           if (parsed.totalPages !== null) state = { ...state, pages: parsed.totalPages };
           if (!parsed.rows.length) {
-            if (page === 1) throw new RefreshError(parseError(s.label));
+            // Пустая страница — конец списка, только если число страниц неизвестно; иначе это страница
+            // входа/ошибки посреди раздела, и раздел целиком не записывается.
+            if (page === 1 || (state.pages !== null && page < state.pages)) throw new RefreshError(parseError(s.label));
             break;
           }
+          const before = rows.length;
           for (const r of parsed.rows) if (!seen.has(r.url)) { seen.add(r.url); rows.push(r); }
           if (state.pages !== null && page >= state.pages) break;
+          // Портал вернул уже виденные строки (номер страницы вне диапазона) — раздел кончился.
+          if (rows.length === before) break;
         }
         N.replaceSection(s.code, rows, now().toISOString());
       }

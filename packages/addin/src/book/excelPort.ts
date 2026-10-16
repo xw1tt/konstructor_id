@@ -7,8 +7,9 @@ import type { CellValue } from "@idk/shared/workbook/values";
 import type { RowData, RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
 import type { ImportantMap } from "@idk/shared/workbook/important";
 import { currentHost, type HostStatus } from "./host.ts";
+import { exampleColumn } from "@idk/shared/workbook/examples";
 import {
-  COLORS, LISTS_SHEET, colLetter, duplicateRule, exampleRule, importantRule, listName, listSource, promptFor, strictList,
+  COLORS, LISTS_SHEET, applyValidation, colLetter, duplicateRule, exampleRule, importantRule, listName, promptFor,
   nextTableTop, textFormatted, visibleTableRows,
 } from "./layout.ts";
 
@@ -435,16 +436,7 @@ export class ExcelPort implements TableStore {
       if (col.type === "date") body.numberFormat = fill("dd.mm.yyyy");
       if (textFormatted(col)) body.numberFormat = fill("@");
       if (col.type === "formula" && col.formula) body.formulas = fill(col.formula);
-      const source = listSource(col, def.name);
-      if (def.name !== "Объект" || col.key !== "value") body.dataValidation.prompt = { showPrompt: true, ...promptFor(col) };
-      if (source) {
-        body.dataValidation.clear();
-        body.dataValidation.rule = { list: { inCellDropDown: true, source } };
-        body.dataValidation.errorAlert = {
-          showAlert: strictList(col), style: "Stop", title: "Значение не из списка",
-          message: "Выберите значение из списка или добавьте его на соответствующий лист.",
-        };
-      }
+      if (def.name !== "Объект" || col.key !== "value") applyValidation(body, col, def.name);
     });
     const head = t.getHeaderRowRange();
     head.format.font.bold = true;
@@ -461,7 +453,7 @@ export class ExcelPort implements TableStore {
     // Формулы правил пишутся для первой ячейки диапазона (таблицы начинаются со столбца A); firstRow — с 1.
     const last = def.columns.length - 1;
     const ex = body.conditionalFormats.add("Custom");
-    ex.custom.rule.formula = exampleRule(colLetter(0), colLetter(last), firstRow);
+    ex.custom.rule.formula = exampleRule(colLetter(def.columns.indexOf(exampleColumn(def.name))), firstRow);
     ex.custom.format.font.color = COLORS.example;
     ex.custom.format.font.italic = true;
     def.columns.forEach((col: ColumnDef, i: number) => {

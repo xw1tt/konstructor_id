@@ -110,3 +110,35 @@ test("повторный запуск во время обхода — 409; GET 
   for (let i = 0; i < 50 && (await s.req("GET", "/api/norms/refresh")).json.running; i++) await new Promise((r) => setTimeout(r, 20));
   assert.equal((await s.req("GET", "/api/norms?section=sp")).json.total, 3);
 });
+
+test("ревью: страница входа на 2-й из 3 страниц — раздел не меняется, ошибка разбора", async () => {
+  const db = fresh();
+  normCatalog(db).replaceSection("sp", [{ designation: "СП старый", title: "т", pages: 1, status: "Действует", url: "https://protect.gost.ru/sp/details/old" }], "2026-10-01T00:00:00.000Z");
+  const page = (n: number) => html(`<p>Стр. ${n} из 3</p>` + tr("sp", `СП ${n}`, uuid(n)));
+  const f = (async (u: any) => {
+    const url = String(u);
+    if (url === "https://protect.gost.ru/sp?page=1") return page(1);
+    if (url === "https://protect.gost.ru/sp?page=2") return html("<p>Войдите</p>");
+    return page(3);
+  }) as typeof fetch;
+  const r = createRefresher(db, { fetchImpl: f, sleep: async () => {}, now });
+  r.start(); await r.done();
+  assert.equal(r.state().error, "Не удалось разобрать список раздела «СП» — возможно, портал изменил вёрстку");
+  assert.deepEqual(normCatalog(db).search({ section: "sp" }).items.map((i) => i.designation), ["СП старый"]);
+});
+
+test("ревью: портал игнорирует номер страницы (повторяет последнюю) — обход раздела останавливается", async () => {
+  const db = fresh();
+  let spCalls = 0;
+  const base = portal();
+  const f = (async (u: any, i?: RequestInit) => {
+    const url = String(u);
+    if (url.startsWith("https://protect.gost.ru/sp?")) { spCalls++; return html(tr("sp", "СП 1", uuid(1)) + tr("sp", "СП 2", uuid(2))); }
+    return base.f(u, i);
+  }) as typeof fetch;
+  const r = createRefresher(db, { fetchImpl: f, sleep: async () => {}, now });
+  r.start(); await r.done();
+  assert.equal(r.state().error, null);
+  assert.equal(spCalls, 2);
+  assert.equal(normCatalog(db).search({ section: "sp" }).total, 2);
+});

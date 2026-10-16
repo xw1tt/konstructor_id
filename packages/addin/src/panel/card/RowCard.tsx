@@ -132,7 +132,7 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
   return (
     <section className="card" aria-label="Карточка строки">
       <h2 className="tools-title">Строка {rowIdx + 1} · {sheet}</h2>
-      {isExampleRow(row) && <p className="example-note" role="note">Это строка-пример: замените значения своими или удалите строку.</p>}
+      {isExampleRow(row, table, t.headers) && <p className="example-note" role="note">Это строка-пример: замените значения своими или удалите строку.</p>}
       <div className="form">
         {TABLES[table].columns.map((c) => {
           const col = effectiveColumn(table, c, row, t.headers);

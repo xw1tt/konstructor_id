@@ -19,8 +19,8 @@ test("признак примера", () => {
   assert.equal(EXAMPLE_PREFIX, "Пример: ");
   assert.equal(isExampleValue(" Пример: ООО"), true);
   assert.equal(isExampleValue("Примерно"), false);
-  assert.equal(isExampleRow(["Технадзор застройщика", "Пример: Иванов И.И."]), true);
-  assert.equal(isExampleRow([1, null, "ООО"]), false);
+  assert.equal(isExampleRow(["Технадзор застройщика", "Должность", "Пример: Иванов И.И."], "Представители", ["Роль", "Должность", "ФИО"]), true);
+  assert.equal(isExampleRow(["Пример: роль?", "Должность", "Иванов И.И."], "Представители", ["Роль", "Должность", "ФИО"]), false);
 });
 
 test("книга из одних примеров — пустая для программы", async () => {
@@ -66,4 +66,26 @@ test("примеры записываются в свежую книгу (пус
   const mats = await wb.read("Материалы");
   assert.equal(mats!.rows.length, 1);
   assert.ok(String(mats!.rows[0][0]).startsWith(EXAMPLE_PREFIX));
+});
+
+test("ревью: все поля «Объекта» из примеров — пустые для программы", async () => {
+  const b = await readBook(new MemoryWorkbook(exampleRows()));
+  for (const f of OBJECT_FIELDS) assert.equal(b.object[f.key], null, f.label);
+});
+
+test("ревью: замена ключа строки-примера делает её обычной, ссылки на примеры — ошибки проверки", async () => {
+  const wb = new MemoryWorkbook(exampleRows());
+  await wb.write("Акты", 0, { "Номер акта": "К32.ЭМ1.1" });
+  const b = await readBook(wb);
+  assert.equal(b.tables["Акты"]!.length, 1);
+  const issues = buildBundle(b, "К32.ЭМ1.1", defaultImportant()).issues.map((i) => i.message);
+  assert.ok(issues.some((m) => m.startsWith("Нет в таблице") && m.includes("Пример:")), issues.join(" | "));
+});
+
+test("ревью: в таблицах без ключа пример определяется по первой ссылке (акт)", async () => {
+  const wb = new MemoryWorkbook(exampleRows());
+  assert.equal(isExampleRow(["Пример: К1", "Схема"], "Схемы", ["Акт", "Вид"]), true);
+  assert.equal(isExampleRow(["К1", "Схема", "Пример: x"], "Схемы", ["Акт", "Вид", "Номер"]), false);
+  await wb.write("Схемы", 0, { "Акт": "К1" });
+  assert.equal((await readBook(wb)).tables["Схемы"]!.length, 1);
 });

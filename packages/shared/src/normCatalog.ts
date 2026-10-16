@@ -49,7 +49,8 @@ function decode(s: string): string {
 
 const text = (html: string) => decode(html.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
 
-const DETAILS = /href\s*=\s*["']([^"']*\/(?:gost|sp|rst|classificators|tr)\/details\/[0-9a-f-]{36})["']/i;
+/** Ссылка на карточку: абсолютная или относительная, с параметрами после кода или без. */
+const DETAILS = /href\s*=\s*["']((?:https?:\/\/[^/"']+)?\/?[a-z]+\/details\/[0-9a-f-]{36}[^"']*)["']/i;
 const STATUS = /^(действ|замен|отмен|не действ|приостан|утрат)/i;
 
 /** Отбрасывает значки перед статусом (✓, ↻ и т. п.). */
@@ -61,7 +62,8 @@ export function parseListPage(html: string): { rows: CatalogRow[]; totalPages: n
   for (const tr of html.match(/<tr\b[\s\S]*?<\/tr>/gi) ?? []) {
     const href = tr.match(DETAILS)?.[1];
     if (!href) continue;
-    const url = PORTAL_ORIGIN + href.replace(/^https?:\/\/[^/]+/i, "");
+    const path = href.replace(/^https?:\/\/[^/]+/i, "");
+    const url = PORTAL_ORIGIN + (path.startsWith("/") ? path : "/" + path);
     if (seen.has(url)) continue;
     const cells = (tr.match(/<td\b[\s\S]*?<\/td>/gi) ?? []).map((td) => ({ html: td, text: text(td) }));
     const linkCell = cells.findIndex((c) => DETAILS.test(c.html));

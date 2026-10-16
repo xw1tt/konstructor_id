@@ -7,7 +7,7 @@ import type { ExcelPort } from "../book/excelPort.ts";
 import { apiGet, apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
 import { openPortal } from "./portal.ts";
-import { cellAppend, docsCount, normsQuery, refreshText } from "./normsApi.ts";
+import { cellAppend, docsCount, latestOnly, normsQuery, refreshText } from "./normsApi.ts";
 
 export const TERMS = "Программа не хранит и не распространяет тексты нормативов. В справочнике — только сведения из открытых списков портала protect.gost.ru (обозначение, наименование, число страниц, статус). Документы открываются напрямую с портала; окно лишь показывает страницы, полученные порталом для вашей сессии.";
 const EMPTY = "Справочник пуст — нажмите «Обновить базу». Понадобится доступ к интернету, обновление займёт несколько минут.";
@@ -38,10 +38,13 @@ export function NormativScreen({ port }: { port: ExcelPort }) {
 
   useEffect(() => { const t = setTimeout(() => setQuery(q), 250); return () => clearTimeout(t); }, [q]);
 
+  const seq = useRef(latestOnly());
   const load = useCallback(async (offset: number) => {
-    if (loading.current) return;
+    // Подгрузка при прокрутке — по одной; новый поиск или раздел всегда запрашиваются заново,
+    // а ответ на устаревший запрос отбрасывается.
+    if (offset > 0 && loading.current) return;
     loading.current = true;
-    const r = await guard(apiGet<NormSearchResult>(normsQuery({ section, q: query, offset })), setError);
+    const r = await seq.current.run(guard(apiGet<NormSearchResult>(normsQuery({ section, q: query, offset })), setError));
     loading.current = false;
     if (!r) return;
     setError("");

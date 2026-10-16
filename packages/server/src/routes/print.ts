@@ -2,13 +2,14 @@
 import { randomUUID } from "node:crypto";
 import type { ServerResponse } from "node:http";
 import { Router, Reply, HttpError } from "../http/router.ts";
-import { DOC_KINDS, type DocKind } from "@idk/shared/acts/schemas";
+import { CABLE_DOC_KINDS, PRINT_KINDS, type CableDocKind, type DocKind, type PrintKind } from "@idk/shared/acts/schemas";
 import { docNumber } from "@idk/shared/acts/format";
 import { z } from "zod";
 import { ActBundle } from "@idk/shared/workbook/bundle";
 import { isTemplateCode, DEFAULT_TEMPLATE, type TemplateCode } from "@idk/shared/templates";
 import { buildDocDataFromBundle } from "../print/fromBundle.ts";
-import { renderHtml } from "../print/templates/index.ts";
+import { renderHtml, renderCableHtml } from "../print/templates/index.ts";
+import { cableDocData } from "../print/cableData.ts";
 import { htmlToPdf } from "../print/browser.ts";
 
 /** Тело запроса печати: пакет акта и код шаблона (форма заказчика); без кода — СБД. */
@@ -43,16 +44,24 @@ export function createPrintJobs(now: () => number = Date.now) {
   };
 }
 
-const kindOf = (doc: string): DocKind => {
-  if (!DOC_KINDS.includes(doc as DocKind)) throw new HttpError(400, "Неизвестный документ: " + doc);
-  return doc as DocKind;
+const kindOf = (doc: string): PrintKind => {
+  if (!PRINT_KINDS.includes(doc as PrintKind)) throw new HttpError(400, "Неизвестный документ: " + doc);
+  return doc as PrintKind;
 };
+const isCable = (k: PrintKind): k is CableDocKind => (CABLE_DOC_KINDS as readonly string[]).includes(k);
 
 /** PDF документа пакета в ответ; имя файла — как у прежней печати из базы. */
-export async function sendBundlePdf(res: ServerResponse, b: ActBundle, kind: DocKind, _template: TemplateCode = DEFAULT_TEMPLATE) {
+export async function sendBundlePdf(res: ServerResponse, b: ActBundle, kind: PrintKind, _template: TemplateCode = DEFAULT_TEMPLATE) {
   // Шаблон пока один (СБД); код передаётся сюда для будущих форм других заказчиков.
-  const pdf = await htmlToPdf(renderHtml(kind, buildDocDataFromBundle(b, kind)), { pageNumbers: kind === "vor" });
-  const name = (kind === "vor" ? `${b.act.baseNumber}.ВОР` : docNumber(b.act.baseNumber, kind)) + ".pdf";
+  let html: string, name: string;
+  if (isCable(kind)) {
+    html = kind === "kj" ? renderCableHtml("kj", cableDocData(b, "kj")) : renderCableHtml("ip", cableDocData(b, "ip"));
+    name = (kind === "kj" ? b.cables?.doc?.journalCode || `${b.act.baseNumber}.КЖ` : `${b.act.baseNumber}.Протокол`) + ".pdf";
+  } else {
+    html = renderHtml(kind, buildDocDataFromBundle(b, kind as DocKind));
+    name = (kind === "vor" ? `${b.act.baseNumber}.ВОР` : docNumber(b.act.baseNumber, kind as "aosr" | "rim" | "vd")) + ".pdf";
+  }
+  const pdf = await htmlToPdf(html, { pageNumbers: kind === "vor" });
   res.writeHead(200, {
     "content-type": "application/pdf",
     "content-length": pdf.length,

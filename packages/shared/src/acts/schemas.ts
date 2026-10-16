@@ -8,6 +8,11 @@ const optId = id.nullable().default(null);
 
 export const DOC_KINDS = ["aosr", "rim", "vd", "vor"] as const;
 export type DocKind = (typeof DOC_KINDS)[number];
+/** Документы по кабелям акта: кабельный журнал и протокол сопротивления изоляции. */
+export const CABLE_DOC_KINDS = ["kj", "ip"] as const;
+export type CableDocKind = (typeof CABLE_DOC_KINDS)[number];
+export const PRINT_KINDS = [...DOC_KINDS, ...CABLE_DOC_KINDS] as const;
+export type PrintKind = (typeof PRINT_KINDS)[number];
 
 export const ActInput = z.object({
   baseNumber: z.string({ required_error: "Укажите номер акта" }).trim().min(1, "Укажите номер акта"),

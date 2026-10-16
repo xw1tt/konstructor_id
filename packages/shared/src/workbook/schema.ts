@@ -1,5 +1,6 @@
 // Описание книги объекта: листы, «умные таблицы», столбцы. Единственный источник для разметки,
 // карточек, проверок и сборки пакета акта. Заголовки — буква в букву как в спецификации §3.
+import { NORM_KINDS, NORM_STATUSES } from "../normativ.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
 export const SCHEMA_VERSION = 1;
@@ -8,11 +9,11 @@ export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" |
 
 export type TableName =
   | "Объект" | "Организации" | "Шифры" | "Представители" | "Материалы" | "ДокументыКачества"
-  | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал";
+  | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал" | "Нормативы";
 
 export type SheetName =
   | "Реквизиты" | "Представители" | "Материалы" | "Документы качества" | "База актов"
-  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал";
+  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Нормативы";
 
 export interface ColumnDef {
   key: string;
@@ -177,6 +178,14 @@ export const TABLES: Record<TableName, TableDef> = {
     c("pipeLength", "Труба: длина, м", "number"),
     c("note", "Примечание", "text"),
   ]),
+  "Нормативы": t("Нормативы", "Нормативы", [
+    c("designation", "Обозначение", "text", { ...imp, isKey: true, width: 26 }),
+    c("title", "Наименование", "text", { width: 60 }),
+    c("kind", "Вид", "enum", { ...imp, values: NORM_KINDS, width: 12 }),
+    c("status", "Статус", "enum", { values: NORM_STATUSES, default: "Действует", width: 14 }),
+    c("link", "Ссылка на портал", "text", { width: 40 }),
+    c("note", "Примечание", "text", { width: 30 }),
+  ]),
 };
 
 export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
@@ -189,6 +198,7 @@ export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
   { name: "Материалы в актах", tables: ["МатериалыАктов"] },
   { name: "ВОР", tables: ["ВОР"] },
   { name: "Кабельный журнал", tables: ["КабельныйЖурнал"] },
+  { name: "Нормативы", tables: ["Нормативы"] },
 ];
 
 export const TABLE_NAMES = Object.keys(TABLES) as TableName[];

@@ -47,3 +47,15 @@ test("ревью: ответ на устаревший запрос отбрас
   release("старый");
   assert.equal(await slow, undefined);
 });
+
+test("В ячейку: с наименованием; повтор — по обозначению", async () => {
+  const { normInsertText } = await import("@idk/addin/panel/normsApi");
+  const item = { designation: "СП 76.13330.2016", title: "Электротехнические устройства" };
+  assert.equal(normInsertText(item, "designation"), "СП 76.13330.2016");
+  assert.equal(normInsertText(item, "full"), 'СП 76.13330.2016 "Электротехнические устройства"');
+  assert.equal(normInsertText({ designation: "ГОСТ 1", title: "«Кабели»" }, "full"), 'ГОСТ 1 "Кабели"');
+  assert.equal(normInsertText({ designation: "ГОСТ 1", title: " " }, "full"), "ГОСТ 1");
+  const full = normInsertText(item, "full");
+  assert.deepEqual(cellAppend("ПУЭ.", item.designation, full), { value: 'ПУЭ, СП 76.13330.2016 "Электротехнические устройства".' });
+  assert.deepEqual(cellAppend("СП 76.13330.2016, ПУЭ", item.designation, full), { error: "Уже есть в ячейке" });
+});

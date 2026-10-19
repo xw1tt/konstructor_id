@@ -144,6 +144,7 @@ details.section > .body { padding-bottom: 12px; }
 /* Справочник нормативов */
 .norms .search { width: 100%; margin-bottom: 8px; }
 .norm-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.norm-insert { align-items: center; margin: 4px 0 6px; }
 .chip-count { opacity: .7; font-size: 11px; margin-left: 2px; }
 .norm-actions { flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
 .norm-total { text-align: right; font-size: 12px; margin: 4px 0; }

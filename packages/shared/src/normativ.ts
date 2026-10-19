@@ -81,13 +81,14 @@ function containsDesignation(text: string, designation: string): boolean {
   return false;
 }
 
-/** Текст с добавленным обозначением («…, обозначение» перед завершающей точкой); null — оно там уже есть. */
-export function appendDesignation(current: string, designation: string): string | null {
+/** Текст с добавленным обозначением («…, обозначение» перед завершающей точкой); null — оно там уже есть.
+ *  text — что дописать (обозначение с наименованием); повтор проверяется по обозначению. */
+export function appendDesignation(current: string, designation: string, text_ = designation): string | null {
   const key = normKey(designation);
   if (extractNormativ(current).some((n) => normKey(n.designation) === key)) return null;
   if (containsDesignation(current, designation)) return null;
   const text = current.trim();
-  if (!text) return designation.trim();
+  if (!text) return text_.trim();
   const dot = text.endsWith(".");
-  return `${dot ? text.slice(0, -1) : text}, ${designation.trim()}${dot ? "." : ""}`;
+  return `${dot ? text.slice(0, -1) : text}, ${text_.trim()}${dot ? "." : ""}`;
 }

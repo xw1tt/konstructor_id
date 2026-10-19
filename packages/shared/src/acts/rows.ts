@@ -46,16 +46,16 @@ export function point3Lines(
 }
 
 /**
- * П.4 АОСР. Подряд идущие схемы, как в образце СБД: «Исполнительная схема» только перед первой,
- * строки разделяются «;» (у последней строки списка — без знака).
+ * П.4 АОСР. Подряд идущие схемы, как в образце СБД: «Исполнительная схема» только перед первой
+ * (с настройкой schemeEach — перед каждой), строки разделяются «;» (у последней строки списка — без знака).
  */
-export function point4Lines(docs: ActDocumentInput[]): string[] {
+export function point4Lines(docs: ActDocumentInput[], opts: { schemeEach?: boolean } = {}): string[] {
   const sorted = [...docs].sort(byOrder);
   return sorted.map((d, i) => {
     const last = i === sorted.length - 1;
     if (d.kind !== "scheme")
       return [d.name, withNo(d.number), d.date ? `от ${formatDateShort(d.date)}` : ""].filter(Boolean).join(" ");
-    const first = i === 0 || sorted[i - 1].kind !== "scheme";
+    const first = opts.schemeEach || i === 0 || sorted[i - 1].kind !== "scheme";
     const body = [withNo(d.number) && `${withNo(d.number)}.`, d.name].filter(Boolean).join(" ");
     return `${first ? "Исполнительная схема " : ""}${body}${last ? "" : ";"}`;
   });

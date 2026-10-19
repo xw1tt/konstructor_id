@@ -134,7 +134,9 @@ details.section > .body { padding-bottom: 12px; }
 .tb-menu button { width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 6px 8px; cursor: pointer; display: flex; gap: 6px; }
 .tb-menu button:hover:not(:disabled) { background: var(--surface); }
 .tb-menu button:disabled { color: var(--ink-soft); cursor: default; }
-.tb-check { width: 14px; display: inline-block; color: var(--blue); }
+.tb-check { width: 14px; display: inline-block; color: var(--blue); flex: none; }
+.tb-sep { border-top: 1px solid var(--line); margin: 4px 2px; }
+.tb-menu { min-width: 260px; }
 .tb-icon { background: none; border: 0; border-radius: 6px; padding: 4px; color: var(--ink-soft); display: inline-flex; }
 .tb-icon:disabled { opacity: .55; cursor: default; }
 

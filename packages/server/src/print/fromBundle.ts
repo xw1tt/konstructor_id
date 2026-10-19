@@ -6,6 +6,7 @@ import { activeRepresentatives, orgFullForm } from "@idk/shared/rules";
 import { docNumber, formatDateLong } from "@idk/shared/acts/format";
 import { repLine } from "@idk/shared/acts/repLine";
 import { point3Lines, point4Lines, rimRows, vdRows, vorRows, signers, SIGN_LABELS } from "@idk/shared/acts/rows";
+import type { PrintOptions } from "@idk/shared/templates";
 import type { AosrData, RimData, VdData, VorData, DocData } from "./data.ts";
 
 /** Полная форма реквизитов для шапки АОСР — с точкой в конце, как в бланке. */
@@ -19,7 +20,7 @@ const AOSR_ROLES: RoleCode[] = ["developer_control", "builder", "builder_control
 const APPENDIX_ROLES: RoleCode[] = ["developer_control", "builder", "builder_control", "performer"];
 
 /** Данные документа акта из пакета (все строки уже отформатированы правилами). */
-export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K): DocData[K] {
+export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K, options: Partial<PrintOptions> = {}): DocData[K] {
   const act = b.act;
   const orgList = b.organizations;
   const org = (id: number | null | undefined): Organization | undefined => orgList.find((o) => o.id === id);
@@ -54,7 +55,7 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K)
         p2: [`Шифр рабочей документации: ${section?.code ?? ""}`, act.sheets && `листы ${act.sheets}`]
           .filter(Boolean).join(" ") + [act.revision, designer?.shortName].filter(Boolean).map((s) => `, ${s}`).join(""),
         p3: point3Lines(actMats, mats, docsByMaterial, act.baseNumber),
-        p4: point4Lines(b.documents),
+        p4: point4Lines(b.documents, options),
         dateStart: formatDateLong(act.dateStart),
         dateEnd: formatDateLong(act.dateEnd),
         normative: act.normative,

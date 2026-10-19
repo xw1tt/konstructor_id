@@ -93,3 +93,11 @@ test("rim: материал с несколькими документами —
   assert.match(html, /<td class="nm open">Кабель СегментКИ[^<]*<\/td>/);
   assert.match(html, /<td class="nm cont"><\/td>/);
 });
+
+test("aosr: настройка «Исполнительная схема» перед каждой схемой", async () => {
+  const { buildDocDataFromBundle } = await import("@idk/server/print/fromBundle");
+  const { bundleFromDb } = await import("@idk/server/print/fromDb");
+  const b = bundleFromDb(db, actId);
+  assert.equal(buildDocDataFromBundle(b, "aosr", { schemeEach: true }).p4.filter((l) => l.startsWith("Исполнительная схема")).length, 6);
+  assert.equal(buildDocDataFromBundle(b, "aosr").p4.filter((l) => l.startsWith("Исполнительная схема")).length, 1);
+});

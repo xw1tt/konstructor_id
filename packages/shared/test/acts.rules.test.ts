@@ -129,6 +129,18 @@ test("rimRows: порядок — паспорт раньше сертифика
   assert.deepEqual(rows.map((r) => [r.group, r.cont]), [[0, false], [0, true]]);
 });
 
+test("point4Lines: «Исполнительная схема» перед каждой схемой — по настройке", () => {
+  const s = (n: number, name: string): ActDocumentInput => ({ kind: "scheme", number: String(n), name, date: null, fileId: null, sortOrder: n });
+  assert.deepEqual(point4Lines([s(1, "Монтаж трубы"), s(2, "Монтаж кабеля")], { schemeEach: true }), [
+    "Исполнительная схема №1. Монтаж трубы;",
+    "Исполнительная схема №2. Монтаж кабеля",
+  ]);
+  assert.deepEqual(point4Lines([s(1, "Монтаж трубы"), s(2, "Монтаж кабеля")]), [
+    "Исполнительная схема №1. Монтаж трубы;",
+    "№2. Монтаж кабеля",
+  ]);
+});
+
 test("rimRows: группы материалов; общий документ — отдельная группа", () => {
   const a = doc(40, { materialIds: [1] }), b = doc(41, { type: "certificate", materialIds: [1] });
   const c = doc(42, { materialIds: [2] }), shared = doc(43, { type: "info_letter", materialIds: [1, 2] });

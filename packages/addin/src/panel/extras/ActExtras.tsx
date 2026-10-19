@@ -6,7 +6,7 @@ import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { actSummary } from "./summaries.ts";
-import { TemplateContext } from "../templateContext.ts";
+import { TemplateContext, PrintOptionsContext } from "../templateContext.ts";
 import { issueLines, printAct, type IssueLine } from "../print.ts";
 
 const DOCS: { kind: PrintKind; label: string }[] = [
@@ -22,6 +22,7 @@ const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | 
 export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
   const guard = useGuard();
   const template = useContext(TemplateContext);
+  const options = useContext(PrintOptionsContext);
   const [busy, setBusy] = useState<PrintKind | null>(null);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [error, setError] = useState("");
@@ -32,7 +33,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
     setBusy(doc);
     setError("");
     setLines([]);
-    const issues = await guard(printAct(state.book!, act, state.important, doc, template), setError);
+    const issues = await guard(printAct(state.book!, act, state.important, doc, template, options), setError);
     if (issues?.length) {
       const tables = [...new Set(issues.map((i) => i.table))];
       const offsets: Partial<Record<TableName, number>> = {};

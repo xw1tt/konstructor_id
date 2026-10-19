@@ -1,11 +1,12 @@
 // Верхняя строка панели: ⌂ (конструктор), «Норматив», «Помощник», «Шаблоны ▾», значки помощника.
 import { useEffect, useRef, useState } from "react";
-import { TEMPLATES, type TemplateCode } from "@idk/shared/templates";
+import { TEMPLATES, type PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { ASSISTANT_ICONS, type ScreenId } from "./screens.ts";
 import { AssistantIcon, ChevronIcon, GridIcon, HomeIcon } from "./icons.tsx";
 
-export function TopBar({ screen, onScreen, template, onTemplate }: {
+export function TopBar({ screen, onScreen, template, onTemplate, options, onOptions }: {
   screen: ScreenId; onScreen(s: ScreenId): void; template: TemplateCode; onTemplate(t: TemplateCode): void;
+  options: PrintOptions; onOptions(o: PrintOptions): void;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -32,15 +33,22 @@ export function TopBar({ screen, onScreen, template, onTemplate }: {
             <GridIcon /> Шаблоны <ChevronIcon />
           </button>
           {open && (
-            <ul className="tb-menu" role="listbox" aria-label="Шаблон документов">
+            <ul className="tb-menu" role="menu" aria-label="Шаблон и настройки печати">
               {TEMPLATES.map((t) => (
-                <li key={t.code} role="option" aria-selected={t.code === template}>
-                  <button onClick={() => { onTemplate(t.code); setOpen(false); }}>
+                <li key={t.code} role="none">
+                  <button role="menuitemradio" aria-checked={t.code === template} onClick={() => { onTemplate(t.code); setOpen(false); }}>
                     <span className="tb-check">{t.code === template ? "✓" : ""}</span>{t.label}
                   </button>
                 </li>
               ))}
-              <li role="option" aria-disabled="true" aria-selected={false}><button disabled><span className="tb-check" />Другие заказчики — позже</button></li>
+              <li role="none"><button role="menuitem" disabled><span className="tb-check" />Другие заказчики — позже</button></li>
+              <li role="separator" className="tb-sep" />
+              <li role="none">
+                <button role="menuitemcheckbox" aria-checked={options.schemeEach} title="П.4 АОСР: по умолчанию — только перед первой из подряд идущих схем, как в образце СБД"
+                  onClick={() => onOptions({ ...options, schemeEach: !options.schemeEach })}>
+                  <span className="tb-check">{options.schemeEach ? "✓" : ""}</span>«Исполнительная схема» перед каждой схемой
+                </button>
+              </li>
             </ul>
           )}
         </div>

@@ -6,21 +6,21 @@ import { CABLE_DOC_KINDS, PRINT_KINDS, type CableDocKind, type DocKind, type Pri
 import { docNumber } from "@idk/shared/acts/format";
 import { z } from "zod";
 import { ActBundle } from "@idk/shared/workbook/bundle";
-import { isTemplateCode, DEFAULT_TEMPLATE, type TemplateCode } from "@idk/shared/templates";
+import { isTemplateCode, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { buildDocDataFromBundle } from "../print/fromBundle.ts";
 import { renderHtml, renderCableHtml } from "../print/templates/index.ts";
 import { cableDocData } from "../print/cableData.ts";
 import { htmlToPdf } from "../print/browser.ts";
 
 /** Тело запроса печати: пакет акта и код шаблона (форма заказчика); без кода — СБД. */
-export const PrintRequest = ActBundle.extend({ template: z.string().default(DEFAULT_TEMPLATE) });
+export const PrintRequest = ActBundle.extend({ template: z.string().default(DEFAULT_TEMPLATE), options: PrintOptions.default({}) });
 
-interface PrintJob { bundle: ActBundle; template: TemplateCode }
+interface PrintJob { bundle: ActBundle; template: TemplateCode; options: PrintOptions }
 
 const readRequest = (b: z.infer<typeof PrintRequest>): PrintJob => {
-  const { template, ...bundle } = b;
+  const { template, options, ...bundle } = b;
   if (!isTemplateCode(template)) throw new HttpError(400, "Неизвестный шаблон: " + template);
-  return { bundle, template };
+  return { bundle, template, options };
 };
 
 export const JOB_TTL_MS = 30 * 60_000;
@@ -50,18 +50,25 @@ const kindOf = (doc: string): PrintKind => {
 };
 const isCable = (k: PrintKind): k is CableDocKind => (CABLE_DOC_KINDS as readonly string[]).includes(k);
 
-/** PDF документа пакета в ответ; имя файла — как у прежней печати из базы. */
-export async function sendBundlePdf(res: ServerResponse, b: ActBundle, kind: PrintKind, _template: TemplateCode = DEFAULT_TEMPLATE) {
+/** PDF документа пакета и имя файла (как у прежней печати из базы). */
+export async function renderBundlePdf(b: ActBundle, kind: PrintKind, _template: TemplateCode = DEFAULT_TEMPLATE, options: Partial<PrintOptions> = {}):
+  Promise<{ pdf: Buffer; name: string }> {
   // Шаблон пока один (СБД); код передаётся сюда для будущих форм других заказчиков.
   let html: string, name: string;
   if (isCable(kind)) {
     html = kind === "kj" ? renderCableHtml("kj", cableDocData(b, "kj")) : renderCableHtml("ip", cableDocData(b, "ip"));
     name = (kind === "kj" ? b.cables?.doc?.journalCode || `${b.act.baseNumber}.КЖ` : `${b.act.baseNumber}.Протокол`) + ".pdf";
   } else {
-    html = renderHtml(kind, buildDocDataFromBundle(b, kind as DocKind));
+    html = renderHtml(kind, buildDocDataFromBundle(b, kind as DocKind, options));
     name = (kind === "vor" ? `${b.act.baseNumber}.ВОР` : docNumber(b.act.baseNumber, kind as "aosr" | "rim" | "vd")) + ".pdf";
   }
-  const pdf = await htmlToPdf(html, { pageNumbers: kind === "vor" });
+  return { pdf: await htmlToPdf(html, { pageNumbers: kind === "vor" }), name };
+}
+
+/** PDF документа пакета в ответ. */
+export async function sendBundlePdf(res: ServerResponse, b: ActBundle, kind: PrintKind, template: TemplateCode = DEFAULT_TEMPLATE,
+  options: Partial<PrintOptions> = {}) {
+  const { pdf, name } = await renderBundlePdf(b, kind, template, options);
   res.writeHead(200, {
     "content-type": "application/pdf",
     "content-length": pdf.length,
@@ -74,12 +81,12 @@ export function printRoutes(r: Router, jobs = createPrintJobs()) {
   r.post("/api/print/:doc", async (c) => {
     const kind = kindOf(c.params.doc);
     const job = readRequest(await c.body(PrintRequest));
-    await sendBundlePdf(c.res, job.bundle, kind, job.template);
+    await sendBundlePdf(c.res, job.bundle, kind, job.template, job.options);
   });
   r.post("/api/print-jobs", async (c) => new Reply(201, { id: jobs.add(readRequest(await c.body(PrintRequest))) }));
   r.get("/api/print-jobs/:job/:doc", async (c) => {
     const j = jobs.get(c.params.job);
     if (!j) throw new HttpError(404, "Задание печати не найдено или устарело");
-    await sendBundlePdf(c.res, j.bundle, kindOf(c.params.doc), j.template);
+    await sendBundlePdf(c.res, j.bundle, kindOf(c.params.doc), j.template, j.options);
   });
 }

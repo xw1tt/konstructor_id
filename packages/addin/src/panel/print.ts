@@ -5,7 +5,7 @@ import { buildBundle, type Issue } from "@idk/shared/workbook/bundle";
 import { buildCableBundle } from "@idk/shared/workbook/cables";
 import type { Book } from "@idk/shared/workbook/records";
 import type { ImportantMap } from "@idk/shared/workbook/important";
-import type { TemplateCode } from "@idk/shared/templates";
+import type { PrintOptions, TemplateCode } from "@idk/shared/templates";
 import { apiSend } from "../api.ts";
 
 declare const Office: any;
@@ -34,10 +34,11 @@ function openPreview(url: string) {
 }
 
 /** Проверяет акт; при ошибках возвращает их, иначе создаёт задание печати и открывает предпросмотр. */
-export async function printAct(book: Book, actNumber: string, important: ImportantMap, doc: PrintKind, template: TemplateCode): Promise<Issue[]> {
+export async function printAct(book: Book, actNumber: string, important: ImportantMap, doc: PrintKind, template: TemplateCode,
+  options?: PrintOptions): Promise<Issue[]> {
   const { bundle, issues } = doc === "kj" || doc === "ip" ? buildCableBundle(book, actNumber, important, doc) : buildBundle(book, actNumber, important);
   if (!bundle) return issues;
-  const { id } = await apiSend<{ id: string }>("POST", "/api/print-jobs", { ...bundle, template });
+  const { id } = await apiSend<{ id: string }>("POST", "/api/print-jobs", { ...bundle, template, options });
   openPreview(previewJobUrl(id, doc, location.origin));
   return [];
 }

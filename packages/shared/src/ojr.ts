@@ -10,6 +10,7 @@ import { activeRepresentatives } from "./rules.ts";
 import { docNumber, formatDateShort, withNo } from "./acts/format.ts";
 import { avkDefaultNumber } from "./acts/rows.ts";
 import { AVK_NAME, KJ_NAME, PROTOCOL_NAME, DOC_NAMES } from "./kit/registry.ts";
+import type { OjrRequest } from "./ojrPrint.ts";
 
 const txt = cellText;
 const iso = (v: CellValue) => { const p = parseDateCell(v); return p.ok ? p.value : null; };
@@ -158,4 +159,18 @@ export async function fillOjr(store: TableStore, book: Book): Promise<OjrRows> {
     if (recs.length) await store.insert(t, data?.rows.length ?? 0, recs);
   }
   return res;
+}
+
+/** Задание печати раздела из листа книги (строки как на листе, по порядку). null — лист пуст. */
+export function ojrPrintRequest(book: Book, section: 3 | 5): OjrRequest | null {
+  const name = txt(book.object.name);
+  if (section === 3) {
+    const rows = (book.tables["ОЖР3"] ?? []).map((r) => {
+      const day = iso(r.v.date);
+      return { date: day ? day.split("-").reverse().join(".") : txt(r.v.date), conditions: txt(r.v.conditions), works: txt(r.v.works), signer: txt(r.v.signer) };
+    });
+    return rows.length ? { section: 3, objectName: name, rows } : null;
+  }
+  const rows = (book.tables["ОЖР5"] ?? []).map((r) => ({ name: txt(r.v.name), signed: txt(r.v.signed) }));
+  return rows.length ? { section: 5, objectName: name, rows } : null;
 }

@@ -1,7 +1,7 @@
 // Разделы панели и их листы (спецификация §4.1). Первый лист раздела открывается по клику.
 import type { SheetName } from "@idk/shared/workbook/schema";
 
-export type SectionId = "requisites" | "reps" | "acts" | "materials" | "schemes" | "cables" | "kits";
+export type SectionId = "requisites" | "reps" | "acts" | "materials" | "schemes" | "cables" | "kits" | "ojr";
 
 export const SECTIONS: readonly { id: SectionId; label: string; sheets: SheetName[] }[] = [
   { id: "requisites", label: "Реквизиты", sheets: ["Реквизиты"] },
@@ -11,6 +11,7 @@ export const SECTIONS: readonly { id: SectionId; label: string; sheets: SheetNam
   { id: "schemes", label: "Схемы", sheets: ["Исполнительные схемы"] },
   { id: "cables", label: "Кабельный журнал", sheets: ["Кабельный журнал", "Изоляция"] },
   { id: "kits", label: "Комплекты", sheets: ["Комплекты", "Реестр ИД"] },
+  { id: "ojr", label: "ОЖР", sheets: ["ОЖР Раздел 3", "ОЖР Раздел 5"] },
 ];
 
 /** Раздел листа; «Исполнительные схемы» — собственный раздел «Схемы». */

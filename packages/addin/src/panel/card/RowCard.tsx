@@ -19,6 +19,7 @@ import { MaterialExtras } from "../extras/MaterialExtras.tsx";
 import { ActExtras } from "../extras/ActExtras.tsx";
 import { CableExtras } from "../extras/CableExtras.tsx";
 import { KitExtras } from "../extras/KitExtras.tsx";
+import { OjrExtras } from "../extras/OjrExtras.tsx";
 import { kitOfRow } from "../kit.ts";
 
 interface PendingRename { table: TableName; from: string; to: string; hits: RefHit[] }
@@ -87,6 +88,7 @@ export function CardArea({ port, state }: { port: ExcelPort; state: BookState })
         </div>
       )}
       {message && <p className="muted" role="status">{message}</p>}
+      {section?.id === "ojr" && <OjrExtras port={port} state={state} />}
       <RowCard port={port} state={state} onRename={(p) => setPending(p)} />
     </>
   );

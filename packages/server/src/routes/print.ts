@@ -7,7 +7,8 @@ import { docNumber } from "@idk/shared/acts/format";
 import { z } from "zod";
 import { ActBundle } from "@idk/shared/workbook/bundle";
 import { isTemplateCode, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
-import { buildDocDataFromBundle } from "../print/fromBundle.ts";
+import { buildDocDataFromBundle, buildAvkData } from "../print/fromBundle.ts";
+import { avkHtml } from "../print/templates/avk.ts";
 import { renderHtml, renderCableHtml } from "../print/templates/index.ts";
 import { cableDocData } from "../print/cableData.ts";
 import { htmlToPdf } from "../print/browser.ts";
@@ -55,7 +56,11 @@ export async function renderBundlePdf(b: ActBundle, kind: PrintKind, _template: 
   Promise<{ pdf: Buffer; name: string }> {
   // Шаблон пока один (СБД); код передаётся сюда для будущих форм других заказчиков.
   let html: string, name: string;
-  if (isCable(kind)) {
+  if (kind === "avk") {
+    const d = buildAvkData(b);
+    html = avkHtml(d);
+    name = `АВК ${d.number}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
+  } else if (isCable(kind)) {
     html = kind === "kj" ? renderCableHtml("kj", cableDocData(b, "kj")) : renderCableHtml("ip", cableDocData(b, "ip"));
     name = (kind === "kj" ? b.cables?.doc?.journalCode || `${b.act.baseNumber}.КЖ` : `${b.act.baseNumber}.Протокол`) + ".pdf";
   } else {

@@ -47,3 +47,10 @@ test("новые строки: номер комплекта — следующ�
   assert.equal(newRowDefaults("Комплекты", empty)["№ реестра"], "1");
   assert.equal(newRowDefaults("РеестрИД", empty)["Комплект"], undefined);
 });
+
+test("разметка прежней версии — предложить обновление", async () => {
+  const { isOutdated } = await import("@idk/addin/panel/useBook");
+  assert.equal(isOutdated("2"), true);
+  assert.equal(isOutdated("3"), false);
+  assert.equal(isOutdated(null), false);
+});

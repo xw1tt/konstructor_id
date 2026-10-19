@@ -8,11 +8,12 @@ import type { QualityDoc } from "../schemas.ts";
 import type { ActMaterialInput } from "../acts/schemas.ts";
 import { QUALITY_DOC_LABELS, type QualityDocType } from "../roles.ts";
 import { docNumber, formatDateShort, withNo } from "../acts/format.ts";
-import { rimDocDate, rimDocName, rimDocOrder } from "../acts/rows.ts";
+import { avkDefaultNumber, rimDocDate, rimDocName, rimDocOrder } from "../acts/rows.ts";
 
 export const KJ_NAME = "Кабельный журнал";
 export const PROTOCOL_NAME = "Протокол проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин";
 export const LAB_NAME = "Свидетельство о регистрации электролаборатории";
+export const AVK_NAME = "Акт входного контроля, технических средств и материалов";
 export const DOC_NAMES: Partial<Record<RegistryKind, string>> = {
   "ВОР": "Ведомость объемов выполненных работ",
   "АОСР": "Акт освидетельствования скрытых работ",
@@ -131,6 +132,11 @@ export function registryRows(book: Book, kit: string): { rows: RegistryRecord[];
           }
         }
       }
+    }
+    // Акт входного контроля материалов акта — перед их документами качества (как в образце СБД).
+    if (actMats.length) {
+      const avkDate = iso(act.v.avkDate) ?? iso(act.v.dateStart) ?? iso(act.v.date);
+      add("АВК", n, withNo(txt(act.v.avkNumber) || avkDefaultNumber(n, code)), AVK_NAME, formatDateShort(avkDate), code);
     }
     // Документы качества материалов акта — в порядке РИМ, каждый один раз на комплект.
     const ams: ActMaterialInput[] = actMats

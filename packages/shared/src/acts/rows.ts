@@ -204,3 +204,34 @@ export function signers(reps: Representative[], roles: RoleCode[], date: string)
     return { role, label: SIGN_LABELS[role], names: names.length ? names : [""] };
   });
 }
+
+/** Номер АВК по умолчанию: последняя часть номера акта двумя цифрами и окончание шифра после последнего «-»
+ *  (К32.В.СТ.АОВ1.01.00.1 + КУТ03-Р-ПИР-2-26-100-АОВ1.01.00 → «01/АОВ1.01.00»). */
+export function avkDefaultNumber(actNumber: string, sectionCode: string): string {
+  const n = actNumber.trim().match(/(\d+)\s*$/)?.[1] ?? "1";
+  const tail = sectionCode.trim().split("-").pop() ?? "";
+  return tail ? `${n.padStart(2, "0")}/${tail}` : n.padStart(2, "0");
+}
+
+/** Документ качества строкой АВК: «паспорт качества: №3/405 от 09.05.2025 г.». */
+export const avkDocText = (d: QualityDoc) =>
+  [`${QUALITY_DOC_LABELS[d.type].toLowerCase()}:`, withNo(d.number),
+    d.issueDate ? `от ${formatDateShort(d.issueDate)}` : "", d.validUntil ? `до ${formatDateShort(d.validUntil)}` : ""].filter(Boolean).join(" ");
+
+export interface AvkRow { name: string; manufacturer: string; quantity: string; docs: string }
+
+/** Строки АВК: материалы акта по порядку; количество — как в ВД, с единицей. */
+export function avkRows(actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>, vorLines: VorLineInput[]): AvkRow[] {
+  const mm = matMap(materials);
+  const totals = vorTotals(vorLines);
+  return [...actMaterials].sort(byOrder).map((am) => {
+    const m = mm.get(am.materialId);
+    const q = formatNumber(am.quantity ?? totals.get(am.materialId) ?? null);
+    return {
+      name: [m?.name ?? "", m?.article || m?.mark || ""].filter(Boolean).join(" "),
+      manufacturer: m?.manufacturer ?? "",
+      quantity: [q, m?.unit ?? ""].filter(Boolean).join(" "),
+      docs: sortDocs(docsByMaterial.get(am.materialId) ?? []).map(avkDocText).join(" "),
+    };
+  });
+}

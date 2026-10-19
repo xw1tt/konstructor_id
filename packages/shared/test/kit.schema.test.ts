@@ -6,8 +6,8 @@ import { exampleRows } from "@idk/shared/workbook/examples";
 import { MemoryWorkbook } from "@idk/shared/workbook/memory";
 import { readBook } from "@idk/shared/workbook/records";
 
-test("листы «Комплекты» и «Реестр ИД», версия схемы 2", () => {
-  assert.equal(SCHEMA_VERSION, 2);
+test("листы «Комплекты» и «Реестр ИД», версия схемы 3", () => {
+  assert.equal(SCHEMA_VERSION, 3);
   assert.deepEqual(SHEETS.slice(-2), [
     { name: "Комплекты", tables: ["Комплекты", "АктыКомплектов"] },
     { name: "Реестр ИД", tables: ["РеестрИД"] },
@@ -20,7 +20,7 @@ test("листы «Комплекты» и «Реестр ИД», версия �
   assert.deepEqual(TABLES["РеестрИД"].columns.map((c) => c.header), [
     "Комплект", "Вид", "Акт", "Номер документа", "Наименование", "Дата / период", "Экз.", "Шифр чертежа", "Скан", "Листов",
   ]);
-  assert.deepEqual(REGISTRY_KINDS, ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "Документ качества", "Прочее"]);
+  assert.deepEqual(REGISTRY_KINDS, ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Прочее"]);
   assert.equal(column("Комплекты", "cover").default, "да");
   assert.equal(column("РеестрИД", "copies").default, 1);
 });

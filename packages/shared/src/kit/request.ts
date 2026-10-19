@@ -59,7 +59,7 @@ export type KitRequest = z.infer<typeof KitRequest>;
 
 /** Вид строки реестра → документ конструктора. */
 export const PRINTED_KINDS: Partial<Record<RegistryKind, PrintKind>> = {
-  "ВОР": "vor", "АОСР": "aosr", "РИМ": "rim", "ВД": "vd", "КЖ": "kj", "Протокол": "ip",
+  "ВОР": "vor", "АОСР": "aosr", "РИМ": "rim", "ВД": "vd", "КЖ": "kj", "Протокол": "ip", "АВК": "avk",
 };
 
 const txt = cellText;

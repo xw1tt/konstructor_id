@@ -1,7 +1,7 @@
 // Состояние панели, синхронизированное с книгой через события Excel. Копии данных панель не хранит:
 // выделение и текущая таблица перечитываются при смене выделения, вся книга — при изменении ячеек.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { column, type TableName } from "@idk/shared/workbook/schema";
+import { column, SCHEMA_VERSION, type TableName } from "@idk/shared/workbook/schema";
 import { cellText } from "@idk/shared/workbook/values";
 import type { TableData } from "@idk/shared/workbook/store";
 import { readBook, type Book } from "@idk/shared/workbook/records";
@@ -16,6 +16,8 @@ export interface BookState {
   book: Book | null;
   important: ImportantMap;
   error: string;
+  /** Разметка книги прежней версии (idk.version меньше SCHEMA_VERSION) — нужно «Обновить разметку». */
+  outdated: boolean;
   /** Номер акта последней выделенной строки «Базы актов» (для «Вставить в п.6»). */
   lastAct: string | null;
   pickTable(t: TableName | null): void;
@@ -25,6 +27,10 @@ export interface BookState {
 }
 
 const DEBOUNCE_MS = 150;
+export const VERSION_SETTING = "idk.version";
+
+/** Книга размечена прежней версией программы (нет отметки — тоже прежняя: отметку пишет «Создать/Обновить разметку»). */
+export const isOutdated = (v: string | null) => v !== null && Number(v) < SCHEMA_VERSION;
 
 export function useBook(port: ExcelPort): BookState {
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -33,6 +39,7 @@ export function useBook(port: ExcelPort): BookState {
   const [important, setImportant] = useState<ImportantMap>({});
   const [error, setError] = useState("");
   const [lastAct, setLastAct] = useState<string | null>(null);
+  const [outdated, setOutdated] = useState(false);
   const picked = useRef<TableName | null>(null);
   const listeners = useRef(new Set<(e: ChangeEvent) => void>());
   const timers = useRef<{ sel?: ReturnType<typeof setTimeout>; all?: ReturnType<typeof setTimeout> }>({});
@@ -60,6 +67,7 @@ export function useBook(port: ExcelPort): BookState {
     try {
       setBook(await readBook(port));
       setImportant(await loadImportant(port));
+      setOutdated(isOutdated(await port.setting(VERSION_SETTING)));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -88,7 +96,7 @@ export function useBook(port: ExcelPort): BookState {
   }, [port, readAll, readSelection]);
 
   return {
-    selection, table, book, important, error, lastAct,
+    selection, table, book, important, error, lastAct, outdated,
     pickTable: (t) => { picked.current = t; void readSelection(); },
     refresh: () => void readAll(),
     onCellChange: (cb) => { listeners.current.add(cb); return () => listeners.current.delete(cb); },

@@ -98,7 +98,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
                   </button>
                 ))}
               </nav>
-              {book.missing.length > 0 && slots.create?.(state, book.missing, flow)}
+              {(book.missing.length > 0 || state.outdated) && slots.create?.(state, book.missing, flow)}
               <main className="content">
                 <SheetTools port={port} state={state} onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))} />
                 <TableTools port={port} state={state} />

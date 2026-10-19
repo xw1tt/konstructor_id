@@ -10,7 +10,14 @@ import { installShutdown } from "./shutdown.ts";
 import { closeBrowser } from "./print/browser.ts";
 
 const cfg = loadConfig();
-const addinDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "addin", "dist");
+// Установленная программа (установщик) задаёт папку панели явно; при запуске из исходников — packages/addin/dist.
+const addinDir = process.env.IDK_ADDIN_DIR || join(dirname(fileURLToPath(import.meta.url)), "..", "..", "addin", "dist");
+
+// «--setup»: только подготовить сертификаты (для установщика) и выйти; печатает путь корневого сертификата.
+if (process.argv.includes("--setup")) {
+  console.log(ensureCerts(cfg.dataDir).caCertPath);
+  process.exit(0);
+}
 
 try {
   const backup = runDailyBackup(cfg.dataDir);

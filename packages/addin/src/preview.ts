@@ -12,6 +12,29 @@ async function show() {
     frame.hidden = true;
     return;
   }
+  // Комплект (десятки МБ сканов) открываем по прямой ссылке: копию в памяти (blob) встроенный просмотрщик
+  // окна Excel не показывает. Сервер хранит готовый комплект, повторный запрос его не пересобирает.
+  if (src.startsWith("/api/kit-jobs/")) {
+    try {
+      const r = await fetch(src);
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? `Ошибка сборки (${r.status})`);
+      void r.body?.cancel();
+      const name = decodeURIComponent((r.headers.get("content-disposition") ?? "").split("''")[1] ?? "komplekt.pdf");
+      document.getElementById("title")!.textContent = name.replace(/\.pdf$/, "");
+      document.title = name;
+      dl.href = `${src}?download=1`;
+      dl.removeAttribute("download");
+      const open = document.getElementById("open") as HTMLAnchorElement;
+      open.href = src;
+      open.hidden = false;
+      frame.src = src;
+    } catch (e) {
+      msg.hidden = false;
+      msg.textContent = (e as Error).message || "Сервер не запущен";
+      frame.hidden = true;
+    }
+    return;
+  }
   try {
     const r = await fetch(src);
     if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? `Ошибка печати (${r.status})`);

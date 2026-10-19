@@ -6,9 +6,9 @@ import { exampleRows } from "@idk/shared/workbook/examples";
 import { MemoryWorkbook } from "@idk/shared/workbook/memory";
 import { readBook } from "@idk/shared/workbook/records";
 
-test("листы «Комплекты» и «Реестр ИД», версия схемы 4", () => {
-  assert.equal(SCHEMA_VERSION, 4);
-  assert.deepEqual(SHEETS.slice(-2), [
+test("листы «Комплекты» и «Реестр ИД», версия схемы 5", () => {
+  assert.equal(SCHEMA_VERSION, 5);
+  assert.deepEqual(SHEETS.slice(-4, -2), [
     { name: "Комплекты", tables: ["Комплекты", "АктыКомплектов"] },
     { name: "Реестр ИД", tables: ["РеестрИД"] },
   ]);
@@ -29,7 +29,8 @@ test("сканы и логотипы; папка сканов в «Объект�
   assert.equal(column("Организации", "logo").type, "file");
   assert.equal(column("Электролаборатория", "file").header, "Скан");
   assert.equal(column("СредстваИзмерений", "file").header, "Скан");
-  assert.equal(OBJECT_FIELDS.at(-1)!.label, "Папка сканов");
+  assert.equal(OBJECT_FIELDS.at(-2)!.label, "Папка сканов");
+  assert.equal(OBJECT_FIELDS.at(-1)!.label, "Условия производства работ");
 });
 
 test("строки-примеры новых таблиц не читаются как данные", async () => {

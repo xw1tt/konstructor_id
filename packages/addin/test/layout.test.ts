@@ -102,6 +102,6 @@ test("обновление разметки: недостающие столбц
   const orgs = TABLES["Организации"].columns.map((c) => c.header).filter((h) => h !== "Логотип");
   assert.deepEqual(missingColumns("Организации", orgs).map((c) => c.header), ["Логотип"]);
   assert.deepEqual(missingColumns("Организации", [...orgs, "Логотип", "Свой столбец"]), []);
-  assert.deepEqual(missingObjectFields(["Наименование объекта", "Адрес"]).slice(-1), ["Папка сканов"]);
+  assert.deepEqual(missingObjectFields(["Наименование объекта", "Адрес"]).slice(-2), ["Папка сканов", "Условия производства работ"]);
   assert.equal(missingObjectFields(["Наименование объекта"]).includes("Адрес"), true);
 });

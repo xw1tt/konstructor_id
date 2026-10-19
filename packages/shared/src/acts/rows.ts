@@ -70,42 +70,53 @@ export interface RimRow {
 }
 
 /**
- * Строки РИМ: один документ — одна строка, по порядку материалов и типов документов.
+ * Порядок документов качества акта (РИМ, реестр ИД): по порядку материалов и типов документов.
  * Документ на несколько материалов акта ставится после документов последнего из них (как в образце СБД).
  */
+export function rimDocOrder(actMaterials: ActMaterialInput[], docsByMaterial: Map<number, QualityDoc[]>): QualityDoc[] {
+  const inAct = new Set(actMaterials.map((a) => a.materialId));
+  const seen = new Set<number>();
+  const out: QualityDoc[] = [];
+  const ordered = [...actMaterials].sort(byOrder);
+  const lastIdx = (d: QualityDoc) => Math.max(...ordered.map((x, i) => (d.materialIds.includes(x.materialId) ? i : -1)));
+  const shared = (d: QualityDoc) => d.materialIds.filter((m) => inAct.has(m)).length > 1;
+  for (const [idx, am] of ordered.entries()) {
+    const own = sortDocs(docsByMaterial.get(am.materialId) ?? []).filter((d) => lastIdx(d) === idx);
+    // сначала документы только этого материала (или для которых он последний), общие — в конце
+    for (const d of [...own.filter((d) => !shared(d)), ...own.filter(shared)]) {
+      if (seen.has(d.id)) continue;
+      seen.add(d.id);
+      out.push(d);
+    }
+  }
+  return out;
+}
+
+/** Наименование документа качества в РИМ и реестре: «Наименование для реестра» или материалы акта через запятую. */
+export function rimDocName(d: QualityDoc, actMaterials: ActMaterialInput[], materials: Material[]): string {
+  const mm = matMap(materials);
+  const names = [...actMaterials].sort(byOrder).filter((x) => d.materialIds.includes(x.materialId)).map((x) => mm.get(x.materialId)?.name ?? "");
+  return d.registryName.trim() || names.join(", ");
+}
+
+/** Дата документа качества: «от … до …», «ДД.ММ.ГГГГ г.» или «б/д». */
+export const rimDocDate = (d: QualityDoc) =>
+  d.issueDate
+    ? d.validUntil ? `от ${formatDateShort(d.issueDate)} до ${formatDateShort(d.validUntil)}` : formatDateShort(d.issueDate)
+    : "б/д";
+
+/** Строки РИМ: один документ — одна строка (порядок — rimDocOrder). */
 export function rimRows(
   actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>,
 ): RimRow[] {
-  const mm = matMap(materials);
-  const inAct = new Set(actMaterials.map((a) => a.materialId));
-  const seen = new Set<number>();
-  const rows: RimRow[] = [];
-  const ordered = [...actMaterials].sort(byOrder);
-  const lastIdx = (d: QualityDoc) => Math.max(...ordered.map((x, i) => (d.materialIds.includes(x.materialId) ? i : -1)));
-  for (const [idx, am] of ordered.entries()) {
-    const own = sortDocs(docsByMaterial.get(am.materialId) ?? []);
-    // сначала документы только этого материала (или для которых он последний), общие — в конце
-    const docs = [...own.filter((d) => lastIdx(d) === idx && d.materialIds.filter((m) => inAct.has(m)).length <= 1),
-                  ...own.filter((d) => lastIdx(d) === idx && d.materialIds.filter((m) => inAct.has(m)).length > 1)];
-    for (const d of docs) {
-      if (seen.has(d.id)) continue;
-      seen.add(d.id);
-      const names = actMaterials
-        .filter((x) => d.materialIds.includes(x.materialId) && inAct.has(x.materialId))
-        .sort(byOrder)
-        .map((x) => mm.get(x.materialId)?.name ?? "");
-      rows.push({
-        name: d.registryName.trim() || (names.length ? names : [mm.get(am.materialId)?.name ?? ""]).join(", "),
-        type: QUALITY_DOC_LABELS[d.type].toLowerCase(),
-        number: withNo(d.number),
-        date: d.issueDate
-          ? d.validUntil ? `от ${formatDateShort(d.issueDate)} до ${formatDateShort(d.validUntil)}` : formatDateShort(d.issueDate)
-          : "б/д",
-        sheets: d.sheets,
-        group: 0, cont: false,
-      });
-    }
-  }
+  const rows: RimRow[] = rimDocOrder(actMaterials, docsByMaterial).map((d) => ({
+    name: rimDocName(d, actMaterials, materials),
+    type: QUALITY_DOC_LABELS[d.type].toLowerCase(),
+    number: withNo(d.number),
+    date: rimDocDate(d),
+    sheets: d.sheets,
+    group: 0, cont: false,
+  }));
   // Подряд идущие строки одного наименования — группа: материал пишется один раз, документы — под ним.
   rows.forEach((r, i) => {
     const prev = rows[i - 1];

@@ -18,6 +18,8 @@ import { toCellFor } from "./editValue.ts";
 import { MaterialExtras } from "../extras/MaterialExtras.tsx";
 import { ActExtras } from "../extras/ActExtras.tsx";
 import { CableExtras } from "../extras/CableExtras.tsx";
+import { KitExtras } from "../extras/KitExtras.tsx";
+import { kitOfRow } from "../kit.ts";
 
 interface PendingRename { table: TableName; from: string; to: string; hits: RefHit[] }
 
@@ -157,6 +159,9 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
       {table === "Акты" && <ActExtras port={port} state={state} act={cellText(valueOf(colOf("Акты", "baseNumber").header))} />}
       {table === "КабельныйЖурнал" && <CableExtras port={port} state={state} act={cellText(valueOf(colOf("КабельныйЖурнал", "act").header))} />}
       {table === "ИзмеренияМарок" && <CableExtras port={port} state={state} act="" />}
+      {(table === "Комплекты" || table === "АктыКомплектов" || table === "РеестрИД") && (
+        <KitExtras port={port} state={state} kit={kitOfRow(table, t.headers, row)} />
+      )}
     </section>
   );
 }

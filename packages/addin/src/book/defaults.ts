@@ -14,6 +14,17 @@ export function newRowDefaults(table: TableName, book: Book, today = todayIso())
     if (free.length) out["Акт"] = free[free.length - 1];
     return out;
   }
+  if (table === "Комплекты") {
+    // Следующий номер реестра: наибольший числовой + 1.
+    const nums = (book.tables["Комплекты"] ?? []).map((r) => Number(cellText(r.v.number))).filter((n) => Number.isInteger(n));
+    out["№ реестра"] = String(nums.length ? Math.max(...nums) + 1 : 1);
+    return out;
+  }
+  if (table === "АктыКомплектов" || table === "РеестрИД") {
+    const kits = (book.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean);
+    if (kits.length) out["Комплект"] = kits[kits.length - 1];
+    return out;
+  }
   if (table !== "Акты") return out;
   const acts = (book.tables["Акты"] ?? []).map((r) => ({ baseNumber: cellText(r.v.baseNumber) })).filter((a) => a.baseNumber);
   const reps = (book.tables["Представители"] ?? []).map((r) => ({

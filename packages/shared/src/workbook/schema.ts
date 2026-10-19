@@ -136,7 +136,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("materials", "Материалы", "refs", { ...imp, ref: "Материалы", width: 60 }),
     c("type", "Тип", "enum", { ...imp, values: QUALITY_DOC_TYPES.map((d) => QUALITY_DOC_LABELS[d]), width: 24 }),
     c("number", "Номер", "text", { ...imp, width: 30 }),
-    c("issueDate", "Дата", "date", imp),
+    c("issueDate", "Дата", "date"),
     c("validUntil", "Действует до", "date"),
     c("sheets", "Листов", "int", imp),
     c("registryName", "Наименование для реестра", "text", { width: 40 }),

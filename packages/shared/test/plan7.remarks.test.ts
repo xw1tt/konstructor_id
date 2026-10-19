@@ -26,3 +26,18 @@ test("представители: одна фамилия в двух ролях
   assert.equal(TABLES["Представители"].allowDuplicates, true);
   assert.doesNotMatch(TABLES["Представители"].columns.find((c) => c.key === "fullName")!.hint, /уникальн/);
 });
+
+test("документ качества без даты: пакет без ошибок, в РИМ «б/д», в п.3 без «от»", async () => {
+  const { rimRows, point3Lines } = await import("@idk/shared/acts/rows");
+  const b = await book((r) => { r["ДокументыКачества"][0]["Дата"] = null; });
+  const { bundle, issues } = buildBundle(b, AOV1, defaultImportant());
+  assert.deepEqual(issues, []);
+  assert.equal(TABLES["ДокументыКачества"].columns.find((c) => c.key === "issueDate")!.important, undefined);
+  const doc = bundle!.qualityDocs.find((d) => d.issueDate === null)!;
+  const byMat = new Map(bundle!.actMaterials.map((m) => [m.materialId, bundle!.qualityDocs.filter((d) => d.materialIds.includes(m.materialId))]));
+  const rows = rimRows(bundle!.actMaterials, bundle!.materials, byMat);
+  assert.equal(rows.find((r) => r.number === `№${doc.number.replace(/^№/, "")}`)!.date, "б/д");
+  const mat = bundle!.actMaterials.find((m) => doc.materialIds.includes(m.materialId))!;
+  const p3 = point3Lines([mat], bundle!.materials, byMat, AOV1);
+  assert.doesNotMatch(p3[0].split(";")[0], / от /);
+});

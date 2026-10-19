@@ -94,7 +94,7 @@ export function rimRows(
         number: withNo(d.number),
         date: d.issueDate
           ? d.validUntil ? `от ${formatDateShort(d.issueDate)} до ${formatDateShort(d.validUntil)}` : formatDateShort(d.issueDate)
-          : "-",
+          : "б/д",
         sheets: d.sheets,
       });
     }

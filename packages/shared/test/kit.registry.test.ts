@@ -4,16 +4,10 @@ import assert from "node:assert/strict";
 import { readBook } from "@idk/shared/workbook/records";
 import { MemoryWorkbook } from "@idk/shared/workbook/memory";
 import { registryRows, fillRegistry, labCertificateParts } from "@idk/shared/kit/registry";
-import { aov1Records, AOV1 } from "./fixtures/aov1Book.ts";
+import { AOV1 } from "./fixtures/aov1Book.ts";
+import { kitRecords } from "./fixtures/kitBook.ts";
 
 const SECTION = "КУТ03-Р-ПИР-2-26-100-АОВ1.01.00";
-export const kitRecords = (patch: (r: any) => void = () => {}) => {
-  const r: any = aov1Records();
-  r["Комплекты"] = [{ "№ реестра": "1", "Том": "1", "Часть": "1", "Корпус": "Корпус «В»" }];
-  r["АктыКомплектов"] = [{ "Комплект": "1", "Акт": AOV1 }];
-  patch(r);
-  return r;
-};
 const v = (x: { values: Record<string, unknown> }, h: string) => x.values[h];
 
 test("строки комплекта АОВ1 — в порядке образца СБД", async () => {

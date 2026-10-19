@@ -194,7 +194,7 @@ export const TABLES: Record<TableName, TableDef> = {
       service: true, formula: "=SUMIFS(ВОР[Объём],ВОР[Акт],[@Акт],ВОР[Материал],[@Материал])",
     }),
     c("rkc", "№ п/п РКЦ", "formula", {
-      service: true, formula: '=IFERROR(INDEX(Материалы[№ п/п РКЦ],MATCH([@Материал],Материалы[Наименование],0)),"")',
+      service: true, formula: '=IFERROR(INDEX(Материалы[№ п/п РКЦ],MATCH([@Материал],Материалы[Наименование],0))&"","")',
     }),
     c("counted", "Учёт", "formula", { service: true, formula: '=IF([@[Кол-во]]="",[@[Сумма ВОР]],[@[Кол-во]])' }),
   ]),
@@ -204,7 +204,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("name", "Наименование", "longtext", { ...imp, width: 60 }),
     c("unit", "Ед. изм.", "text"),
     c("quantity", "Кол-во по проекту", "number", imp),
-    c("closed", "Закрыто", "formula", { service: true, formula: "=SUMIFS(МатериалыАктов[Учёт],МатериалыАктов[№ п/п РКЦ],[@[№ п/п]])" }),
+    c("closed", "Закрыто", "formula", { service: true, formula: '=SUMPRODUCT(--(МатериалыАктов[№ п/п РКЦ]&""=[@[№ п/п]]&""),МатериалыАктов[Учёт])' }),
     c("rest", "Остаток", "formula", { service: true, formula: "=[@[Кол-во по проекту]]-[@Закрыто]" }),
     c("source", "Источник", "enum", { values: SPEC_SOURCES, default: "вручную" }),
     c("note", "Примечание", "text", { width: 30 }),

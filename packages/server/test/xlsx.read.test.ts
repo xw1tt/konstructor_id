@@ -25,3 +25,18 @@ test("не xlsx — XlsxError; нет листа — XlsxError", () => {
   assert.throws(() => readXlsx(new TextEncoder().encode("%PDF-1.4 ...")), XlsxError);
   assert.throws(() => readXlsx(makeXlsx({ "А": [[1]] })).grid("Б"), /Лист «Б» не найден/);
 });
+
+test("повреждённое сжатие — XlsxError; посторонние файлы книги не распаковываются", async () => {
+  const { makeXlsx: mk } = await import("./helpers/xlsx.ts");
+  const good = Buffer.from(mk({ "А": [[1, "x"]] }));
+  // испортить данные первой записи (Content_Types) — она не нужна для чтения
+  const bad = Buffer.from(good);
+  bad[30 + "[Content_Types].xml".length + 2] ^= 0xff;
+  bad[30 + "[Content_Types].xml".length + 3] ^= 0xff;
+  assert.deepEqual(readXlsx(bad).grid("А"), [[1, "x"]]);
+  // испортить лист — понятная ошибка, а не Z_DATA_ERROR
+  const i = good.indexOf(Buffer.from("xl/worksheets/sheet1.xml"));
+  const broken = Buffer.from(good);
+  for (let k = 0; k < 8; k++) broken[i + 24 + 2 + k] ^= 0xff;
+  assert.throws(() => readXlsx(broken).grid("А"), XlsxError);
+});

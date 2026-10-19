@@ -100,5 +100,5 @@ export function closedReport(book: Book): Report {
     if (p.rest < 0) negative.push([rows.length, 5]);
     rows.push([p.number, p.name, p.unit || null, p.quantity, p.closed, p.rest, ...acts.map((a) => per.get(a.act) ?? null)]);
   }
-  return { sheet: CLOSED_SHEET, rows, bold, negative, widths: [12, 60, 8, 12, 12, 12, ...acts.map(() => 16)] };
+  return { sheet: CLOSED_SHEET, rows, bold, negative, widths: [12, 60, 8, 12, 12, 12, ...acts.map(() => 16)], text: [0, 1, 2] };
 }

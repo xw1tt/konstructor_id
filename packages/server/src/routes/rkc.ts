@@ -24,7 +24,9 @@ async function readRaw(req: IncomingMessage, limit: number): Promise<Buffer> {
 
 export function rkcRoutes(r: Router, now: () => number = Date.now) {
   const books = new Map<string, { book: XlsxBook; at: number }>();
+  const purge = () => { for (const [id, b] of books) if (now() - b.at > RKC_TTL_MS) books.delete(id); };
   r.post("/api/rkc", async (c) => {
+    purge();
     const buf = await readRaw(c.req, RKC_LIMIT);
     let book: XlsxBook;
     try {
@@ -49,7 +51,7 @@ export function rkcRoutes(r: Router, now: () => number = Date.now) {
     try {
       return new Reply(200, { sheet, ...parseRkc(b.book.grid(sheet)) });
     } catch (e) {
-      if (e instanceof RkcError) throw new HttpError(422, e.message);
+      if (e instanceof RkcError || e instanceof XlsxError) throw new HttpError(422, e.message);
       throw e;
     }
   });

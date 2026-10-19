@@ -23,8 +23,9 @@ export interface TableStore {
   writeReport(report: Report): Promise<void>;
 }
 
-/** Отчётный лист: значения по строкам, жирные строки, ячейки с отрицательным значением, ширины столбцов (символы). */
-export interface Report { sheet: string; rows: CellValue[][]; bold: number[]; negative: [number, number][]; widths: number[] }
+/** Отчётный лист: значения по строкам, жирные строки, ячейки с отрицательным значением, ширины столбцов (символы),
+ *  текстовые столбцы (формат «@»: Excel не превращает «1.10» в число и «=…» в формулу). */
+export interface Report { sheet: string; rows: CellValue[][]; bold: number[]; negative: [number, number][]; widths: number[]; text: number[] }
 
 /** Строка для «Функционала листа»: значения и адреса гиперссылок (по позициям). */
 export interface RowData { values: CellValue[]; links: (string | null)[] }

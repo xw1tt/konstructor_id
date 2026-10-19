@@ -68,12 +68,13 @@ export function mergeSpec(book: Book, items: RkcItem[]): { rows: Record<string, 
   return { rows: out, diff };
 }
 
-/** Перестраивает таблицу «Спецификация» результатом слияния. */
+/** Перестраивает таблицу «Спецификация» результатом слияния: сначала новые строки в конец, потом удаление прежних —
+ *  если вставка не удалась (лист защищён, сбой Excel), прежняя спецификация остаётся целой. */
 export async function applySpec(store: TableStore, book: Book, items: RkcItem[]): Promise<SpecDiff> {
   const { rows, diff } = mergeSpec(book, items);
   const old = (book.tables["Спецификация"] ?? []).map((r) => r.row);
-  if (old.length) await store.remove("Спецификация", old);
   const data = await store.read("Спецификация");
   if (rows.length) await store.insert("Спецификация", data?.rows.length ?? 0, rows);
+  if (old.length) await store.remove("Спецификация", old);
   return diff;
 }

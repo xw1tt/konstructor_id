@@ -13,7 +13,9 @@ test("таблица «Спецификация», версия схемы 6", (
     ["number", "section", "name", "unit", "quantity", "closed", "rest", "source", "note"]);
   assert.equal(keyColumn("Спецификация")!.header, "№ п/п");
   assert.equal(column("Спецификация", "number").type, "text");
-  assert.equal(column("Спецификация", "closed").formula, "=SUMIFS(МатериалыАктов[Учёт],МатериалыАктов[№ п/п РКЦ],[@[№ п/п]])");
+  // Сравнение как текст: SUMIFS превращал «1.1» в число/дату и путал «1.1» с «1.10».
+  assert.equal(column("Спецификация", "closed").formula,
+    '=SUMPRODUCT(--(МатериалыАктов[№ п/п РКЦ]&""=[@[№ п/п]]&""),МатериалыАктов[Учёт])');
   assert.equal(column("Спецификация", "rest").formula, "=[@[Кол-во по проекту]]-[@Закрыто]");
   assert.ok(column("Спецификация", "closed").service && column("Спецификация", "rest").service);
   assert.deepEqual([...SPEC_SOURCES], ["РКЦ", "вручную"]);
@@ -31,7 +33,7 @@ test("№ п/п РКЦ в «Материалах» и формулы «Мате�
   const cols = TABLES["МатериалыАктов"].columns;
   assert.deepEqual(cols.slice(-2).map((c) => c.key), ["rkc", "counted"]);
   assert.equal(column("МатериалыАктов", "rkc").formula,
-    '=IFERROR(INDEX(Материалы[№ п/п РКЦ],MATCH([@Материал],Материалы[Наименование],0)),"")');
+    '=IFERROR(INDEX(Материалы[№ п/п РКЦ],MATCH([@Материал],Материалы[Наименование],0))&"","")');
   assert.equal(column("МатериалыАктов", "counted").formula, '=IF([@[Кол-во]]="",[@[Сумма ВОР]],[@[Кол-во]])');
   assert.equal(column("МатериалыАктов", "counted").header, "Учёт");
 });

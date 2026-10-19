@@ -246,6 +246,7 @@ export class ExcelPort implements TableStore {
       const width = Math.max(1, ...report.rows.map((r) => r.length));
       const values = report.rows.map((r) => Array.from({ length: width }, (_, i) => r[i] ?? ""));
       const all = ws.getRangeByIndexes(0, 0, values.length, width);
+      for (const c of report.text) if (c < width) ws.getRangeByIndexes(0, c, values.length, 1).numberFormat = values.map(() => ["@"]);
       all.values = values;
       all.format.font.name = "Times New Roman";
       all.format.font.size = 11;

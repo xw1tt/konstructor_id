@@ -1,6 +1,7 @@
 // Спецификация проекта: загрузка из РКЦ с предпросмотром, лист «Закрытие по актам», карточка позиции, подбор № п/п.
 import { useState } from "react";
 import { mergeSpec, applySpec } from "@idk/shared/spec/merge";
+import { readBook } from "@idk/shared/workbook/records";
 import type { RkcItem } from "@idk/shared/spec/rkc";
 import { specClosed, positionOfMaterial, closedReport, CLOSED_SHEET } from "@idk/shared/spec/closed";
 import { matchSpec, applyMatches, type SpecMatch } from "@idk/shared/spec/match";
@@ -49,7 +50,8 @@ export function SpecExtras({ port, state }: { port: ExcelPort; state: BookState 
     setBusy(true);
     try {
       if (await port.isFiltered("Спецификация")) await port.clearFilters("Спецификация");
-      const d = await applySpec(port, state.book!, parsed.items);
+      // Книга перечитывается: пока был открыт предпросмотр, строки спецификации могли измениться.
+      const d = await applySpec(port, await readBook(port), parsed.items);
       setNote({ text: `Спецификация обновлена. ${diffText(d)}` });
       setParsed(null);
       setUpload(null);

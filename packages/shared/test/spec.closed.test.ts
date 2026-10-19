@@ -69,6 +69,7 @@ test("лист «Закрытие по актам»", async () => {
   assert.deepEqual(rep.bold, [0, 1, 4]);
   assert.deepEqual(rep.negative, [[3, 5]]);
   assert.equal(rep.widths.length, 8);
+  assert.deepEqual(rep.text, [0, 1, 2], "№, наименование и ед. — текстом: «1.10» не превращается в 1,1, «=…» — не формула");
 });
 
 test("пустая спецификация — отчёт из одной шапки", async () => {
@@ -94,4 +95,12 @@ test("позиция с пометкой «нет в РКЦ» продолжае
   r["Спецификация"][0]["Примечание"] = "нет в РКЦ";
   r["Спецификация"][0]["Источник"] = "РКЦ";
   assert.equal(specClosed(await book(r))[0].closed, 50);
+});
+
+test("«1.1» и «1.10» — разные позиции (сравнение как текст)", async () => {
+  const r = records() as any;
+  r["Спецификация"].push({ "№ п/п": "1.10", "Наименование": "Другой кабель", "Ед. изм.": "м", "Кол-во по проекту": 1 });
+  const p = specClosed(await book(r));
+  assert.equal(p.find((x) => x.number === "1.10")!.closed, 0);
+  assert.equal(p.find((x) => x.number === "1.1")!.closed, 50);
 });

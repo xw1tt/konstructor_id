@@ -38,3 +38,20 @@ test("ошибки: не xlsx — 422, нет листа — 404, нет шап�
   assert.match(head.json.error, /Не найдена шапка РКЦ/);
   assert.equal((await s.req("GET", "/api/rkc/нет?sheet=А")).status, 404);
 });
+
+test("повреждённый файл и битая ссылка на лист — 422, а не 500", async () => {
+  const s = await startTestServer();
+  const xlsx = Buffer.from(makeXlsx({ "А": [["a"]] }));
+  const i = xlsx.indexOf(Buffer.from("xl/workbook.xml"));
+  for (let k = 0; k < 8; k++) xlsx[i + 15 + 2 + k] ^= 0xff;
+  assert.equal((await send(s, xlsx)).status, 422);
+  // испорчен только лист: книга открывается, разбор листа — 422 с понятным текстом
+  const sheet = Buffer.from(makeXlsx({ "А": [["a"]] }));
+  const j = sheet.indexOf(Buffer.from("xl/worksheets/sheet1.xml"));
+  for (let k = 0; k < 8; k++) sheet[j + 24 + 2 + k] ^= 0xff;
+  const up = await send(s, sheet);
+  assert.equal(up.status, 201);
+  const r = await s.req("GET", `/api/rkc/${(await up.json()).id}?sheet=А`);
+  assert.equal(r.status, 422);
+  assert.match(r.json.error, /Повреждённый файл/);
+});

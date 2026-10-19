@@ -11,7 +11,12 @@ export interface XlsxBook {
   grid(sheet: string): CellValue[][];
 }
 
-function unzip(buf: Buffer): Map<string, Buffer> {
+/** Предел распакованного размера одной записи: защита от «zip-бомбы» на общем локальном сервере. */
+export const MAX_ENTRY_BYTES = 200 * 1024 * 1024;
+const BROKEN = "Повреждённый файл .xlsx";
+
+/** Каталог zip: записи распаковываются по запросу (лист, общие строки), остальное содержимое книги не трогается. */
+function unzip(buf: Buffer): Map<string, () => Buffer> {
   let end = -1;
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65_557); i--) {
     if (buf.readUInt32LE(i) === 0x06054b50) { end = i; break; }
@@ -19,16 +24,25 @@ function unzip(buf: Buffer): Map<string, Buffer> {
   if (end < 0) throw new XlsxError("Это не файл .xlsx");
   const count = buf.readUInt16LE(end + 10);
   let p = buf.readUInt32LE(end + 16);
-  const out = new Map<string, Buffer>();
+  const out = new Map<string, () => Buffer>();
   for (let n = 0; n < count; n++) {
-    if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) throw new XlsxError("Повреждённый файл .xlsx");
+    if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) throw new XlsxError(BROKEN);
     const method = buf.readUInt16LE(p + 10), size = buf.readUInt32LE(p + 20);
     const nameLen = buf.readUInt16LE(p + 28), extraLen = buf.readUInt16LE(p + 30), commentLen = buf.readUInt16LE(p + 32);
     const local = buf.readUInt32LE(p + 42);
     const name = buf.toString("utf8", p + 46, p + 46 + nameLen);
-    const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
-    const data = buf.subarray(start, start + size);
-    out.set(name, method === 8 ? inflateRawSync(data) : Buffer.from(data));
+    out.set(name, () => {
+      try {
+        if (local + 30 > buf.length || buf.readUInt32LE(local) !== 0x04034b50) throw new Error();
+        const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+        const data = buf.subarray(start, start + size);
+        if (method === 0) return Buffer.from(data);
+        if (method === 8) return inflateRawSync(data, { maxOutputLength: MAX_ENTRY_BYTES });
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE") throw new XlsxError("Лист РКЦ слишком большой");
+      }
+      throw new XlsxError(BROKEN);
+    });
     p += 46 + nameLen + extraLen + commentLen;
   }
   return out;
@@ -44,7 +58,11 @@ const colIndex = (ref: string) => [...ref.replace(/\d+$/, "")].reduce((n, ch) =>
 
 export function readXlsx(data: Uint8Array): XlsxBook {
   const files = unzip(Buffer.from(data.buffer, data.byteOffset, data.byteLength));
-  const text = (name: string) => files.get(name)?.toString("utf8");
+  const cache = new Map<string, string>();
+  const text = (name: string) => {
+    if (!cache.has(name)) { const get = files.get(name); if (!get) return undefined; cache.set(name, get().toString("utf8")); }
+    return cache.get(name);
+  };
   const wb = text("xl/workbook.xml");
   if (!wb) throw new XlsxError("В файле нет книги Excel (xl/workbook.xml)");
   const rels = new Map<string, string>();
@@ -55,7 +73,8 @@ export function readXlsx(data: Uint8Array): XlsxBook {
   const sheets = [...wb.matchAll(/<sheet\b[^>]*>/g)].map((m) => ({
     name: unescape(attr(m[0], "name") ?? ""), path: rels.get(attr(m[0], "r:id") ?? "") ?? "",
   }));
-  const shared = [...(text("xl/sharedStrings.xml") ?? "").matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => texts(m[1]));
+  let sharedList: string[] | null = null;
+  const shared = () => (sharedList ??= [...(text("xl/sharedStrings.xml") ?? "").matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => texts(m[1])));
 
   return {
     sheets: sheets.map((s) => s.name),
@@ -66,7 +85,7 @@ export function readXlsx(data: Uint8Array): XlsxBook {
       if (xml === undefined) throw new XlsxError(`Лист «${name}» не найден`);
       const out: CellValue[][] = [];
       for (const rm of xml.matchAll(/<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g)) {
-        const r = Number(attr(rm[0], "r") ?? out.length + 1) - 1;
+        const r = Number(attr(`<row${rm[1]}>`, "r") ?? out.length + 1) - 1;
         while (out.length <= r) out.push([]);
         const row = out[r];
         for (const cm of (rm[2] ?? "").matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
@@ -75,7 +94,7 @@ export function readXlsx(data: Uint8Array): XlsxBook {
           const c = ref ? colIndex(ref) : row.length;
           const v = body.match(/<v>([\s\S]*?)<\/v>/)?.[1];
           let val: CellValue = null;
-          if (t === "s") val = v !== undefined ? shared[Number(v)] ?? null : null;
+          if (t === "s") val = v !== undefined ? shared()[Number(v)] ?? null : null;
           else if (t === "inlineStr") val = texts(body);
           else if (t === "str") val = v !== undefined ? unescape(v) : null;
           else if (t === "b") val = v === "1";

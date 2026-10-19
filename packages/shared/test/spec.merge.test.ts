@@ -60,3 +60,12 @@ test("applySpec пишет только «Спецификацию»; привя
   assert.deepEqual(b.tables["Спецификация"]!.map((r) => r.v.number), ["1.1", "1.2"]);
   assert.equal(b.tables["Материалы"]![0].v.rkc, "1.2");
 });
+
+test("ошибка вставки не стирает спецификацию", async () => {
+  class Failing extends MemoryWorkbook {
+    override async insert(): Promise<number> { throw new Error("Лист защищён"); }
+  }
+  const wb = new Failing({ "Спецификация": [row("1.1", "Кабель", 10, "РКЦ"), row("доп-1", "Доп", 1, "вручную")] });
+  await assert.rejects(applySpec(wb, await readBook(wb), [it("1.1", "Кабель", 12)]), /Лист защищён/);
+  assert.deepEqual((await readBook(wb)).tables["Спецификация"]!.map((r) => r.v.number), ["1.1", "доп-1"]);
+});

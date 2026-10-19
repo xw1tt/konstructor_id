@@ -11,19 +11,21 @@ import { docNumber, formatDateShort, withNo } from "./acts/format.ts";
 import { avkDefaultNumber } from "./acts/rows.ts";
 import { AVK_NAME, KJ_NAME, PROTOCOL_NAME, DOC_NAMES } from "./kit/registry.ts";
 import type { OjrRequest } from "./ojrPrint.ts";
+import { isHoliday } from "./holidays.ts";
 
 const txt = cellText;
 const iso = (v: CellValue) => { const p = parseDateCell(v); return p.ok ? p.value : null; };
 const H3 = (k: string) => column("ОЖР3", k).header;
 const H5 = (k: string) => column("ОЖР5", k).header;
 
-/** Даты периода включительно, кроме воскресений. */
+/** Даты периода включительно, кроме воскресений и нерабочих праздничных дней. */
 export function workDays(from: string, to: string): string[] {
   const out: string[] = [];
   const end = Date.parse(`${to}T00:00:00Z`);
   for (let t = Date.parse(`${from}T00:00:00Z`); t <= end; t += 86_400_000) {
     const d = new Date(t);
-    if (d.getUTCDay() !== 0) out.push(d.toISOString().slice(0, 10));
+    const iso = d.toISOString().slice(0, 10);
+    if (d.getUTCDay() !== 0 && !isHoliday(iso)) out.push(iso);
   }
   return out;
 }

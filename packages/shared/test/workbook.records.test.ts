@@ -47,7 +47,7 @@ test("write не трогает формульный столбец", async () =
   const wb = new MemoryWorkbook({ "МатериалыАктов": [{ "Акт": "1", "Материал": "Кабель" }] });
   await wb.write("МатериалыАктов", 0, { "Сумма ВОР": 5, "Кол-во": 3 });
   const t = await wb.read("МатериалыАктов");
-  assert.deepEqual(t!.rows[0], ["1", "Кабель", null, 3, null]);
+  assert.deepEqual(t!.rows[0], ["1", "Кабель", null, 3, null, null, null]);
 });
 
 test("ссылки на файлы хранятся отдельно от значений", async () => {

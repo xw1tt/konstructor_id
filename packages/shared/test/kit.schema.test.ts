@@ -7,7 +7,7 @@ import { MemoryWorkbook } from "@idk/shared/workbook/memory";
 import { readBook } from "@idk/shared/workbook/records";
 
 test("листы «Комплекты» и «Реестр ИД», версия схемы 5", () => {
-  assert.equal(SCHEMA_VERSION, 5);
+  assert.ok(SCHEMA_VERSION >= 5);
   assert.deepEqual(SHEETS.slice(-4, -2), [
     { name: "Комплекты", tables: ["Комплекты", "АктыКомплектов"] },
     { name: "Реестр ИД", tables: ["РеестрИД"] },

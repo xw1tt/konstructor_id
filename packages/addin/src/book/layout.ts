@@ -45,6 +45,9 @@ export const objectImportantRule = (fieldCol: string, valueCol: string, firstRow
 export const duplicateRule = (col: string, firstRow: number, lastRow: number) =>
   `=AND(${col}${firstRow}<>"",COUNTIF($${col}$${firstRow}:$${col}$${lastRow},${col}${firstRow})>1)`;
 
+/** Отрицательное число в ячейке («Остаток» спецификации). */
+export const negativeRule = (col: string, firstRow: number) => `=AND(ISNUMBER(${col}${firstRow}),${col}${firstRow}<0)`;
+
 /** Индексы видимых (не скрытых фильтром) строк данных таблицы по областям видимых ячеек выделения. */
 export function visibleTableRows(areas: { rowIndex: number; rowCount: number }[], bodyRow: number, bodyCount: number): number[] {
   const out = new Set<number>();

@@ -10,7 +10,7 @@ import { currentHost, type HostStatus } from "./host.ts";
 import { exampleColumn } from "@idk/shared/workbook/examples";
 import {
   COLORS, LISTS_SHEET, applyValidation, colLetter, duplicateRule, exampleRule, importantRule, objectImportantRule, listName, promptFor,
-  nextTableTop, textFormatted, visibleTableRows, missingColumns, missingObjectFields,
+  nextTableTop, textFormatted, visibleTableRows, missingColumns, missingObjectFields, negativeRule,
 } from "./layout.ts";
 
 /** Подписи над таблицами на листах с несколькими таблицами. */
@@ -574,6 +574,11 @@ export class ExcelPort implements TableStore {
           ? objectImportantRule(colLetter(headers.indexOf("Поле")), colLetter(i), firstRow, OBJECT_REQUIRED_LABELS)
           : importantRule(colLetter(0), colLetter(last), colLetter(i), firstRow);
         cf.custom.format.fill.color = COLORS.empty;
+      }
+      if (def.name === "Спецификация" && col.key === "rest") {
+        const cf = range.conditionalFormats.add("Custom");
+        cf.custom.rule.formula = negativeRule(colLetter(i), firstRow);
+        cf.custom.format.fill.color = COLORS.duplicate;
       }
       if (keyColumn(def.name)?.header === col.header && !def.allowDuplicates) {
         const cf = range.conditionalFormats.add("Custom");

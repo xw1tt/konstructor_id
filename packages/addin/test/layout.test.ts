@@ -105,3 +105,8 @@ test("обновление разметки: недостающие столбц
   assert.deepEqual(missingObjectFields(["Наименование объекта", "Адрес"]).slice(-2), ["Папка сканов", "Условия производства работ"]);
   assert.equal(missingObjectFields(["Наименование объекта"]).includes("Адрес"), true);
 });
+
+test("План 10: отрицательный остаток спецификации — правило подсветки", async () => {
+  const { negativeRule } = await import("@idk/addin/book/layout");
+  assert.equal(negativeRule("G", 5), '=AND(ISNUMBER(G5),G5<0)');
+});

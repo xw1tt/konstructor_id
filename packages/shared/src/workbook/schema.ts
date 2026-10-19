@@ -4,7 +4,7 @@ import { HELP, OBJECT_HELP } from "./help.ts";
 import type { CellValue } from "./values.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -12,12 +12,12 @@ export type TableName =
   | "Объект" | "Организации" | "Шифры" | "Представители" | "Материалы" | "ДокументыКачества"
   | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал"
   | "Электролаборатория" | "СредстваИзмерений" | "ИзмеренияМарок" | "ДокументыКабелей"
-  | "Комплекты" | "АктыКомплектов" | "РеестрИД" | "ОЖР3" | "ОЖР5";
+  | "Комплекты" | "АктыКомплектов" | "РеестрИД" | "ОЖР3" | "ОЖР5" | "Спецификация";
 
 export type SheetName =
   | "Реквизиты" | "Представители" | "Материалы" | "Документы качества" | "База актов"
   | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Изоляция" | "Комплекты" | "Реестр ИД"
-  | "ОЖР Раздел 3" | "ОЖР Раздел 5";
+  | "ОЖР Раздел 3" | "ОЖР Раздел 5" | "Спецификация";
 
 export interface ColumnDef {
   key: string;
@@ -69,6 +69,9 @@ export const SCHEME_KINDS = ["Схема", "Прочее"] as const;
 export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Прочее"] as const;
 export type RegistryKind = (typeof REGISTRY_KINDS)[number];
 export const YES_NO = ["да", "нет"] as const;
+/** Источник позиции спецификации; пометка позиции, пропавшей из нового РКЦ. */
+export const SPEC_SOURCES = ["РКЦ", "вручную"] as const;
+export const SPEC_MISSING = "нет в РКЦ";
 
 const OBJECT_FIELDS_RAW = [
   { key: "name", label: "Наименование объекта", type: "text" },
@@ -141,6 +144,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("article", "Артикул", "text"),
     c("manufacturer", "Завод-изготовитель", "text", { ...imp, width: 24 }),
     c("unit", "Ед. изм.", "text", imp),
+    c("rkc", "№ п/п РКЦ", "ref", { ref: "Спецификация", width: 14 }),
   ]),
   "ДокументыКачества": t("ДокументыКачества", "Документы качества", [
     c("materials", "Материалы", "refs", { ...imp, ref: "Материалы", width: 60 }),
@@ -189,6 +193,21 @@ export const TABLES: Record<TableName, TableDef> = {
     c("vorSum", "Сумма ВОР", "formula", {
       service: true, formula: "=SUMIFS(ВОР[Объём],ВОР[Акт],[@Акт],ВОР[Материал],[@Материал])",
     }),
+    c("rkc", "№ п/п РКЦ", "formula", {
+      service: true, formula: '=IFERROR(INDEX(Материалы[№ п/п РКЦ],MATCH([@Материал],Материалы[Наименование],0)),"")',
+    }),
+    c("counted", "Учёт", "formula", { service: true, formula: '=IF([@[Кол-во]]="",[@[Сумма ВОР]],[@[Кол-во]])' }),
+  ]),
+  "Спецификация": t("Спецификация", "Спецификация", [
+    c("number", "№ п/п", "text", { ...imp, isKey: true, width: 14 }),
+    c("section", "Раздел", "text", { width: 30 }),
+    c("name", "Наименование", "longtext", { ...imp, width: 60 }),
+    c("unit", "Ед. изм.", "text"),
+    c("quantity", "Кол-во по проекту", "number", imp),
+    c("closed", "Закрыто", "formula", { service: true, formula: "=SUMIFS(МатериалыАктов[Учёт],МатериалыАктов[№ п/п РКЦ],[@[№ п/п]])" }),
+    c("rest", "Остаток", "formula", { service: true, formula: "=[@[Кол-во по проекту]]-[@Закрыто]" }),
+    c("source", "Источник", "enum", { values: SPEC_SOURCES, default: "вручную" }),
+    c("note", "Примечание", "text", { width: 30 }),
   ]),
   "ВОР": t("ВОР", "ВОР", [
     c("act", "Акт", "ref", { ...imp, ref: "Акты", width: 24 }),
@@ -297,6 +316,7 @@ export const TABLES: Record<TableName, TableDef> = {
 export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
   { name: "Реквизиты", tables: ["Объект", "Организации", "Шифры"] },
   { name: "Представители", tables: ["Представители"] },
+  { name: "Спецификация", tables: ["Спецификация"] },
   { name: "Материалы", tables: ["Материалы"] },
   { name: "Документы качества", tables: ["ДокументыКачества"] },
   { name: "База актов", tables: ["Акты"] },

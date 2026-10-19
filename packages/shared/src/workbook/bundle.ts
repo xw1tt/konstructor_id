@@ -84,6 +84,7 @@ export function createChecker(book: Book, important: ImportantMap) {
     Object.fromEntries(TABLES[t].columns.map((c) => [c.key, check(t, r, c, required.includes(c.key))])) as Record<string, any>;
 
   const checkDuplicates = (t: TableName, used: BookRow[]) => {
+    if (TABLES[t].allowDuplicates) return;
     const col = keyColumn(t)!;
     for (const r of used) {
       const k = key(t, r);
@@ -140,7 +141,6 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
   const sectionRow = find("Шифры", sectionKey);
   if (sectionRow) { checkRow("Шифры", sectionRow); checkDuplicates("Шифры", [sectionRow]); }
   for (const r of rows("Представители")) checkRow("Представители", r);
-  checkDuplicates("Представители", rows("Представители"));
 
   const objRow = (k: string) => rows("Объект").find((r) => cellText(r.v.field) === OBJECT_FIELDS.find((f) => f.key === k)!.label);
   for (const f of OBJECT_FIELDS) {

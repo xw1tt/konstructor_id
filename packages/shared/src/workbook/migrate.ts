@@ -50,7 +50,8 @@ export function exportToBook(e: ExportData, _origin: string): BookRecords {
   const orgKeys = uniqueKeys(e.organizations, (o) => o.shortName);
   // «;» разделяет материалы в документе качества — в наименовании заменяется запятой.
   const matKeys = uniqueKeys(e.materials, (m) => m.name.replace(/;/g, ","), (m) => m.mark || m.article);
-  const repKeys = uniqueKeys(e.representatives, (r) => r.fullName);
+  // Один человек может быть в нескольких ролях — ФИО переносится как есть.
+  const repKeys = new Map(e.representatives.map((r) => [r.id, r.fullName.trim()]));
   const secKeys = uniqueKeys(e.sections, (s) => s.code);
   const actKeys = uniqueKeys(e.acts.map((a) => a.act), (a) => a.baseNumber);
   const orgName = (id: number | null) => (id === null ? null : orgKeys.get(id) ?? null);

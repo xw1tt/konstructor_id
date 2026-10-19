@@ -35,7 +35,11 @@ export interface ColumnDef {
   example?: CellValue;
 }
 
-export interface TableDef { name: TableName; sheet: SheetName; columns: ColumnDef[] }
+export interface TableDef {
+  name: TableName; sheet: SheetName; columns: ColumnDef[];
+  /** Повтор значения ключа допустим (один человек в нескольких ролях): нет подсветки и ошибки повтора. */
+  allowDuplicates?: boolean;
+}
 
 /** Подписи ролей представителей в книге (спецификация §3.2). */
 export const ROLE_BOOK_LABELS: Record<RoleCode, string> = {
@@ -79,7 +83,8 @@ const c = (key: string, header: string, type: ColType, extra: Partial<ColumnDef>
   ({ key, header, type, hint: "", ...extra });
 const imp = { important: true };
 
-const t = (name: TableName, sheet: SheetName, columns: ColumnDef[]): TableDef => ({ name, sheet, columns });
+const t = (name: TableName, sheet: SheetName, columns: ColumnDef[], extra: Partial<TableDef> = {}): TableDef =>
+  ({ name, sheet, columns, ...extra });
 
 export const TABLES: Record<TableName, TableDef> = {
   "Объект": t("Объект", "Реквизиты", [
@@ -114,7 +119,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("validTo", "Действует по", "date"),
     c("sortOrder", "Порядок", "int", { default: 1 }),
     c("actText", "Текст для акта", "longtext", { width: 40 }),
-  ]),
+  ], { allowDuplicates: true }),
   "Материалы": t("Материалы", "Материалы", [
     c("name", "Наименование", "text", { ...imp, isKey: true, width: 60 }),
     c("mark", "Марка", "text", { width: 30 }),

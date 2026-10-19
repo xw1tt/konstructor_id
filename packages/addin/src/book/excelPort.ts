@@ -465,7 +465,7 @@ export class ExcelPort implements TableStore {
         cf.custom.rule.formula = importantRule(colLetter(0), colLetter(last), colLetter(i), firstRow);
         cf.custom.format.fill.color = COLORS.empty;
       }
-      if (keyColumn(def.name)?.header === col.header) {
+      if (keyColumn(def.name)?.header === col.header && !def.allowDuplicates) {
         const cf = range.conditionalFormats.add("Custom");
         cf.custom.rule.formula = duplicateRule(colLetter(i), firstRow, LAST_RULE_ROW);
         cf.custom.format.fill.color = COLORS.duplicate;

@@ -4,7 +4,7 @@ import { HELP, OBJECT_HELP } from "./help.ts";
 import type { CellValue } from "./values.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -12,11 +12,12 @@ export type TableName =
   | "Объект" | "Организации" | "Шифры" | "Представители" | "Материалы" | "ДокументыКачества"
   | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал"
   | "Электролаборатория" | "СредстваИзмерений" | "ИзмеренияМарок" | "ДокументыКабелей"
-  | "Комплекты" | "АктыКомплектов" | "РеестрИД";
+  | "Комплекты" | "АктыКомплектов" | "РеестрИД" | "ОЖР3" | "ОЖР5";
 
 export type SheetName =
   | "Реквизиты" | "Представители" | "Материалы" | "Документы качества" | "База актов"
-  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Изоляция" | "Комплекты" | "Реестр ИД";
+  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Изоляция" | "Комплекты" | "Реестр ИД"
+  | "ОЖР Раздел 3" | "ОЖР Раздел 5";
 
 export interface ColumnDef {
   key: string;
@@ -80,6 +81,7 @@ const OBJECT_FIELDS_RAW = [
   { key: "designer", label: "Лицо, осуществляющее подготовку проектной документации", type: "ref" },
   { key: "performer", label: "Лицо, выполнившее работы (по умолчанию)", type: "ref" },
   { key: "scanFolder", label: "Папка сканов", type: "text" },
+  { key: "workConditions", label: "Условия производства работ", type: "text" },
 ] as const satisfies readonly { key: string; label: string; type: "text" | "date" | "ref" }[];
 export type ObjectFieldKey = (typeof OBJECT_FIELDS_RAW)[number]["key"];
 
@@ -277,6 +279,19 @@ export const TABLES: Record<TableName, TableDef> = {
     c("file", "Скан", "file", { width: 22 }),
     c("sheets", "Листов", "int", { width: 8 }),
   ]),
+  // Общий журнал работ (приказ Минстроя № 1026/пр): раздел 3 — строка на дату, раздел 5 — исполнительная документация.
+  "ОЖР3": t("ОЖР3", "ОЖР Раздел 3", [
+    c("date", "Дата", "date", { ...imp, width: 12 }),
+    c("conditions", "Условия производства работ", "longtext", { width: 26 }),
+    c("works", "Наименование выполненных работ", "longtext", { ...imp, width: 70 }),
+    c("signer", "Представитель", "longtext", { width: 30 }),
+    c("acts", "Акты", "refs", { service: true, ref: "Акты", width: 26 }),
+  ]),
+  "ОЖР5": t("ОЖР5", "ОЖР Раздел 5", [
+    c("name", "Наименование исполнительной документации", "longtext", { ...imp, width: 70 }),
+    c("signed", "Дата подписания и подписавшие", "longtext", { ...imp, width: 50 }),
+    c("act", "Акт", "ref", { service: true, ref: "Акты", width: 26 }),
+  ]),
 };
 
 export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
@@ -292,6 +307,8 @@ export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
   { name: "Изоляция", tables: ["Электролаборатория", "СредстваИзмерений", "ИзмеренияМарок", "ДокументыКабелей"] },
   { name: "Комплекты", tables: ["Комплекты", "АктыКомплектов"] },
   { name: "Реестр ИД", tables: ["РеестрИД"] },
+  { name: "ОЖР Раздел 3", tables: ["ОЖР3"] },
+  { name: "ОЖР Раздел 5", tables: ["ОЖР5"] },
 ];
 
 export const TABLE_NAMES = Object.keys(TABLES) as TableName[];

@@ -5,6 +5,7 @@ const S = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "
 
 export const HomeIcon = () => <svg {...S}><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /></svg>;
 export const GridIcon = () => <svg {...S} width={14} height={14}><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 10h16M10 10v10" /></svg>;
+export const GearIcon = () => <svg {...S} width={15} height={15}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></svg>;
 export const ChevronIcon = () => <svg {...S} width={12} height={12}><path d="M6 9l6 6 6-6" /></svg>;
 
 const PATHS: Record<AssistantIconId, JSX.Element> = {

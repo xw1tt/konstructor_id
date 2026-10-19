@@ -1,10 +1,11 @@
 // Экраны верхней строки и значки помощника (пока без действия).
-export type ScreenId = "home" | "normativ" | "assistant";
+export type ScreenId = "home" | "normativ" | "assistant" | "settings";
 
 export const SCREENS: readonly { id: ScreenId; label: string }[] = [
   { id: "home", label: "Конструктор ИД" },
   { id: "normativ", label: "Норматив" },
   { id: "assistant", label: "Помощник" },
+  { id: "settings", label: "Настройки" },
 ];
 
 export type AssistantIconId = "search" | "history" | "chat" | "bell" | "help" | "menu";

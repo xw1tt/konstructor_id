@@ -121,7 +121,7 @@ details.section > .body { padding-bottom: 12px; }
 
 /* Верхняя строка: ⌂, Норматив, Помощник, Шаблоны, значки помощника. */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--paper); flex-wrap: wrap; }
-.topbar-nav, .topbar-icons { display: flex; align-items: center; gap: 2px; }
+.topbar-nav, .topbar-icons { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
 .tb-btn { background: none; border: 0; border-radius: 7px; padding: 4px 8px; cursor: pointer; font-weight: 600; color: var(--ink); display: inline-flex; align-items: center; gap: 4px; min-height: 28px; }
 .tb-btn:hover:not(.tb-active) { background: var(--surface); }
 .tb-active { background: var(--ink); color: var(--paper); }
@@ -135,8 +135,6 @@ details.section > .body { padding-bottom: 12px; }
 .tb-menu button:hover:not(:disabled) { background: var(--surface); }
 .tb-menu button:disabled { color: var(--ink-soft); cursor: default; }
 .tb-check { width: 14px; display: inline-block; color: var(--blue); flex: none; }
-.tb-sep { border-top: 1px solid var(--line); margin: 4px 2px; }
-.tb-menu { min-width: 260px; }
 .tb-icon { background: none; border: 0; border-radius: 6px; padding: 4px; color: var(--ink-soft); display: inline-flex; }
 .tb-icon:disabled { opacity: .55; cursor: default; }
 
@@ -164,3 +162,9 @@ details.section > .body { padding-bottom: 12px; }
 .badge-other { background: var(--surface); color: var(--ink-soft); }
 .norm-card p { margin: 4px 0; }
 .norm-url { word-break: break-all; font-size: 11px; }
+
+.tb-settings { font-weight: 500; }
+.settings .setting { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 10px 0 0; }
+.settings legend { font-weight: 600; padding: 0 4px; }
+.setting-option { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; cursor: pointer; }
+.setting-option input { margin-top: 3px; }

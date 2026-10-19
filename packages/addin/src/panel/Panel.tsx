@@ -11,6 +11,7 @@ import { TableTools } from "./TableTools.tsx";
 import { TopBar } from "./TopBar.tsx";
 import { NormativScreen } from "./NormativScreen.tsx";
 import { AssistantScreen } from "./AssistantScreen.tsx";
+import { SettingsScreen } from "./SettingsScreen.tsx";
 import { TemplateContext, PrintOptionsContext } from "./templateContext.ts";
 import type { ScreenId } from "./screens.ts";
 
@@ -78,7 +79,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
       <TemplateContext.Provider value={template}>
       <PrintOptionsContext.Provider value={options}>
         <div className="app">
-          <TopBar screen={screen} onScreen={setScreen} template={template} onTemplate={chooseTemplate} options={options} onOptions={chooseOptions} />
+          <TopBar screen={screen} onScreen={setScreen} template={template} onTemplate={chooseTemplate} />
           {serverDown && (
             <div className="banner" role="alert">
               <p>Сервер не запущен: листы работают, печать и сканы недоступны. Запустите «Конструктор ИД» на компьютере.</p>
@@ -86,7 +87,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             </div>
           )}
           {state.error && <p className="error" role="alert">{state.error}</p>}
-          {screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
+          {screen === "settings" ? <SettingsScreen options={options} onOptions={chooseOptions} /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
             <>

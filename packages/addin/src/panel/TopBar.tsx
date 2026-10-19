@@ -1,12 +1,11 @@
-// Верхняя строка панели: ⌂ (конструктор), «Норматив», «Помощник», «Шаблоны ▾», значки помощника.
+// Верхняя строка панели: ⌂ (конструктор), «Норматив», «Помощник», «Шаблоны ▾», «Настройки», значки помощника.
 import { useEffect, useRef, useState } from "react";
-import { TEMPLATES, type PrintOptions, type TemplateCode } from "@idk/shared/templates";
+import { TEMPLATES, type TemplateCode } from "@idk/shared/templates";
 import { ASSISTANT_ICONS, type ScreenId } from "./screens.ts";
-import { AssistantIcon, ChevronIcon, GridIcon, HomeIcon } from "./icons.tsx";
+import { AssistantIcon, ChevronIcon, GearIcon, GridIcon, HomeIcon } from "./icons.tsx";
 
-export function TopBar({ screen, onScreen, template, onTemplate, options, onOptions }: {
+export function TopBar({ screen, onScreen, template, onTemplate }: {
   screen: ScreenId; onScreen(s: ScreenId): void; template: TemplateCode; onTemplate(t: TemplateCode): void;
-  options: PrintOptions; onOptions(o: PrintOptions): void;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -42,16 +41,11 @@ export function TopBar({ screen, onScreen, template, onTemplate, options, onOpti
                 </li>
               ))}
               <li role="none"><button role="menuitem" disabled><span className="tb-check" />Другие заказчики — позже</button></li>
-              <li role="separator" className="tb-sep" />
-              <li role="none">
-                <button role="menuitemcheckbox" aria-checked={options.schemeEach} title="П.4 АОСР: по умолчанию — только перед первой из подряд идущих схем, как в образце СБД"
-                  onClick={() => onOptions({ ...options, schemeEach: !options.schemeEach })}>
-                  <span className="tb-check">{options.schemeEach ? "✓" : ""}</span>«Исполнительная схема» перед каждой схемой
-                </button>
-              </li>
             </ul>
           )}
         </div>
+        <button className={`tb-btn tb-settings${screen === "settings" ? " tb-active" : ""}`} aria-current={screen === "settings" ? "page" : undefined}
+          onClick={() => onScreen("settings")}><GearIcon /> Настройки</button>
       </nav>
       <div className="topbar-icons" aria-label="Помощник">
         {ASSISTANT_ICONS.map((i) => (

@@ -37,6 +37,10 @@ export const strictList = (col: ColumnDef) => col.type !== "refs";
 export const importantRule = (firstCol: string, lastCol: string, col: string, firstRow: number) =>
   `=AND(COUNTA($${firstCol}${firstRow}:$${lastCol}${firstRow})>0,LEN(TRIM(${col}${firstRow}))=0)`;
 
+/** «Объект»: пустое значение подсвечивается только в строках обязательных полей. */
+export const objectImportantRule = (fieldCol: string, valueCol: string, firstRow: number, labels: string[]) =>
+  `=AND(OR(${labels.map((l) => `$${fieldCol}${firstRow}="${l.replace(/"/g, '""')}"`).join(",")}),LEN(TRIM(${valueCol}${firstRow}))=0)`;
+
 /** Повтор значения ключа в столбце. */
 export const duplicateRule = (col: string, firstRow: number, lastRow: number) =>
   `=AND(${col}${firstRow}<>"",COUNTIF($${col}$${firstRow}:$${col}$${lastRow},${col}${firstRow})>1)`;

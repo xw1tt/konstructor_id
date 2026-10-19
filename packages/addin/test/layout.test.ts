@@ -79,3 +79,14 @@ test("ревью: подсказка не стирается очисткой п
   assert.equal(text.dataValidation.prompt.title, "Работы (п.1)");
   assert.equal(text.dataValidation.rule, null);
 });
+
+test("«Объект»: розовая подсветка пустого значения — только у обязательных полей", async () => {
+  const { objectImportantRule } = await import("../src/book/layout.ts");
+  const { OBJECT_REQUIRED_LABELS, isObjectFieldRequired } = await import("@idk/shared/workbook/schema");
+  assert.deepEqual(OBJECT_REQUIRED_LABELS, ["Наименование объекта", "Застройщик (технический заказчик)", "Лицо, осуществляющее строительство"]);
+  assert.equal(objectImportantRule("A", "B", 5, ["Наименование объекта", 'Поле "x"']),
+    '=AND(OR($A5="Наименование объекта",$A5="Поле ""x"""),LEN(TRIM(B5))=0)');
+  assert.equal(isObjectFieldRequired("Договор №"), false);
+  assert.equal(isObjectFieldRequired("Дата договора"), false);
+  assert.equal(isObjectFieldRequired("Застройщик (технический заказчик)"), true);
+});

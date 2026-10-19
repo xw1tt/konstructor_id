@@ -2,7 +2,7 @@
 // с обновлением ссылок, дополнения разделов.
 import { useEffect, useState } from "react";
 import {
-  TABLES, OBJECT_FIELDS, SHEETS, keyColumn, column as colOf, type ColumnDef, type TableName,
+  TABLES, OBJECT_FIELDS, SHEETS, isObjectFieldRequired, keyColumn, column as colOf, type ColumnDef, type TableName,
 } from "@idk/shared/workbook/schema";
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
 import { findReferences, renameKey, type RefHit } from "@idk/shared/workbook/refs";
@@ -136,7 +136,9 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
       <div className="form">
         {TABLES[table].columns.map((c) => {
           const col = effectiveColumn(table, c, row, t.headers);
-          const important = (state.important[table] ?? []).includes(c.header);
+          // В «Объекте» обязательны только поля шапки АОСР; договор и прочее можно не заполнять.
+          const important = (state.important[table] ?? []).includes(c.header)
+            && !(table === "Объект" && c.key === "value" && !isObjectFieldRequired(cellText(valueOf("Поле"))));
           return (
             <Field
               key={c.header}

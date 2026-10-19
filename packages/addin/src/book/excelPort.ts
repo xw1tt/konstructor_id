@@ -1,7 +1,7 @@
 // Слой Office.js: книга объекта в Excel. Вся логика — в @idk/shared/workbook; здесь только чтение/запись,
 // разметка, выделение и события. Требуется ExcelApi 1.9.
 import {
-  TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, SCHEMA_VERSION, keyColumn, type TableName, type ColumnDef,
+  TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, OBJECT_REQUIRED_LABELS, SCHEMA_VERSION, keyColumn, type TableName, type ColumnDef,
 } from "@idk/shared/workbook/schema";
 import type { CellValue } from "@idk/shared/workbook/values";
 import type { RowData, RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
@@ -9,7 +9,7 @@ import type { ImportantMap } from "@idk/shared/workbook/important";
 import { currentHost, type HostStatus } from "./host.ts";
 import { exampleColumn } from "@idk/shared/workbook/examples";
 import {
-  COLORS, LISTS_SHEET, applyValidation, colLetter, duplicateRule, exampleRule, importantRule, listName, promptFor,
+  COLORS, LISTS_SHEET, applyValidation, colLetter, duplicateRule, exampleRule, importantRule, objectImportantRule, listName, promptFor,
   nextTableTop, textFormatted, visibleTableRows,
 } from "./layout.ts";
 
@@ -462,7 +462,9 @@ export class ExcelPort implements TableStore {
       const range = t.columns.getItemAt(i).getDataBodyRange();
       if (important.includes(col.header) && col.type !== "formula") {
         const cf = range.conditionalFormats.add("Custom");
-        cf.custom.rule.formula = importantRule(colLetter(0), colLetter(last), colLetter(i), firstRow);
+        cf.custom.rule.formula = def.name === "Объект" && col.key === "value"
+          ? objectImportantRule(colLetter(0), colLetter(i), firstRow, OBJECT_REQUIRED_LABELS)
+          : importantRule(colLetter(0), colLetter(last), colLetter(i), firstRow);
         cf.custom.format.fill.color = COLORS.empty;
       }
       if (keyColumn(def.name)?.header === col.header && !def.allowDuplicates) {

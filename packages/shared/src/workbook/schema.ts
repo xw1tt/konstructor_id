@@ -76,6 +76,11 @@ const OBJECT_FIELDS_RAW = [
 ] as const satisfies readonly { key: string; label: string; type: "text" | "date" | "ref" }[];
 export type ObjectFieldKey = (typeof OBJECT_FIELDS_RAW)[number]["key"];
 
+/** Поля объекта, без которых не напечатать шапку АОСР (договор и прочее — необязательны). */
+export const OBJECT_REQUIRED = new Set<ObjectFieldKey>(["name", "developer", "builder"]);
+export const OBJECT_REQUIRED_LABELS: string[] = OBJECT_FIELDS_RAW.filter((f) => OBJECT_REQUIRED.has(f.key)).map((f) => f.label);
+export const isObjectFieldRequired = (label: string) => OBJECT_REQUIRED_LABELS.includes(label.trim());
+
 /** Поля таблицы «Объект» с подсказками и значениями примера. */
 export const OBJECT_FIELDS = OBJECT_FIELDS_RAW.map((f) => ({ ...f, hint: OBJECT_HELP[f.key][0], example: OBJECT_HELP[f.key][1] }));
 

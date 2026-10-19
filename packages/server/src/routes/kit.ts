@@ -30,7 +30,8 @@ export function kitRoutes(r: Router, db: Db, dataDir: string, now: () => number 
     c.res.writeHead(200, {
       "content-type": "application/pdf",
       "content-length": j.pdf.length,
-      "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(j.name)}`,
+      "content-disposition": `${c.query.get("download") ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(j.name)}`,
+      "cache-control": "no-store",
     });
     c.res.end(j.pdf);
   });

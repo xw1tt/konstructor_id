@@ -143,6 +143,12 @@ test("ошибки файлов — 422 со строками реестра; б
   const pages = await pdfPages(new Uint8Array(await (await s.raw("GET", `/api/kit-jobs/${ok.json.id}`)).arrayBuffer()));
   assert.match(pages[0], /РЕЕСТР ПЕРЕДАЧИ/);
   assert.equal((await s.req("GET", "/api/kit-jobs/нет")).status, 404);
+  // повторный запрос (окно предпросмотра открывает комплект по прямой ссылке) и скачивание
+  const again = await s.raw("GET", `/api/kit-jobs/${ok.json.id}`);
+  assert.equal(again.status, 200);
+  assert.match(again.headers.get("content-disposition") ?? "", /^inline;/);
+  const dl = await s.raw("GET", `/api/kit-jobs/${ok.json.id}?download=1`);
+  assert.match(dl.headers.get("content-disposition") ?? "", /^attachment;/);
 });
 
 test("тело задания больше 1 МБ принимается (несколько актов)", async () => {

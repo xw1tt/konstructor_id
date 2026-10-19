@@ -170,3 +170,8 @@ details.section > .body { padding-bottom: 12px; }
 .settings legend { font-weight: 600; padding: 0 4px; }
 .setting-option { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; cursor: pointer; }
 .setting-option input { margin-top: 3px; }
+
+/* План 10: подбор № п/п — длинный список прокручивается. */
+.match-list { max-height: 320px; overflow-y: auto; }
+.match-list label { display: block; line-height: 1.35; }
+p.warn, ul.warn { display: block; padding: 6px 8px; font-size: 12px; }

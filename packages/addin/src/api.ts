@@ -37,3 +37,11 @@ export const apiUpload = (file: Blob, name: string) =>
     headers: { "content-type": file.type || "application/octet-stream", "x-file-name": encodeURIComponent(name) },
     body: file,
   });
+
+/** Файл РКЦ (.xlsx) — в память сервера; ответ — id и листы книги. */
+export const apiUploadRkc = (file: Blob) =>
+  call<{ id: string; sheets: string[] }>("/api/rkc", {
+    method: "POST",
+    headers: { "content-type": file.type || "application/octet-stream" },
+    body: file,
+  });

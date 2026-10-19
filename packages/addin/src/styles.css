@@ -28,13 +28,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .app-sub { color: var(--ink-soft); font-size: 12px; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Вкладки в виде основной надписи чертежа: сетка ячеек с тонкими линиями. */
-.stamp { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 12px; border: 1.5px solid var(--ink); }
+/* Линии штампа — фон сетки в зазорах между кнопками: границы целы при любом числе разделов. */
+.stamp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--ink); margin: 0 12px; border: 1.5px solid var(--ink); }
 .stamp button {
-  background: var(--paper); border: 0; border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
+  background: var(--paper); border: 0;
   padding: 6px 4px; font-size: 12px; cursor: pointer; text-align: center; min-height: 34px;
 }
-.stamp button:nth-child(3n) { border-right: 0; }
-.stamp button:nth-last-child(-n + 3) { border-bottom: 0; }
+/* Неполный последний ряд: последняя кнопка растягивается на оставшиеся клетки. */
+.stamp button:last-child:nth-child(3n + 1) { grid-column: span 3; }
+.stamp button:last-child:nth-child(3n + 2) { grid-column: span 2; }
 .stamp button[aria-selected="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
 .stamp button:hover:not([aria-selected="true"]) { background: var(--blue-weak); }
 

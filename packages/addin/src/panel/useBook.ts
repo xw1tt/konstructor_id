@@ -27,6 +27,8 @@ export interface BookState {
 }
 
 const DEBOUNCE_MS = 150;
+/** Выделение и смена листа — короче: панель должна успевать за пользователем. */
+const SELECTION_DEBOUNCE_MS = 40;
 export const VERSION_SETTING = "idk.version";
 
 /** Книга размечена прежней версией программы (нет отметки — тоже прежняя: отметку пишет «Создать/Обновить разметку»). */
@@ -43,15 +45,26 @@ export function useBook(port: ExcelPort): BookState {
   const picked = useRef<TableName | null>(null);
   const listeners = useRef(new Set<(e: ChangeEvent) => void>());
   const timers = useRef<{ sel?: ReturnType<typeof setTimeout>; all?: ReturnType<typeof setTimeout> }>({});
+  // Таблицы, прочитанные для карточки, до первого изменения ячеек: переход между строками и листами не перечитывает
+  // таблицу целиком (со ссылками сканов это долго).
+  const cache = useRef(new Map<TableName, TableData | null>());
+  const seq = useRef(0);
 
   const readSelection = useCallback(async () => {
+    const my = ++seq.current;
     try {
       const s = await port.getSelection();
+      if (my !== seq.current) return; // пришло более новое выделение
       setSelection(s);
       const onSheet = tablesOnSheet(s.sheet);
       if (s.table) picked.current = null;
       const name = s.table ?? (picked.current && onSheet.includes(picked.current) ? picked.current : onSheet[0] ?? null);
-      const data = name ? await port.read(name) : null;
+      let data: TableData | null = null;
+      if (name) {
+        if (!cache.current.has(name)) cache.current.set(name, await port.read(name));
+        data = cache.current.get(name) ?? null;
+      }
+      if (my !== seq.current) return;
       setTable(data);
       if (s.table === "Акты" && s.row !== null && data) {
         const n = cellText(data.rows[s.row]?.[data.headers.indexOf(column("Акты", "baseNumber").header)] ?? null);
@@ -64,6 +77,7 @@ export function useBook(port: ExcelPort): BookState {
   }, [port]);
 
   const readAll = useCallback(async () => {
+    cache.current.clear();
     try {
       setBook(await readBook(port));
       setImportant(await loadImportant(port));
@@ -76,7 +90,7 @@ export function useBook(port: ExcelPort): BookState {
 
   const later = (key: "sel" | "all", fn: () => void) => {
     clearTimeout(timers.current[key]);
-    timers.current[key] = setTimeout(fn, DEBOUNCE_MS);
+    timers.current[key] = setTimeout(fn, key === "sel" ? SELECTION_DEBOUNCE_MS : DEBOUNCE_MS);
   };
 
   useEffect(() => {
@@ -86,6 +100,7 @@ export function useBook(port: ExcelPort): BookState {
     void (async () => {
       const a = await port.onSelection(() => later("sel", () => void readSelection()));
       const b = await port.onChange((e) => {
+        cache.current.clear(); // карточка не должна показать старые значения до перечитывания книги
         for (const l of listeners.current) l(e);
         later("all", () => void readAll());
       });

@@ -366,12 +366,14 @@ export class ExcelPort implements TableStore {
   // ---------- События ----------
 
   async onSelection(cb: () => void): Promise<() => Promise<void>> {
-    let handler: any;
+    let handler: any, activated: any;
     await Excel.run(async (ctx: any) => {
       handler = ctx.workbook.worksheets.onSelectionChanged.add(async () => cb());
+      // Переход на другой лист: выделение там не меняется, но панель должна сразу показать раздел листа.
+      activated = ctx.workbook.worksheets.onActivated.add(async () => cb());
       await ctx.sync();
     });
-    return () => Excel.run(handler.context, async (ctx: any) => { handler.remove(); await ctx.sync(); });
+    return () => Excel.run(handler.context, async (ctx: any) => { handler.remove(); activated.remove(); await ctx.sync(); });
   }
 
   async onChange(cb: (e: ChangeEvent) => void): Promise<() => Promise<void>> {

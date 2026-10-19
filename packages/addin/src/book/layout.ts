@@ -73,8 +73,9 @@ export const exampleRule = (col: string, firstRow: number) => `=COUNTIF($${col}$
 export function applyValidation(body: { dataValidation: any }, col: ColumnDef, table: TableName, prompt = promptFor(col)) {
   const dv = body.dataValidation;
   const source = listSource(col, table);
+  // Всегда с чистого листа: столбец, дописанный в конец таблицы, Excel заполняет проверкой соседнего столбца.
+  dv.clear();
   if (source) {
-    dv.clear();
     dv.rule = { list: { inCellDropDown: true, source } };
     dv.errorAlert = {
       showAlert: strictList(col), style: "Stop", title: "Значение не из списка",

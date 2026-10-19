@@ -473,6 +473,12 @@ export class ExcelPort implements TableStore {
     if (add.length) await ctx.sync();
     const all = [...headers, ...add.map((c) => c.header)];
     for (const col of add) this.formatColumn(t, def, col, all.indexOf(col.header), body.rowCount);
+    // Проверка данных и подсказки всех столбцов — заново: чинит списки, унаследованные дописанными столбцами в 0.8.
+    for (const col of def.columns) {
+      const i = all.indexOf(col.header);
+      if (i >= 0 && !add.includes(col) && (def.name !== "Объект" || col.key !== "value"))
+        applyValidation(t.columns.getItemAt(i).getDataBodyRange(), col, def.name);
+    }
     if (add.length) {
       const h = t.getHeaderRowRange();
       h.format.font.bold = true;

@@ -51,6 +51,7 @@ test("новые строки: номер комплекта — следующ�
 test("разметка прежней версии — предложить обновление", async () => {
   const { isOutdated } = await import("@idk/addin/panel/useBook");
   assert.equal(isOutdated("2"), true);
-  assert.equal(isOutdated("3"), false);
+  assert.equal(isOutdated("3"), true);
+  assert.equal(isOutdated("4"), false);
   assert.equal(isOutdated(null), false);
 });

@@ -366,12 +366,14 @@ export class ExcelPort implements TableStore {
   // ---------- События ----------
 
   async onSelection(cb: () => void): Promise<() => Promise<void>> {
-    let handler: any;
+    let handler: any, activated: any;
     await Excel.run(async (ctx: any) => {
       handler = ctx.workbook.worksheets.onSelectionChanged.add(async () => cb());
+      // Переход на другой лист: выделение там не меняется, но панель должна сразу показать раздел листа.
+      activated = ctx.workbook.worksheets.onActivated.add(async () => cb());
       await ctx.sync();
     });
-    return () => Excel.run(handler.context, async (ctx: any) => { handler.remove(); await ctx.sync(); });
+    return () => Excel.run(handler.context, async (ctx: any) => { handler.remove(); activated.remove(); await ctx.sync(); });
   }
 
   async onChange(cb: (e: ChangeEvent) => void): Promise<() => Promise<void>> {
@@ -497,12 +499,19 @@ export class ExcelPort implements TableStore {
     names.load("items/name");
     await ctx.sync();
     const existing = new Set((names.items as any[]).map((n) => n.name));
+    const ranges: { name: string; range: any }[] = [];
     enums.forEach(({ t, col }, i) => {
       const values = col.values!.map((v) => [v]);
       const range = ws.getRangeByIndexes(0, i, values.length, 1);
       range.values = values;
       if (!existing.has(listName(t, col))) names.add(listName(t, col), range);
+      // В новой версии в перечислении могут прибавиться значения («АВК» в «Виде» реестра) — расширяем диапазон имени.
+      else ranges.push({ name: listName(t, col), range: range.load("address") });
     });
+    if (ranges.length) {
+      await ctx.sync();
+      for (const r of ranges) names.getItem(r.name).formula = `=${r.range.address}`;
+    }
     ws.visibility = "Hidden";
     await ctx.sync();
   }

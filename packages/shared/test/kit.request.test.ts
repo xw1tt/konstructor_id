@@ -51,7 +51,8 @@ test("сканы — свои или найденные по номеру в и�
   assert.deepEqual(q.rows.slice(10, 12).map((r) => r.doc!.kind), ["kj", "ip"]);
   assert.equal(q.rows[12].file!.name, "поверка.pdf");
   assert.equal(q.rows[14].file!.name, "лаб.pdf");
-  assert.match(q.rows[15].file!.name, /\.pdf$/);
+  assert.deepEqual(q.rows[15].doc, { act: AOV1, kind: "avk" });
+  assert.match(q.rows[16].file!.name, /\.pdf$/);
   assert.deepEqual(q.kit, {
     number: "1", volume: "1", part: "1", building: "Корпус «В»", works: "", city: "Москва", year: "2026", cover: true, spine: true, parts: 1,
     code: "КУТ03-Р-ПИР-2-26-100-АОВ1.01.00",

@@ -3,11 +3,11 @@ import type { RoleCode } from "@idk/shared/roles";
 import type { Organization, Representative } from "@idk/shared/schemas";
 import type { ActBundle } from "@idk/shared/workbook/bundle";
 import { activeRepresentatives, orgFullForm } from "@idk/shared/rules";
-import { docNumber, formatDateLong } from "@idk/shared/acts/format";
+import { docNumber, formatDateLong, formatDateShort } from "@idk/shared/acts/format";
 import { repLine } from "@idk/shared/acts/repLine";
-import { point3Lines, point4Lines, rimRows, vdRows, vorRows, signers, SIGN_LABELS } from "@idk/shared/acts/rows";
+import { point3Lines, point4Lines, rimRows, vdRows, vorRows, signers, avkRows, avkDefaultNumber, SIGN_LABELS } from "@idk/shared/acts/rows";
 import type { PrintOptions } from "@idk/shared/templates";
-import type { AosrData, RimData, VdData, VorData, DocData } from "./data.ts";
+import type { AvkData, AosrData, RimData, VdData, VorData, DocData } from "./data.ts";
 
 /** Полная форма реквизитов для шапки АОСР — с точкой в конце, как в бланке. */
 const full = (o: Organization | undefined) => {
@@ -84,4 +84,24 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
     }),
   };
   return build[kind]() as DocData[K];
+}
+
+/** Данные акта входного контроля: материалы акта; комиссия — подписанты ВОР, иначе технадзор и последний выполнивший работы. */
+export function buildAvkData(b: ActBundle): AvkData {
+  const act = b.act;
+  const org = (id: number | null | undefined): Organization | undefined => b.organizations.find((o) => o.id === id);
+  const section = act.sectionId !== null ? b.sections.find((s) => s.id === act.sectionId) : undefined;
+  const repText = (r: Representative | undefined) =>
+    r ? [r.position, org(r.orgId)?.shortName ?? "", r.fullName].map((s) => s.trim()).filter(Boolean).join(" ") : "";
+  const date = b.avk?.date ?? act.dateStart ?? act.date;
+  const customer = b.representatives.find((r) => r.id === act.vorCustomerRepId) ?? activeRepresentatives(b.representatives, "developer_control", date)[0];
+  const contractor = b.representatives.find((r) => r.id === act.vorContractorRepId) ?? activeRepresentatives(b.representatives, "performer", date).at(-1);
+  const docsByMaterial = new Map(b.actMaterials.map((m) => [m.materialId, b.qualityDocs.filter((d) => d.materialIds.includes(m.materialId))]));
+  return {
+    number: b.avk?.number || avkDefaultNumber(act.baseNumber, section?.code ?? ""),
+    date: formatDateShort(date), city: b.object.city, customer: org(b.object.roles.developer)?.shortName ?? "",
+    objectName: b.object.name, customerRep: repText(customer), contractorRep: repText(contractor),
+    sectionName: section?.name ?? "", sectionCode: section?.code ?? "",
+    rows: avkRows(b.actMaterials, b.materials, docsByMaterial, b.vor),
+  };
 }

@@ -11,6 +11,7 @@ import { cellText, parseDateCell, parseNumberCell, splitRefs, type CellValue } f
 import type { Book, BookRow } from "./records.ts";
 import type { ImportantMap } from "./important.ts";
 import { CablesData } from "./cableTypes.ts";
+import { avkDefaultNumber } from "../acts/rows.ts";
 
 export const ActBundle = z.object({
   object: ObjectInfo,
@@ -25,6 +26,8 @@ export const ActBundle = z.object({
   vor: z.array(VorLineInput),
   /** Кабельный журнал и протокол изоляции акта — только в заданиях печати КЖ и протокола. */
   cables: CablesData.optional(),
+  /** Номер и дата акта входного контроля (пусто в книге — по правилам avkDefaultNumber и дате начала работ). */
+  avk: z.object({ number: z.string(), date: z.string().nullable() }).optional(),
 });
 export type ActBundle = z.infer<typeof ActBundle>;
 
@@ -222,6 +225,10 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
       kind: txt(s.r.v.kind) === SCHEME_KINDS[1] ? "other" as const : "scheme" as const,
       number: txt(s.r.v.number), name: txt(s.r.v.name), date: s.v.date as string | null, fileId: null, sortOrder: i,
     })),
+    avk: {
+      number: txt(actRow.v.avkNumber) || avkDefaultNumber(n, sectionKey),
+      date: (a.avkDate as string | null) ?? (a.dateStart as string | null) ?? (a.date as string),
+    },
     vor: vor.map((x, i) => ({
       group: txt(x.r.v.group), materialId: matId(x.r.v.material), quantity: Math.max(0, (x.v.quantity as number | null) ?? 0), sortOrder: i,
     })),

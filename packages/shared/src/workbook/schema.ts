@@ -4,7 +4,7 @@ import { HELP, OBJECT_HELP } from "./help.ts";
 import type { CellValue } from "./values.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -65,7 +65,7 @@ export function docTypeFromBook(label: string): QualityDocType | null {
 export const SCHEME_KINDS = ["Схема", "Прочее"] as const;
 
 /** Виды строк реестра ИД: документы, которые печатает конструктор (по акту), и сканы. */
-export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "Документ качества", "Прочее"] as const;
+export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Прочее"] as const;
 export type RegistryKind = (typeof REGISTRY_KINDS)[number];
 export const YES_NO = ["да", "нет"] as const;
 
@@ -168,6 +168,8 @@ export const TABLES: Record<TableName, TableDef> = {
     c("vorTitle", "Заголовок ВОР", "longtext", { width: 40 }),
     c("vorCustomer", "ВОР: от заказчика", "ref", { ref: "Представители" }),
     c("vorContractor", "ВОР: от монтажников", "ref", { ref: "Представители" }),
+    c("avkNumber", "АВК: номер", "text", { width: 18 }),
+    c("avkDate", "АВК: дата", "date"),
   ]),
   "Схемы": t("Схемы", "Исполнительные схемы", [
     c("act", "Акт", "ref", { ...imp, ref: "Акты", width: 24 }),

@@ -67,8 +67,9 @@ export function CreateBook({ port, state, missing, full, flow }: {
   if (!fullMode) {
     return (
       <div className="banner" role="alert">
-        <p>В книге нет таблиц: {missing.join(", ")}. Книга прежней версии или таблица удалена — обновите разметку:
-          программа добавит недостающие листы, таблицы и столбцы, данные не изменятся.</p>
+        <p>{missing.length ? <>В книге нет таблиц: {missing.join(", ")}. Книга прежней версии или таблица удалена — обновите разметку</>
+          : <>Книга размечена прежней версией программы — обновите разметку</>}: программа добавит недостающие листы, таблицы,
+          столбцы и значения списков, данные не изменятся.</p>
         <button className="btn" disabled={step.kind === "busy"} onClick={() => void create()}>Обновить разметку</button>
         {error && <p className="error">{error}</p>}
       </div>

@@ -11,7 +11,9 @@ export type DocKind = (typeof DOC_KINDS)[number];
 /** Документы по кабелям акта: кабельный журнал и протокол сопротивления изоляции. */
 export const CABLE_DOC_KINDS = ["kj", "ip"] as const;
 export type CableDocKind = (typeof CABLE_DOC_KINDS)[number];
-export const PRINT_KINDS = [...DOC_KINDS, ...CABLE_DOC_KINDS] as const;
+/** Акт входного контроля материалов акта. */
+export const AVK_KIND = "avk" as const;
+export const PRINT_KINDS = [...DOC_KINDS, ...CABLE_DOC_KINDS, AVK_KIND] as const;
 export type PrintKind = (typeof PRINT_KINDS)[number];
 
 export const ActInput = z.object({

@@ -12,7 +12,7 @@ import { IssueList } from "./IssueList.tsx";
 
 const DOCS: { kind: PrintKind; label: string }[] = [
   { kind: "aosr", label: "АОСР" }, { kind: "rim", label: "РИМ" }, { kind: "vd", label: "ВД" }, { kind: "vor", label: "ВОР" },
-  { kind: "kj", label: "КЖ" }, { kind: "ip", label: "Протокол" },
+  { kind: "kj", label: "КЖ" }, { kind: "ip", label: "Протокол" }, { kind: "avk", label: "АВК" },
 ];
 const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | "vor" }[] = [
   { table: "Схемы", label: "Схемы", key: "schemes" },

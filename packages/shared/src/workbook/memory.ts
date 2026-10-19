@@ -1,7 +1,7 @@
 // Книга в памяти — для тестов логики без Excel. Формульные ячейки хранятся как null.
 import { TABLES, TABLE_NAMES, type TableName } from "./schema.ts";
 import type { CellValue } from "./values.ts";
-import type { TableData, TableStore } from "./store.ts";
+import type { Report, TableData, TableStore } from "./store.ts";
 
 interface MemTable { headers: string[]; formula: boolean[]; rows: CellValue[][]; links: (string | null)[][] }
 
@@ -13,6 +13,7 @@ export interface MemoryOptions {
 export class MemoryWorkbook implements TableStore {
   private tables = new Map<TableName, MemTable>();
   private settings = new Map<string, string>();
+  private reports = new Map<string, Report>();
 
   constructor(init: Partial<Record<TableName, Record<string, CellValue>[]>> = {}, private opts: MemoryOptions = {}) {
     for (const name of TABLE_NAMES) {
@@ -32,6 +33,11 @@ export class MemoryWorkbook implements TableStore {
     t.rows.splice(at, 0, t.headers.map((h, i) => (t.formula[i] ? null : rec[h] ?? null)));
     t.links.splice(at, 0, t.headers.map(() => null));
   }
+
+  async writeReport(report: Report) { this.reports.set(report.sheet, structuredClone(report)); }
+
+  /** Для тестов: отчётный лист, записанный writeReport. */
+  report(sheet: string): Report | null { return this.reports.get(sheet) ?? null; }
 
   drop(name: TableName) { this.tables.delete(name); }
 

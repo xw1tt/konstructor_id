@@ -46,10 +46,11 @@ export const KitRequest = z.object({
   options: PrintOptions.default({}),
   kit: KitHeader,
   object: z.object({ name: z.string().default(""), contractNumber: z.string().default("") }),
+  /** Заказчик (застройщик), подрядчик (выполнивший работы первого акта, иначе из «Объекта»), разработчик РД. */
   developer: Organization.nullable(),
-  builder: Organization.nullable(),
+  contractor: Organization.nullable(),
   designer: Organization.nullable(),
-  logos: z.object({ builder: FileRef.nullable().default(null), developer: FileRef.nullable().default(null) }),
+  logos: z.object({ contractor: FileRef.nullable().default(null), developer: FileRef.nullable().default(null) }),
   scanFolder: z.string().default(""),
   acts: z.array(ActBundle),
   rows: z.array(KitRow).min(1),
@@ -152,7 +153,9 @@ export function buildKitRequest(
   if (!sectionKey) c.push("Комплекты", kitRow.row, H("Комплекты", "section"), "Укажите шифр комплекта (или шифр первого акта)");
   const org = (k: string) => c.find("Организации", txt(k as CellValue));
   const developerRow = org(txt(book.object.developer));
-  const builderRow = org(txt(book.object.builder));
+  // Подрядчик реестра и титула — выполнивший работы (как «Велесстрой» в образце), иначе лицо, осуществляющее строительство.
+  const firstAct = c.find("Акты", acts[0] ?? "");
+  const contractorRow = org(txt(firstAct?.v.performerOrg ?? null)) ?? org(txt(book.object.performer)) ?? org(txt(book.object.builder));
   const designerRow = org(txt(sectionRow?.v.designer ?? null) || txt(book.object.designer));
 
   const all = [...c.issues, ...issues];
@@ -170,8 +173,8 @@ export function buildKitRequest(
       code: sectionKey, sectionName: txt(sectionRow?.v.name ?? null),
     },
     object: { name: txt(book.object.name), contractNumber: txt(book.object.contractNumber) },
-    developer: orgOf(developerRow), builder: orgOf(builderRow), designer: orgOf(designerRow),
-    logos: { builder: fileOf(builderRow, "logo"), developer: fileOf(developerRow, "logo") },
+    developer: orgOf(developerRow), contractor: orgOf(contractorRow), designer: orgOf(designerRow),
+    logos: { contractor: fileOf(contractorRow, "logo"), developer: fileOf(developerRow, "logo") },
     scanFolder: txt(book.object.scanFolder),
     acts: bundles,
     rows,

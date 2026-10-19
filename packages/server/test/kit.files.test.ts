@@ -9,10 +9,8 @@ import { openDb } from "@idk/server/db";
 import { saveFile } from "@idk/server/files/store";
 import { resolveScan, loadScan } from "@idk/server/kit/files";
 import { tmpDir } from "./helpers/tmp.ts";
-import { makePdf } from "./helpers/pdf.ts";
+import { makePdf, PNG_WIDE } from "./helpers/pdf.ts";
 
-/** PNG 2×1 (шире высоты) — для альбомного листа. */
-export const PNG_WIDE = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAEElEQVR4nGP4z8DAwMDAAAAJ/gH/YyfwPQAAAABJRU5ErkJggg==", "base64");
 
 const dir = tmpDir();
 const scans = join(dir, "Сканы");

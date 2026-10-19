@@ -60,7 +60,8 @@ test("сканы — свои или найденные по номеру в и�
   assert.equal(q.scanFolder, "D:\\Сканы");
   assert.equal(q.developer!.shortName, 'ООО "СБД"');
   assert.equal(q.designer!.shortName, 'ООО "МАРКС ИНЖИНИРИНГ"');
-  assert.deepEqual(q.logos, { developer: { name: "sbd.png", link: null }, builder: { name: "sbd.png", link: null } });
+  assert.equal(q.contractor!.shortName, 'ООО "Велесстрой"');
+  assert.deepEqual(q.logos, { developer: { name: "sbd.png", link: null }, contractor: null });
   assert.deepEqual(q.options, { schemeEach: true });
   assert.equal(q.object.contractNumber, "КУТ03-Р-СМР-36-26");
 });

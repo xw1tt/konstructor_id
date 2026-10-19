@@ -78,6 +78,12 @@ test("ревью: подсказка не стирается очисткой п
   const text = fake(); applyValidation(text, column("Акты", "works"), "Акты");
   assert.equal(text.dataValidation.prompt.title, "Работы (п.1)");
   assert.equal(text.dataValidation.rule, null);
+  // Столбец, дописанный в конец таблицы, наследует список соседа («ВОР: от монтажников») — его нужно снять.
+  const inherited = fake();
+  inherited.dataValidation.rule = { list: { source: '=INDIRECT("Представители[ФИО]")' } };
+  applyValidation(inherited, column("Акты", "avkNumber"), "Акты");
+  assert.equal(inherited.dataValidation.rule, null);
+  assert.equal(inherited.dataValidation.prompt.title, "АВК: номер");
 });
 
 test("«Объект»: розовая подсветка пустого значения — только у обязательных полей", async () => {

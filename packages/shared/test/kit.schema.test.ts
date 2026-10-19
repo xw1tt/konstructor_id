@@ -6,8 +6,8 @@ import { exampleRows } from "@idk/shared/workbook/examples";
 import { MemoryWorkbook } from "@idk/shared/workbook/memory";
 import { readBook } from "@idk/shared/workbook/records";
 
-test("листы «Комплекты» и «Реестр ИД», версия схемы 3", () => {
-  assert.equal(SCHEMA_VERSION, 3);
+test("листы «Комплекты» и «Реестр ИД», версия схемы 4", () => {
+  assert.equal(SCHEMA_VERSION, 4);
   assert.deepEqual(SHEETS.slice(-2), [
     { name: "Комплекты", tables: ["Комплекты", "АктыКомплектов"] },
     { name: "Реестр ИД", tables: ["РеестрИД"] },

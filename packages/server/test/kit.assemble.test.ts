@@ -91,6 +91,9 @@ test("комплект АОВ1: титул, корешки, реестр с «л
   // первая схема — л. 8, и это её скан
   assert.match(reg, /5 №К32\.В\.СТ\.АОВ1\.01\.00\.1 Исполнительная схема Монтаж кабельных линий на этаже П5 в осях 27-13\/У-К 06\.06\.2026 г\. 1 1 КУТ03-Р-ПИР-2-26-100-АОВ1\.01\.00 л\. 8/);
   assert.match(at(8), /SCAN4/);
+  // номер листа документа совпадает с «л.» реестра; титул, корешки и реестр — без номера
+  for (const l of [1, 2, 3, 8]) assert.match(at(l), new RegExp(` ${l}$`), `лист ${l}`);
+  assert.doesNotMatch(pages[0], / 1$/);
   // поверка — скан из двух листов
   const m = reg.match(/13 №С-АМ\/01-04-2024\/328195310 Свидетельство о поверке: Измеритель параметров электроустановок Ml3102Н CL от 15\.05\.2026 г\. до 14\.05\.2028 г\. 2 1 КУТ03-Р-ПИР-2-26-100-АОВ1\.01\.00 л\. (\d+)-(\d+)/);
   assert.ok(m, reg);
@@ -98,6 +101,25 @@ test("комплект АОВ1: титул, корешки, реестр с «л
   assert.match(at(Number(m![2])), /p1 SCAN12/);
   // последняя страница — скан последней строки реестра
   assert.match(pages.at(-1)!, new RegExp(`SCAN${q.rows.length - 1}`));
+});
+
+test("номер листа — в правом нижнем углу, в том числе на повёрнутом скане", async () => {
+  const { stampNumber } = await import("@idk/server/kit/assemble");
+  const { PDFDocument, StandardFonts, degrees } = await import("pdf-lib");
+  const { getDocument, Util } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  for (const angle of [0, 90, 180, 270]) {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([595, 842]);
+    page.setRotation(degrees(angle));
+    stampNumber(page, 17, await doc.embedFont(StandardFonts.Helvetica));
+    const pdf = await getDocument({ data: new Uint8Array(await doc.save()) }).promise;
+    const p = await pdf.getPage(1);
+    const vp = p.getViewport({ scale: 1 });
+    const item: any = (await p.getTextContent()).items.find((i: any) => i.str === "17");
+    const [, , , , x, y] = Util.transform(vp.transform, item.transform);
+    // видимые координаты: x — от левого края, y — от верхнего
+    assert.ok(x > vp.width * 0.85 && y > vp.height * 0.97, `поворот ${angle}: ${x.toFixed(0)},${y.toFixed(0)} из ${vp.width}x${vp.height}`);
+  }
 });
 
 test("ошибки файлов — 422 со строками реестра; без титула и корешков", async () => {

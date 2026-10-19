@@ -1,6 +1,6 @@
 // Сборка комплекта в один PDF: титул → корешки → реестр → документы по порядку реестра (план 7, §4).
 import { readFile } from "node:fs/promises";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts, degrees, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import type { KitRequest, KitRow, FileRef } from "@idk/shared/kit/request";
 import { orgFullForm } from "@idk/shared/rules";
 import type { Organization } from "@idk/shared/schemas";
@@ -34,6 +34,36 @@ async function dataUri(ref: FileRef, ctx: ScanContext): Promise<string | { messa
   if (!r.ok) return { message: r.message };
   if (r.mime === "application/pdf") return { message: `Логотип — только PNG или JPG: ${ref.name}` };
   return `data:${r.mime};base64,${(await readFile(r.path)).toString("base64")}`;
+}
+
+/**
+ * Номер листа в правом нижнем углу страницы — как её видит читатель: у сканов с поворотом (/Rotate)
+ * точка и направление текста пересчитываются в координаты страницы. Под номером — белая подложка,
+ * чтобы он читался поверх скана.
+ */
+export function stampNumber(page: PDFPage, n: number, font: PDFFont) {
+  const text = String(n);
+  // В поле страницы, ниже рамки чертежа (5 мм от края): подложка — до 13 pt от нижнего края.
+  const size = 9, padX = 2, padY = 1.5, margin = 10, bottom = 1;
+  const box = page.getCropBox();
+  const rot = ((page.getRotation().angle % 360) + 360) % 360;
+  const [W, H] = rot === 90 || rot === 270 ? [box.height, box.width] : [box.width, box.height];
+  const tw = font.widthOfTextAtSize(text, size);
+  // Левый нижний угол подложки в видимых координатах.
+  const vx = W - margin - tw - padX * 2, vy = bottom;
+  const toPage = (dx: number, dy: number): [number, number] => {
+    switch (rot) {
+      case 90: return [box.x + box.width - dy, box.y + dx];
+      case 180: return [box.x + box.width - dx, box.y + box.height - dy];
+      case 270: return [box.x + dy, box.y + box.height - dx];
+      default: return [box.x + dx, box.y + dy];
+    }
+  };
+  const r = degrees(rot);
+  const [bx, by] = toPage(vx, vy);
+  page.drawRectangle({ x: bx, y: by, width: tw + padX * 2, height: size + padY * 2, color: rgb(1, 1, 1), rotate: r });
+  const [tx, ty] = toPage(vx + padX, vy + padY + 1.2);
+  page.drawText(text, { x: tx, y: ty, size, font, color: rgb(0, 0, 0), rotate: r });
 }
 
 export async function assembleKit(q: KitRequest, deps: { db: Db; dataDir: string }): Promise<KitResult> {
@@ -120,8 +150,14 @@ export async function assembleKit(q: KitRequest, deps: { db: Db; dataDir: string
   // 4. Склейка.
   const out = await PDFDocument.create();
   out.setTitle(registryTitle(q));
-  for (const src of [...(await Promise.all(front.map((b) => PDFDocument.load(b)))), ...docs]) {
+  for (const src of await Promise.all(front.map((b) => PDFDocument.load(b)))) {
     for (const p of await out.copyPages(src, src.getPageIndices())) out.addPage(p);
+  }
+  // Документы — с номером листа, совпадающим с «л.» реестра (титул, корешки и реестр без номера).
+  const font = await out.embedFont(StandardFonts.Helvetica);
+  let n = 1;
+  for (const src of docs) {
+    for (const p of await out.copyPages(src, src.getPageIndices())) stampNumber(out.addPage(p), n++, font);
   }
   const pdf = Buffer.from(await out.save());
   return { ok: true, pdf, name: kitFileName(k), pages: out.getPageCount() };

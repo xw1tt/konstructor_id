@@ -61,7 +61,13 @@ export function point4Lines(docs: ActDocumentInput[]): string[] {
   });
 }
 
-export interface RimRow { name: string; type: string; number: string; date: string; sheets: number }
+export interface RimRow {
+  name: string; type: string; number: string; date: string; sheets: number;
+  /** Номер группы строк одного наименования (материала) по порядку. */
+  group: number;
+  /** Продолжение группы: наименование печатается только в первой строке. */
+  cont: boolean;
+}
 
 /**
  * Строки РИМ: один документ — одна строка, по порядку материалов и типов документов.
@@ -96,9 +102,16 @@ export function rimRows(
           ? d.validUntil ? `от ${formatDateShort(d.issueDate)} до ${formatDateShort(d.validUntil)}` : formatDateShort(d.issueDate)
           : "б/д",
         sheets: d.sheets,
+        group: 0, cont: false,
       });
     }
   }
+  // Подряд идущие строки одного наименования — группа: материал пишется один раз, документы — под ним.
+  rows.forEach((r, i) => {
+    const prev = rows[i - 1];
+    r.cont = !!prev && prev.name === r.name;
+    r.group = !prev ? 0 : r.cont ? prev.group : prev.group + 1;
+  });
   return rows;
 }
 

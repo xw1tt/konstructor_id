@@ -114,7 +114,7 @@ test("rimRows: письмо №2448 на две муфты — одна стро
   assert.equal(rows.length, 1);
   assert.deepEqual(rows[0], {
     name: "Муфта труба-труба с ограничителем IP40, d20 мм, Муфта труба-коробка, IP67, М20х1,5, д.20мм",
-    type: "информационное письмо", number: "№2448", date: "17.02.2023 г.", sheets: 2,
+    type: "информационное письмо", number: "№2448", date: "17.02.2023 г.", sheets: 2, group: 0, cont: false,
   });
 });
 
@@ -125,6 +125,17 @@ test("rimRows: порядок — паспорт раньше сертифика
   assert.deepEqual(rows.map((r) => r.type), ["паспорт качества", "сертификат соответствия"]);
   assert.equal(rows[0].number, "№3/405");
   assert.equal(rows[1].date, "от 11.06.2021 г. до 10.06.2026 г.");
+  // наименование материала — один раз: вторая строка его группы — продолжение
+  assert.deepEqual(rows.map((r) => [r.group, r.cont]), [[0, false], [0, true]]);
+});
+
+test("rimRows: группы материалов; общий документ — отдельная группа", () => {
+  const a = doc(40, { materialIds: [1] }), b = doc(41, { type: "certificate", materialIds: [1] });
+  const c = doc(42, { materialIds: [2] }), shared = doc(43, { type: "info_letter", materialIds: [1, 2] });
+  const rows = rimRows([am(1, 1), am(2, 2)], [mat(1, "Кабель"), mat(2, "Труба")], new Map([[1, [a, b, shared]], [2, [c, shared]]]));
+  assert.deepEqual(rows.map((r) => [r.name, r.group, r.cont]), [
+    ["Кабель", 0, false], ["Кабель", 0, true], ["Труба", 1, false], ["Кабель, Труба", 2, false],
+  ]);
 });
 
 test("rimRows: registryName перекрывает имена материалов", () => {

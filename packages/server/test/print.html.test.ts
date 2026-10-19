@@ -83,3 +83,13 @@ test("html: экранирование", async () => {
   assert.ok(!html.includes("<script>alert"));
   assert.ok(html.includes("&lt;script&gt;"));
 });
+
+test("rim: материал с несколькими документами — наименование один раз, группа в своём tbody", () => {
+  const html = renderHtml("rim", buildDocData(db, actId, "rim"));
+  const kabel = "Кабель СегментКИ-485-ПсЭнг(А)-HF 1х2х0,78-300 В";
+  const t = text("rim");
+  assert.equal(t.split(kabel).length - 1, 1);
+  assert.match(html, /<tbody class="grp">/);
+  assert.match(html, /<td class="nm open">Кабель СегментКИ[^<]*<\/td>/);
+  assert.match(html, /<td class="nm cont"><\/td>/);
+});

@@ -4,18 +4,19 @@ import { HELP, OBJECT_HELP } from "./help.ts";
 import type { CellValue } from "./values.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
 export type TableName =
   | "Объект" | "Организации" | "Шифры" | "Представители" | "Материалы" | "ДокументыКачества"
   | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал"
-  | "Электролаборатория" | "СредстваИзмерений" | "ИзмеренияМарок" | "ДокументыКабелей";
+  | "Электролаборатория" | "СредстваИзмерений" | "ИзмеренияМарок" | "ДокументыКабелей"
+  | "Комплекты" | "АктыКомплектов" | "РеестрИД";
 
 export type SheetName =
   | "Реквизиты" | "Представители" | "Материалы" | "Документы качества" | "База актов"
-  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Изоляция";
+  | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Изоляция" | "Комплекты" | "Реестр ИД";
 
 export interface ColumnDef {
   key: string;
@@ -63,6 +64,11 @@ export function docTypeFromBook(label: string): QualityDocType | null {
 
 export const SCHEME_KINDS = ["Схема", "Прочее"] as const;
 
+/** Виды строк реестра ИД: документы, которые печатает конструктор (по акту), и сканы. */
+export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "Документ качества", "Прочее"] as const;
+export type RegistryKind = (typeof REGISTRY_KINDS)[number];
+export const YES_NO = ["да", "нет"] as const;
+
 const OBJECT_FIELDS_RAW = [
   { key: "name", label: "Наименование объекта", type: "text" },
   { key: "address", label: "Адрес", type: "text" },
@@ -73,6 +79,7 @@ const OBJECT_FIELDS_RAW = [
   { key: "builder", label: "Лицо, осуществляющее строительство", type: "ref" },
   { key: "designer", label: "Лицо, осуществляющее подготовку проектной документации", type: "ref" },
   { key: "performer", label: "Лицо, выполнившее работы (по умолчанию)", type: "ref" },
+  { key: "scanFolder", label: "Папка сканов", type: "text" },
 ] as const satisfies readonly { key: string; label: string; type: "text" | "date" | "ref" }[];
 export type ObjectFieldKey = (typeof OBJECT_FIELDS_RAW)[number]["key"];
 
@@ -106,6 +113,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("sroName", "СРО: наименование", "text", { width: 40 }),
     c("sroOgrn", "СРО: ОГРН", "text"),
     c("sroInn", "СРО: ИНН", "text"),
+    c("logo", "Логотип", "file", { width: 20 }),
   ]),
   "Шифры": t("Шифры", "Реквизиты", [
     c("code", "Шифр", "text", { ...imp, isKey: true, width: 34 }),
@@ -202,6 +210,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("certificate", "Свидетельство", "longtext", { width: 60 }),
     c("head", "Руководитель электролаборатории", "text", { ...imp, width: 24 }),
     c("tester", "Испытания провёл", "text", { ...imp, width: 24 }),
+    c("file", "Скан", "file", { width: 20 }),
   ]),
   "СредстваИзмерений": t("СредстваИзмерений", "Изоляция", [
     c("name", "Наименование СИ", "text", { ...imp, isKey: true, width: 34 }),
@@ -213,6 +222,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("checkedOn", "Дата поверки", "date", imp),
     c("nextCheck", "Дата очередной поверки", "date"),
     c("authority", "Орган поверки", "text", { width: 40 }),
+    c("file", "Скан", "file", { width: 20 }),
   ]),
   "ИзмеренияМарок": t("ИзмеренияМарок", "Изоляция", [
     c("mark", "Марка", "text", { ...imp, isKey: true, width: 40 }),
@@ -236,6 +246,35 @@ export const TABLES: Record<TableName, TableDef> = {
     c("integrity", "Целостность жил", "longtext", { default: "Проведена проверка целостности жил кабельных линий. Замечания отсутствуют.", width: 40 }),
     c("conclusion", "Заключение", "longtext", { default: "Результаты проведенных измерений соответствуют требованиям ПУЭ 7 изд. 1.8.37 п.1, таблица 1.8.34", width: 40 }),
   ]),
+  "Комплекты": t("Комплекты", "Комплекты", [
+    c("number", "№ реестра", "text", { ...imp, isKey: true, width: 12 }),
+    c("section", "Шифр", "ref", { ref: "Шифры", width: 30 }),
+    c("volume", "Том", "text", { ...imp, width: 8 }),
+    c("part", "Часть", "text", { width: 8 }),
+    c("building", "Корпус", "text", { width: 14 }),
+    c("works", "Перечень работ", "longtext", { width: 50 }),
+    c("city", "Город", "text", { width: 14 }),
+    c("year", "Год", "text", { width: 8 }),
+    c("cover", "Титул", "enum", { values: YES_NO, default: "да", width: 8 }),
+    c("spine", "Корешки", "enum", { values: YES_NO, default: "да", width: 9 }),
+    c("parts", "Частей в томе", "int", { default: 1, width: 9 }),
+  ]),
+  "АктыКомплектов": t("АктыКомплектов", "Комплекты", [
+    c("kit", "Комплект", "ref", { ...imp, ref: "Комплекты", width: 12 }),
+    c("act", "Акт", "ref", { ...imp, ref: "Акты", width: 30 }),
+  ]),
+  "РеестрИД": t("РеестрИД", "Реестр ИД", [
+    c("kit", "Комплект", "ref", { ...imp, ref: "Комплекты", width: 10 }),
+    c("kind", "Вид", "enum", { ...imp, values: REGISTRY_KINDS, width: 16 }),
+    c("act", "Акт", "ref", { ref: "Акты", width: 26 }),
+    c("number", "Номер документа", "text", { width: 26 }),
+    c("name", "Наименование", "longtext", { ...imp, width: 60 }),
+    c("date", "Дата / период", "text", { width: 22 }),
+    c("copies", "Экз.", "int", { default: 1, width: 6 }),
+    c("code", "Шифр чертежа", "text", { width: 26 }),
+    c("file", "Скан", "file", { width: 22 }),
+    c("sheets", "Листов", "int", { width: 8 }),
+  ]),
 };
 
 export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
@@ -249,6 +288,8 @@ export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
   { name: "ВОР", tables: ["ВОР"] },
   { name: "Кабельный журнал", tables: ["КабельныйЖурнал"] },
   { name: "Изоляция", tables: ["Электролаборатория", "СредстваИзмерений", "ИзмеренияМарок", "ДокументыКабелей"] },
+  { name: "Комплекты", tables: ["Комплекты", "АктыКомплектов"] },
+  { name: "Реестр ИД", tables: ["РеестрИД"] },
 ];
 
 export const TABLE_NAMES = Object.keys(TABLES) as TableName[];

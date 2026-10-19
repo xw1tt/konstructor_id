@@ -25,7 +25,7 @@ export function CreateBook({ port, state, missing, full, flow }: {
     if (fullMode) flow.start();
     try {
       await port.ensureBook(await loadImportant(port));
-      if (!fullMode) { setStep({ kind: "done", text: "Разметка восстановлена." }); state.refresh(); return; }
+      if (!fullMode) { setStep({ kind: "done", text: "Разметка обновлена." }); state.refresh(); return; }
       let data: ExportData | null = null;
       try {
         data = ExportData.parse(await apiGet("/api/export"));
@@ -67,8 +67,9 @@ export function CreateBook({ port, state, missing, full, flow }: {
   if (!fullMode) {
     return (
       <div className="banner" role="alert">
-        <p>Таблица не найдена: {missing.join(", ")}.</p>
-        <button className="btn" disabled={step.kind === "busy"} onClick={() => void create()}>Восстановить разметку</button>
+        <p>В книге нет таблиц: {missing.join(", ")}. Книга прежней версии или таблица удалена — обновите разметку:
+          программа добавит недостающие листы, таблицы и столбцы, данные не изменятся.</p>
+        <button className="btn" disabled={step.kind === "busy"} onClick={() => void create()}>Обновить разметку</button>
         {error && <p className="error">{error}</p>}
       </div>
     );
@@ -78,7 +79,8 @@ export function CreateBook({ port, state, missing, full, flow }: {
     <main className="content">
       <h2 className="app-title">Книга объекта</h2>
       <p>В этой книге ещё нет листов конструктора. Программа создаст листы «Реквизиты», «Представители», «Материалы»,
-        «Документы качества», «База актов», «Исполнительные схемы», «Материалы в актах», «ВОР», «Кабельный журнал». В каждой таблице будет строка-пример, а при выделении ячейки — подсказка, что в неё вносить.</p>
+        «Документы качества», «База актов», «Исполнительные схемы», «Материалы в актах», «ВОР», «Кабельный журнал», «Изоляция»,
+        «Комплекты», «Реестр ИД». В каждой таблице будет строка-пример, а при выделении ячейки — подсказка, что в неё вносить.</p>
       {step.kind === "idle" && <button className="btn btn-primary" onClick={() => void create()}>Создать книгу объекта</button>}
       {step.kind === "busy" && <p className="notice">{step.text}</p>}
       {step.kind === "offer" && (

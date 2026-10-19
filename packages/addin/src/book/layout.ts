@@ -1,5 +1,5 @@
 // Разметка книги: источники выпадающих списков и формулы условного форматирования (чистые функции).
-import { TABLES, keyColumn, type ColumnDef, type TableName } from "@idk/shared/workbook/schema";
+import { TABLES, OBJECT_FIELDS, keyColumn, type ColumnDef, type TableName } from "@idk/shared/workbook/schema";
 
 export const COLORS = {
   example: "#7F7F7F",
@@ -83,3 +83,11 @@ export function applyValidation(body: { dataValidation: any }, col: ColumnDef, t
   }
   dv.prompt = { showPrompt: true, ...prompt };
 }
+
+/** Столбцы схемы, которых нет в таблице книги (книга прежней версии) — дописываются в конец таблицы. */
+export const missingColumns = (table: TableName, headers: string[]): ColumnDef[] =>
+  TABLES[table].columns.filter((c) => !headers.includes(c.header));
+
+/** Поля «Объекта», которых нет среди подписей таблицы. */
+export const missingObjectFields = (labels: string[]): string[] =>
+  OBJECT_FIELDS.map((f) => f.label).filter((l) => !labels.includes(l));

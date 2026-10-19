@@ -90,3 +90,12 @@ test("«Объект»: розовая подсветка пустого зна�
   assert.equal(isObjectFieldRequired("Дата договора"), false);
   assert.equal(isObjectFieldRequired("Застройщик (технический заказчик)"), true);
 });
+
+test("обновление разметки: недостающие столбцы и поля «Объекта»", async () => {
+  const { missingColumns, missingObjectFields } = await import("../src/book/layout.ts");
+  const orgs = TABLES["Организации"].columns.map((c) => c.header).filter((h) => h !== "Логотип");
+  assert.deepEqual(missingColumns("Организации", orgs).map((c) => c.header), ["Логотип"]);
+  assert.deepEqual(missingColumns("Организации", [...orgs, "Логотип", "Свой столбец"]), []);
+  assert.deepEqual(missingObjectFields(["Наименование объекта", "Адрес"]).slice(-1), ["Папка сканов"]);
+  assert.equal(missingObjectFields(["Наименование объекта"]).includes("Адрес"), true);
+});

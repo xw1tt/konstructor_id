@@ -142,15 +142,43 @@ export class ExcelPort implements TableStore {
         await ctx.sync();
         if ((only.values[0] as unknown[]).every((v, i) => v === "" || formula(headers[i]))) {
           only.values = [values[0]];
-          if (values.length > 1) t.rows.add(null, values.slice(1));
+          if (values.length > 1) await this.addTableRows(ctx, t, 1, values.slice(1));
           await ctx.sync();
           return 0;
         }
       }
-      t.rows.add(index >= t.rows.count ? null : index, values);
-      await ctx.sync();
-      return index;
+      return this.addTableRows(ctx, t, index, values);
     });
+  }
+
+  /**
+   * Вставка строк в таблицу через вставку целых строк листа. table.rows.add сдвигает вниз только столбцы
+   * таблицы, и Excel отказывает («Недопустимая операция… переместить ячейки таблицы»), если ниже стоит
+   * более широкая таблица (на «Реквизитах» под «Объектом» — «Организации»). Целые строки листа сдвигают
+   * нижние таблицы целиком; вставка внутри таблицы её расширяет. Возвращает индекс первой новой строки.
+   */
+  private async addTableRows(ctx: any, t: any, index: number, values: unknown[][]): Promise<number> {
+    const body = t.getDataBodyRange().load("rowIndex,rowCount,columnIndex,columnCount");
+    const ws = t.worksheet;
+    await ctx.sync();
+    const n = values.length, count = body.rowCount as number;
+    const append = index >= count;
+    // В конец: вставляем перед последней строкой (внутри таблицы), затем последнюю строку поднимаем на место.
+    const at = append ? count - 1 : index;
+    const rowsAt = (i: number, k = 1) => ws.getRangeByIndexes(body.rowIndex + i, body.columnIndex, k, body.columnCount);
+    ws.getRangeByIndexes(body.rowIndex + at, 0, n, 1).getEntireRow().insert("Down");
+    await ctx.sync();
+    let first = at;
+    if (append) {
+      rowsAt(at).copyFrom(rowsAt(at + n), "All");
+      first = count;
+      const target = rowsAt(first, n);
+      target.clear("Contents");
+      target.clear("Hyperlinks");
+    }
+    rowsAt(first, n).values = values;
+    await ctx.sync();
+    return first;
   }
 
   /** Отфильтрована ли таблица (панель сама ставит фильтр по акту). */
@@ -173,12 +201,17 @@ export class ExcelPort implements TableStore {
     await Excel.run(async (ctx: any) => {
       const t = ctx.workbook.tables.getItem(name);
       t.rows.load("count");
+      const body = t.getDataBodyRange().load("rowIndex");
       await ctx.sync();
       let count = t.rows.count as number;
       for (const r of [...new Set(rows)].filter((x) => x >= 0 && x < count).sort((a, b) => b - a)) {
         // Последнюю строку таблицы Excel удалить не даст — очищаем её (кроме формул).
         if (count === 1) await this.clearRow(ctx, name, t, r);
-        else { t.rows.getItemAt(r).delete(); count--; }
+        else {
+          // Целая строка листа: удаление строки таблицы сдвинуло бы только её столбцы (см. addTableRows).
+          t.worksheet.getRangeByIndexes(body.rowIndex + r, 0, 1, 1).getEntireRow().delete("Up");
+          count--;
+        }
       }
       await ctx.sync();
     });
@@ -449,9 +482,8 @@ export class ExcelPort implements TableStore {
       const labels = (body.values as unknown[][]).map((r) => String(r[fi] ?? ""));
       const missing = missingObjectFields(labels);
       if (missing.length && fi >= 0) {
-        t.rows.add(null, missing.map((l) => all.map((h, i) => (i === fi ? l : ""))));
-        await ctx.sync();
-        this.objectPrompts(t, missing, body.rowCount);
+        const first = await this.addTableRows(ctx, t, body.rowCount, missing.map((l) => all.map((_, i) => (i === fi ? l : ""))));
+        this.objectPrompts(t, missing, first);
       }
     }
     this.paint(t, def, important, body.rowIndex + 1, all);

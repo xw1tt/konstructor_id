@@ -46,6 +46,8 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     setLines([]);
     setNote(null);
     try {
+      // В отфильтрованной таблице вставка задела бы скрытые строки других комплектов.
+      if (await port.isFiltered("РеестрИД")) await port.clearFilters("РеестрИД");
       const r = await fillRegistry(port, state.book!, kit);
       if (r.issues.length) await showIssues(r.issues);
       else setNote({ text: `Реестр комплекта ${kit}: строк ${r.count}. Проверьте порядок и укажите сканы.` });

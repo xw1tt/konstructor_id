@@ -4,7 +4,7 @@ import { ObjectInfo, Organization, Section, Representative, Material, QualityDoc
 import { Act, ActMaterialInput, ActDocumentInput, VorLineInput } from "../acts/schemas.ts";
 import type { RoleCode, QualityDocType } from "../roles.ts";
 import {
-  TABLES, OBJECT_FIELDS, SCHEME_KINDS, keyColumn, roleFromBook, docTypeFromBook,
+  TABLES, OBJECT_FIELDS, OBJECT_REQUIRED, SCHEME_KINDS, keyColumn, roleFromBook, docTypeFromBook,
   type TableName, type ColumnDef,
 } from "./schema.ts";
 import { cellText, parseDateCell, parseNumberCell, splitRefs, type CellValue } from "./values.ts";
@@ -29,9 +29,6 @@ export const ActBundle = z.object({
 export type ActBundle = z.infer<typeof ActBundle>;
 
 export interface Issue { table: TableName; row: number | null; column: string; message: string }
-
-/** Поля объекта, без которых не напечатать шапку АОСР. */
-const OBJECT_REQUIRED = new Set(["name", "developer", "builder"]);
 
 /** Проверка ячеек и строк книги с накоплением ошибок — общая для документов акта и кабелей. */
 export function createChecker(book: Book, important: ImportantMap) {
@@ -84,6 +81,7 @@ export function createChecker(book: Book, important: ImportantMap) {
     Object.fromEntries(TABLES[t].columns.map((c) => [c.key, check(t, r, c, required.includes(c.key))])) as Record<string, any>;
 
   const checkDuplicates = (t: TableName, used: BookRow[]) => {
+    if (TABLES[t].allowDuplicates) return;
     const col = keyColumn(t)!;
     for (const r of used) {
       const k = key(t, r);
@@ -140,7 +138,6 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
   const sectionRow = find("Шифры", sectionKey);
   if (sectionRow) { checkRow("Шифры", sectionRow); checkDuplicates("Шифры", [sectionRow]); }
   for (const r of rows("Представители")) checkRow("Представители", r);
-  checkDuplicates("Представители", rows("Представители"));
 
   const objRow = (k: string) => rows("Объект").find((r) => cellText(r.v.field) === OBJECT_FIELDS.find((f) => f.key === k)!.label);
   for (const f of OBJECT_FIELDS) {
@@ -148,7 +145,7 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
     const r = objRow(f.key);
     const text = cellText(v);
     if (!text) {
-      if (OBJECT_REQUIRED.has(f.key)) push("Объект", r?.row ?? null, f.label, "Не заполнено");
+      if (OBJECT_REQUIRED.has(f.key as any)) push("Объект", r?.row ?? null, f.label, "Не заполнено");
       continue;
     }
     if (f.type === "ref" && !find("Организации", text)) push("Объект", r?.row ?? null, f.label, `Нет в таблице «Реквизиты»: ${text}`);

@@ -1,7 +1,7 @@
 // Слой Office.js: книга объекта в Excel. Вся логика — в @idk/shared/workbook; здесь только чтение/запись,
 // разметка, выделение и события. Требуется ExcelApi 1.9.
 import {
-  TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, SCHEMA_VERSION, keyColumn, type TableName, type ColumnDef,
+  TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, OBJECT_REQUIRED_LABELS, SCHEMA_VERSION, keyColumn, type TableName, type ColumnDef,
 } from "@idk/shared/workbook/schema";
 import type { CellValue } from "@idk/shared/workbook/values";
 import type { RowData, RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
@@ -9,9 +9,14 @@ import type { ImportantMap } from "@idk/shared/workbook/important";
 import { currentHost, type HostStatus } from "./host.ts";
 import { exampleColumn } from "@idk/shared/workbook/examples";
 import {
-  COLORS, LISTS_SHEET, applyValidation, colLetter, duplicateRule, exampleRule, importantRule, listName, promptFor,
-  nextTableTop, textFormatted, visibleTableRows,
+  COLORS, LISTS_SHEET, applyValidation, colLetter, duplicateRule, exampleRule, importantRule, objectImportantRule, listName, promptFor,
+  nextTableTop, textFormatted, visibleTableRows, missingColumns, missingObjectFields,
 } from "./layout.ts";
+
+/** Подписи над таблицами на листах с несколькими таблицами. */
+const TABLE_TITLES: Partial<Record<TableName, string>> = {
+  "Шифры": "Шифры рабочей документации", "АктыКомплектов": "Акты комплектов",
+};
 
 declare const Office: any;
 declare const Excel: any;
@@ -137,15 +142,43 @@ export class ExcelPort implements TableStore {
         await ctx.sync();
         if ((only.values[0] as unknown[]).every((v, i) => v === "" || formula(headers[i]))) {
           only.values = [values[0]];
-          if (values.length > 1) t.rows.add(null, values.slice(1));
+          if (values.length > 1) await this.addTableRows(ctx, t, 1, values.slice(1));
           await ctx.sync();
           return 0;
         }
       }
-      t.rows.add(index >= t.rows.count ? null : index, values);
-      await ctx.sync();
-      return index;
+      return this.addTableRows(ctx, t, index, values);
     });
+  }
+
+  /**
+   * Вставка строк в таблицу через вставку целых строк листа. table.rows.add сдвигает вниз только столбцы
+   * таблицы, и Excel отказывает («Недопустимая операция… переместить ячейки таблицы»), если ниже стоит
+   * более широкая таблица (на «Реквизитах» под «Объектом» — «Организации»). Целые строки листа сдвигают
+   * нижние таблицы целиком; вставка внутри таблицы её расширяет. Возвращает индекс первой новой строки.
+   */
+  private async addTableRows(ctx: any, t: any, index: number, values: unknown[][]): Promise<number> {
+    const body = t.getDataBodyRange().load("rowIndex,rowCount,columnIndex,columnCount");
+    const ws = t.worksheet;
+    await ctx.sync();
+    const n = values.length, count = body.rowCount as number;
+    const append = index >= count;
+    // В конец: вставляем перед последней строкой (внутри таблицы), затем последнюю строку поднимаем на место.
+    const at = append ? count - 1 : index;
+    const rowsAt = (i: number, k = 1) => ws.getRangeByIndexes(body.rowIndex + i, body.columnIndex, k, body.columnCount);
+    ws.getRangeByIndexes(body.rowIndex + at, 0, n, 1).getEntireRow().insert("Down");
+    await ctx.sync();
+    let first = at;
+    if (append) {
+      rowsAt(at).copyFrom(rowsAt(at + n), "All");
+      first = count;
+      const target = rowsAt(first, n);
+      target.clear("Contents");
+      target.clear("Hyperlinks");
+    }
+    rowsAt(first, n).values = values;
+    await ctx.sync();
+    return first;
   }
 
   /** Отфильтрована ли таблица (панель сама ставит фильтр по акту). */
@@ -168,12 +201,17 @@ export class ExcelPort implements TableStore {
     await Excel.run(async (ctx: any) => {
       const t = ctx.workbook.tables.getItem(name);
       t.rows.load("count");
+      const body = t.getDataBodyRange().load("rowIndex");
       await ctx.sync();
       let count = t.rows.count as number;
       for (const r of [...new Set(rows)].filter((x) => x >= 0 && x < count).sort((a, b) => b - a)) {
         // Последнюю строку таблицы Excel удалить не даст — очищаем её (кроме формул).
         if (count === 1) await this.clearRow(ctx, name, t, r);
-        else { t.rows.getItemAt(r).delete(); count--; }
+        else {
+          // Целая строка листа: удаление строки таблицы сдвинуло бы только её столбцы (см. addTableRows).
+          t.worksheet.getRangeByIndexes(body.rowIndex + r, 0, 1, 1).getEntireRow().delete("Up");
+          count--;
+        }
       }
       await ctx.sync();
     });
@@ -360,7 +398,8 @@ export class ExcelPort implements TableStore {
 
   // ---------- Разметка ----------
 
-  /** Создаёт недостающие листы и таблицы; существующие не трогает. Возвращает созданные таблицы. */
+  /** Создаёт недостающие листы и таблицы; в существующие (книга прежней версии) дописывает недостающие
+   *  столбцы и поля «Объекта» и перекрашивает правила всех таблиц. Возвращает созданные таблицы. */
   async ensureBook(important: ImportantMap): Promise<TableName[]> {
     const created: TableName[] = [];
     await Excel.run(async (ctx: any) => {
@@ -377,25 +416,26 @@ export class ExcelPort implements TableStore {
         const fresh = !sheetNames.has(sheet.name);
         const ws = fresh ? sheets.add(sheet.name) : sheets.getItem(sheet.name);
         for (const name of sheet.tables) {
-          if (tableNames.has(name)) continue;
+          if (tableNames.has(name)) {
+            await this.upgradeTable(ctx, name, important[name] ?? []);
+            continue;
+          }
           // Новая таблица — ниже занятой части листа, чтобы не наложиться на существующие (в т. ч. переименованные).
           const used = ws.getUsedRangeOrNullObject(true).load("rowIndex,rowCount");
           await ctx.sync();
           const top = nextTableTop(used.isNullObject ? null : used.rowIndex + used.rowCount - 1);
           const def = TABLES[name];
           const bodyRows = name === "Объект" ? OBJECT_FIELDS.length : 1;
-          if (sheet.tables.length > 1) ws.getRangeByIndexes(top - 1, 0, 1, 1).values = [[name === "Шифры" ? "Шифры рабочей документации" : name]];
+          if (sheet.tables.length > 1) ws.getRangeByIndexes(top - 1, 0, 1, 1).values = [[TABLE_TITLES[name] ?? name]];
           const t = ws.tables.add(ws.getRangeByIndexes(top, 0, 1 + bodyRows, def.columns.length), true);
           t.name = name;
           t.style = "TableStyleLight9";
-          t.getHeaderRowRange().values = [def.columns.map((c) => c.header)];
-          this.formatTable(t, def, important[name] ?? [], top + 2, bodyRows);
+          const headers = def.columns.map((c) => c.header);
+          t.getHeaderRowRange().values = [headers];
+          this.formatTable(t, def, important[name] ?? [], top + 2, bodyRows, headers);
           if (name === "Объект") {
-            const values = t.getDataBodyRange().getColumn(1);
             t.getDataBodyRange().getColumn(0).values = OBJECT_FIELDS.map((f) => [f.label]);
-            OBJECT_FIELDS.forEach((f, i) => {
-              values.getCell(i, 0).dataValidation.prompt = { showPrompt: true, ...promptFor({ ...def.columns[1], header: f.label, hint: f.hint }) };
-            });
+            this.objectPrompts(t, OBJECT_FIELDS.map((f) => f.label), 0);
           }
           await ctx.sync();
           created.push(name);
@@ -408,6 +448,47 @@ export class ExcelPort implements TableStore {
     return created;
   }
 
+  /** Подсказки ячеек «Значение» строк «Объекта» начиная с first. */
+  private objectPrompts(t: any, labels: string[], first: number) {
+    const values = t.getDataBodyRange().getColumn(1);
+    labels.forEach((label, k) => {
+      const f = OBJECT_FIELDS.find((x) => x.label === label);
+      if (!f) return;
+      values.getCell(first + k, 0).dataValidation.prompt = { showPrompt: true, ...promptFor({ ...TABLES["Объект"].columns[1], header: f.label, hint: f.hint }) };
+    });
+  }
+
+  /** Существующая таблица: недостающие столбцы — в конец, недостающие поля «Объекта» — строками; правила — заново. */
+  private async upgradeTable(ctx: any, name: TableName, important: string[]) {
+    const def = TABLES[name];
+    const t = ctx.workbook.tables.getItem(name);
+    const head = t.getHeaderRowRange().load("values");
+    const body = t.getDataBodyRange().load(name === "Объект" ? "rowIndex,rowCount,values" : "rowIndex,rowCount");
+    await ctx.sync();
+    const headers = (head.values[0] as unknown[]).map(String);
+    const add = missingColumns(name, headers);
+    for (const col of add) t.columns.add(null, null, col.header);
+    if (add.length) await ctx.sync();
+    const all = [...headers, ...add.map((c) => c.header)];
+    for (const col of add) this.formatColumn(t, def, col, all.indexOf(col.header), body.rowCount);
+    if (add.length) {
+      const h = t.getHeaderRowRange();
+      h.format.font.bold = true;
+      h.format.font.color = COLORS.headerText;
+      h.format.wrapText = true;
+    }
+    if (name === "Объект") {
+      const fi = headers.indexOf("Поле");
+      const labels = (body.values as unknown[][]).map((r) => String(r[fi] ?? ""));
+      const missing = missingObjectFields(labels);
+      if (missing.length && fi >= 0) {
+        const first = await this.addTableRows(ctx, t, body.rowCount, missing.map((l) => all.map((_, i) => (i === fi ? l : ""))));
+        this.objectPrompts(t, missing, first);
+      }
+    }
+    this.paint(t, def, important, body.rowIndex + 1, all);
+    await ctx.sync();
+  }
   /** Скрытый лист «Списки» с именованными диапазонами для перечислений (роль, тип, вид). */
   private async ensureLists(ctx: any, sheetNames: Set<string>) {
     const ws = sheetNames.has(LISTS_SHEET) ? ctx.workbook.worksheets.getItem(LISTS_SHEET) : ctx.workbook.worksheets.add(LISTS_SHEET);
@@ -426,46 +507,60 @@ export class ExcelPort implements TableStore {
     await ctx.sync();
   }
 
-  private formatTable(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number, bodyRows: number) {
-    const fill = (v: string) => Array.from({ length: bodyRows }, () => [v]);
-    def.columns.forEach((col, i) => {
-      const column = t.columns.getItemAt(i);
-      const body = column.getDataBodyRange();
-      body.format.columnWidth = (col.width ?? 16) * 7;
-      body.format.wrapText = col.type === "longtext" || (col.width ?? 16) >= 40;
+  private formatColumn(t: any, def: (typeof TABLES)[TableName], col: ColumnDef, i: number, bodyRows: number) {
+    const fill = (v: string) => Array.from({ length: Math.max(bodyRows, 1) }, () => [v]);
+    const body = t.columns.getItemAt(i).getDataBodyRange();
+    body.format.columnWidth = (col.width ?? 16) * 7;
+    body.format.wrapText = col.type === "longtext" || (col.width ?? 16) >= 40;
+    if (bodyRows > 0) {
       if (col.type === "date") body.numberFormat = fill("dd.mm.yyyy");
       if (textFormatted(col)) body.numberFormat = fill("@");
       if (col.type === "formula" && col.formula) body.formulas = fill(col.formula);
-      if (def.name !== "Объект" || col.key !== "value") applyValidation(body, col, def.name);
+    }
+    if (def.name !== "Объект" || col.key !== "value") applyValidation(body, col, def.name);
+  }
+
+  private formatTable(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number, bodyRows: number, headers: string[]) {
+    def.columns.forEach((col) => {
+      const i = headers.indexOf(col.header);
+      if (i >= 0) this.formatColumn(t, def, col, i, bodyRows);
     });
     const head = t.getHeaderRowRange();
     head.format.font.bold = true;
     head.format.font.color = COLORS.headerText;
     head.format.wrapText = true;
     head.format.rowHeight = 42;
-    this.paint(t, def, important, firstRow);
+    this.paint(t, def, important, firstRow, headers);
   }
 
-  /** Цвета заголовков и правила «пусто в важном столбце» / «повтор ключа». */
-  private paint(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number) {
+  /** Цвета заголовков и правила «пусто в важном столбце» / «повтор ключа». headers — порядок столбцов в книге
+   *  (в книге прежней версии дописанные столбцы стоят в конце). */
+  private paint(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number, headers: string[]) {
     const body = t.getDataBodyRange();
     body.conditionalFormats.clearAll();
     // Формулы правил пишутся для первой ячейки диапазона (таблицы начинаются со столбца A); firstRow — с 1.
-    const last = def.columns.length - 1;
-    const ex = body.conditionalFormats.add("Custom");
-    ex.custom.rule.formula = exampleRule(colLetter(def.columns.indexOf(exampleColumn(def.name))), firstRow);
-    ex.custom.format.font.color = COLORS.example;
-    ex.custom.format.font.italic = true;
-    def.columns.forEach((col: ColumnDef, i: number) => {
+    const last = headers.length - 1;
+    const exIdx = headers.indexOf(exampleColumn(def.name).header);
+    if (exIdx >= 0) {
+      const ex = body.conditionalFormats.add("Custom");
+      ex.custom.rule.formula = exampleRule(colLetter(exIdx), firstRow);
+      ex.custom.format.font.color = COLORS.example;
+      ex.custom.format.font.italic = true;
+    }
+    def.columns.forEach((col: ColumnDef) => {
+      const i = headers.indexOf(col.header);
+      if (i < 0) return;
       const headCell = t.getHeaderRowRange().getCell(0, i);
       headCell.format.fill.color = important.includes(col.header) ? COLORS.important : col.service ? COLORS.service : COLORS.header;
       const range = t.columns.getItemAt(i).getDataBodyRange();
       if (important.includes(col.header) && col.type !== "formula") {
         const cf = range.conditionalFormats.add("Custom");
-        cf.custom.rule.formula = importantRule(colLetter(0), colLetter(last), colLetter(i), firstRow);
+        cf.custom.rule.formula = def.name === "Объект" && col.key === "value"
+          ? objectImportantRule(colLetter(headers.indexOf("Поле")), colLetter(i), firstRow, OBJECT_REQUIRED_LABELS)
+          : importantRule(colLetter(0), colLetter(last), colLetter(i), firstRow);
         cf.custom.format.fill.color = COLORS.empty;
       }
-      if (keyColumn(def.name)?.header === col.header) {
+      if (keyColumn(def.name)?.header === col.header && !def.allowDuplicates) {
         const cf = range.conditionalFormats.add("Custom");
         cf.custom.rule.formula = duplicateRule(colLetter(i), firstRow, LAST_RULE_ROW);
         cf.custom.format.fill.color = COLORS.duplicate;
@@ -479,9 +574,10 @@ export class ExcelPort implements TableStore {
       ctx.workbook.tables.load("items/name");
       await ctx.sync();
       const ours = (ctx.workbook.tables.items as any[]).filter((t) => isOurs(t.name))
-        .map((t) => ({ t, body: t.getDataBodyRange().load("rowIndex") }));
+        .map((t) => ({ t, body: t.getDataBodyRange().load("rowIndex"), head: t.getHeaderRowRange().load("values") }));
       await ctx.sync();
-      for (const { t, body } of ours) this.paint(t, TABLES[t.name as TableName], map[t.name as TableName] ?? [], body.rowIndex + 1);
+      for (const { t, body, head } of ours)
+        this.paint(t, TABLES[t.name as TableName], map[t.name as TableName] ?? [], body.rowIndex + 1, (head.values[0] as unknown[]).map(String));
       await ctx.sync();
     });
   }

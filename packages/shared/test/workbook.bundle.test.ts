@@ -29,10 +29,10 @@ test("нет акта", async () => {
   assert.deepEqual(issues, [{ table: "Акты", row: null, column: "Номер акта", message: "Акт «X» не найден на листе «База актов»" }]);
 });
 
-test("пустая дата документа качества — Не заполнено, со строкой", async () => {
-  const { bundle, issues } = await build(withRecords((r) => { r["ДокументыКачества"][3]["Дата"] = null; }));
+test("пустой номер документа качества — Не заполнено, со строкой (дата необязательна)", async () => {
+  const { bundle, issues } = await build(withRecords((r) => { r["ДокументыКачества"][3]["Номер"] = null; r["ДокументыКачества"][3]["Дата"] = null; }));
   assert.equal(bundle, null);
-  assert.deepEqual(issues, [{ table: "ДокументыКачества", row: 3, column: "Дата", message: "Не заполнено" }]);
+  assert.deepEqual(issues, [{ table: "ДокументыКачества", row: 3, column: "Номер", message: "Не заполнено" }]);
 });
 
 test("дата текстом «28.07.2026» принимается, «завтра» — ошибка", async () => {

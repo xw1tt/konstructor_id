@@ -15,9 +15,9 @@ export function normsQuery(p: { section?: NormSection | null; q: string; offset:
 }
 
 /** Значение ячейки после «В ячейку»: пустая — обозначение, иначе дописать через запятую. */
-export function cellAppend(current: CellValue, designation: string): { value: string } | { error: "Уже есть в ячейке" } {
+export function cellAppend(current: CellValue, designation: string, insert = designation): { value: string } | { error: "Уже есть в ячейке" } {
   const text = current === null || current === undefined ? "" : String(current);
-  const next = appendDesignation(text, designation);
+  const next = appendDesignation(text, designation, insert);
   return next === null ? { error: "Уже есть в ячейке" } : { value: next };
 }
 
@@ -43,4 +43,13 @@ export function latestOnly() {
       return mine === seq ? v : undefined;
     },
   };
+}
+
+/** Что вставлять «В ячейку»: только обозначение или обозначение с наименованием в кавычках. */
+export type NormInsertMode = "designation" | "full";
+export const NORM_INSERT_KEY = "idk.normInsert";
+
+export function normInsertText(item: { designation: string; title: string }, mode: NormInsertMode): string {
+  const title = item.title.trim().replace(/^["«“]+|["»”]+$/g, "").trim();
+  return mode === "full" && title ? `${item.designation.trim()} "${title}"` : item.designation.trim();
 }

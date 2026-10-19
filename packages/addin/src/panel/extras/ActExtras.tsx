@@ -6,8 +6,9 @@ import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { actSummary } from "./summaries.ts";
-import { TemplateContext } from "../templateContext.ts";
+import { TemplateContext, PrintOptionsContext } from "../templateContext.ts";
 import { issueLines, printAct, type IssueLine } from "../print.ts";
+import { IssueList } from "./IssueList.tsx";
 
 const DOCS: { kind: PrintKind; label: string }[] = [
   { kind: "aosr", label: "АОСР" }, { kind: "rim", label: "РИМ" }, { kind: "vd", label: "ВД" }, { kind: "vor", label: "ВОР" },
@@ -22,6 +23,7 @@ const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | 
 export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
   const guard = useGuard();
   const template = useContext(TemplateContext);
+  const options = useContext(PrintOptionsContext);
   const [busy, setBusy] = useState<PrintKind | null>(null);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [error, setError] = useState("");
@@ -32,7 +34,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
     setBusy(doc);
     setError("");
     setLines([]);
-    const issues = await guard(printAct(state.book!, act, state.important, doc, template), setError);
+    const issues = await guard(printAct(state.book!, act, state.important, doc, template, options), setError);
     if (issues?.length) {
       const tables = [...new Set(issues.map((i) => i.table))];
       const offsets: Partial<Record<TableName, number>> = {};
@@ -60,18 +62,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
           </button>
         ))}
       </div>
-      {lines.length > 0 && (
-        <div className="issues" role="alert">
-          <p>Перед печатью исправьте:</p>
-          <ul className="list">
-            {lines.map((l, i) => (
-              <li key={i}>
-                <button className="link" onClick={() => void port.selectCell(l.table, l.row, l.table === "Объект" ? "Значение" : l.column)}>{l.text}</button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <IssueList port={port} lines={lines} title="Перед печатью исправьте:" />
       {error && <p className="error" role="alert">{error}</p>}
     </div>
   );

@@ -7,10 +7,15 @@ import type { ExcelPort } from "../book/excelPort.ts";
 import { apiGet, apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
 import { openPortal } from "./portal.ts";
-import { cellAppend, docsCount, latestOnly, normsQuery, refreshText } from "./normsApi.ts";
+import { cellAppend, docsCount, latestOnly, normInsertText, normsQuery, refreshText, NORM_INSERT_KEY, type NormInsertMode } from "./normsApi.ts";
 
 export const TERMS = "Программа не хранит и не распространяет тексты нормативов. В справочнике — только сведения из открытых списков портала protect.gost.ru (обозначение, наименование, число страниц, статус). Документы открываются напрямую с портала; окно лишь показывает страницы, полученные порталом для вашей сессии.";
 const EMPTY = "Справочник пуст — нажмите «Обновить базу». Понадобится доступ к интернету, обновление займёт несколько минут.";
+
+/** Режим «В ячейку» запоминается в браузере панели (у каждого пользователя свой). */
+function loadInsertMode(): NormInsertMode {
+  try { return localStorage.getItem(NORM_INSERT_KEY) === "full" ? "full" : "designation"; } catch { return "designation"; }
+}
 
 const lastUpdated = (u: NormSearchResult["updated"]) => {
   const all = Object.values(u).filter(Boolean) as string[];
@@ -34,6 +39,11 @@ export function NormativScreen({ port }: { port: ExcelPort }) {
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);
   const [refresh, setRefresh] = useState<RefreshState | null>(null);
   const [error, setError] = useState("");
+  const [insertMode, setInsertMode] = useState<NormInsertMode>(loadInsertMode);
+  const chooseInsert = (m: NormInsertMode) => {
+    setInsertMode(m);
+    try { localStorage.setItem(NORM_INSERT_KEY, m); } catch { /* без памяти — только на этот сеанс */ }
+  };
   const loading = useRef(false);
 
   useEffect(() => { const t = setTimeout(() => setQuery(q), 250); return () => clearTimeout(t); }, [q]);
@@ -85,12 +95,13 @@ export function NormativScreen({ port }: { port: ExcelPort }) {
     setNote(null);
     let message = "";
     try {
+      const insert = normInsertText(item, insertMode);
       const r = await port.writeActiveCell((cur) => {
-        const res = cellAppend(cur, item.designation);
+        const res = cellAppend(cur, item.designation, insert);
         if ("error" in res) { message = res.error; return null; }
         return res.value;
       });
-      setNote(r.written ? { text: `Вписано: ${item.designation}` } : { text: message || "Ячейка не изменена", error: true });
+      setNote(r.written ? { text: `Вписано: ${insert}` } : { text: message || "Ячейка не изменена", error: true });
     } catch (e) {
       setNote({ text: (e as Error).message, error: true });
     }
@@ -124,6 +135,13 @@ export function NormativScreen({ port }: { port: ExcelPort }) {
         <button className="btn btn-small" disabled={!!refresh?.running} onClick={() => void startRefresh()}>Обновить базу</button>
         <button className="btn btn-small" disabled title="Скоро" aria-label="Настройки">⚙</button>
         <button className="btn btn-small" onClick={() => setTerms((v) => !v)} aria-pressed={terms}>Условия</button>
+      </div>
+      <div className="chips norm-insert" role="radiogroup" aria-label="Что вставлять в ячейку">
+        <span className="muted">Вставлять:</span>
+        {([["designation", "только обозначение"], ["full", "обозначение и наименование"]] as const).map(([m, label]) => (
+          <button key={m} className={`chip${insertMode === m ? " chip-active" : ""}`} role="radio" aria-checked={insertMode === m}
+            onClick={() => chooseInsert(m)}>{label}</button>
+        ))}
       </div>
       {terms && <p className="muted norm-terms">{TERMS}</p>}
       {refresh && refreshText(refresh) && (

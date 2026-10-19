@@ -13,7 +13,8 @@ export interface Ctx {
   params: Record<string, string>;
   query: URLSearchParams;
   /** Тело JSON, проверенное схемой. */
-  body<T>(schema: ZodType<T, any, any>): Promise<T>;
+  /** Тело JSON по схеме; limit — предел размера в байтах (по умолчанию 1 МБ). */
+  body<T>(schema: ZodType<T, any, any>, limit?: number): Promise<T>;
   /** Числовой параметр :id. */
   id(): number;
 }
@@ -37,7 +38,7 @@ export function sendJson(res: ServerResponse, status: number, data?: unknown) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" }).end(s);
 }
 
-async function readJson(req: IncomingMessage): Promise<unknown> {
+async function readJson(req: IncomingMessage, limit = JSON_LIMIT): Promise<unknown> {
   const type = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
   const hasBody = Number(req.headers["content-length"] ?? 0) > 0 || req.headers["transfer-encoding"] !== undefined;
   if (hasBody && type !== "application/json") throw new HttpError(415, "Ожидается тело в формате JSON (application/json)");
@@ -45,7 +46,7 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   let size = 0;
   for await (const c of req) {
     size += (c as Buffer).length;
-    if (size > JSON_LIMIT) throw new HttpError(413, "Слишком большой запрос");
+    if (size > limit) throw new HttpError(413, "Слишком большой запрос");
     chunks.push(c as Buffer);
   }
   const text = Buffer.concat(chunks).toString("utf8");
@@ -104,8 +105,8 @@ export class Router {
     matched.route.keys.forEach((k, i) => (params[k] = matched!.m[i + 1]));
     const ctx: Ctx = {
       req, res, params, query: url.searchParams,
-      async body(schema) {
-        const raw = await readJson(req);
+      async body(schema, limit) {
+        const raw = await readJson(req, limit);
         const r = schema.safeParse(raw);
         if (!r.success) throw new HttpError(400, zodMessage(r.error));
         return r.data;

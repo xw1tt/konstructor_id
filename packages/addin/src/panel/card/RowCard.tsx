@@ -2,7 +2,7 @@
 // с обновлением ссылок, дополнения разделов.
 import { useEffect, useState } from "react";
 import {
-  TABLES, OBJECT_FIELDS, SHEETS, keyColumn, column as colOf, type ColumnDef, type TableName,
+  TABLES, OBJECT_FIELDS, SHEETS, isObjectFieldRequired, keyColumn, column as colOf, type ColumnDef, type TableName,
 } from "@idk/shared/workbook/schema";
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
 import { findReferences, renameKey, type RefHit } from "@idk/shared/workbook/refs";
@@ -18,6 +18,8 @@ import { toCellFor } from "./editValue.ts";
 import { MaterialExtras } from "../extras/MaterialExtras.tsx";
 import { ActExtras } from "../extras/ActExtras.tsx";
 import { CableExtras } from "../extras/CableExtras.tsx";
+import { KitExtras } from "../extras/KitExtras.tsx";
+import { kitOfRow } from "../kit.ts";
 
 interface PendingRename { table: TableName; from: string; to: string; hits: RefHit[] }
 
@@ -136,7 +138,9 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
       <div className="form">
         {TABLES[table].columns.map((c) => {
           const col = effectiveColumn(table, c, row, t.headers);
-          const important = (state.important[table] ?? []).includes(c.header);
+          // В «Объекте» обязательны только поля шапки АОСР; договор и прочее можно не заполнять.
+          const important = (state.important[table] ?? []).includes(c.header)
+            && !(table === "Объект" && c.key === "value" && !isObjectFieldRequired(cellText(valueOf("Поле"))));
           return (
             <Field
               key={c.header}
@@ -155,6 +159,9 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
       {table === "Акты" && <ActExtras port={port} state={state} act={cellText(valueOf(colOf("Акты", "baseNumber").header))} />}
       {table === "КабельныйЖурнал" && <CableExtras port={port} state={state} act={cellText(valueOf(colOf("КабельныйЖурнал", "act").header))} />}
       {table === "ИзмеренияМарок" && <CableExtras port={port} state={state} act="" />}
+      {(table === "Комплекты" || table === "АктыКомплектов" || table === "РеестрИД") && (
+        <KitExtras port={port} state={state} kit={kitOfRow(table, t.headers, row)} />
+      )}
     </section>
   );
 }

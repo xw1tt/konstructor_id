@@ -1,6 +1,6 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
 import { useEffect, useState, type ReactNode } from "react";
-import { loadTemplate, saveTemplate, DEFAULT_TEMPLATE, type TemplateCode } from "@idk/shared/templates";
+import { loadTemplate, saveTemplate, loadPrintOptions, savePrintOptions, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { TABLE_NAMES, type TableName } from "@idk/shared/workbook/schema";
 import type { ExcelPort } from "../book/excelPort.ts";
 import { ServerDownContext } from "../server.tsx";
@@ -11,7 +11,8 @@ import { TableTools } from "./TableTools.tsx";
 import { TopBar } from "./TopBar.tsx";
 import { NormativScreen } from "./NormativScreen.tsx";
 import { AssistantScreen } from "./AssistantScreen.tsx";
-import { TemplateContext } from "./templateContext.ts";
+import { SettingsScreen } from "./SettingsScreen.tsx";
+import { TemplateContext, PrintOptionsContext } from "./templateContext.ts";
 import type { ScreenId } from "./screens.ts";
 
 /** Создание книги идёт в несколько шагов; пока оно идёт, панель не переключается на разделы,
@@ -57,7 +58,13 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const [creating, setCreating] = useState(false);
   const [screen, setScreen] = useState<ScreenId>("home");
   const [template, setTemplate] = useState<TemplateCode>(DEFAULT_TEMPLATE);
+  const [options, setOptions] = useState<PrintOptions>(PrintOptions.parse({}));
   useEffect(() => { void loadTemplate(port).then(setTemplate).catch(() => undefined); }, [port]);
+  useEffect(() => { void loadPrintOptions(port).then(setOptions).catch(() => undefined); }, [port]);
+  const chooseOptions = (o: PrintOptions) => {
+    setOptions(o);
+    savePrintOptions(port, o).catch(() => undefined);
+  };
   const chooseTemplate = (t: TemplateCode) => {
     setTemplate(t);
     saveTemplate(port, t).catch(() => undefined);
@@ -70,6 +77,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   return (
     <ServerDownContext.Provider value={() => setServerDown(true)}>
       <TemplateContext.Provider value={template}>
+      <PrintOptionsContext.Provider value={options}>
         <div className="app">
           <TopBar screen={screen} onScreen={setScreen} template={template} onTemplate={chooseTemplate} />
           {serverDown && (
@@ -79,7 +87,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             </div>
           )}
           {state.error && <p className="error" role="alert">{state.error}</p>}
-          {screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
+          {screen === "settings" ? <SettingsScreen options={options} onOptions={chooseOptions} /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
             <>
@@ -99,6 +107,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             </>
           )}
         </div>
+      </PrintOptionsContext.Provider>
       </TemplateContext.Provider>
     </ServerDownContext.Provider>
   );

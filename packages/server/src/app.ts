@@ -6,6 +6,7 @@ import { fileRoutes } from "./routes/files.ts";
 import { printRoutes } from "./routes/print.ts";
 import { normRoutes } from "./routes/norms.ts";
 import { exportRoutes } from "./routes/export.ts";
+import { kitRoutes } from "./routes/kit.ts";
 
 export const DEFAULT_UPLOAD_LIMIT = 200 * 1024 * 1024;
 
@@ -29,6 +30,7 @@ export function createApp(opts: AppOptions) {
   exportRoutes(api, opts.db);
   normRoutes(api, opts.db, { fetchImpl: opts.fetchImpl, sleep: opts.sleep });
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
+  kitRoutes(api, opts.db, opts.dataDir);
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {
       if (await api.handle(req, res)) return;

@@ -41,5 +41,8 @@ body.vor .vor-signs { margin-top: 14pt; display: grid; gap: 14pt; break-inside: 
 body.vor .vor-sign { display: grid; grid-template-columns: 1fr 45mm; gap: 8mm; align-items: end; }
 body.vor .vor-sign .line { border-bottom: 0.6pt solid #000; text-align: center; }
 body.rim table.grid, body.vd table.grid { font-size: 9.5pt; }
+body.rim tbody.grp { break-inside: avoid; }
+body.rim td.nm.open { border-bottom-style: hidden; }
+body.rim td.nm.cont { border-top-style: hidden; }
 .appx-head { margin-bottom: 10pt; }
 .doc-head { margin-bottom: 10pt; }

@@ -1,6 +1,7 @@
 // Комплект на панели: строка → комплект, ошибки сборки со ссылками на ячейки, задание сборки на сервере.
 import { TABLES, column, type TableName } from "@idk/shared/workbook/schema";
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
+import { isExampleValue } from "@idk/shared/workbook/examples";
 import type { Book } from "@idk/shared/workbook/records";
 import type { ImportantMap } from "@idk/shared/workbook/important";
 import type { PrintOptions, TemplateCode } from "@idk/shared/templates";
@@ -14,7 +15,8 @@ export function kitOfRow(table: TableName, headers: string[], row: CellValue[]):
   const key = table === "Комплекты" ? column("Комплекты", "number").header
     : table === "АктыКомплектов" || table === "РеестрИД" ? column(table, "kit").header : null;
   if (!key) return "";
-  return cellText(row[headers.indexOf(key)] ?? null);
+  const v = row[headers.indexOf(key)] ?? null;
+  return isExampleValue(v) ? "" : cellText(v);
 }
 
 export const kitRegistryCount = (book: Book, kit: string) =>

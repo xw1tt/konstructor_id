@@ -184,3 +184,11 @@ p.warn, ul.warn { display: block; padding: 6px 8px; font-size: 12px; }
 .fields-group { margin-top: 8px; }
 a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
 .tpl-doc-title { display: block; margin-bottom: 4px; }
+
+/* План 12: справочник и полнота */
+.btn-link { border: none; background: none; padding: 0 2px; color: var(--blue); text-decoration: underline; cursor: pointer; font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+.completeness li { justify-content: space-between; }
+.completeness li .warn { padding: 0; background: none; font-size: inherit; }
+.completeness li .ok { color: var(--ok); }
+.catalog-picker .setting-option { align-items: flex-start; }
+.tpl-doc-works { font-size: 11px; }

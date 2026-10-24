@@ -1,6 +1,6 @@
 // Карточка текущей строки: все поля строки, запись в ячейку при выходе из поля, переименование ключей
 // с обновлением ссылок, дополнения разделов.
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   TABLES, OBJECT_FIELDS, SHEETS, isObjectFieldRequired, keyColumn, column as colOf, type ColumnDef, type TableName,
 } from "@idk/shared/workbook/schema";
@@ -22,6 +22,8 @@ import { KitExtras } from "../extras/KitExtras.tsx";
 import { OjrExtras } from "../extras/OjrExtras.tsx";
 import { SpecExtras, SpecPositionCard, SpecMatchTool } from "../extras/SpecExtras.tsx";
 import { kitOfRow } from "../kit.ts";
+import { CatalogContext, workListNames } from "../catalogApi.ts";
+import { UserTemplateContext } from "../templateContext.ts";
 
 interface PendingRename { table: TableName; from: string; to: string; hits: RefHit[] }
 
@@ -99,6 +101,10 @@ export function CardArea({ port, state }: { port: ExcelPort; state: BookState })
 
 function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState; onRename: (p: PendingRename) => void }) {
   const guard = useGuard();
+  const catalog = useContext(CatalogContext);
+  const { template } = useContext(UserTemplateContext);
+  /** Варианты «Вида работ» — как список «ВидыРабот» книги. */
+  const workOptions = catalog ? workListNames(catalog, template) : [];
   const [errors, setErrors] = useState<Record<string, string>>({});
   const s = state.selection;
   const t = state.table;
@@ -152,7 +158,7 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
               col={{ ...col, important }}
               value={valueOf(c.header)}
               link={links[t.headers.indexOf(c.header)] ?? null}
-              options={col.ref ? keysOf(state.book, col.ref) : []}
+              options={col.ref ? keysOf(state.book, col.ref) : col.listRange ? workOptions : []}
               error={errors[c.header] ?? ""}
               onCommit={(v) => void commit(col, v)}
               onUpload={c.type === "file" ? (f) => void upload(c, f) : undefined}

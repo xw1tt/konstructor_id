@@ -10,6 +10,7 @@ import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../te
 import { templateButtons, type TemplateButton } from "../templatesApi.ts";
 import { issueLines, printAct, printForm, type IssueLine } from "../print.ts";
 import { IssueList } from "./IssueList.tsx";
+import { Completeness } from "./Completeness.tsx";
 import { unboundMaterials } from "@idk/shared/spec/closed";
 
 const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | "vor" }[] = [
@@ -66,6 +67,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
       {unbound.length > 0 && (
         <p className="warn" role="status">Не привязаны к спецификации: {unbound.join("; ")}. Укажите «№ п/п РКЦ» в «Материалах» — печать это не блокирует.</p>
       )}
+      <Completeness port={port} state={state} act={act} />
       <h3 className="tools-title">Печать</h3>
       <div className="row-actions" aria-label="Печать документов">
         {templateButtons(tpl.template).map((b) => (

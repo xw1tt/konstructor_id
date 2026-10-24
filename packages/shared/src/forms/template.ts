@@ -15,8 +15,15 @@ export const FormRef = z.object({ file: z.string().min(1), type: z.enum(["docx",
 export type FormRef = z.infer<typeof FormRef>;
 
 export const TemplateDoc = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("builtin"), doc: z.enum(PRINT_KINDS), form: FormRef.nullable().default(null) }),
-  z.object({ kind: z.literal("custom"), code: z.string(), name: z.string().trim().min(1, "Укажите название документа"), form: FormRef.nullable().default(null) }),
+  z.object({
+    kind: z.literal("builtin"), doc: z.enum(PRINT_KINDS), form: FormRef.nullable().default(null),
+    catalog: z.string().optional(), works: z.array(z.string()).optional(),
+  }),
+  z.object({
+    kind: z.literal("custom"), code: z.string(), name: z.string().trim().min(1, "Укажите название документа"), form: FormRef.nullable().default(null),
+    catalog: z.string().optional(), works: z.array(z.string()).optional(),
+    scope: z.enum(["act", "kit"]).optional(), scan: z.boolean().optional(),
+  }),
 ]);
 export type TemplateDoc = z.infer<typeof TemplateDoc>;
 

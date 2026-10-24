@@ -1,5 +1,6 @@
 // Разметка своей формы по заполненному образцу: значения акта из книги в тексте документа заменяются метками.
-// Строка таблицы с первым материалом (схемой) становится строкой-повтором, строки остальных удаляются.
+// Строка таблицы с материалом (схемой) акта становится строкой-повтором, строки остальных удаляются; ячейка может
+// содержать наименование вместе с маркой, порядок строк в образце — любой.
 // Значение, совпавшее у нескольких полей, ставится временной меткой {Поле#N} — выбор делает пользователь (applyChoices).
 import type { FormData } from "@idk/shared/forms/fields";
 import { openZip, writeZip } from "../zip/zip.ts";
@@ -11,7 +12,9 @@ export interface MarkupResult { buf: Buffer; found: number; ambiguous: MarkupPla
 
 /** Порядок выбора по умолчанию для совпадающих значений; остальные — в порядке словаря. */
 const PRIORITY = ["Акт.Номер АОСР", "Акт.Номер", "Акт.Дата", "Акт.Окончание", "Акт.Начало"];
-const LISTS: [string, string][] = [["Материалы", "Материал.Наименование"], ["Схемы", "Схема.Номер"]];
+/** Списки со строкой-повтором: поле, по которому строка узнаётся, и можно ли ему стоять в ячейке вместе с другим текстом
+ *  (наименование материала — да; номер схемы — нет: он бывает частью номера акта). */
+const LISTS: [string, string, boolean][] = [["Материалы", "Материал.Наименование", true], ["Схемы", "Схема.Номер", false]];
 const RE_ESC = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const searchable = (v: string) => { const t = v.trim(); return !t.includes("\n") && (/\d/.test(t) ? t.length >= 3 : t.length >= 5); };
@@ -58,10 +61,14 @@ class Marker {
   }
 }
 
-/** Правки ячейки строки-повтора: значения полей первого элемента → метки элемента. */
-function itemEdits(text: string, item: Record<string, string>): [number, number, string][] {
+/** Правки ячейки строки-повтора: значения полей элемента → метки элемента. `score` — совпадения полей со столбцом по всем
+ *  строкам образца (columnScores): если значение совпало у нескольких полей, ставится поле с большим числом совпадений. */
+function itemEdits(text: string, item: Record<string, string>, score: Record<string, number> = {}): [number, number, string][] {
   const t = text.trim();
-  const fields = Object.entries(item).filter(([, v]) => v.trim()).sort((a, b) => b[1].length - a[1].length);
+  const sc = (k: string) => score[k] ?? 0;
+  const num = Object.keys(item).find((k) => k.endsWith(".№"));
+  if (num && sc(num) > 0 && Object.keys(score).every((k) => sc(k) <= sc(num)) && /^\d+$/.test(t)) { const a = text.indexOf(t); return [[a, a + t.length, `{${num}}`]]; }
+  const fields = Object.entries(item).filter(([, v]) => v.trim()).sort((a, b) => b[1].trim().length - a[1].trim().length || sc(b[0]) - sc(a[0]));
   const exact = fields.find(([, v]) => v.trim() === t);
   if (exact) { const a = text.indexOf(t); return [[a, a + t.length, `{${exact[0]}}`]]; }
   const out: [number, number, string][] = [];
@@ -79,6 +86,53 @@ function itemEdits(text: string, item: Record<string, string>): [number, number,
   return out;
 }
 
+const wholeWord = (v: string) => new RegExp(`(?<![\\p{L}\\p{N}])${RE_ESC(v)}(?![\\p{L}\\p{N}])`, "u");
+
+/** Элемент списка, к которому относится строка таблицы: ячейка равна его наименованию или содержит наименование ровно
+ *  одного элемента (наименование с маркой, артикулом и т.п. в одной ячейке). Ячейка-перечисление нескольких — не строка. */
+function rowItem(cells: (string | null)[], names: string[], partial: boolean): number {
+  for (const c of cells) {
+    const i = c === null ? -1 : names.indexOf(c.trim());
+    if (i >= 0 && names[i]) return i;
+  }
+  if (!partial) return -1;
+  for (const c of cells) {
+    if (!c) continue;
+    const hit = [...new Set(names.filter((n) => n.length >= 5 && wholeWord(n).test(c)))];
+    const own = hit.filter((n) => !hit.some((o) => o !== n && o.includes(n)));
+    if (own.length === 1) return names.indexOf(own[0]);
+  }
+  return -1;
+}
+
+/** Строки таблицы с элементами списка: первая строка, относящаяся к любому элементу (порядок в образце может
+ *  отличаться от акта), и идущие сразу за ней строки других элементов. */
+function findBlock(cells: (string | null)[][], names: string[], partial: boolean): { start: number; end: number; items: number[] } | null {
+  const start = cells.findIndex((cs) => rowItem(cs, names, partial) >= 0);
+  if (start < 0) return null;
+  const items: number[] = [];
+  let end = start;
+  for (let i; end < cells.length && (i = rowItem(cells[end], names, partial)) >= 0; end++) items.push(i);
+  return { start, end, items };
+}
+
+/** Совпадения полей с каждым столбцом по всем строкам образца: ячейка равна значению — 2, содержит его — 1. Номер п/п
+ *  сверяется с позицией строки (1, 2, 3…), а не с номером элемента в акте. По одному элементу марка и артикул могут
+ *  совпадать, по всем строкам — нет. */
+function columnScores(block: (string | null)[][], items: Record<string, string>[]): Record<string, number>[] {
+  return block[0].map((_, c) => {
+    const score: Record<string, number> = {};
+    for (const k of Object.keys(items[0])) {
+      score[k] = block.reduce((n, cells, r) => {
+        const t = cells[c]?.trim(), v = k.endsWith(".№") ? String(r + 1) : items[r][k]?.trim();
+        if (!t || !v) return n;
+        return n + (t === v ? 2 : !k.endsWith(".№") && v.length >= 3 && wholeWord(v).test(t) ? 1 : 0);
+      }, 0);
+    }
+    return score;
+  });
+}
+
 /** Текст ячейки без вложенных таблиц. */
 const cellTextOf = (cell: string) => {
   const flat = mapElements(cell, "tbl", () => "");
@@ -87,8 +141,12 @@ const cellTextOf = (cell: string) => {
 
 /** Строка-повтор: ячейки первого элемента → метки; {#Список} в начало первого непустого абзаца, {/Список} в конец
  *  последнего (одной правкой, если это один абзац). */
-function repeatRow(row: string, list: string, item: Record<string, string>): string {
-  let out = mapElements(row, "tc", (cell) => mapElements(cell, "p", (p) => editParagraph(p, itemEdits(paragraphText(p), item))));
+function repeatRow(row: string, list: string, item: Record<string, string>, scores: Record<string, number>[]): string {
+  let col = 0;
+  let out = mapElements(row, "tc", (cell) => {
+    const score = scores[col++];
+    return mapElements(cell, "p", (p) => editParagraph(p, itemEdits(paragraphText(p), item, score)));
+  });
   const paras = elements(out, "p").filter(({ start, end }) => paragraphText(out.slice(start, end)).length);
   if (!paras.length) return out;
   const first = paras[0], last = paras[paras.length - 1];
@@ -108,23 +166,23 @@ function repeatRow(row: string, list: string, item: Record<string, string>): str
   return out;
 }
 
-/** Таблица: строка, где ячейка целиком равна наименованию первого элемента, — повтор; идущие сразу за ней строки
- *  остальных элементов удаляются. Вложенные таблицы — рекурсивно. */
+/** Таблица: строка, относящаяся к элементу списка (rowItem), — повтор; идущие сразу за ней строки других элементов
+ *  удаляются. Вложенные таблицы — рекурсивно. */
 function markupTable(tbl: string, data: FormData, mk: Marker): string {
   tbl = mapElements(tbl, "tr", (row) => mapElements(row, "tc", (cell) => mapElements(cell, "tbl", (inner) => markupTable(inner, data, mk))));
-  for (const [list, key] of LISTS) {
+  for (const [list, key, partial] of LISTS) {
     const items = data.lists[list] ?? [];
-    const names = items.map((i) => i[key]?.trim()).filter(Boolean);
-    if (!names.length) continue;
+    const names = items.map((i) => i[key]?.trim() ?? "");
+    if (!names.some(Boolean)) continue;
     const rows = elements(tbl, "tr");
     const cells = rows.map(({ start, end }) => elements(tbl.slice(start, end), "tc").map((c) => cellTextOf(tbl.slice(start, end).slice(c.start, c.end))));
-    const i = cells.findIndex((cs) => cs.includes(names[0]));
-    if (i < 0) continue;
-    let j = i + 1;
-    while (j < rows.length && cells[j].some((c) => names.slice(1).includes(c))) j++;
+    const block = findBlock(cells, names, partial);
+    if (!block) continue;
     mk.found++;
-    const row = tbl.slice(rows[i].start, rows[i].end);
-    tbl = tbl.slice(0, rows[i].start) + repeatRow(row, list, items[0]) + tbl.slice(j < rows.length ? rows[j].start : rows[rows.length - 1].end);
+    const its = block.items.map((i) => items[i]);
+    const scores = columnScores(cells.slice(block.start, block.end), its);
+    const row = tbl.slice(rows[block.start].start, rows[block.start].end);
+    tbl = tbl.slice(0, rows[block.start].start) + repeatRow(row, list, its[0], scores) + tbl.slice(block.end < rows.length ? rows[block.end].start : rows[rows.length - 1].end);
   }
   return tbl;
 }
@@ -152,29 +210,41 @@ function markupXlsx(buf: Uint8Array, data: FormData, mk: Marker): Buffer {
     if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) { out.push([name, get()]); continue; }
     let xml = get().toString("utf8");
     const deleted: number[] = [];
-    for (const [list, key] of LISTS) {
+    for (const [list, key, partial] of LISTS) {
       const items = data.lists[list] ?? [];
-      const names = items.map((i) => i[key]?.trim()).filter(Boolean);
-      if (!names.length) continue;
-      let done = false;
+      const names = items.map((i) => i[key]?.trim() ?? "");
+      if (!names.some(Boolean)) continue;
+      // Строки листа (номер и ячейки по столбцам); ячейки строк выравниваются по столбцам первой строки элементов.
+      const col = (head: string) => xattr(head, "r")?.replace(/\d+/g, "") ?? "";
+      const sheetRows = [...xml.matchAll(XROW)].filter((m) => m[2] !== undefined).map((m) => ({
+        rnum: Number(xattr(m[1], "r")),
+        cells: [...m[2]!.matchAll(XCELL)].map((c) => ({ col: col(c[1]), text: cellText(c[1], c[2] ?? "") })),
+      }));
+      const block = findBlock(sheetRows.map((r) => r.cells.map((c) => c.text)), names, partial);
+      if (!block) continue;
+      const tplRow = sheetRows[block.start];
+      const its = block.items.map((i) => items[i]);
+      const aligned = sheetRows.slice(block.start, block.end).map((r) => tplRow.cells.map((t) => r.cells.find((c) => c.col === t.col)?.text ?? null));
+      const scores = columnScores(aligned, its);
+      const drop = new Set(sheetRows.slice(block.start + 1, block.end).map((r) => r.rnum));
       xml = xml.replace(XROW, (row, rh: string, rb: string | undefined) => {
         if (rb === undefined) return row;
         const rnum = Number(xattr(rh, "r"));
+        if (drop.has(rnum)) { deleted.push(rnum); return ""; }
+        if (rnum !== tplRow.rnum) return row;
+        mk.found++;
         const cells = [...rb.matchAll(XCELL)].map((c) => ({ raw: c[0], head: c[1], text: cellText(c[1], c[2] ?? "") }));
-        const has = (n: string) => cells.some((c) => c.text !== null && c.text.trim() === n);
-        if (!done && has(names[0])) {
-          done = true;
-          mk.found++;
-          const filled = cells.map((c) => (c.text === null || !c.text.trim() ? { ...c, label: null } : { ...c, label: apply(c.text, itemEdits(c.text, items[0])) }));
-          const idx = filled.map((c, i) => (c.label ? i : -1)).filter((i) => i >= 0);
-          if (idx.length) {
-            filled[idx[0]].label = `{#${list}}${filled[idx[0]].label}`;
-            filled[idx.at(-1)!].label = `${filled[idx.at(-1)!].label}{/${list}}`;
-          }
-          return `<row${rh}>${filled.map((c) => (c.label ? setText(c.head, c.label) : c.raw)).join("")}</row>`;
+        const filled = cells.map((c) => {
+          if (c.text === null || !c.text.trim()) return { ...c, label: null as string | null };
+          const score = scores[tplRow.cells.findIndex((t) => t.col === col(c.head))];
+          return { ...c, label: apply(c.text, itemEdits(c.text, its[0], score)) };
+        });
+        const idx = filled.map((c, i) => (c.label ? i : -1)).filter((i) => i >= 0);
+        if (idx.length) {
+          filled[idx[0]].label = `{#${list}}${filled[idx[0]].label}`;
+          filled[idx.at(-1)!].label = `${filled[idx.at(-1)!].label}{/${list}}`;
         }
-        if (done && names.slice(1).some(has)) { deleted.push(rnum); return ""; }
-        return row;
+        return `<row${rh}>${filled.map((c) => (c.label ? setText(c.head, c.label) : c.raw)).join("")}</row>`;
       });
     }
     if (deleted.length) {

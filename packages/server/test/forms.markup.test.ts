@@ -135,3 +135,44 @@ test("финальная проверка: .xlsx — объединения уд
   assert.deepEqual([...xml.matchAll(/<mergeCell ref="([^"]+)"/g)].map((x) => x[1]), ["A2:C2", "A3:C3"]);
   assert.match(xml, /<mergeCells count="2">/);
 });
+
+// Ведомость по образцу: материалы в таблице должны становиться строкой-повтором и в реальных формах.
+const vdSample = (rows: string[][]) => makeDocx(`<w:tbl>${tr("№", "Наименование", "Артикул", "Ед.", "Кол-во")}${rows.map((x) => tr(...x)).join("")}${tr("", "Итого", "", "", "")}</w:tbl>`);
+const vdRow = (x: Record<string, string>, name = x["Материал.Наименование"]) => [x["Материал.№"], name, x["Материал.Артикул"], x["Материал.Ед."], x["Материал.Кол-во"]];
+
+test("ведомость: наименование вместе с маркой в одной ячейке — строка-повтор", async () => {
+  const { d } = await sample();
+  const m = d.lists["Материалы"];
+  const src = vdSample(m.map((x) => vdRow(x, `${x["Материал.Наименование"]} ${x["Материал.Артикул"]}`)));
+  const text = docxText(applyChoices(markupForm(src, "docx", d).buf, "docx", {}));
+  assert.match(text, /\{#Материалы\}\{Материал\.№\}\n\{Материал\.Наименование\} \{Материал\.Артикул\}\n\{Материал\.Артикул\}\n\{Материал\.Ед\.\}\n\{Материал\.Кол-во\}\{\/Материалы\}/, text);
+  assert.ok(!text.includes(m[1]["Материал.Наименование"]), "строки остальных материалов удалены");
+  assert.match(text, /Итого/);
+});
+
+test("ведомость: материалы в другом порядке — строка-повтор по любому материалу акта", async () => {
+  const { d } = await sample();
+  const m = d.lists["Материалы"];
+  const src = vdSample([...m].reverse().map((x, i) => vdRow({ ...x, "Материал.№": String(i + 1) })));
+  const text = docxText(applyChoices(markupForm(src, "docx", d).buf, "docx", {}));
+  assert.match(text, /\{#Материалы\}\{Материал\.№\}\n\{Материал\.Наименование\}\n\{Материал\.Артикул\}\n\{Материал\.Ед\.\}\n\{Материал\.Кол-во\}\{\/Материалы\}/, text);
+  for (const x of m) assert.ok(!text.includes(x["Материал.Наименование"]), x["Материал.Наименование"]);
+});
+
+test("ведомость: столбец, где у первого материала марка = артикул, размечается по всем строкам — «Артикул»", async () => {
+  const { d } = await sample();
+  const m = d.lists["Материалы"];
+  assert.equal(m[0]["Материал.Марка"], m[0]["Материал.Артикул"], "условие теста: у первого материала марка и артикул совпадают");
+  const form = applyChoices(markupForm(vdSample(m.map((x) => vdRow(x))), "docx", d).buf, "docx", {});
+  assert.match(docxText(form), /\n\{Материал\.Артикул\}\n/);
+  assert.equal(docxText(fillDocx(form, d).buf), docxText(vdSample(m.map((x) => vdRow(x)))), "заполненная форма = исходный образец");
+});
+
+test("ведомость .xlsx: наименование с артикулом и другой порядок — строка-повтор, все материалы при заполнении", async () => {
+  const { d } = await sample();
+  const m = d.lists["Материалы"];
+  const rows = [...m].reverse().map((x) => [`${x["Материал.Наименование"]} ${x["Материал.Артикул"]}`, x["Материал.Артикул"], x["Материал.Кол-во"]]);
+  const form = applyChoices(markupForm(makeXlsx({ "Л": [["Шапка"], ...rows, ["Итого"]] }), "xlsx", d).buf, "xlsx", {});
+  assert.deepEqual(readXlsx(form).grid("Л")[1], ["{#Материалы}{Материал.Наименование} {Материал.Артикул}", "{Материал.Артикул}", "{Материал.Кол-во}{/Материалы}"]);
+  assert.equal(readXlsx(fillXlsx(form, d).buf).grid("Л").length, m.length + 2);
+});

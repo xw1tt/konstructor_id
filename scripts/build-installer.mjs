@@ -26,6 +26,13 @@ mkdirSync(join(payload, "app"), { recursive: true });
 // 1. Панель.
 execFileSync(process.execPath, [join(root, "packages", "addin", "build.mjs")], { stdio: "inherit" });
 cpSync(join(root, "packages", "addin", "dist"), join(payload, "addin"), { recursive: true });
+// Версия манифеста — версия установщика (Excel обновляет надстройку по <Version>, формат X.Y.Z.W).
+{
+  const m = join(payload, "addin", "manifest.xml");
+  const parts = version.split(".").map((p) => String(parseInt(p, 10) || 0));
+  while (parts.length < 4) parts.push("0");
+  writeFileSync(m, readFileSync(m, "utf8").replace(/<Version>[^<]*<\/Version>/, `<Version>${parts.slice(0, 4).join(".")}</Version>`));
+}
 
 // 2. Сервер одним файлом (playwright-core — рядом, как пакет: он грузит свои файлы динамически).
 await build({

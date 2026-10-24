@@ -9,6 +9,8 @@ import type { ActMaterialInput } from "../acts/schemas.ts";
 import { QUALITY_DOC_LABELS, type QualityDocType } from "../roles.ts";
 import { docNumber, formatDateShort, withNo } from "../acts/format.ts";
 import { avkDefaultNumber, rimDocDate, rimDocName, rimDocOrder } from "../acts/rows.ts";
+import type { PrintKind } from "../acts/schemas.ts";
+import type { UserTemplate } from "../forms/template.ts";
 
 export const KJ_NAME = "Кабельный журнал";
 export const PROTOCOL_NAME = "Протокол проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин";
@@ -70,7 +72,11 @@ function qualityDocs(book: Book): { docs: QualityDoc[]; rowOf: Map<number, BookR
 }
 
 /** Строки реестра комплекта по актам (порядок образца СБД). */
-export function registryRows(book: Book, kit: string): { rows: RegistryRecord[]; issues: Issue[] } {
+/** Строки реестра комплекта из актов. Шаблон пользователя: встроенные документы — только входящие в шаблон,
+ *  свои документы — после АОСР/РИМ/ВД акта, в порядке шаблона. Без шаблона — все встроенные (как «СБД»). */
+export function registryRows(book: Book, kit: string, template?: UserTemplate): { rows: RegistryRecord[]; issues: Issue[] } {
+  const inTpl = (k: PrintKind) => !template || template.docs.some((d) => d.kind === "builtin" && d.doc === k);
+  const custom = (template?.docs ?? []).flatMap((d) => (d.kind === "custom" ? [d] : []));
   const issues: Issue[] = [];
   const rows = (t: TableName) => book.tables[t] ?? [];
   const { kitRow, acts } = kitActs(book, kit);
@@ -104,22 +110,23 @@ export function registryRows(book: Book, kit: string): { rows: RegistryRecord[];
     const of = (t: TableName) => rows(t).filter((r) => txt(r.v.act) === n);
     const code = txt(act.v.section);
     const date = short(act.v.date);
-    if (of("ВОР").length) add("ВОР", n, "б/н", DOC_NAMES["ВОР"]!, date, code);
-    add("АОСР", n, withNo(docNumber(n, "aosr")), `${DOC_NAMES["АОСР"]} ${txt(act.v.works)}`, date, code);
+    if (of("ВОР").length && inTpl("vor")) add("ВОР", n, "б/н", DOC_NAMES["ВОР"]!, date, code);
+    if (inTpl("aosr")) add("АОСР", n, withNo(docNumber(n, "aosr")), `${DOC_NAMES["АОСР"]} ${txt(act.v.works)}`, date, code);
     const actMats = of("МатериалыАктов");
     if (actMats.length) {
-      add("РИМ", n, withNo(docNumber(n, "rim")), DOC_NAMES["РИМ"]!, date, code);
-      add("ВД", n, withNo(docNumber(n, "vd")), DOC_NAMES["ВД"]!, date, code);
+      if (inTpl("rim")) add("РИМ", n, withNo(docNumber(n, "rim")), DOC_NAMES["РИМ"]!, date, code);
+      if (inTpl("vd")) add("ВД", n, withNo(docNumber(n, "vd")), DOC_NAMES["ВД"]!, date, code);
     }
+    for (const d of custom) add("Свой документ", n, withNo(`${n}.${d.code}`), d.name, date, code);
     for (const s of of("Схемы")) {
       const name = txt(s.v.kind) === "Прочее" ? txt(s.v.name) : `Исполнительная схема ${txt(s.v.name)}`;
       add("Схема", n, withNo(txt(s.v.number)), name, short(s.v.date), code, s);
     }
-    if (of("КабельныйЖурнал").length) {
+    if (of("КабельныйЖурнал").length && (inTpl("kj") || inTpl("ip"))) {
       const doc = of("ДокументыКабелей")[0];
       const jc = doc ? txt(doc.v.journalCode) : "";
-      add("КЖ", n, jc ? `№ ${jc}` : "", KJ_NAME, doc ? short(doc.v.journalDate) : "", code);
-      if (doc && txt(doc.v.protocolNumber)) {
+      if (inTpl("kj")) add("КЖ", n, jc ? `№ ${jc}` : "", KJ_NAME, doc ? short(doc.v.journalDate) : "", code);
+      if (doc && txt(doc.v.protocolNumber) && inTpl("ip")) {
         add("Протокол", n, withNo(txt(doc.v.protocolNumber)), PROTOCOL_NAME, period(doc.v.dateFrom, doc.v.dateTo), code);
         if (!measuring) {
           measuring = true;
@@ -134,7 +141,7 @@ export function registryRows(book: Book, kit: string): { rows: RegistryRecord[];
       }
     }
     // Акт входного контроля материалов акта — перед их документами качества (как в образце СБД).
-    if (actMats.length) {
+    if (actMats.length && inTpl("avk")) {
       const avkDate = iso(act.v.avkDate) ?? iso(act.v.dateStart) ?? iso(act.v.date);
       add("АВК", n, withNo(txt(act.v.avkNumber) || avkDefaultNumber(n, code)), AVK_NAME, formatDateShort(avkDate), code);
     }
@@ -154,8 +161,8 @@ export function registryRows(book: Book, kit: string): { rows: RegistryRecord[];
 }
 
 /** Заменяет строки комплекта в таблице «РеестрИД» строками из актов (на место первой из прежних). Возвращает число строк. */
-export async function fillRegistry(store: TableStore, book: Book, kit: string): Promise<{ count: number; issues: Issue[] }> {
-  const { rows, issues } = registryRows(book, kit);
+export async function fillRegistry(store: TableStore, book: Book, kit: string, template?: UserTemplate): Promise<{ count: number; issues: Issue[] }> {
+  const { rows, issues } = registryRows(book, kit, template);
   if (issues.length) return { count: 0, issues };
   const t = await store.read("РеестрИД");
   if (!t) throw new Error("Таблица «РеестрИД» не найдена");

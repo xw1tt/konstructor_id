@@ -38,12 +38,13 @@ export function createApp(opts: AppOptions) {
   exportRoutes(api, opts.db);
   normRoutes(api, opts.db, { fetchImpl: opts.fetchImpl, sleep: opts.sleep });
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
-  kitRoutes(api, opts.db, opts.dataDir);
   ojrRoutes(api);
   rkcRoutes(api);
   const templates = new TemplateStore(opts.dataDir);
   templateRoutes(api, templates);
-  formJobRoutes(api, templates, opts.officeRunner ?? powershellRunner());
+  const runner = opts.officeRunner ?? powershellRunner();
+  formJobRoutes(api, templates, runner);
+  kitRoutes(api, opts.db, opts.dataDir, { templates, runner });
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {
       if (await api.handle(req, res)) return;

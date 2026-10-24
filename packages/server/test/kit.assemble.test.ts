@@ -160,3 +160,29 @@ test("тело задания больше 1 МБ принимается (нес
   const r = await s.req("POST", "/api/kit-jobs", q);
   assert.equal(r.status, 201, JSON.stringify(r.json).slice(0, 300));
 });
+
+test("План 11: свой документ шаблона — в комплекте, номер листа как в реестре", async () => {
+  const { makeDocx, p: para, r: run } = await import("./helpers/docx.ts");
+  const s = await startTestServer({ officeRunner: async () => false });
+  const { json: t } = await s.req("POST", "/api/templates", { name: "ПИК", from: "sbd" });
+  const f = await (await s.raw("POST", `/api/templates/${t.id}/forms`, {
+    body: makeDocx(para(run("АКТ ГИДРОИСПЫТАНИЙ {Акт.Номер документа}"))) as unknown as BodyInit, headers: { "x-file-name": "agi.docx" },
+  })).json();
+  const { json: tpl } = await s.req("PUT", `/api/templates/${t.id}`, { name: "ПИК", docs: [...t.docs, { kind: "custom", code: "АГИ", name: "Акт гидравлических испытаний", form: f }] });
+  const r = kitRecords();
+  r["Объект"].push({ "Поле": "Папка сканов", "Значение": scans });
+  const book0 = await readBook(new MemoryWorkbook(r));
+  r["РеестрИД"] = registryRows(book0, "1", tpl).rows.map((x) => x.values).filter((v) => !["Схема", "Поверка", "Лаборатория", "Документ качества"].includes(String(v["Вид"])));
+  r["Комплекты"][0]["Титул"] = "нет";
+  r["Комплекты"][0]["Корешки"] = "нет";
+  const { request: q, issues } = buildKitRequest(await readBook(new MemoryWorkbook(r)), "1", defaultImportant(), tpl.id, undefined, new Date("2026-10-24"), tpl);
+  assert.deepEqual(issues, []);
+  const res = await s.req("POST", "/api/kit-jobs", q);
+  assert.equal(res.status, 201, JSON.stringify(res.json));
+  const pages = await pdfPages(new Uint8Array(await (await s.raw("GET", `/api/kit-jobs/${res.json.id}`)).arrayBuffer()));
+  const reg = pages.slice(0, pages.findIndex((x) => /Сдал:.*Принял:/.test(x)) + 1).join(" ").replace(/- /g, "-");
+  const m = reg.match(/№[^ ]+\.АГИ Акт гидравлических испытаний .*? л\. (\d+)/);
+  assert.ok(m, reg);
+  const front = pages.findIndex((x) => /Сдал:.*Принял:/.test(x)) + 1;
+  assert.match(pages[front + Number(m![1]) - 1], /АКТ ГИДРОИСПЫТАНИЙ .*\.АГИ/);
+});

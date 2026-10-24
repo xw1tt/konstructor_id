@@ -11,6 +11,7 @@ import { buildCableBundle } from "../workbook/cables.ts";
 import type { Book, BookRow } from "../workbook/records.ts";
 import type { ImportantMap } from "../workbook/important.ts";
 import { kitActs } from "./registry.ts";
+import type { UserTemplate } from "../forms/template.ts";
 
 /** Файл скана или логотипа: имя (в папке сканов или полный путь) и адрес прикреплённого файла сервера. */
 export const FileRef = z.object({ name: z.string(), link: z.string().nullable().default(null) });
@@ -28,7 +29,12 @@ export const KitRow = z.object({
   /** Листов для графы реестра; null — по документу. */
   sheets: z.number().int().min(0).nullable().default(null),
   /** Документ конструктора: акт и вид печати. */
-  doc: z.object({ act: z.string(), kind: z.enum(PRINT_KINDS) }).nullable().default(null),
+  /** Документ конструктора: акт и вид встроенной печати; form — печать по своей форме шаблона (вид встроенного — null
+   *  для своего документа). */
+  doc: z.object({
+    act: z.string(), kind: z.enum(PRINT_KINDS).nullable(),
+    form: z.object({ template: z.string(), doc: z.string() }).optional(),
+  }).nullable().default(null),
   file: FileRef.nullable().default(null),
 });
 export type KitRow = z.infer<typeof KitRow>;
@@ -80,8 +86,13 @@ const fileOf = (r: BookRow | undefined, key = "file"): FileRef | null => {
 /** Собирает задание сборки комплекта; при ошибках книги — null и список ошибок (как у печати акта). */
 export function buildKitRequest(
   book: Book, kit: string, important: ImportantMap, template: TemplateCode = DEFAULT_TEMPLATE,
-  options: PrintOptions = PrintOptions.parse({}), now = new Date(),
+  options: PrintOptions = PrintOptions.parse({}), now = new Date(), tpl?: UserTemplate,
 ): { request: KitRequest | null; issues: Issue[] } {
+  /** Своя форма документа в шаблоне: ключ задания печати формы (вид встроенного или код своего). */
+  const formOf = (kind: PrintKind | null, code: string | null): { template: string; doc: string } | undefined => {
+    const d = tpl?.docs.find((x) => (x.kind === "builtin" ? x.doc === kind : x.code.toUpperCase() === (code ?? "").toUpperCase()));
+    return d?.form && tpl ? { template: tpl.id, doc: d.kind === "builtin" ? d.doc : d.code } : undefined;
+  };
   const c = createChecker(book, important);
   const { kitRow, acts } = kitActs(book, kit);
   if (!kitRow) {
@@ -109,6 +120,10 @@ export function buildKitRequest(
     }
   };
 
+  const docRef = (act: string, kind: PrintKind | null, code: string | null) => {
+    const form = formOf(kind, code);
+    return form ? { act, kind, form } : { act, kind };
+  };
   const needs = new Map<string, Set<PrintKind>>();
   const rows: KitRow[] = [];
   for (const r of regRows) {
@@ -116,12 +131,15 @@ export function buildKitRequest(
     const kind = txt(r.v.kind) as RegistryKind;
     if (!REGISTRY_KINDS.includes(kind)) continue;
     const act = txt(r.v.act);
+    const own = kind === "Свой документ";
+    const ownCode = own ? withNo(txt(r.v.number)).replace(/^№/, "").slice(act.length + 1) : null;
     const printed = PRINTED_KINDS[kind];
     let file: FileRef | null = null;
-    if (printed) {
+    if (own && !formOf(null, ownCode)) c.push("РеестрИД", r.row, H("РеестрИД", "kind"), `Своего документа «${ownCode}» нет в шаблоне или у него нет формы`);
+    if (printed || own) {
       if (!act) c.push("РеестрИД", r.row, H("РеестрИД", "act"), `Укажите акт: документ «${kind}» печатает конструктор`);
       else if (!acts.includes(act)) c.push("РеестрИД", r.row, H("РеестрИД", "act"), `Акт «${act}» не входит в комплект «${kit}»`);
-      else (needs.get(act) ?? needs.set(act, new Set()).get(act)!).add(printed);
+      else (needs.get(act) ?? needs.set(act, new Set()).get(act)!).add(printed ?? "aosr");
     } else {
       file = fileOf(r) ?? fallback(kind, txt(r.v.number), act);
       if (!file) c.push("РеестрИД", r.row, H("РеестрИД", "file"), "Нет скана: укажите файл в столбце «Скан»");
@@ -131,7 +149,7 @@ export function buildKitRequest(
       row: r.row, kind, number: txt(r.v.number), name: txt(r.v.name), date: txt(r.v.date),
       copies: Math.max(0, Math.round((v.copies as number | null) ?? 1)), code: txt(r.v.code),
       sheets: sheets.ok && sheets.value !== null ? Math.max(0, Math.round(sheets.value)) : null,
-      doc: printed && act ? { act, kind: printed } : null, file,
+      doc: (printed || own) && act ? docRef(act, printed ?? null, ownCode) : null, file,
     });
   }
 

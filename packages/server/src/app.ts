@@ -11,6 +11,8 @@ import { ojrRoutes } from "./routes/ojr.ts";
 import { rkcRoutes } from "./routes/rkc.ts";
 import { templateRoutes } from "./routes/templates.ts";
 import { TemplateStore } from "./forms/store.ts";
+import { formJobRoutes } from "./routes/formJobs.ts";
+import { powershellRunner, type OfficeRunner } from "./forms/convert.ts";
 
 export const DEFAULT_UPLOAD_LIMIT = 200 * 1024 * 1024;
 
@@ -24,6 +26,8 @@ export interface AppOptions {
   /** Для тестов: подмена доступа к порталу protect.gost.ru и пауз при обновлении справочника. */
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
+  /** Перевод своих форм в PDF через Office (по умолчанию — PowerShell + COM на Windows). */
+  officeRunner?: OfficeRunner;
 }
 
 export const defaultOrigins = (port = 3443) => [`https://localhost:${port}`, `https://127.0.0.1:${port}`];
@@ -37,7 +41,9 @@ export function createApp(opts: AppOptions) {
   kitRoutes(api, opts.db, opts.dataDir);
   ojrRoutes(api);
   rkcRoutes(api);
-  templateRoutes(api, new TemplateStore(opts.dataDir));
+  const templates = new TemplateStore(opts.dataDir);
+  templateRoutes(api, templates);
+  formJobRoutes(api, templates, opts.officeRunner ?? powershellRunner());
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {
       if (await api.handle(req, res)) return;

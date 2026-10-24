@@ -11,6 +11,9 @@ import { buildCableBundle } from "../workbook/cables.ts";
 import type { Book, BookRow } from "../workbook/records.ts";
 import type { ImportantMap } from "../workbook/important.ts";
 import { kitActs } from "./registry.ts";
+import { buildProtoBundle } from "../protocols/bundle.ts";
+import { headerByNumber } from "../protocols/find.ts";
+import { protoByCode } from "../protocols/defs.ts";
 import type { UserTemplate } from "../forms/template.ts";
 
 /** Файл скана или логотипа: имя (в папке сканов или полный путь) и адрес прикреплённого файла сервера. */
@@ -34,6 +37,8 @@ export const KitRow = z.object({
   doc: z.object({
     act: z.string(), kind: z.enum(PRINT_KINDS).nullable(),
     form: z.object({ template: z.string(), doc: z.string() }).optional(),
+    /** Протокол или акт плана 13: № документа — пакет в KitRequest.protos. */
+    proto: z.string().optional(),
   }).nullable().default(null),
   file: FileRef.nullable().default(null),
 });
@@ -59,6 +64,8 @@ export const KitRequest = z.object({
   logos: z.object({ contractor: FileRef.nullable().default(null), developer: FileRef.nullable().default(null) }),
   scanFolder: z.string().default(""),
   acts: z.array(ActBundle),
+  /** Пакеты протоколов и актов плана 13 (ActBundle.proto.number — ключ строки). */
+  protos: z.array(ActBundle).default([]),
   rows: z.array(KitRow).min(1),
 });
 export type KitRequest = z.infer<typeof KitRequest>;
@@ -126,10 +133,34 @@ export function buildKitRequest(
   };
   const needs = new Map<string, Set<PrintKind>>();
   const rows: KitRow[] = [];
+  const protos: ActBundle[] = [];
+  const protoIssues: Issue[] = [];
   for (const r of regRows) {
     const v = c.checkRow("РеестрИД", r);
     const kind = txt(r.v.kind) as RegistryKind;
     if (!REGISTRY_KINDS.includes(kind)) continue;
+    if (kind === "Акт/протокол") {
+      // Протокол или акт плана 13: шапка по номеру документа, пакет — в protos.
+      const number = withNo(txt(r.v.number)).replace(/^№\s*/, "");
+      const head = headerByNumber(book, number);
+      if (!head) {
+        c.push("РеестрИД", r.row, H("РеестрИД", "number"), `Документ «${number}» не найден в таблице «Протоколы»`);
+        continue;
+      }
+      const pk = protoByCode(txt(head.v.doc))?.kind ?? null;
+      const res = buildProtoBundle(book, number, important);
+      protoIssues.push(...res.issues);
+      if (res.bundle && !protos.some((b) => b.proto?.number === number)) protos.push(res.bundle);
+      const sheets = parseNumberCell(r.v.sheets as CellValue);
+      const form = formOf(pk, null);
+      rows.push({
+        row: r.row, kind, number: txt(r.v.number), name: txt(r.v.name), date: txt(r.v.date),
+        copies: Math.max(0, Math.round((v.copies as number | null) ?? 1)), code: txt(r.v.code),
+        sheets: sheets.ok && sheets.value !== null ? Math.max(0, Math.round(sheets.value)) : null,
+        doc: { act: res.bundle?.act.baseNumber ?? txt(r.v.act), kind: pk, proto: number, ...(form ? { form } : {}) }, file: null,
+      });
+      continue;
+    }
     const act = txt(r.v.act);
     const own = kind === "Свой документ";
     // Номер своего документа: «№<акт>.<код>» (на акт) или «<код>» (на комплект, без акта).
@@ -182,7 +213,7 @@ export function buildKitRequest(
   const contractorRow = org(txt(firstAct?.v.performerOrg ?? null)) ?? org(txt(book.object.performer)) ?? org(txt(book.object.builder));
   const designerRow = org(txt(sectionRow?.v.designer ?? null) || txt(book.object.designer));
 
-  const all = [...c.issues, ...issues];
+  const all = [...c.issues, ...issues, ...protoIssues];
   // одна и та же ошибка из нескольких проверок — один раз
   const uniq = all.filter((i, n) => all.findIndex((j) => j.table === i.table && j.row === i.row && j.column === i.column && j.message === i.message) === n);
   if (uniq.length) return { request: null, issues: uniq };
@@ -201,6 +232,7 @@ export function buildKitRequest(
     logos: { contractor: fileOf(contractorRow, "logo"), developer: fileOf(developerRow, "logo") },
     scanFolder: txt(book.object.scanFolder),
     acts: bundles,
+    protos,
     rows,
   };
   return { request, issues: [] };

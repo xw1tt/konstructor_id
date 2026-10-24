@@ -19,7 +19,13 @@ export interface TableStore {
   remove(name: TableName, rows: number[]): Promise<void>;
   setting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
+  /** Отчётный лист (не умная таблица): создаётся или перезаписывается целиком. */
+  writeReport(report: Report): Promise<void>;
 }
+
+/** Отчётный лист: значения по строкам, жирные строки, ячейки с отрицательным значением, ширины столбцов (символы),
+ *  текстовые столбцы (формат «@»: Excel не превращает «1.10» в число и «=…» в формулу). */
+export interface Report { sheet: string; rows: CellValue[][]; bold: number[]; negative: [number, number][]; widths: number[]; text: number[] }
 
 /** Строка для «Функционала листа»: значения и адреса гиперссылок (по позициям). */
 export interface RowData { values: CellValue[]; links: (string | null)[] }

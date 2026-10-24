@@ -6,10 +6,10 @@ import {
 } from "@idk/shared/workbook/values";
 
 test("заголовки таблиц — как в спецификации", () => {
-  assert.deepEqual(TABLES["Материалы"].columns.map((c) => c.header), ["Наименование", "Марка", "Артикул", "Завод-изготовитель", "Ед. изм."]);
+  assert.deepEqual(TABLES["Материалы"].columns.map((c) => c.header), ["Наименование", "Марка", "Артикул", "Завод-изготовитель", "Ед. изм.", "№ п/п РКЦ"]);
   assert.deepEqual(TABLES["ДокументыКачества"].columns.map((c) => c.header),
     ["Материалы", "Тип", "Номер", "Дата", "Действует до", "Листов", "Наименование для реестра", "Скан"]);
-  assert.deepEqual(TABLES["МатериалыАктов"].columns.map((c) => c.header), ["Акт", "Материал", "№ поз. по УСР", "Кол-во", "Сумма ВОР"]);
+  assert.deepEqual(TABLES["МатериалыАктов"].columns.map((c) => c.header), ["Акт", "Материал", "№ поз. по УСР", "Кол-во", "Сумма ВОР", "№ п/п РКЦ", "Учёт"]);
   assert.deepEqual(TABLES["Объект"].columns.map((c) => c.header), ["Поле", "Значение"]);
   assert.equal(TABLES["Акты"].columns.length, 19);
   assert.equal(TABLES["КабельныйЖурнал"].columns.length, 11);
@@ -17,7 +17,7 @@ test("заголовки таблиц — как в спецификации", (
 });
 
 test("листы и таблицы", () => {
-  assert.deepEqual(SHEETS.map((s) => s.name), ["Реквизиты", "Представители", "Материалы", "Документы качества", "База актов",
+  assert.deepEqual(SHEETS.map((s) => s.name), ["Реквизиты", "Представители", "Спецификация", "Материалы", "Документы качества", "База актов",
     "Исполнительные схемы", "Материалы в актах", "ВОР", "Кабельный журнал", "Изоляция", "Комплекты", "Реестр ИД", "ОЖР Раздел 3", "ОЖР Раздел 5"]);
   assert.deepEqual(SHEETS[0].tables, ["Объект", "Организации", "Шифры"]);
   for (const s of SHEETS) for (const t of s.tables) assert.equal(TABLES[t].sheet, s.name);

@@ -4,13 +4,13 @@ import {
   TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, OBJECT_REQUIRED_LABELS, SCHEMA_VERSION, keyColumn, type TableName, type ColumnDef,
 } from "@idk/shared/workbook/schema";
 import type { CellValue } from "@idk/shared/workbook/values";
-import type { RowData, RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
+import type { Report, RowData, RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
 import type { ImportantMap } from "@idk/shared/workbook/important";
 import { currentHost, type HostStatus } from "./host.ts";
 import { exampleColumn } from "@idk/shared/workbook/examples";
 import {
   COLORS, LISTS_SHEET, applyValidation, colLetter, duplicateRule, exampleRule, importantRule, objectImportantRule, listName, promptFor,
-  nextTableTop, textFormatted, visibleTableRows, missingColumns, missingObjectFields,
+  nextTableTop, textFormatted, visibleTableRows, missingColumns, missingObjectFields, negativeRule,
 } from "./layout.ts";
 
 /** Подписи над таблицами на листах с несколькими таблицами. */
@@ -234,6 +234,36 @@ export class ExcelPort implements TableStore {
   async setSetting(key: string, value: string) {
     settings().set(key, value);
     await saveSettings();
+  }
+
+  /** Отчётный лист: создаётся при первом вызове, иначе очищается и заполняется заново. */
+  async writeReport(report: Report) {
+    await Excel.run(async (ctx: any) => {
+      let ws = ctx.workbook.worksheets.getItemOrNullObject(report.sheet);
+      await ctx.sync();
+      if (ws.isNullObject) ws = ctx.workbook.worksheets.add(report.sheet);
+      else ws.getRange().clear();
+      const width = Math.max(1, ...report.rows.map((r) => r.length));
+      const values = report.rows.map((r) => Array.from({ length: width }, (_, i) => r[i] ?? ""));
+      const all = ws.getRangeByIndexes(0, 0, values.length, width);
+      for (const c of report.text) if (c < width) ws.getRangeByIndexes(0, c, values.length, 1).numberFormat = values.map(() => ["@"]);
+      all.values = values;
+      all.format.font.name = "Times New Roman";
+      all.format.font.size = 11;
+      all.format.verticalAlignment = "Top";
+      for (const edge of ["EdgeTop", "EdgeBottom", "EdgeLeft", "EdgeRight", "InsideVertical", "InsideHorizontal"])
+        all.format.borders.getItem(edge).style = "Continuous";
+      const head = ws.getRangeByIndexes(0, 0, 1, width);
+      head.format.fill.color = COLORS.header;
+      head.format.wrapText = true;
+      for (const r of report.bold) ws.getRangeByIndexes(r, 0, 1, width).format.font.bold = true;
+      for (const [r, c] of report.negative) ws.getRangeByIndexes(r, c, 1, 1).format.fill.color = COLORS.duplicate;
+      report.widths.forEach((w, c) => { ws.getRangeByIndexes(0, c, 1, 1).format.columnWidth = w * 7; });
+      ws.getRangeByIndexes(1, 1, Math.max(1, values.length - 1), 1).format.wrapText = true;
+      ws.freezePanes.freezeRows(1);
+      ws.activate();
+      await ctx.sync();
+    });
   }
 
   // ---------- Строки листа вне таблиц ----------
@@ -574,6 +604,11 @@ export class ExcelPort implements TableStore {
           ? objectImportantRule(colLetter(headers.indexOf("Поле")), colLetter(i), firstRow, OBJECT_REQUIRED_LABELS)
           : importantRule(colLetter(0), colLetter(last), colLetter(i), firstRow);
         cf.custom.format.fill.color = COLORS.empty;
+      }
+      if (def.name === "Спецификация" && col.key === "rest") {
+        const cf = range.conditionalFormats.add("Custom");
+        cf.custom.rule.formula = negativeRule(colLetter(i), firstRow);
+        cf.custom.format.fill.color = COLORS.duplicate;
       }
       if (keyColumn(def.name)?.header === col.header && !def.allowDuplicates) {
         const cf = range.conditionalFormats.add("Custom");

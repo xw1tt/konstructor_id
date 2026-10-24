@@ -41,7 +41,7 @@ test("moveRow не переносит формулу Сумма ВОР", async (
     { "Акт": "1", "Материал": "А", "Кол-во": 1 }, { "Акт": "1", "Материал": "Б", "Кол-во": 2 }] });
   await moveRow(tableRows(wb, "МатериалыАктов"), 1, -1);
   const rows = (await wb.read("МатериалыАктов"))!.rows;
-  assert.deepEqual(rows, [["1", "Б", null, 2, null], ["1", "А", null, 1, null]]);
+  assert.deepEqual(rows, [["1", "Б", null, 2, null, null, null], ["1", "А", null, 1, null, null, null]]);
 });
 
 test("deleteRows удаляет выделенные, повторы игнорирует", async () => {

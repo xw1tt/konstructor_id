@@ -4,7 +4,8 @@ import { SECTIONS, sectionForSheet } from "@idk/addin/panel/sections";
 import { columnStatus, tablesOnSheet } from "@idk/addin/panel/tableTools";
 
 test("разделы панели", () => {
-  assert.deepEqual(SECTIONS.map((s) => s.label), ["Реквизиты", "Представители", "Акты", "Материалы", "Схемы", "Кабельный журнал", "Комплекты", "ОЖР"]);
+  assert.deepEqual(SECTIONS.map((s) => s.label), ["Реквизиты", "Представители", "Акты", "Спецификация", "Материалы", "Схемы", "Кабельный журнал", "Комплекты", "ОЖР"]);
+  assert.equal(sectionForSheet("Спецификация"), "spec");
   assert.deepEqual(SECTIONS.find((s) => s.id === "acts")!.sheets, ["База актов", "Исполнительные схемы", "Материалы в актах", "ВОР"]);
   assert.deepEqual(SECTIONS.find((s) => s.id === "materials")!.sheets, ["Материалы", "Документы качества"]);
 });

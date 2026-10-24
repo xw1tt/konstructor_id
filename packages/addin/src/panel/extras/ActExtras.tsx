@@ -9,6 +9,7 @@ import { actSummary } from "./summaries.ts";
 import { TemplateContext, PrintOptionsContext } from "../templateContext.ts";
 import { issueLines, printAct, type IssueLine } from "../print.ts";
 import { IssueList } from "./IssueList.tsx";
+import { unboundMaterials } from "@idk/shared/spec/closed";
 
 const DOCS: { kind: PrintKind; label: string }[] = [
   { kind: "aosr", label: "АОСР" }, { kind: "rim", label: "РИМ" }, { kind: "vd", label: "ВД" }, { kind: "vor", label: "ВОР" },
@@ -29,6 +30,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
   const [error, setError] = useState("");
   if (!act || !state.book) return null;
   const sum = actSummary(state.book, act);
+  const unbound = unboundMaterials(state.book, act);
 
   const print = async (doc: PrintKind) => {
     setBusy(doc);
@@ -54,6 +56,9 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
           </button>
         ))}
       </div>
+      {unbound.length > 0 && (
+        <p className="warn" role="status">Не привязаны к спецификации: {unbound.join("; ")}. Укажите «№ п/п РКЦ» в «Материалах» — печать это не блокирует.</p>
+      )}
       <h3 className="tools-title">Печать</h3>
       <div className="row-actions" aria-label="Печать документов">
         {DOCS.map((d) => (

@@ -1,12 +1,13 @@
 // Разделы панели и их листы (спецификация §4.1). Первый лист раздела открывается по клику.
 import type { SheetName } from "@idk/shared/workbook/schema";
 
-export type SectionId = "requisites" | "reps" | "acts" | "materials" | "schemes" | "cables" | "kits" | "ojr";
+export type SectionId = "requisites" | "reps" | "acts" | "spec" | "materials" | "schemes" | "cables" | "kits" | "ojr";
 
 export const SECTIONS: readonly { id: SectionId; label: string; sheets: SheetName[] }[] = [
   { id: "requisites", label: "Реквизиты", sheets: ["Реквизиты"] },
   { id: "reps", label: "Представители", sheets: ["Представители"] },
   { id: "acts", label: "Акты", sheets: ["База актов", "Исполнительные схемы", "Материалы в актах", "ВОР"] },
+  { id: "spec", label: "Спецификация", sheets: ["Спецификация"] },
   { id: "materials", label: "Материалы", sheets: ["Материалы", "Документы качества"] },
   { id: "schemes", label: "Схемы", sheets: ["Исполнительные схемы"] },
   { id: "cables", label: "Кабельный журнал", sheets: ["Кабельный журнал", "Изоляция"] },

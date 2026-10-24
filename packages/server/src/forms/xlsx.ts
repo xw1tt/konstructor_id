@@ -5,15 +5,15 @@ import type { FormData } from "@idk/shared/forms/fields";
 import { openZip, writeZip, ZipError } from "../zip/zip.ts";
 import { FormError, xmlEscape, xmlUnescape } from "./docx.ts";
 
-const ROW = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g;
-const CELL = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+export const ROW = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g;
+export const CELL = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
 const LABEL = /\{([^{}]+)\}/g;
 const NUMERIC = /^-?\d+(?:[.,]\d+)?$/;
 
-const attr = (s: string, name: string) => s.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
+export const attr = (s: string, name: string) => s.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
 const setAttr = (s: string, name: string, v: string) =>
   new RegExp(`\\s${name}="`).test(s) ? s.replace(new RegExp(`\\s${name}="[^"]*"`), ` ${name}="${v}"`) : `${s} ${name}="${v}"`;
-const texts = (xml: string) => [...xml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => xmlUnescape(m[1])).join("");
+export const texts = (xml: string) => [...xml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => xmlUnescape(m[1])).join("");
 
 function openXlsx(buf: Uint8Array): Map<string, () => Buffer> {
   try {

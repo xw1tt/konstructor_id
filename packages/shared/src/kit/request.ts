@@ -132,11 +132,17 @@ export function buildKitRequest(
     if (!REGISTRY_KINDS.includes(kind)) continue;
     const act = txt(r.v.act);
     const own = kind === "Свой документ";
-    const ownCode = own ? withNo(txt(r.v.number)).replace(/^№/, "").slice(act.length + 1) : null;
+    // Номер своего документа: «№<акт>.<код>» (на акт) или «<код>» (на комплект, без акта).
+    const ownCode = own ? withNo(txt(r.v.number)).replace(/^№\s*/, "").slice(act ? act.length + 1 : 0) : null;
     const printed = PRINTED_KINDS[kind];
     let file: FileRef | null = null;
-    if (own && !formOf(null, ownCode)) c.push("РеестрИД", r.row, H("РеестрИД", "kind"), `Своего документа «${ownCode}» нет в шаблоне или у него нет формы`);
-    if (printed || own) {
+    // Скан из шаблона (план 12): нужен файл, форма — нет; конструктор его не печатает.
+    const scan = own && !!tpl?.docs.some((x) => x.kind === "custom" && x.scan && x.code.toUpperCase() === (ownCode ?? "").toUpperCase());
+    if (own && !scan && !formOf(null, ownCode)) c.push("РеестрИД", r.row, H("РеестрИД", "kind"), `Своего документа «${ownCode}» нет в шаблоне или у него нет формы`);
+    if (scan) {
+      file = fileOf(r);
+      if (!file) c.push("РеестрИД", r.row, H("РеестрИД", "file"), "Нет скана: укажите файл в столбце «Скан»");
+    } else if (printed || own) {
       if (!act) c.push("РеестрИД", r.row, H("РеестрИД", "act"), `Укажите акт: документ «${kind}» печатает конструктор`);
       else if (!acts.includes(act)) c.push("РеестрИД", r.row, H("РеестрИД", "act"), `Акт «${act}» не входит в комплект «${kit}»`);
       else (needs.get(act) ?? needs.set(act, new Set()).get(act)!).add(printed ?? "aosr");
@@ -149,7 +155,7 @@ export function buildKitRequest(
       row: r.row, kind, number: txt(r.v.number), name: txt(r.v.name), date: txt(r.v.date),
       copies: Math.max(0, Math.round((v.copies as number | null) ?? 1)), code: txt(r.v.code),
       sheets: sheets.ok && sheets.value !== null ? Math.max(0, Math.round(sheets.value)) : null,
-      doc: (printed || own) && act ? docRef(act, printed ?? null, ownCode) : null, file,
+      doc: (printed || own) && !scan && act ? docRef(act, printed ?? null, ownCode) : null, file,
     });
   }
 

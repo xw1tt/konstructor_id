@@ -10,7 +10,9 @@ import { QUALITY_DOC_LABELS, type QualityDocType } from "../roles.ts";
 import { docNumber, formatDateShort, withNo } from "../acts/format.ts";
 import { avkDefaultNumber, rimDocDate, rimDocName, rimDocOrder } from "../acts/rows.ts";
 import type { PrintKind } from "../acts/schemas.ts";
-import type { UserTemplate } from "../forms/template.ts";
+import type { TemplateDoc, UserTemplate } from "../forms/template.ts";
+import type { Catalog } from "../catalog/model.ts";
+import { actDocs, kitDocs } from "../catalog/need.ts";
 
 export const KJ_NAME = "Кабельный журнал";
 export const PROTOCOL_NAME = "Протокол проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин";
@@ -71,12 +73,16 @@ function qualityDocs(book: Book): { docs: QualityDoc[]; rowOf: Map<number, BookR
   return { docs, rowOf, matId };
 }
 
-/** Строки реестра комплекта по актам (порядок образца СБД). */
-/** Строки реестра комплекта из актов. Шаблон пользователя: встроенные документы — только входящие в шаблон,
- *  свои документы — после АОСР/РИМ/ВД акта, в порядке шаблона. Без шаблона — все встроенные (как «СБД»). */
-export function registryRows(book: Book, kit: string, template?: UserTemplate): { rows: RegistryRecord[]; issues: Issue[] } {
-  const inTpl = (k: PrintKind) => !template || template.docs.some((d) => d.kind === "builtin" && d.doc === k);
-  const custom = (template?.docs ?? []).flatMap((d) => (d.kind === "custom" && d.form ? [d] : []));
+/** Строки реестра комплекта из актов (порядок образца СБД). Шаблон пользователя: встроенные документы — только
+ *  входящие в шаблон, свои (форма или скан) — после АОСР/РИМ/ВД акта, в порядке шаблона. Без шаблона — все встроенные
+ *  (как «СБД»). Со справочником (план 12) — документы акта по его «Виду работ» (actDocs), документы «на комплект» —
+ *  одной строкой «<код>» без акта в конце блока комплекта (kitDocs). */
+export function registryRows(book: Book, kit: string, template?: UserTemplate, catalog?: Catalog): { rows: RegistryRecord[]; issues: Issue[] } {
+  const own = (d: TemplateDoc): d is Extract<TemplateDoc, { kind: "custom" }> => d.kind === "custom" && (!!d.form || !!d.scan);
+  const onKit = (d: TemplateDoc) => d.kind === "custom" && d.scope === "kit";
+  /** Документы шаблона, нужные акту (без справочника — все документы шаблона). */
+  const docsOf = (act: string): TemplateDoc[] | null =>
+    !template ? null : catalog ? actDocs(template, catalog, book, act).docs : template.docs.filter((d) => !onKit(d));
   const issues: Issue[] = [];
   const rows = (t: TableName) => book.tables[t] ?? [];
   const { kitRow, acts } = kitActs(book, kit);
@@ -107,6 +113,9 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate): 
       issues.push({ table: "АктыКомплектов", row: null, column: "Акт", message: `Акт «${n}» не найден на листе «База актов»` });
       continue;
     }
+    const need = docsOf(n);
+    const inTpl = (k: PrintKind) => !need || need.some((d) => d.kind === "builtin" && d.doc === k);
+    const custom = (need ?? []).filter(own);
     const of = (t: TableName) => rows(t).filter((r) => txt(r.v.act) === n);
     const code = txt(act.v.section);
     const date = short(act.v.date);
@@ -156,6 +165,12 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate): 
       seenDocs.add(d.id);
       add("Документ качества", n, withNo(d.number), `${QUALITY_DOC_LABELS[d.type]}: ${rimDocName(d, ams, materials)}`, rimDocDate(d), code, rowOf.get(d.id));
     }
+  }
+  // Документы «на комплект» (скан свидетельства и т. п.) — одна строка на комплект, номер — код документа.
+  if (template) {
+    const kitLevel = (catalog ? kitDocs(template, catalog, book, acts) : template.docs.filter(onKit)).filter(own);
+    const code = txt(kitRow.v.section) || txt(rows("Акты").find((r) => txt(r.v.baseNumber) === acts[0])?.v.section ?? null);
+    for (const d of kitLevel) add("Свой документ", "", d.code, d.name, "", code);
   }
   return { rows: out, issues };
 }

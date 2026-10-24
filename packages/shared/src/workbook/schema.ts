@@ -2,9 +2,10 @@
 // карточек, проверок и сборки пакета акта. Заголовки — буква в букву как в спецификации §3.
 import { HELP, OBJECT_HELP } from "./help.ts";
 import type { CellValue } from "./values.ts";
+import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -12,12 +13,16 @@ export type TableName =
   | "Объект" | "Организации" | "Шифры" | "Представители" | "Материалы" | "ДокументыКачества"
   | "Акты" | "Схемы" | "МатериалыАктов" | "ВОР" | "КабельныйЖурнал"
   | "Электролаборатория" | "СредстваИзмерений" | "ИзмеренияМарок" | "ДокументыКабелей"
-  | "Комплекты" | "АктыКомплектов" | "РеестрИД" | "ОЖР3" | "ОЖР5" | "Спецификация";
+  | "Комплекты" | "АктыКомплектов" | "РеестрИД" | "ОЖР3" | "ОЖР5" | "Спецификация"
+  | "Протоколы" | "ПереченьОборудования" | "ИспытанияКЛ" | "ЗамерыАвтоматов" | "ЗамерыУЗО" | "ЗамерыФазаНуль"
+  | "ЗамерыМеталлосвязи" | "ЗамерыЗаземления" | "ОсмотрБарабанов" | "ПрогревБарабанов" | "ТрубныеПроводки"
+  | "ЗамерыВолокон" | "ЗамерыСКС";
 
 export type SheetName =
   | "Реквизиты" | "Представители" | "Материалы" | "Документы качества" | "База актов"
   | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Изоляция" | "Комплекты" | "Реестр ИД"
-  | "ОЖР Раздел 3" | "ОЖР Раздел 5" | "Спецификация";
+  | "ОЖР Раздел 3" | "ОЖР Раздел 5" | "Спецификация"
+  | "Протоколы и акты" | "Замеры электрики" | "Барабаны и трубы" | "Замеры СКС и ВОЛС";
 
 export interface ColumnDef {
   key: string;
@@ -68,7 +73,7 @@ export function docTypeFromBook(label: string): QualityDocType | null {
 export const SCHEME_KINDS = ["Схема", "Прочее"] as const;
 
 /** Виды строк реестра ИД: документы, которые печатает конструктор (по акту), и сканы. */
-export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Свой документ", "Прочее"] as const;
+export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Свой документ", "Акт/протокол", "Прочее"] as const;
 export type RegistryKind = (typeof REGISTRY_KINDS)[number];
 export const YES_NO = ["да", "нет"] as const;
 /** Источник позиции спецификации; пометка позиции, пропавшей из нового РКЦ. */
@@ -107,6 +112,10 @@ const imp = { important: true };
 
 const t = (name: TableName, sheet: SheetName, columns: ColumnDef[], extra: Partial<TableDef> = {}): TableDef =>
   ({ name, sheet, columns, ...extra });
+/** Первый столбец таблиц строк протоколов и актов (план 13); новый объект на таблицу — подсказки пишутся в столбец. */
+const protoRef = () => c("doc", "№ документа", "ref", { ...imp, ref: "Протоколы", width: 16 });
+/** Результат строки с правилом (protocols/result.ts): пусто — вычисляется. */
+const resultCol = () => c("result", "Результат", "text", { width: 16 });
 
 export const TABLES: Record<TableName, TableDef> = {
   "Объект": t("Объект", "Реквизиты", [
@@ -318,6 +327,92 @@ export const TABLES: Record<TableName, TableDef> = {
     c("signed", "Дата подписания и подписавшие", "longtext", { ...imp, width: 50 }),
     c("act", "Акт", "ref", { service: true, ref: "Акты", width: 26 }),
   ]),
+  // План 13: протоколы испытаний и акты приёмки — шапка документа и строки по видам документов.
+  "Протоколы": t("Протоколы", "Протоколы и акты", [
+    c("doc", "Документ", "enum", { ...imp, values: PROTO_KINDS.map((k) => PROTO_DEFS[k].code), width: 10 }),
+    c("number", "№ документа", "text", { ...imp, isKey: true, width: 16 }),
+    c("act", "Акт", "ref", { ref: "Акты", width: 24 }),
+    c("kit", "Комплект", "ref", { ref: "Комплекты", width: 10 }),
+    c("dateFrom", "Дата / начало", "date", imp),
+    c("dateTo", "Окончание", "date"),
+    c("subject", "Предмет (что проверено)", "longtext", { width: 40 }),
+    c("temperature", "Температура, °C", "number", { default: 20 }),
+    c("humidity", "Влажность, %", "number", { default: 60 }),
+    c("pressure", "Давление, мм рт. ст.", "number", { default: 750 }),
+    c("purpose", "Цель", "text", { default: "приемо-сдаточные", width: 18 }),
+    c("normative", "Нормативы", "longtext", { width: 34 }),
+    c("conclusion", "Заключение", "longtext", { width: 40 }),
+  ]),
+  "ПереченьОборудования": t("ПереченьОборудования", "Протоколы и акты", [
+    protoRef(), c("name", "Наименование оборудования, системы", "text", { ...imp, width: 50 }), c("type", "Тип, марка", "text", { width: 24 }),
+    c("unit", "Ед. изм.", "text"), c("qty", "Кол-во", "number"), c("note", "Примечание (результат)", "text", { width: 30 }),
+  ]),
+  "ИспытанияКЛ": t("ИспытанияКЛ", "Замеры электрики", [
+    protoRef(), c("line", "Линия", "text", { ...imp, width: 20 }), c("mark", "Марка кабеля", "text", { width: 26 }), c("length", "Длина, м", "number"),
+    c("riBefore", "R изоляции до, МОм", "text"), c("voltage", "Испытательное напряжение, кВ", "number", imp),
+    c("duration", "Время, мин", "number", { default: 10 }), c("leakage", "Ток утечки, мА", "text"), c("riAfter", "R изоляции после, МОм", "text"),
+    c("result", "Результат", "text", { ...imp, width: 16 }),
+  ]),
+  "ЗамерыАвтоматов": t("ЗамерыАвтоматов", "Замеры электрики", [
+    protoRef(), c("board", "Щит", "text", { ...imp, width: 14 }), c("line", "Обозначение по проекту", "text", { ...imp, width: 16 }),
+    c("type", "Тип аппарата", "text", { ...imp, width: 20 }), c("rated", "Iн, А", "number", imp), c("testCurrent", "Ток проверки, А", "number"),
+    c("tripNorm", "Время срабатывания по ТУ, с", "text"), c("tripFact", "Время срабатывания факт., с", "number", imp), resultCol(),
+  ]),
+  "ЗамерыУЗО": t("ЗамерыУЗО", "Замеры электрики", [
+    protoRef(), c("board", "Щит", "text", { ...imp, width: 14 }), c("line", "Обозначение по проекту", "text", { ...imp, width: 16 }),
+    c("type", "Тип УЗО (АВДТ)", "text", { ...imp, width: 20 }), c("rated", "Iн, А", "number"), c("diffRated", "IΔн, мА", "number", imp),
+    c("diffFact", "Ток срабатывания факт., мА", "number", imp), c("timeFact", "Время отключения факт., мс", "number"),
+    c("timeNorm", "Время отключения норм., мс", "number", { default: 300 }), resultCol(),
+  ]),
+  "ЗамерыФазаНуль": t("ЗамерыФазаНуль", "Замеры электрики", [
+    protoRef(), c("board", "Щит", "text", { ...imp, width: 14 }), c("line", "Обозначение по проекту", "text", { ...imp, width: 16 }),
+    c("device", "Аппарат защиты", "text", { ...imp, width: 20 }), c("rated", "Iн, А", "number", imp),
+    c("curve", "Характеристика", "enum", { values: ["B", "C", "D", "—"] }), c("zloop", "Zп, Ом", "number", imp),
+    c("ikz", "Iкз, А", "number"), c("itrip", "Ток срабатывания, А", "number"), resultCol(),
+  ]),
+  "ЗамерыМеталлосвязи": t("ЗамерыМеталлосвязи", "Замеры электрики", [
+    protoRef(), c("element", "Проверяемый элемент", "text", { ...imp, width: 34 }), c("place", "Место / к чему присоединён", "text", { width: 30 }),
+    c("resistance", "Сопротивление, Ом", "number", imp), c("allowed", "Допустимое, Ом", "number", { default: 0.05 }), resultCol(),
+  ]),
+  "ЗамерыЗаземления": t("ЗамерыЗаземления", "Замеры электрики", [
+    protoRef(), c("device", "Заземляющее устройство", "text", { ...imp, width: 30 }), c("place", "Место измерения", "text", { width: 24 }),
+    c("measured", "Сопротивление измеренное, Ом", "number", imp), c("season", "Сезонный коэффициент", "number", { default: 1 }),
+    c("allowed", "Допустимое, Ом", "number", { default: 4 }), resultCol(),
+  ]),
+  "ОсмотрБарабанов": t("ОсмотрБарабанов", "Барабаны и трубы", [
+    protoRef(), c("drum", "№ барабана", "text", { ...imp, width: 12 }), c("mark", "Марка кабеля", "text", { ...imp, width: 26 }),
+    c("length", "Длина, м", "number"), c("maker", "Завод-изготовитель", "text", { width: 20 }), c("made", "Дата изготовления", "text"),
+    c("drumState", "Состояние барабана", "text", { default: "без повреждений", width: 18 }),
+    c("cableState", "Наружный осмотр кабеля", "text", { default: "повреждений нет", width: 18 }),
+    c("ends", "Концы кабеля", "text", { default: "загерметизированы", width: 18 }),
+    c("result", "Заключение по барабану", "text", { ...imp, width: 18 }),
+  ]),
+  "ПрогревБарабанов": t("ПрогревБарабанов", "Барабаны и трубы", [
+    protoRef(), c("drum", "№ барабана", "text", { ...imp, width: 12 }), c("mark", "Марка кабеля", "text", { ...imp, width: 26 }),
+    c("length", "Длина, м", "number"), c("airTemp", "Температура воздуха, °C", "number", imp),
+    c("method", "Способ прогрева", "text", { default: "в обогреваемом помещении", width: 22 }),
+    c("start", "Начало прогрева", "text", { ...imp, width: 16 }), c("end", "Окончание прогрева", "text", { ...imp, width: 16 }),
+    c("cableTemp", "Температура кабеля после прогрева, °C", "number", imp), c("layEnd", "Прокладка окончена", "text", { width: 16 }),
+    c("note", "Примечание", "text", { width: 20 }),
+  ]),
+  "ТрубныеПроводки": t("ТрубныеПроводки", "Барабаны и трубы", [
+    protoRef(), c("line", "Обозначение проводки", "text", { ...imp, width: 16 }), c("medium", "Среда", "text"),
+    c("material", "Материал, диаметр", "text", { width: 18 }), c("workP", "Рабочее давление, МПа", "number"),
+    c("testP", "Давление на прочность, МПа", "number", imp), c("holdStr", "Выдержка на прочность, мин", "number", { default: 5 }),
+    c("densP", "Давление на плотность, МПа", "number"), c("holdDens", "Выдержка на плотность, мин", "number"),
+    c("drop", "Падение давления, %", "number"), c("result", "Результат", "text", { ...imp, width: 16 }),
+  ]),
+  "ЗамерыВолокон": t("ЗамерыВолокон", "Замеры СКС и ВОЛС", [
+    protoRef(), c("cable", "Кабель / № барабана", "text", { ...imp, width: 18 }), c("mark", "Марка кабеля", "text", { width: 24 }),
+    c("length", "Строительная длина, м", "number"), c("fiber", "№ волокна", "text", imp),
+    c("wave", "Длина волны, нм", "number", { default: 1550 }), c("att", "Затухание, дБ/км", "number", imp), c("norm", "Норма, дБ/км", "number"), resultCol(),
+  ]),
+  "ЗамерыСКС": t("ЗамерыСКС", "Замеры СКС и ВОЛС", [
+    protoRef(), c("link", "Линия (порт)", "text", { ...imp, width: 14 }), c("panel", "Шкаф, панель, порт", "text", { width: 18 }),
+    c("outlet", "Розетка", "text", { width: 14 }), c("cat", "Категория", "text", { default: "5e" }), c("length", "Длина, м", "number", imp),
+    c("wiremap", "Схема разводки", "text", imp), c("next", "Запас NEXT, дБ", "number"), c("il", "Запас затухания, дБ", "number"),
+    c("rl", "Запас возвратных потерь, дБ", "number"), resultCol(),
+  ]),
 };
 
 export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
@@ -336,6 +431,10 @@ export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
   { name: "Реестр ИД", tables: ["РеестрИД"] },
   { name: "ОЖР Раздел 3", tables: ["ОЖР3"] },
   { name: "ОЖР Раздел 5", tables: ["ОЖР5"] },
+  { name: "Протоколы и акты", tables: ["Протоколы", "ПереченьОборудования"] },
+  { name: "Замеры электрики", tables: ["ИспытанияКЛ", "ЗамерыАвтоматов", "ЗамерыУЗО", "ЗамерыФазаНуль", "ЗамерыМеталлосвязи", "ЗамерыЗаземления"] },
+  { name: "Барабаны и трубы", tables: ["ОсмотрБарабанов", "ПрогревБарабанов", "ТрубныеПроводки"] },
+  { name: "Замеры СКС и ВОЛС", tables: ["ЗамерыВолокон", "ЗамерыСКС"] },
 ];
 
 export const TABLE_NAMES = Object.keys(TABLES) as TableName[];

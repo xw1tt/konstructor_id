@@ -19,7 +19,7 @@ export const saveUserCatalog = (u: UserCatalog) => apiSend<UserCatalog>("PUT", "
 /** Справочник в панели; null — ещё не загружен с сервера (полнота не считается). */
 export const CatalogContext = createContext<Catalog | null>(null);
 
-const STATUS: Record<Status, string> = { print: "печатается", scan: "скан есть", noScan: "нет скана", noForm: "нет формы" };
+const STATUS: Record<Status, string> = { print: "печатается", scan: "скан есть", noScan: "нет скана", noForm: "нет формы", noData: "нет данных" };
 
 /** «печатается: АОСР», «нет скана: Протокол испытания кабеля»… */
 export const statusText = (s: Status, label: string): string => `${STATUS[s]}: ${label}`;

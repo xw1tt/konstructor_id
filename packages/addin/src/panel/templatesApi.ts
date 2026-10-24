@@ -1,13 +1,17 @@
 // Шаблоны пользователя в панели: запросы к серверу, кнопки печати по шаблону, выбор шаблона книги.
 import { BUILTIN_SBD, BUILTIN_DOC_LABELS, type UserTemplate, type TemplateDoc, type FormRef } from "@idk/shared/forms/template";
 import type { PrintKind } from "@idk/shared/acts/schemas";
+import { PROTO_DEFS, isProtoKind } from "@idk/shared/protocols/defs";
 import { apiGet, apiSend } from "../api.ts";
 
 export interface TemplateButton { key: string; label: string; doc: PrintKind | null; code: string | null; form: boolean }
 
-/** Кнопки печати карточки акта в порядке шаблона; свой документ без формы не печатается. */
-export function templateButtons(t: UserTemplate): TemplateButton[] {
-  return t.docs.flatMap((d): TemplateButton[] => d.kind === "builtin"
+/** Кнопки печати шаблона: в карточке акта (scope "act") — документы на акт; в карточке комплекта ("kit") — протоколы и
+ *  акты плана 13 «на комплект». Порядок — порядок шаблона; свой документ без формы не печатается. */
+
+export function templateButtons(t: UserTemplate, scope: "act" | "kit" = "act"): TemplateButton[] {
+  const onKit = (d: UserTemplate["docs"][number]) => d.kind === "builtin" && isProtoKind(d.doc) && PROTO_DEFS[d.doc].scope === "kit";
+  return t.docs.filter((d) => (scope === "kit" ? onKit(d) : !onKit(d))).flatMap((d): TemplateButton[] => d.kind === "builtin"
     ? [{ key: d.doc, label: BUILTIN_DOC_LABELS[d.doc], doc: d.doc, code: null, form: !!d.form }]
     : d.form ? [{ key: d.code, label: d.name, doc: null, code: d.code, form: true }] : []);
 }

@@ -11,6 +11,7 @@ import { cellText, parseDateCell, parseNumberCell, splitRefs, type CellValue } f
 import type { Book, BookRow } from "./records.ts";
 import type { ImportantMap } from "./important.ts";
 import { CablesData } from "./cableTypes.ts";
+import { ProtoData } from "../protocols/types.ts";
 import { avkDefaultNumber } from "../acts/rows.ts";
 
 export const ActBundle = z.object({
@@ -28,6 +29,8 @@ export const ActBundle = z.object({
   cables: CablesData.optional(),
   /** Номер и дата акта входного контроля (пусто в книге — по правилам avkDefaultNumber и дате начала работ). */
   avk: z.object({ number: z.string(), date: z.string().nullable() }).optional(),
+  /** Протокол испытаний или акт приёмки (план 13) — только в заданиях печати этих документов. */
+  proto: ProtoData.optional(),
 });
 export type ActBundle = z.infer<typeof ActBundle>;
 

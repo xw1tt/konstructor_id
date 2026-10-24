@@ -1,15 +1,17 @@
 // Шаблон пользователя: имя и документы; у документа форма встроенная (по образцу СБД) или своя (.docx/.xlsx с метками).
 import { z } from "zod";
-import { PRINT_KINDS, type PrintKind } from "../acts/schemas.ts";
+import { PRINT_KINDS, PROTO_KINDS, type PrintKind, type ProtoKind } from "../acts/schemas.ts";
+import { PROTO_DEFS } from "../protocols/defs.ts";
 import { PrintOptions } from "../templates.ts";
 
 export const SBD_ID = "sbd";
 
 export const BUILTIN_DOC_LABELS: Record<PrintKind, string> = {
   aosr: "АОСР", rim: "РИМ", vd: "ВД", vor: "ВОР", avk: "АВК", kj: "КЖ", ip: "Протокол",
+  ...(Object.fromEntries(PROTO_KINDS.map((k) => [k, PROTO_DEFS[k].code])) as Record<ProtoKind, string>),
 };
 /** Коды, занятые встроенными документами (номера и виды реестра). */
-const RESERVED = ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ИП"];
+const RESERVED = ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ИП", ...PROTO_KINDS.map((k) => PROTO_DEFS[k].code)];
 
 export const FormRef = z.object({ file: z.string().min(1), type: z.enum(["docx", "xlsx"]), original: z.string().default("") });
 export type FormRef = z.infer<typeof FormRef>;
@@ -54,3 +56,19 @@ export function validateTemplate(t: UserTemplate): string[] {
 
 /** Подпись документа шаблона (кнопка печати, реестр). */
 export const docLabel = (d: TemplateDoc) => (d.kind === "builtin" ? BUILTIN_DOC_LABELS[d.doc] : d.name);
+
+/**
+ * Шаблон плана 12 → план 13: свой документ с кодом одного из 16 протоколов и актов (скан или своя форма) становится
+ * встроенным; форма пользователя и виды работ сохраняются. Встроенный уже есть — свой удаляется.
+ */
+export function upgradeTemplate(t: UserTemplate): UserTemplate {
+  const docs: TemplateDoc[] = [];
+  for (const d of t.docs) {
+    if (d.kind !== "custom") { docs.push(d); continue; }
+    const kind = PROTO_KINDS.find((k) => PROTO_DEFS[k].code.toUpperCase() === (d.catalog ?? d.code).trim().toUpperCase());
+    if (!kind) { docs.push(d); continue; }
+    if (t.docs.some((x) => x.kind === "builtin" && x.doc === kind) || docs.some((x) => x.kind === "builtin" && x.doc === kind)) continue;
+    docs.push({ kind: "builtin", doc: kind, form: d.form, ...(d.catalog ? { catalog: d.catalog } : {}), ...(d.works ? { works: d.works } : {}) });
+  }
+  return docs.length === t.docs.length && docs.every((d, i) => d === t.docs[i]) ? t : { ...t, docs };
+}

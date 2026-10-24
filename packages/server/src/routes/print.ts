@@ -9,6 +9,8 @@ import { ActBundle } from "@idk/shared/workbook/bundle";
 import { DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { buildDocDataFromBundle, buildAvkData } from "../print/fromBundle.ts";
 import { avkHtml } from "../print/templates/avk.ts";
+import { protoHtml } from "../print/templates/proto.ts";
+import { isProtoKind } from "@idk/shared/protocols/defs";
 import { renderHtml, renderCableHtml } from "../print/templates/index.ts";
 import { cableDocData } from "../print/cableData.ts";
 import { htmlToPdf } from "../print/browser.ts";
@@ -55,7 +57,11 @@ export async function renderBundlePdf(b: ActBundle, kind: PrintKind, _template: 
   Promise<{ pdf: Buffer; name: string }> {
   // Шаблон пока один (СБД); код передаётся сюда для будущих форм других заказчиков.
   let html: string, name: string;
-  if (kind === "avk") {
+  if (isProtoKind(kind)) {
+    if (b.proto?.kind !== kind) throw new HttpError(400, "В пакете нет данных документа " + kind);
+    html = protoHtml(b);
+    name = `${b.proto.code} №${b.proto.number}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
+  } else if (kind === "avk") {
     const d = buildAvkData(b);
     html = avkHtml(d);
     name = `АВК ${d.number}.pdf`.replace(/[\\/:*?"<>|]/g, "_");

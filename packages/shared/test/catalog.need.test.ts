@@ -46,7 +46,7 @@ const book = (acts: Record<string, CellValue>[], registry: Record<string, CellVa
 });
 const labels = (docs: UT["docs"]) => docs.map(docLabel);
 
-test("схема книги — версия 8", () => assert.equal(SCHEMA_VERSION, 8));
+test("схема книги — версия 9 (план 13)", () => assert.equal(SCHEMA_VERSION, 9));
 
 test("акт с двумя видами работ получает документы обоих без дублей; документ «на комплект» — не в акте", () => {
   const b = book([{ baseNumber: "1", workKinds: "Прокладка кабельных линий; Монтаж кабельных лотков" }]);

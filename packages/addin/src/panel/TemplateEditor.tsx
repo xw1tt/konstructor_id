@@ -3,6 +3,7 @@
 import { useContext, useState } from "react";
 import { BUILTIN_SBD, BUILTIN_DOC_LABELS, SBD_ID, docLabel, validateTemplate, type TemplateDoc, type UserTemplate } from "@idk/shared/forms/template";
 import { PRINT_KINDS, type PrintKind } from "@idk/shared/acts/schemas";
+import { isProtoKind } from "@idk/shared/protocols/defs";
 import { cellText } from "@idk/shared/workbook/values";
 import { apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
@@ -181,6 +182,9 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                 <label className="btn">Загрузить форму<input type="file" accept=".docx,.xlsx" hidden onChange={(e) => { void setForm(i, e.target.files?.[0]); e.target.value = ""; }} /></label>
                 <label className="btn">По образцу<input type="file" accept=".docx,.xlsx" hidden onChange={(e) => { void startMarkup(i, e.target.files?.[0]); e.target.value = ""; }} /></label>
                 {d.form && <a className="btn" href={`/api/templates/${t.id}/forms/${d.form.file}`} download={d.form.original || undefined}>Скачать форму</a>}
+                {d.kind === "builtin" && isProtoKind(d.doc) && (
+                  <a className="btn" href={`/api/forms/sample/${d.doc}`} download title="Форма с метками — откройте в Word, поправьте и загрузите кнопкой «Загрузить форму»">Образец .docx</a>
+                )}
                 {d.form && d.kind === "builtin" && <button className="btn" onClick={() => void save(t.docs.map((x, k) => (k === i ? { ...x, form: null } : x)))}>Встроенная</button>}
                 <button className="btn btn-danger" onClick={() => setConfirm({ text: `Убрать «${docLabel(d)}» из шаблона${d.form ? " вместе с его формой" : ""}?`, run: () => void save(t.docs.filter((_, k) => k !== i)) })}>Убрать</button>
               </div>

@@ -13,6 +13,8 @@ import type { PrintKind } from "../acts/schemas.ts";
 import type { TemplateDoc, UserTemplate } from "../forms/template.ts";
 import type { Catalog } from "../catalog/model.ts";
 import { actDocs, kitDocs } from "../catalog/need.ts";
+import { PROTO_DEFS, PROTO_KINDS } from "../protocols/defs.ts";
+import { findHeader } from "../protocols/find.ts";
 
 export const KJ_NAME = "Кабельный журнал";
 export const PROTOCOL_NAME = "Протокол проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин";
@@ -98,6 +100,18 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
   const out: RegistryRecord[] = [];
   const seenDocs = new Set<number>();
   let measuring = false;
+  /** Свидетельства о поверке и лаборатории — один раз на комплект, перед первым протоколом лаборатории. */
+  const addMeasuring = (code: string) => {
+    if (measuring) return;
+    measuring = true;
+    for (const i of rows("СредстваИзмерений"))
+      add("Поверка", "", withNo(txt(i.v.certificate)), `Свидетельство о поверке: ${txt(i.v.name)} ${txt(i.v.type)}`, period(i.v.checkedOn, i.v.nextCheck), code, i);
+    const lab = rows("Электролаборатория")[0];
+    if (lab) {
+      const p = labCertificateParts(txt(lab.v.certificate));
+      add("Лаборатория", "", p.number, LAB_NAME, p.date, code, lab);
+    }
+  };
   const add = (kind: RegistryKind, act: string, number: string, name: string, date: string, code: string, src?: BookRow, fileKey = "file") =>
     out.push({
       values: {
@@ -137,17 +151,17 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
       if (inTpl("kj")) add("КЖ", n, jc ? `№ ${jc}` : "", KJ_NAME, doc ? short(doc.v.journalDate) : "", code);
       if (doc && txt(doc.v.protocolNumber) && inTpl("ip")) {
         add("Протокол", n, withNo(txt(doc.v.protocolNumber)), PROTOCOL_NAME, period(doc.v.dateFrom, doc.v.dateTo), code);
-        if (!measuring) {
-          measuring = true;
-          for (const i of rows("СредстваИзмерений"))
-            add("Поверка", "", withNo(txt(i.v.certificate)), `Свидетельство о поверке: ${txt(i.v.name)} ${txt(i.v.type)}`, period(i.v.checkedOn, i.v.nextCheck), code, i);
-          const lab = rows("Электролаборатория")[0];
-          if (lab) {
-            const p = labCertificateParts(txt(lab.v.certificate));
-            add("Лаборатория", "", p.number, LAB_NAME, p.date, code, lab);
-          }
-        }
+        addMeasuring(code);
       }
+    }
+    // Протоколы и акты плана 13 «на акт» — после протокола изоляции; лабораторные — с поверками и свидетельством.
+    for (const k of PROTO_KINDS) {
+      const def = PROTO_DEFS[k];
+      if (def.scope !== "act" || !inTpl(k)) continue;
+      const h = findHeader(book, def.code, { act: n });
+      if (!h) continue;
+      if (def.signer === "lab") addMeasuring(code);
+      add("Акт/протокол", n, withNo(txt(h.v.number)), def.name, period(h.v.dateFrom, h.v.dateTo), code);
     }
     // Акт входного контроля материалов акта — перед их документами качества (как в образце СБД).
     if (actMats.length && inTpl("avk")) {
@@ -167,10 +181,17 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
     }
   }
   // Документы «на комплект» (скан свидетельства и т. п.) — одна строка на комплект, номер — код документа.
-  if (template) {
-    const kitLevel = (catalog ? kitDocs(template, catalog, book, acts) : template.docs.filter(onKit)).filter(own);
-    const code = txt(kitRow.v.section) || txt(rows("Акты").find((r) => txt(r.v.baseNumber) === acts[0])?.v.section ?? null);
-    for (const d of kitLevel) add("Свой документ", "", d.code, d.name, "", code);
+  const kitCode = txt(kitRow.v.section) || txt(rows("Акты").find((r) => txt(r.v.baseNumber) === acts[0])?.v.section ?? null);
+  const kitLevel = !template ? null : catalog ? kitDocs(template, catalog, book, acts) : template.docs;
+  if (kitLevel) for (const d of kitLevel.filter(own).filter(onKit)) add("Свой документ", "", d.code, d.name, "", kitCode);
+  // Протоколы и акты плана 13 «на комплект» — по шапке комплекта (или акта комплекта), одна строка на документ.
+  for (const k of PROTO_KINDS) {
+    const def = PROTO_DEFS[k];
+    if (def.scope !== "kit" || (kitLevel && !kitLevel.some((d) => d.kind === "builtin" && d.doc === k))) continue;
+    const h = findHeader(book, def.code, { kit });
+    if (!h) continue;
+    if (def.signer === "lab") addMeasuring(kitCode);
+    add("Акт/протокол", "", withNo(txt(h.v.number)), def.name, period(h.v.dateFrom, h.v.dateTo), kitCode);
   }
   return { rows: out, issues };
 }

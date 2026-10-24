@@ -72,8 +72,13 @@ export function stampNumber(page: PDFPage, n: number, font: PDFFont) {
 export interface KitDeps { db: Db; dataDir: string; templates?: TemplateStore; runner?: OfficeRunner }
 
 /** PDF документа строки: своя форма шаблона или встроенная печать. */
+/** Пакет строки: протокол или акт плана 13 — из q.protos по номеру, иначе пакет акта. */
+const bundleOf = (q: KitRequest, row: KitRow) => (row.doc?.proto
+  ? q.protos.find((p) => p.proto?.number === row.doc!.proto)
+  : q.acts.find((a) => a.act.baseNumber === row.doc!.act));
+
 async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template: string): Promise<Buffer> {
-  const b = q.acts.find((a) => a.act.baseNumber === row.doc!.act)!;
+  const b = bundleOf(q, row)!;
   const f = row.doc!.form;
   if (f) {
     if (!deps.templates || !deps.runner) throw new Error("Печать своих форм недоступна");
@@ -95,7 +100,8 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
   const resolved = new Map<KitRow, ReturnType<typeof resolveScan>>();
   for (const row of q.rows) {
     if (row.doc) {
-      if (!q.acts.some((a) => a.act.baseNumber === row.doc!.act)) issues.push({ row: row.row, column: "Акт", message: `Нет данных акта «${row.doc.act}»` });
+      if (row.doc.proto && !bundleOf(q, row)) issues.push({ row: row.row, column: "Номер документа", message: `Нет данных документа «${row.doc.proto}»` });
+      else if (!row.doc.proto && !bundleOf(q, row)) issues.push({ row: row.row, column: "Акт", message: `Нет данных акта «${row.doc.act}»` });
       continue;
     }
     const r = resolveScan(row.file ?? { name: "", link: null }, ctx);

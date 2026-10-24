@@ -8,7 +8,9 @@ import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../templateContext.ts";
-import { issueLines, type IssueLine } from "../print.ts";
+import { issueLines, printAct, printForm, type IssueLine } from "../print.ts";
+import { templateButtons, type TemplateButton } from "../templatesApi.ts";
+import type { PrintKind } from "@idk/shared/acts/schemas";
 import { assembleKit, kitIssueLines, kitRegistryCount, previewUrl } from "../kit.ts";
 import { IssueList } from "./IssueList.tsx";
 import { kitShortage, type Status } from "@idk/shared/catalog/need";
@@ -31,7 +33,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
   const tpl = tplState.template;
   const options = useContext(PrintOptionsContext);
   const catalog = useContext(CatalogContext);
-  const [busy, setBusy] = useState<"fill" | "build" | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);
@@ -71,6 +73,24 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     }
   };
 
+  // Протоколы и акты плана 13 «на комплект»: печать по шапке комплекта в «Протоколах».
+  const print = async (b: TemplateButton) => {
+    setBusy(b.key);
+    setLines([]);
+    setNote(null);
+    const where = { kit };
+    if (b.form) {
+      const r = await guard(printForm(state.book!, "", state.important, tpl.id, b.key, b.doc, where), (m) => setNote({ text: m, error: true }));
+      if (r?.issues.length) await showIssues(r.issues);
+      if (r?.job?.warnings.length) setNote({ text: `${r.job.name}: ${r.job.warnings.join(". ")}`, error: true });
+    } else {
+      const issues = await guard(printAct(state.book!, "", state.important, b.doc as PrintKind, template, options, where), (m) => setNote({ text: m, error: true }));
+      if (issues?.length) await showIssues(issues);
+    }
+    setBusy(null);
+  };
+  const kitButtons = templateButtons(tpl, "kit");
+
   const build = async () => {
     setBusy("build");
     setLines([]);
@@ -100,6 +120,18 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
           {busy === "build" ? "Собираю…" : "Собрать комплект"}
         </button>
       </div>
+      {kitButtons.length > 0 && (
+        <>
+          <h3 className="tools-title">Документы комплекта</h3>
+          <div className="row-actions" aria-label="Печать документов комплекта">
+            {kitButtons.map((b) => (
+              <button key={b.key} className="btn" disabled={busy !== null} onClick={() => void print(b)} title={b.form ? "По своей форме шаблона" : undefined}>
+                {busy === b.key ? "Готовлю…" : b.label}{b.form ? " ✎" : ""}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {confirm && (
         <div className="confirm" role="alertdialog" aria-label="Заполнение реестра">
           <p>Строки комплекта {kit} в реестре ({count}) будут заменены строками из актов; ручные правки этих строк пропадут.</p>

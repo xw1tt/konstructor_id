@@ -5,6 +5,7 @@ import { isExampleValue } from "@idk/shared/workbook/examples";
 import type { Book } from "@idk/shared/workbook/records";
 import type { ImportantMap } from "@idk/shared/workbook/important";
 import type { PrintOptions, TemplateCode } from "@idk/shared/templates";
+import type { UserTemplate } from "@idk/shared/forms/template";
 import { buildKitRequest } from "@idk/shared/kit/request";
 import type { Issue } from "@idk/shared/workbook/bundle";
 import { ServerUnavailableError } from "../api.ts";
@@ -44,8 +45,9 @@ export type KitOutcome =
   | { kind: "ok"; id: string; pages: number; name: string };
 
 /** Проверяет комплект в книге и отправляет задание сборки на сервер. */
-export async function assembleKit(book: Book, kit: string, important: ImportantMap, template: TemplateCode, options: PrintOptions): Promise<KitOutcome> {
-  const { request, issues } = buildKitRequest(book, kit, important, template, options);
+export async function assembleKit(book: Book, kit: string, important: ImportantMap, template: TemplateCode, options: PrintOptions,
+  tpl?: UserTemplate): Promise<KitOutcome> {
+  const { request, issues } = buildKitRequest(book, kit, important, template, options, new Date(), tpl);
   if (!request) return { kind: "issues", issues };
   let res: Response;
   try {

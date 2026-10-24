@@ -1,17 +1,16 @@
-// Шаблоны (формы документов заказчиков). Сейчас — только СБД; выбор хранится в настройках книги.
+// Шаблон книги: id шаблона (встроенный «sbd» или шаблон пользователя с сервера); выбор хранится в настройках книги.
+// Встроенные документы печатаются по формам СБД при любом шаблоне; свои формы — через /api/form-jobs.
 import { z } from "zod";
 import type { TableStore } from "./workbook/store.ts";
 
-export const TEMPLATES = [{ code: "sbd", label: "СБД" }] as const;
-export type TemplateCode = (typeof TEMPLATES)[number]["code"];
+export type TemplateCode = string;
 export const DEFAULT_TEMPLATE: TemplateCode = "sbd";
 const KEY = "idk.template";
 
-export const isTemplateCode = (s: string): s is TemplateCode => TEMPLATES.some((t) => t.code === s);
 
 export async function loadTemplate(store: TableStore): Promise<TemplateCode> {
   const v = await store.setting(KEY);
-  return v && isTemplateCode(v) ? v : DEFAULT_TEMPLATE;
+  return v?.trim() ? v.trim() : DEFAULT_TEMPLATE;
 }
 
 export async function saveTemplate(store: TableStore, code: TemplateCode): Promise<void> {

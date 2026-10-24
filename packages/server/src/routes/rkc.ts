@@ -11,7 +11,7 @@ export const RKC_TTL_MS = 30 * 60_000;
 const MAX_BOOKS = 3;
 const NOT_XLSX = "Это не файл Excel (.xlsx). Сохраните РКЦ в Excel как «Книга Excel (*.xlsx)»";
 
-async function readRaw(req: IncomingMessage, limit: number): Promise<Buffer> {
+export async function readRaw(req: IncomingMessage, limit: number): Promise<Buffer> {
   const parts: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {

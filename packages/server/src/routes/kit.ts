@@ -3,18 +3,18 @@ import { randomUUID } from "node:crypto";
 import { KitRequest } from "@idk/shared/kit/request";
 import type { Db } from "../db.ts";
 import { Router, Reply, HttpError } from "../http/router.ts";
-import { assembleKit } from "../kit/assemble.ts";
+import { assembleKit, type KitDeps } from "../kit/assemble.ts";
 
 /** Тело задания: пакеты нескольких актов — больше обычного предела 1 МБ. */
 export const KIT_JSON_LIMIT = 20 * 1024 * 1024;
 export const KIT_TTL_MS = 30 * 60_000;
 export const MAX_KITS = 5;
 
-export function kitRoutes(r: Router, db: Db, dataDir: string, now: () => number = Date.now) {
+export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDeps, "templates" | "runner"> = {}, now: () => number = Date.now) {
   const done = new Map<string, { pdf: Buffer; name: string; at: number }>();
   r.post("/api/kit-jobs", async (c) => {
     const q = await c.body(KitRequest, KIT_JSON_LIMIT);
-    const res = await assembleKit(q, { db, dataDir });
+    const res = await assembleKit(q, { db, dataDir, ...forms });
     if (!res.ok) return new Reply(422, { error: "Комплект не собран: исправьте ошибки", issues: res.issues });
     const id = randomUUID();
     done.set(id, { pdf: res.pdf, name: res.name, at: now() });

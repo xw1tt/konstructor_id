@@ -4,12 +4,15 @@ import { PDFDocument, StandardFonts, degrees, rgb, type PDFPage, type PDFFont } 
 import type { KitRequest, KitRow, FileRef } from "@idk/shared/kit/request";
 import { orgFullForm } from "@idk/shared/rules";
 import type { Organization } from "@idk/shared/schemas";
-import { isTemplateCode, DEFAULT_TEMPLATE } from "@idk/shared/templates";
+import { DEFAULT_TEMPLATE } from "@idk/shared/templates";
 import { renderBundlePdf } from "../routes/print.ts";
 import { htmlToPdf } from "../print/browser.ts";
 import { resolveScan, loadScan, type ScanContext } from "./files.ts";
 import { registryHtml, coverHtml, spineHtml, type RegistryLine } from "./templates.ts";
 import type { Db } from "../db.ts";
+import type { TemplateStore } from "../forms/store.ts";
+import { renderForm, type OfficeRunner } from "../forms/convert.ts";
+import { findDoc, docCode } from "../routes/formJobs.ts";
 
 export interface KitIssue { row: number | null; column: string; message: string }
 export type KitResult = { ok: true; pdf: Buffer; name: string; pages: number } | { ok: false; issues: KitIssue[] };
@@ -66,10 +69,27 @@ export function stampNumber(page: PDFPage, n: number, font: PDFFont) {
   page.drawText(text, { x: tx, y: ty, size, font, color: rgb(0, 0, 0), rotate: r });
 }
 
-export async function assembleKit(q: KitRequest, deps: { db: Db; dataDir: string }): Promise<KitResult> {
+export interface KitDeps { db: Db; dataDir: string; templates?: TemplateStore; runner?: OfficeRunner }
+
+/** PDF документа строки: своя форма шаблона или встроенная печать. */
+async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template: string): Promise<Buffer> {
+  const b = q.acts.find((a) => a.act.baseNumber === row.doc!.act)!;
+  const f = row.doc!.form;
+  if (f) {
+    if (!deps.templates || !deps.runner) throw new Error("Печать своих форм недоступна");
+    const t = deps.templates.get(f.template);
+    const d = findDoc(t.docs, f.doc);
+    if (!d?.form) throw new Error(`У документа «${f.doc}» нет своей формы в шаблоне «${t.name}»`);
+    const code = docCode(d);
+    return (await renderForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, code ? { code } : undefined, deps.runner)).pdf;
+  }
+  return (await renderBundlePdf(b, row.doc!.kind!, template, q.options)).pdf;
+}
+
+export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResult> {
   const ctx: ScanContext = { ...deps, scanFolder: q.scanFolder };
   const issues: KitIssue[] = [];
-  const template = isTemplateCode(q.template) ? q.template : DEFAULT_TEMPLATE;
+  const template = q.template || DEFAULT_TEMPLATE;
 
   // 1. Файлы и логотипы — все ошибки сразу, до печати.
   const resolved = new Map<KitRow, ReturnType<typeof resolveScan>>();
@@ -99,8 +119,7 @@ export async function assembleKit(q: KitRequest, deps: { db: Db; dataDir: string
     let doc: PDFDocument;
     try {
       if (row.doc) {
-        const b = q.acts.find((a) => a.act.baseNumber === row.doc!.act)!;
-        doc = await PDFDocument.load((await renderBundlePdf(b, row.doc.kind, template, q.options)).pdf);
+        doc = await PDFDocument.load(await rowPdf(q, row, deps, template));
       } else {
         doc = await loadScan(resolved.get(row) as { path: string; mime: "application/pdf" });
       }

@@ -4,7 +4,7 @@ import { HELP, OBJECT_HELP } from "./help.ts";
 import type { CellValue } from "./values.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -66,7 +66,7 @@ export function docTypeFromBook(label: string): QualityDocType | null {
 export const SCHEME_KINDS = ["Схема", "Прочее"] as const;
 
 /** Виды строк реестра ИД: документы, которые печатает конструктор (по акту), и сканы. */
-export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Прочее"] as const;
+export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Свой документ", "Прочее"] as const;
 export type RegistryKind = (typeof REGISTRY_KINDS)[number];
 export const YES_NO = ["да", "нет"] as const;
 /** Источник позиции спецификации; пометка позиции, пропавшей из нового РКЦ. */

@@ -6,15 +6,12 @@ import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { actSummary } from "./summaries.ts";
-import { TemplateContext, PrintOptionsContext } from "../templateContext.ts";
-import { issueLines, printAct, type IssueLine } from "../print.ts";
+import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../templateContext.ts";
+import { templateButtons, type TemplateButton } from "../templatesApi.ts";
+import { issueLines, printAct, printForm, type IssueLine } from "../print.ts";
 import { IssueList } from "./IssueList.tsx";
 import { unboundMaterials } from "@idk/shared/spec/closed";
 
-const DOCS: { kind: PrintKind; label: string }[] = [
-  { kind: "aosr", label: "АОСР" }, { kind: "rim", label: "РИМ" }, { kind: "vd", label: "ВД" }, { kind: "vor", label: "ВОР" },
-  { kind: "kj", label: "КЖ" }, { kind: "ip", label: "Протокол" }, { kind: "avk", label: "АВК" },
-];
 const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | "vor" }[] = [
   { table: "Схемы", label: "Схемы", key: "schemes" },
   { table: "МатериалыАктов", label: "Материалы", key: "materials" },
@@ -25,18 +22,28 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
   const guard = useGuard();
   const template = useContext(TemplateContext);
   const options = useContext(PrintOptionsContext);
-  const [busy, setBusy] = useState<PrintKind | null>(null);
+  const tpl = useContext(UserTemplateContext);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [made, setMade] = useState<{ id: string; name: string; warnings: string[] } | null>(null);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [error, setError] = useState("");
   if (!act || !state.book) return null;
   const sum = actSummary(state.book, act);
   const unbound = unboundMaterials(state.book, act);
 
-  const print = async (doc: PrintKind) => {
-    setBusy(doc);
+  const print = async (b: TemplateButton) => {
+    setBusy(b.key);
     setError("");
     setLines([]);
-    const issues = await guard(printAct(state.book!, act, state.important, doc, template, options), setError);
+    setMade(null);
+    let issues: Issue[] | undefined;
+    if (b.form) {
+      const r = await guard(printForm(state.book!, act, state.important, tpl.template.id, b.key, b.doc), setError);
+      issues = r?.issues;
+      if (r?.job) setMade(r.job);
+    } else {
+      issues = await guard(printAct(state.book!, act, state.important, b.doc as PrintKind, template, options), setError);
+    }
     if (issues?.length) {
       const tables = [...new Set(issues.map((i) => i.table))];
       const offsets: Partial<Record<TableName, number>> = {};
@@ -61,12 +68,19 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
       )}
       <h3 className="tools-title">Печать</h3>
       <div className="row-actions" aria-label="Печать документов">
-        {DOCS.map((d) => (
-          <button key={d.kind} className="btn" disabled={busy !== null} onClick={() => void print(d.kind)}>
-            {busy === d.kind ? "Готовлю…" : d.label}
+        {templateButtons(tpl.template).map((b) => (
+          <button key={b.key} className="btn" disabled={busy !== null} onClick={() => void print(b)} title={b.form ? "По своей форме шаблона" : undefined}>
+            {busy === b.key ? "Готовлю…" : b.label}{b.form ? " ✎" : ""}
           </button>
         ))}
       </div>
+      {tpl.warning && <p className="warn" role="status">{tpl.warning}</p>}
+      {made && (
+        <p className="notice" role="status">
+          {made.name}: <a href={`/api/form-jobs/${made.id}/source`} download>скачать файл для правки</a>
+          {made.warnings.length > 0 && <><br /><span className="warn">{made.warnings.join(". ")}</span></>}
+        </p>
+      )}
       <IssueList port={port} lines={lines} title="Перед печатью исправьте:" />
       {error && <p className="error" role="alert">{error}</p>}
     </div>

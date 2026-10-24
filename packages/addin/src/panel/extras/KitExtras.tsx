@@ -7,7 +7,7 @@ import { fillRegistry } from "@idk/shared/kit/registry";
 import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
-import { TemplateContext, PrintOptionsContext } from "../templateContext.ts";
+import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../templateContext.ts";
 import { issueLines, type IssueLine } from "../print.ts";
 import { assembleKit, kitIssueLines, kitRegistryCount, previewUrl } from "../kit.ts";
 import { IssueList } from "./IssueList.tsx";
@@ -25,6 +25,8 @@ function openPreview(url: string) {
 export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookState; kit: string }) {
   const guard = useGuard();
   const template = useContext(TemplateContext);
+  const tplState = useContext(UserTemplateContext);
+  const tpl = tplState.template;
   const options = useContext(PrintOptionsContext);
   const [busy, setBusy] = useState<"fill" | "build" | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -41,6 +43,11 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
   };
 
   const fill = async () => {
+    if (!tplState.ready) {
+      setNote({ text: "Шаблоны ещё не загружены с сервера — реестр заполнится по шаблону книги, когда сервер ответит. Попробуйте через несколько секунд.", error: true });
+      setConfirm(false);
+      return;
+    }
     setConfirm(false);
     setBusy("fill");
     setLines([]);
@@ -48,7 +55,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     try {
       // В отфильтрованной таблице вставка задела бы скрытые строки других комплектов.
       if (await port.isFiltered("РеестрИД")) await port.clearFilters("РеестрИД");
-      const r = await fillRegistry(port, state.book!, kit);
+      const r = await fillRegistry(port, state.book!, kit, tpl);
       if (r.issues.length) await showIssues(r.issues);
       else setNote({ text: `Реестр комплекта ${kit}: строк ${r.count}. Проверьте порядок и укажите сканы.` });
       state.refresh();
@@ -63,7 +70,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     setBusy("build");
     setLines([]);
     setNote(null);
-    const r = await guard(assembleKit(state.book!, kit, state.important, template, options), (m) => setNote({ text: m, error: true }));
+    const r = await guard(assembleKit(state.book!, kit, state.important, template, options, tpl), (m) => setNote({ text: m, error: true }));
     if (r?.kind === "issues") await showIssues(r.issues);
     if (r?.kind === "files") setLines(kitIssueLines(r.issues, await port.tableSheetOffset("РеестрИД").catch(() => undefined)));
     if (r?.kind === "ok") {

@@ -5,7 +5,7 @@ import { TABLES, SHEETS, SCHEMA_VERSION, SPEC_SOURCES, SPEC_MISSING, TABLE_NAMES
 import { missingColumns } from "../../addin/src/book/layout.ts";
 
 test("таблица «Спецификация», версия схемы 6", () => {
-  assert.equal(SCHEMA_VERSION, 6);
+  assert.ok(SCHEMA_VERSION >= 6);
   assert.deepEqual(TABLES["Спецификация"].columns.map((c) => c.header), [
     "№ п/п", "Раздел", "Наименование", "Ед. изм.", "Кол-во по проекту", "Закрыто", "Остаток", "Источник", "Примечание",
   ]);

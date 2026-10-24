@@ -6,7 +6,7 @@ import { CABLE_DOC_KINDS, PRINT_KINDS, type CableDocKind, type DocKind, type Pri
 import { docNumber } from "@idk/shared/acts/format";
 import { z } from "zod";
 import { ActBundle } from "@idk/shared/workbook/bundle";
-import { isTemplateCode, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
+import { DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { buildDocDataFromBundle, buildAvkData } from "../print/fromBundle.ts";
 import { avkHtml } from "../print/templates/avk.ts";
 import { renderHtml, renderCableHtml } from "../print/templates/index.ts";
@@ -20,7 +20,6 @@ interface PrintJob { bundle: ActBundle; template: TemplateCode; options: PrintOp
 
 const readRequest = (b: z.infer<typeof PrintRequest>): PrintJob => {
   const { template, options, ...bundle } = b;
-  if (!isTemplateCode(template)) throw new HttpError(400, "Неизвестный шаблон: " + template);
   return { bundle, template, options };
 };
 

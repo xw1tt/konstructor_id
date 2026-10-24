@@ -175,3 +175,12 @@ details.section > .body { padding-bottom: 12px; }
 .match-list { max-height: 320px; overflow-y: auto; }
 .match-list label { display: block; line-height: 1.35; }
 p.warn, ul.warn { display: block; padding: 6px 8px; font-size: 12px; }
+
+/* План 11: редактор шаблонов и поля. */
+.tpl-docs li { padding: 6px 0; border-bottom: 1px solid var(--line, #e5e5e5); }
+.field-row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.field-label { font-size: 12px; user-select: all; }
+.field-value { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.fields-group { margin-top: 8px; }
+a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
+.tpl-doc-title { display: block; margin-bottom: 4px; }

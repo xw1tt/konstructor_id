@@ -1,11 +1,12 @@
 // Верхняя строка панели: ⌂ (конструктор), «Норматив», «Помощник», «Шаблоны ▾», «Настройки», значки помощника.
 import { useEffect, useRef, useState } from "react";
-import { TEMPLATES, type TemplateCode } from "@idk/shared/templates";
+import type { TemplateCode } from "@idk/shared/templates";
+import type { UserTemplate } from "@idk/shared/forms/template";
 import { ASSISTANT_ICONS, type ScreenId } from "./screens.ts";
 import { AssistantIcon, ChevronIcon, GearIcon, GridIcon, HomeIcon } from "./icons.tsx";
 
-export function TopBar({ screen, onScreen, template, onTemplate }: {
-  screen: ScreenId; onScreen(s: ScreenId): void; template: TemplateCode; onTemplate(t: TemplateCode): void;
+export function TopBar({ screen, onScreen, template, templates, onTemplate }: {
+  screen: ScreenId; onScreen(s: ScreenId): void; template: TemplateCode; templates: UserTemplate[]; onTemplate(t: TemplateCode): void;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -33,14 +34,15 @@ export function TopBar({ screen, onScreen, template, onTemplate }: {
           </button>
           {open && (
             <ul className="tb-menu" role="menu" aria-label="Шаблон и настройки печати">
-              {TEMPLATES.map((t) => (
-                <li key={t.code} role="none">
-                  <button role="menuitemradio" aria-checked={t.code === template} onClick={() => { onTemplate(t.code); setOpen(false); }}>
-                    <span className="tb-check">{t.code === template ? "✓" : ""}</span>{t.label}
+              {templates.map((t) => (
+                <li key={t.id} role="none">
+                  <button role="menuitemradio" aria-checked={t.id === template} onClick={() => { onTemplate(t.id); setOpen(false); }}>
+                    <span className="tb-check">{t.id === template ? "✓" : ""}</span>{t.name}
                   </button>
                 </li>
               ))}
-              <li role="none"><button role="menuitem" disabled><span className="tb-check" />Другие заказчики — позже</button></li>
+              <li role="none"><button role="menuitem" onClick={() => { onScreen("templates"); setOpen(false); }}><span className="tb-check" />Редактор шаблонов…</button></li>
+              <li role="none"><button role="menuitem" onClick={() => { onScreen("fields"); setOpen(false); }}><span className="tb-check" />Поля для шаблона…</button></li>
             </ul>
           )}
         </div>

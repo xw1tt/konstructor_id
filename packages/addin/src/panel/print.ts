@@ -42,3 +42,21 @@ export async function printAct(book: Book, actNumber: string, important: Importa
   openPreview(previewJobUrl(id, doc, location.origin));
   return [];
 }
+
+export const previewFormUrl = (id: string, origin: string) =>
+  `${origin}/addin/preview.html?src=${encodeURIComponent(`/api/form-jobs/${id}`)}`;
+
+/** Пакет акта для своей формы: для КЖ/протокола — кабельный, иначе обычный. */
+export function bundleFor(book: Book, actNumber: string, important: ImportantMap, doc: PrintKind | null) {
+  return doc === "kj" || doc === "ip" ? buildCableBundle(book, actNumber, important, doc) : buildBundle(book, actNumber, important);
+}
+
+/** Печать документа по своей форме шаблона: проверка акта, задание на сервере, предпросмотр. */
+export async function printForm(book: Book, actNumber: string, important: ImportantMap, templateId: string, key: string, doc: PrintKind | null):
+  Promise<{ issues: Issue[]; job?: { id: string; warnings: string[]; name: string } }> {
+  const { bundle, issues } = bundleFor(book, actNumber, important, doc);
+  if (!bundle) return { issues };
+  const job = await apiSend<{ id: string; warnings: string[]; name: string }>("POST", "/api/form-jobs", { bundle, template: templateId, doc: key });
+  openPreview(previewFormUrl(job.id, location.origin));
+  return { issues: [], job };
+}

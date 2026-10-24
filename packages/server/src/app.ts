@@ -11,6 +11,8 @@ import { ojrRoutes } from "./routes/ojr.ts";
 import { rkcRoutes } from "./routes/rkc.ts";
 import { templateRoutes } from "./routes/templates.ts";
 import { TemplateStore } from "./forms/store.ts";
+import { CatalogStore } from "./catalog/store.ts";
+import { catalogRoutes } from "./routes/catalog.ts";
 import { formJobRoutes } from "./routes/formJobs.ts";
 import { powershellRunner, type OfficeRunner } from "./forms/convert.ts";
 
@@ -40,7 +42,9 @@ export function createApp(opts: AppOptions) {
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   ojrRoutes(api);
   rkcRoutes(api);
-  const templates = new TemplateStore(opts.dataDir);
+  const catalog = new CatalogStore(opts.dataDir);
+  catalogRoutes(api, catalog);
+  const templates = new TemplateStore(opts.dataDir, catalog);
   templateRoutes(api, templates);
   const runner = opts.officeRunner ?? powershellRunner();
   formJobRoutes(api, templates, runner);

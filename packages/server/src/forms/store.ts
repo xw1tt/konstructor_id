@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, existsSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { BUILTIN_SBD, SBD_ID, UserTemplate, FormRef, validateTemplate, type TemplateDoc } from "@idk/shared/forms/template";
+import { UserCatalog, type UserCatalog as UserCatalogType } from "@idk/shared/catalog/model";
+import { mergeUserCatalog, referencedUserCatalog } from "@idk/shared/catalog/merge";
 import { HttpError } from "../http/router.ts";
 import { openZip, writeZip, ZipError } from "../zip/zip.ts";
 
@@ -21,7 +23,7 @@ export function formType(buf: Uint8Array): "docx" | "xlsx" | null {
 
 export class TemplateStore {
   private root: string;
-  constructor(dataDir: string) {
+  constructor(dataDir: string, private catalog?: { user(): UserCatalogType; save(u: UserCatalogType): void }) {
     this.root = join(dataDir, "templates");
     mkdirSync(this.root, { recursive: true });
   }
@@ -109,7 +111,12 @@ export class TemplateStore {
   exportZip(id: string): { name: string; buf: Buffer } {
     const t = this.get(id);
     const forms = t.docs.flatMap((d) => (d.form ? [[`forms/${d.form.file}`, this.form(id, d.form.file)] as [string, Buffer]] : []));
-    return { name: `${t.name}.idk-template`, buf: writeZip([["template.json", JSON.stringify(t, null, 2)], ...forms]) };
+    const files: [string, Buffer][] = [["template.json", JSON.stringify(t, null, 2)], ...forms];
+    if (this.catalog) {
+      const ref = referencedUserCatalog(this.catalog.user(), t.docs);
+      if (ref.docs.length || ref.sections.length) files.push(["catalog.json", JSON.stringify(ref, null, 2)]);
+    }
+    return { name: `${t.name}.idk-template`, buf: writeZip(files) };
   }
 
   importZip(buf: Buffer): UserTemplate {
@@ -131,6 +138,14 @@ export class TemplateStore {
       writeFileSync(join(this.dir(t.id), "forms", file), data);
       return { ...d, form: { ...d.form, file } };
     }) as TemplateDoc[];
+    // catalog.json: свои документы справочника шаблона добавляются к дополнениям этого компьютера.
+    if (this.catalog) {
+      const raw = files.get("catalog.json")?.().toString("utf8");
+      if (raw) {
+        try { this.catalog.save(mergeUserCatalog(this.catalog.user(), UserCatalog.parse(JSON.parse(raw)))); }
+        catch { /* битый catalog.json не мешает загрузке шаблона */ }
+      }
+    }
     this.write(t);
     return t;
   }

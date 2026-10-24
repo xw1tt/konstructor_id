@@ -57,7 +57,7 @@ export class TemplateStore {
 
   create(name: string, from?: string): UserTemplate {
     const src = from ? this.get(from) : null;
-    const t: UserTemplate = { id: `t-${randomUUID()}`, name: name.trim(), docs: [] };
+    const t: UserTemplate = { id: `t-${randomUUID()}`, name: name.trim(), docs: [], print: src?.print ?? { schemeEach: false } };
     const errors = validateTemplate(t);
     if (errors.length) throw new HttpError(422, errors[0]);
     mkdirSync(join(this.dir(t.id), "forms"), { recursive: true });
@@ -72,10 +72,10 @@ export class TemplateStore {
     return { ...f, file };
   }
 
-  save(id: string, body: { name: string; docs: TemplateDoc[] }): UserTemplate {
+  save(id: string, body: { name: string; docs: TemplateDoc[]; print?: UserTemplate["print"] }): UserTemplate {
     if (id === SBD_ID) throw new HttpError(400, "Встроенный шаблон «СБД» не меняется — сделайте копию");
     this.get(id);
-    const t = UserTemplate.parse({ id, ...body });
+    const t = UserTemplate.parse({ id, ...body, print: body.print ?? this.get(id).print });
     const errors = validateTemplate(t);
     if (errors.length) throw new HttpError(422, errors[0]);
     for (const d of t.docs) if (d.form && !existsSync(join(this.dir(id), "forms", d.form.file))) throw new HttpError(422, `Нет файла формы «${d.form.original}»`);
@@ -121,7 +121,7 @@ export class TemplateStore {
     } catch {
       throw new HttpError(422, "Это не файл шаблона (.idk-template)");
     }
-    const t: UserTemplate = { id: `t-${randomUUID()}`, name: src.name, docs: [] };
+    const t: UserTemplate = { id: `t-${randomUUID()}`, name: src.name, docs: [], print: src.print };
     mkdirSync(join(this.dir(t.id), "forms"), { recursive: true });
     t.docs = src.docs.map((d) => {
       if (!d.form) return d;

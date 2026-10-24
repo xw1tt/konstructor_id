@@ -37,8 +37,8 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
   const fail = (text: string) => setNote({ text, error: true });
   const ok = (text: string) => setNote({ text });
 
-  const save = async (docs: TemplateDoc[], name = t.name) => {
-    const next: UserTemplate = { ...t, name, docs };
+  const save = async (docs: TemplateDoc[], name = t.name, print = t.print) => {
+    const next: UserTemplate = { ...t, name, docs, print };
     const errors = validateTemplate(next);
     if (errors.length) { fail(errors[0]); return false; }
     const r = await guard(saveTemplateDocs(next), fail);
@@ -133,6 +133,19 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
               <b>{docLabel(d)}</b>{d.kind === "custom" && <span className="muted"> · код {d.code}</span>}
               <span className="muted"> · форма: {d.form ? `своя (${d.form.original || d.form.type})` : d.kind === "builtin" ? "встроенная" : "не загружена"}</span>
             </div>
+            {d.kind === "builtin" && d.doc === "aosr" && (
+              <fieldset className="setting" disabled={readOnly}>
+                <legend>П.4: «Исполнительная схема» перед номером схемы</legend>
+                {[{ each: false, label: "Только перед первой схемой", note: "Как в образце СБД: «Исполнительная схема №1. …; №2. …»" },
+                  { each: true, label: "Перед каждой схемой", note: "«Исполнительная схема №1. …; Исполнительная схема №2. …»" }].map((o) => (
+                  <label key={String(o.each)} className="setting-option">
+                    <input type="radio" name={`schemeEach-${t.id}`} checked={(t.print?.schemeEach ?? false) === o.each}
+                      onChange={() => void save(t.docs, t.name, { ...t.print, schemeEach: o.each })} />
+                    <span><b>{o.label}</b><br /><span className="muted">{o.note}</span></span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
             {!readOnly && (
               <div className="row-actions">
                 <button className="btn" onClick={() => move(i, -1)} aria-label="Выше">↑</button>

@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, existsSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import { BUILTIN_SBD, SBD_ID, UserTemplate, FormRef, validateTemplate, type TemplateDoc } from "@idk/shared/forms/template";
+import { BUILTIN_SBD, SBD_ID, UserTemplate, FormRef, validateTemplate, type TemplateDoc, upgradeTemplate } from "@idk/shared/forms/template";
 import { UserCatalog, type UserCatalog as UserCatalogType } from "@idk/shared/catalog/model";
 import { BUILTIN_CATALOG } from "@idk/shared/catalog/builtin";
 import { mergeCatalog, mergeUserCatalog, referencedUserCatalog } from "@idk/shared/catalog/merge";
@@ -37,7 +37,7 @@ export class TemplateStore {
   list(): UserTemplate[] {
     const own = readdirSync(this.root, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name.startsWith("t-"))
       .flatMap((d) => {
-        try { return [UserTemplate.parse(JSON.parse(readFileSync(join(this.root, d.name, "template.json"), "utf8")))]; } catch { return []; }
+        try { return [upgradeTemplate(UserTemplate.parse(JSON.parse(readFileSync(join(this.root, d.name, "template.json"), "utf8"))))]; } catch { return []; }
       })
       .sort((a, b) => a.name.localeCompare(b.name, "ru"));
     return [BUILTIN_SBD, ...own];
@@ -47,7 +47,7 @@ export class TemplateStore {
     if (id === SBD_ID) return BUILTIN_SBD;
     const f = join(this.dir(id), "template.json");
     if (!existsSync(f)) throw new HttpError(404, `Шаблон «${id}» не найден`);
-    return UserTemplate.parse(JSON.parse(readFileSync(f, "utf8")));
+    return upgradeTemplate(UserTemplate.parse(JSON.parse(readFileSync(f, "utf8"))));
   }
 
   private write(t: UserTemplate) {
@@ -125,7 +125,7 @@ export class TemplateStore {
     let src: UserTemplate;
     try {
       files = openZip(buf);
-      src = UserTemplate.parse(JSON.parse(files.get("template.json")?.().toString("utf8") ?? ""));
+      src = upgradeTemplate(UserTemplate.parse(JSON.parse(files.get("template.json")?.().toString("utf8") ?? "")));
     } catch {
       throw new HttpError(422, "Это не файл шаблона (.idk-template)");
     }

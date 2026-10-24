@@ -56,3 +56,19 @@ export function validateTemplate(t: UserTemplate): string[] {
 
 /** Подпись документа шаблона (кнопка печати, реестр). */
 export const docLabel = (d: TemplateDoc) => (d.kind === "builtin" ? BUILTIN_DOC_LABELS[d.doc] : d.name);
+
+/**
+ * Шаблон плана 12 → план 13: свой документ с кодом одного из 16 протоколов и актов (скан или своя форма) становится
+ * встроенным; форма пользователя и виды работ сохраняются. Встроенный уже есть — свой удаляется.
+ */
+export function upgradeTemplate(t: UserTemplate): UserTemplate {
+  const docs: TemplateDoc[] = [];
+  for (const d of t.docs) {
+    if (d.kind !== "custom") { docs.push(d); continue; }
+    const kind = PROTO_KINDS.find((k) => PROTO_DEFS[k].code.toUpperCase() === (d.catalog ?? d.code).trim().toUpperCase());
+    if (!kind) { docs.push(d); continue; }
+    if (t.docs.some((x) => x.kind === "builtin" && x.doc === kind) || docs.some((x) => x.kind === "builtin" && x.doc === kind)) continue;
+    docs.push({ kind: "builtin", doc: kind, form: d.form, ...(d.catalog ? { catalog: d.catalog } : {}), ...(d.works ? { works: d.works } : {}) });
+  }
+  return docs.length === t.docs.length && docs.every((d, i) => d === t.docs[i]) ? t : { ...t, docs };
+}

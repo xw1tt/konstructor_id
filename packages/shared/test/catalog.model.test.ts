@@ -28,8 +28,10 @@ test("встроенный справочник v1: коды своих доку
 
 test("встроенный справочник: документы конструктора с видами печати", () => {
   const docs = BUILTIN_CATALOG.docs.filter((d) => d.make === "builtin");
-  assert.deepEqual(docs.map((d) => [d.code, d.builtin]),
+  // план 13: протоколы и акты приёмки тоже печатает конструктор (protocols.catalog.test.ts)
+  assert.deepEqual(docs.slice(0, 6).map((d) => [d.code, d.builtin]),
     [["АОСР", "aosr"], ["РИМ", "rim"], ["ВД", "vd"], ["АВК", "avk"], ["КЖ", "kj"], ["ПСИ", "ip"]]);
+  assert.equal(docs.length, BUILTIN_CATALOG.docs.length);
   for (const d of docs) assert.ok(d.name.length > 0, d.code);
 });
 

@@ -76,7 +76,7 @@ function qualityDocs(book: Book): { docs: QualityDoc[]; rowOf: Map<number, BookR
  *  свои документы — после АОСР/РИМ/ВД акта, в порядке шаблона. Без шаблона — все встроенные (как «СБД»). */
 export function registryRows(book: Book, kit: string, template?: UserTemplate): { rows: RegistryRecord[]; issues: Issue[] } {
   const inTpl = (k: PrintKind) => !template || template.docs.some((d) => d.kind === "builtin" && d.doc === k);
-  const custom = (template?.docs ?? []).flatMap((d) => (d.kind === "custom" ? [d] : []));
+  const custom = (template?.docs ?? []).flatMap((d) => (d.kind === "custom" && d.form ? [d] : []));
   const issues: Issue[] = [];
   const rows = (t: TableName) => book.tables[t] ?? [];
   const { kitRow, acts } = kitActs(book, kit);

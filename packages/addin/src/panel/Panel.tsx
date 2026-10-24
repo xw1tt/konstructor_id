@@ -66,9 +66,18 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   useEffect(() => { void loadTemplate(port).then(setTemplate).catch(() => undefined); }, [port]);
   const [list, setList] = useState<UserTemplate[]>([BUILTIN_SBD]);
   const [listTick, setListTick] = useState(0);
-  // Шаблоны компьютера — с сервера; сервер не запущен — только «СБД» (печать всё равно недоступна).
-  useEffect(() => { void listTemplates().then(setList).catch(() => setList([BUILTIN_SBD])); }, [listTick]);
-  const resolved = resolveTemplate(list, template);
+  const [loaded, setLoaded] = useState(false);
+  // Шаблоны компьютера — с сервера; пока не загружены (сервер не запущен) — повтор каждые 15 с.
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = () => listTemplates()
+      .then((l) => { if (alive) { setList(l); setLoaded(true); } })
+      .catch(() => { if (alive) { setLoaded(false); timer = setTimeout(load, 15_000); } });
+    void load();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [listTick]);
+  const resolved = resolveTemplate(list, template, loaded);
   const templates: TemplatesState = { ...resolved, list, reload: () => setListTick((n) => n + 1) };
   useEffect(() => { void loadPrintOptions(port).then(setOptions).catch(() => undefined); }, [port]);
   const chooseOptions = (o: PrintOptions) => {

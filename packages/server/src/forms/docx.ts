@@ -7,9 +7,32 @@ import { openZip, writeZip, ZipError } from "../zip/zip.ts";
 export class FormError extends Error {}
 
 const LABEL = /\{([^{}]+)\}/g;
-// Пустой абзац <w:p/> (и <w:tr/>) — самозакрывающийся: открывающий тег без «/» в конце.
-const PARA = /<w:p(?:\s[^>]*[^/>])?>[\s\S]*?<\/w:p>|<w:p(?:\s[^>]*)?\/>/g;
-const ROW = /<w:tr(?:\s[^>]*[^/>])?>[\s\S]*?<\/w:tr>/g;
+/**
+ * Внешние элементы <w:tag …>…</w:tag> с учётом вложенности того же тега (таблица в ячейке, абзац надписи внутри абзаца)
+ * и самозакрывающиеся <w:tag/>. Регулярное выражение «до первого </w:tag>» ломало такие документы.
+ */
+export function elements(xml: string, tag: string): { start: number; end: number }[] {
+  const re = new RegExp(`<(/?)w:${tag}(?=[\\s>/])[^>]*?(/?)>`, "g");
+  const out: { start: number; end: number }[] = [];
+  let depth = 0, start = -1;
+  for (const m of xml.matchAll(re)) {
+    if (m[2] === "/") { if (depth === 0) out.push({ start: m.index!, end: m.index! + m[0].length }); continue; }
+    if (m[1] !== "/") { if (depth++ === 0) start = m.index!; }
+    else if (--depth === 0) out.push({ start, end: m.index! + m[0].length });
+  }
+  return out;
+}
+
+/** Замена каждого внешнего элемента <w:tag> результатом fn. */
+export function mapElements(xml: string, tag: string, fn: (el: string) => string): string {
+  let res = "", last = 0;
+  for (const { start, end } of elements(xml, tag)) {
+    res += xml.slice(last, start) + fn(xml.slice(start, end));
+    last = end;
+  }
+  return res + xml.slice(last);
+}
+const withoutTables = (xml: string) => mapElements(xml, "tbl", () => "");
 const TEXT = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:t\s*\/>/g;
 const PARTS = /^word\/(document|header\d*|footer\d*)\.xml$/;
 
@@ -64,7 +87,7 @@ export function editParagraph(p: string, edits: [number, number, string][]): str
 type Lookup = (label: string) => string;
 
 function fillParagraphs(xml: string, lookup: Lookup): string {
-  return xml.replace(PARA, (p) => {
+  return mapElements(xml, "p", (p) => {
     const text = [...p.matchAll(TEXT)].map((m) => xmlUnescape(m[1] ?? "")).join("");
     const edits: [number, number, string][] = [];
     for (const m of text.matchAll(LABEL)) edits.push([m.index!, m.index! + m[0].length, lookup(m[1].trim())]);
@@ -82,15 +105,23 @@ function makeLookup(data: FormData, warnings: Set<string>, item?: Record<string,
   };
 }
 
-function fillPart(xml: string, data: FormData, warnings: Set<string>): string {
-  const rows = xml.replace(ROW, (row) => {
-    const name = paragraphText(row).match(/\{#([^{}]+)\}/)?.[1]?.trim();
+/** Таблица: сначала вложенные таблицы строк, затем повтор строк с {#Список}; таблица без строк удаляется
+ *  (в ячейке после таблицы Word всегда держит абзац, так что ячейка не остаётся пустой). */
+function fillTable(tbl: string, data: FormData, warnings: Set<string>): string {
+  const rows = mapElements(tbl, "tr", (row0) => {
+    const row = mapElements(row0, "tc", (cell) => mapElements(cell, "tbl", (inner) => fillTable(inner, data, warnings)));
+    const name = paragraphText(withoutTables(row)).match(/\{#([^{}]+)\}/)?.[1]?.trim();
     if (!name) return row;
     const list = data.lists[name];
     if (!list) warnings.add(`Нет списка «${name}»`);
     return (list ?? []).map((item) => fillParagraphs(row, makeLookup(data, warnings, item))).join("");
   });
-  return fillParagraphs(rows, makeLookup(data, warnings));
+  return elements(rows, "tr").length ? rows : "";
+}
+
+function fillPart(xml: string, data: FormData, warnings: Set<string>): string {
+  const tables = mapElements(xml, "tbl", (tbl) => fillTable(tbl, data, warnings));
+  return fillParagraphs(tables, makeLookup(data, warnings));
 }
 
 function openDocx(buf: Uint8Array): Map<string, () => Buffer> {
@@ -118,5 +149,5 @@ export function fillDocx(buf: Uint8Array, data: FormData): { buf: Buffer; warnin
 /** Текст документа по абзацам (через перевод строки). */
 export function docxText(buf: Uint8Array): string {
   const xml = openDocx(buf).get("word/document.xml")!().toString("utf8");
-  return [...xml.matchAll(PARA)].map((m) => paragraphText(m[0])).join("\n");
+  return elements(xml, "p").map(({ start, end }) => paragraphText(xml.slice(start, end))).join("\n");
 }

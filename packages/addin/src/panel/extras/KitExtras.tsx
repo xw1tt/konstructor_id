@@ -25,7 +25,8 @@ function openPreview(url: string) {
 export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookState; kit: string }) {
   const guard = useGuard();
   const template = useContext(TemplateContext);
-  const tpl = useContext(UserTemplateContext).template;
+  const tplState = useContext(UserTemplateContext);
+  const tpl = tplState.template;
   const options = useContext(PrintOptionsContext);
   const [busy, setBusy] = useState<"fill" | "build" | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -42,6 +43,11 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
   };
 
   const fill = async () => {
+    if (!tplState.ready) {
+      setNote({ text: "Шаблоны ещё не загружены с сервера — реестр заполнится по шаблону книги, когда сервер ответит. Попробуйте через несколько секунд.", error: true });
+      setConfirm(false);
+      return;
+    }
     setConfirm(false);
     setBusy("fill");
     setLines([]);

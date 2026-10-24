@@ -9,5 +9,5 @@ export const TemplateContext = createContext<TemplateCode>(DEFAULT_TEMPLATE);
 export const PrintOptionsContext = createContext<PrintOptions>(PrintOptions.parse({}));
 
 /** Шаблон книги (объект с документами и формами), список шаблонов компьютера и предупреждение о ненайденном. */
-export interface TemplatesState { template: UserTemplate; list: UserTemplate[]; warning: string | null; reload(): void }
-export const UserTemplateContext = createContext<TemplatesState>({ template: BUILTIN_SBD, list: [BUILTIN_SBD], warning: null, reload() {} });
+export interface TemplatesState { template: UserTemplate; list: UserTemplate[]; warning: string | null; ready: boolean; reload(): void }
+export const UserTemplateContext = createContext<TemplatesState>({ template: BUILTIN_SBD, list: [BUILTIN_SBD], warning: null, ready: true, reload() {} });

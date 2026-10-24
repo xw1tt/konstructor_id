@@ -29,6 +29,8 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
   const [custom, setCustom] = useState({ name: "", code: "" });
   const [markupAct, setMarkupAct] = useState("");
   const [markup, setMarkup] = useState<Markup | null>(null);
+  /** Подтверждение необратимого: удаление шаблона (со всеми формами) или документа шаблона. */
+  const [confirm, setConfirm] = useState<{ text: string; run(): void } | null>(null);
   const t = ctx.list.find((x) => x.id === editId) ?? BUILTIN_SBD;
   const readOnly = t.id === SBD_ID;
   const acts = (state.book?.tables["Акты"] ?? []).map((r) => cellText(r.v.baseNumber)).filter(Boolean);
@@ -108,7 +110,7 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
         <div className="row-actions">
           <input aria-label="Имя шаблона" defaultValue={t.name} key={t.id} onBlur={(e) => e.target.value.trim() !== t.name && void save(t.docs, e.target.value.trim())} />
           <a className="btn" href={`/api/templates/${t.id}/export`} download>Выгрузить</a>
-          <button className="btn btn-danger" onClick={() => void remove()}>Удалить</button>
+          <button className="btn btn-danger" onClick={() => setConfirm({ text: `Удалить шаблон «${t.name}» вместе с его формами? Это не отменить — сначала можно «Выгрузить».`, run: () => void remove() })}>Удалить</button>
         </div>
       )}
       <div className="row-actions">
@@ -139,7 +141,7 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                 <label className="btn">По образцу<input type="file" accept=".docx,.xlsx" hidden onChange={(e) => { void startMarkup(i, e.target.files?.[0]); e.target.value = ""; }} /></label>
                 {d.form && <a className="btn" href={`/api/templates/${t.id}/forms/${d.form.file}`} download={d.form.original || undefined}>Скачать форму</a>}
                 {d.form && d.kind === "builtin" && <button className="btn" onClick={() => void save(t.docs.map((x, k) => (k === i ? { ...x, form: null } : x)))}>Встроенная</button>}
-                <button className="btn btn-danger" onClick={() => void save(t.docs.filter((_, k) => k !== i))}>Убрать</button>
+                <button className="btn btn-danger" onClick={() => setConfirm({ text: `Убрать «${docLabel(d)}» из шаблона${d.form ? " вместе с его формой" : ""}?`, run: () => void save(t.docs.filter((_, k) => k !== i)) })}>Убрать</button>
               </div>
             )}
           </li>
@@ -187,6 +189,15 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
             <button className="btn btn-primary" onClick={() => void finishMarkup()}>Сохранить форму</button>
             <a className="btn" href={`/api/templates/${t.id}/markup/${markup.token}`} download>Скачать для проверки</a>
             <button className="btn" onClick={() => setMarkup(null)}>Отмена</button>
+          </div>
+        </div>
+      )}
+      {confirm && (
+        <div className="confirm" role="alertdialog" aria-label="Подтверждение">
+          <p>{confirm.text}</p>
+          <div className="row-actions">
+            <button className="btn btn-danger" onClick={() => { confirm.run(); setConfirm(null); }}>Да</button>
+            <button className="btn" onClick={() => setConfirm(null)}>Отмена</button>
           </div>
         </div>
       )}

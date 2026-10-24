@@ -93,3 +93,45 @@ test("API: разметить, скачать, сохранить как фор�
   assert.equal(saved.json.type, "docx");
   assert.equal(saved.json.original, "АОСР ПИК.docx");
 });
+
+const wellFormedW = (xml: string) => {
+  const stack: string[] = [];
+  for (const m of xml.matchAll(/<(\/?)(w:[A-Za-z]+)\b[^>]*?(\/?)>/g)) {
+    if (m[3]) continue;
+    if (!m[1]) stack.push(m[2]);
+    else if (stack.pop() !== m[2]) return false;
+  }
+  return stack.length === 0;
+};
+
+test("финальная проверка: однострочный список — оба маркера в одном абзаце, XML цел", async () => {
+  const { openZip } = await import("@idk/server/zip/zip");
+  const { d } = await sample();
+  const m = d.lists["Материалы"];
+  const src = makeDocx(`<w:tbl>${m.map((x) => tr(x["Материал.Наименование"])).join("")}</w:tbl>`);
+  const out = applyChoices(markupForm(src, "docx", d).buf, "docx", {});
+  assert.ok(wellFormedW(openZip(out).get("word/document.xml")!().toString()));
+  assert.equal(docxText(out), "{#Материалы}{Материал.Наименование}{/Материалы}");
+});
+
+test("финальная проверка: строка повтора — только ячейка, равная наименованию; посторонние строки не удаляются", async () => {
+  const { d } = await sample();
+  const [a, b] = d.lists["Материалы"].map((x) => x["Материал.Наименование"]);
+  const src = makeDocx(`<w:tbl>${tr(`Применены: ${a}, ${b}`)}</w:tbl>` + p(r(`${b} прочее`)));
+  const text = docxText(applyChoices(markupForm(src, "docx", d).buf, "docx", {}));
+  assert.doesNotMatch(text, /\{#Материалы\}/);
+  assert.ok(text.includes(`${b} прочее`), text);
+});
+
+test("финальная проверка: .xlsx — объединения удалённых строк материалов не накладываются", async () => {
+  const { openZip, writeZip } = await import("@idk/server/zip/zip");
+  const { d } = await sample();
+  const m = d.lists["Материалы"].slice(0, 3);
+  const z = openZip(makeXlsx({ "Л": [["Шапка"], ...m.map((x) => [x["Материал.Наименование"]]), ["Итого"]] }));
+  const src = writeZip([...z].map(([k, g]) => [k, k === "xl/worksheets/sheet1.xml"
+    ? g().toString().replace("</sheetData>", '</sheetData><mergeCells count="4"><mergeCell ref="A2:C2"/><mergeCell ref="A3:C3"/><mergeCell ref="A4:C4"/><mergeCell ref="A5:C5"/></mergeCells>') : g()]));
+  const out = applyChoices(markupForm(src, "xlsx", d).buf, "xlsx", {});
+  const xml = openZip(out).get("xl/worksheets/sheet1.xml")!().toString();
+  assert.deepEqual([...xml.matchAll(/<mergeCell ref="([^"]+)"/g)].map((x) => x[1]), ["A2:C2", "A3:C3"]);
+  assert.match(xml, /<mergeCells count="2">/);
+});

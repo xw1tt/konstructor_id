@@ -60,3 +60,35 @@ test("пустые абзацы <w:p/> не склеиваются со след
   const out = fillDocx(makeDocx(`<w:p/>${p(r("Акт {Акт.Номер}"))}<w:p w:rsidR="00A1"/>${p(r("от {Акт.Дата}"))}`), data);
   assert.equal(docxText(out.buf), "\nАкт 1\n\nот 05.06.2026 г.");
 });
+
+const wellFormed = (xml: string) => {
+  // Простая проверка вложенности тегов w:*: каждый открытый закрыт в правильном порядке.
+  const stack: string[] = [];
+  for (const m of xml.matchAll(/<(\/?)(w:[A-Za-z]+)\b[^>]*?(\/?)>/g)) {
+    if (m[3]) continue;
+    if (!m[1]) stack.push(m[2]);
+    else if (stack.pop() !== m[2]) return false;
+  }
+  return stack.length === 0;
+};
+
+test("финальная проверка: вложенная таблица в ячейке — повтор внутренней строки, XML цел", () => {
+  const inner = `<w:tbl>${tr("{#Материалы}{Материал.Наименование}{/Материалы}")}</w:tbl>`;
+  const outer = `<w:tbl><w:tr><w:tc>${inner}${p(r("после"))}</w:tc></w:tr>${tr("Акт {Акт.Номер}")}</w:tbl>`;
+  const out = fillDocx(makeDocx(outer), data);
+  assert.ok(wellFormed(xml(out.buf)), xml(out.buf));
+  assert.equal(docxText(out.buf), "Кабель\nЛоток\nМуфта\nпосле\nАкт 1");
+});
+
+test("финальная проверка: метка после надписи (textbox) в том же абзаце подставляется", () => {
+  const box = `<w:r><w:pict><v:textbox xmlns:v="urn:schemas-microsoft-com:vml"><w:txbxContent>${p(r("в рамке {Акт.Номер}"))}</w:txbxContent></v:textbox></w:pict></w:r>`;
+  const out = fillDocx(makeDocx(`<w:p>${r("до ")}${box}${r(" после {Акт.Номер}")}</w:p>`), data);
+  assert.ok(wellFormed(xml(out.buf)));
+  assert.doesNotMatch(xml(out.buf), /\{Акт\.Номер\}/);
+});
+
+test("финальная проверка: таблица из одной строки-повтора с пустым списком удаляется целиком", () => {
+  const out = fillDocx(makeDocx(`<w:tbl><w:tblPr/>${tr("{#Схемы}{Схема.Номер}{/Схемы}")}</w:tbl>${p(r("Конец"))}`), data);
+  assert.doesNotMatch(xml(out.buf), /<w:tbl>/);
+  assert.equal(docxText(out.buf), "Конец");
+});

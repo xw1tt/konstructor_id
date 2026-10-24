@@ -20,7 +20,19 @@ export type OfficeRunner = (kind: "docx" | "xlsx", src: string, out: string) => 
 export const OFFICE_TIMEOUT_MS = 60_000;
 const ps = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
+/**
+ * Скрипт PowerShell: перевод в PDF в отдельном задании с ограничением 55 с. Если Word/Excel завис (окно восстановления,
+ * запрос), задание останавливается и закрываются только процессы Office, запущенные после начала скрипта, —
+ * документы, которые пользователь открыл раньше, не трогаются.
+ */
 export function officeScript(kind: "docx" | "xlsx", src: string, out: string): string {
+  const proc = kind === "docx" ? "WINWORD" : "EXCEL";
+  return `$t0=Get-Date;$j=Start-Job -ScriptBlock {${exportScript(kind, src, out)}};` +
+    `if(Wait-Job $j -Timeout 55){Receive-Job $j -ErrorAction Stop}else{Stop-Job $j;` +
+    `Get-Process ${proc} -ErrorAction SilentlyContinue | Where-Object { $_.StartTime -gt $t0 } | Stop-Process -Force;exit 1}`;
+}
+
+function exportScript(kind: "docx" | "xlsx", src: string, out: string): string {
   return kind === "docx"
     ? `$w=New-Object -ComObject Word.Application;$w.Visible=$false;$w.DisplayAlerts=0;try{$d=$w.Documents.Open(${ps(src)},$false,$true);$d.ExportAsFixedFormat(${ps(out)},17);$d.Close(0)}finally{$w.Quit()}`
     : `$x=New-Object -ComObject Excel.Application;$x.Visible=$false;$x.DisplayAlerts=$false;try{$b=$x.Workbooks.Open(${ps(src)},0,$true);$b.ExportAsFixedFormat(0,${ps(out)});$b.Close($false)}finally{$x.Quit()}`;
@@ -32,6 +44,11 @@ export function powershellRunner(): OfficeRunner {
     execFile("powershell", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", officeScript(kind, src, out)],
       { timeout: OFFICE_TIMEOUT_MS, windowsHide: true }, (err) => resolve(!err && existsSync(out)));
   });
+}
+
+/** Удаление временной папки без ошибки: файл может быть ещё открыт зависшим Office — PDF уже готов. */
+export function removeQuietly(dir: string) {
+  try { rmSync(dir, { recursive: true, force: true, maxRetries: 2 }); } catch { /* останется во временной папке Windows */ }
 }
 
 export interface RenderedForm { pdf: Buffer; source: Buffer; warnings: string[]; via: "word" | "excel" | "html" }
@@ -51,6 +68,6 @@ export async function renderForm(b: ActBundle, form: FormRef & { buf: Buffer }, 
     const html = form.type === "docx" ? docxToHtml(filled.buf) : xlsxToHtml(filled.buf);
     return { pdf: await htmlToPdf(html), source: filled.buf, warnings, via: "html" };
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeQuietly(dir);
   }
 }

@@ -12,11 +12,17 @@ export function templateButtons(t: UserTemplate): TemplateButton[] {
     : d.form ? [{ key: d.code, label: d.name, doc: null, code: d.code, form: true }] : []);
 }
 
-/** Шаблон книги по id; нет на этом компьютере — «СБД» с предупреждением. */
-export function resolveTemplate(list: UserTemplate[], id: string): { template: UserTemplate; warning: string | null } {
+/**
+ * Шаблон книги по id; нет на этом компьютере — «СБД» с предупреждением. Пока список с сервера не загружен (loaded=false),
+ * шаблон пользователя неизвестен: ready=false — реестр по нему не заполняется, предупреждения нет.
+ */
+export function resolveTemplate(list: UserTemplate[], id: string, loaded = true): { template: UserTemplate; warning: string | null; ready: boolean } {
   const t = list.find((x) => x.id === id);
-  if (t) return { template: t, warning: null };
-  return { template: list.find((x) => x.id === BUILTIN_SBD.id) ?? BUILTIN_SBD, warning: id === BUILTIN_SBD.id ? null : `Шаблон «${id}» не найден на этом компьютере — печать по «СБД»` };
+  if (t) return { template: t, warning: null, ready: true };
+  const sbd = list.find((x) => x.id === BUILTIN_SBD.id) ?? BUILTIN_SBD;
+  if (id === BUILTIN_SBD.id) return { template: sbd, warning: null, ready: true };
+  if (!loaded) return { template: sbd, warning: null, ready: false };
+  return { template: sbd, warning: `Шаблон «${id}» не найден на этом компьютере — печать по «СБД»`, ready: true };
 }
 
 export const listTemplates = () => apiGet<UserTemplate[]>("/api/templates");

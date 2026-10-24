@@ -49,3 +49,10 @@ test("задание комплекта: свой документ печата�
   const aosr = request!.rows.find((x) => x.kind === "АОСР")!;
   assert.deepEqual(aosr.doc, { act: aosr.doc!.act, kind: "aosr" }, "встроенный без своей формы");
 });
+
+test("финальная проверка: свой документ без формы в реестр не попадает", async () => {
+  const book = await readBook(new MemoryWorkbook(kitRecords()));
+  const t2: UserTemplate = { ...tpl, docs: [...tpl.docs, { kind: "custom", code: "ЧЕР", name: "Черновик", form: null }] };
+  const own = registryRows(book, "1", t2).rows.filter((r) => r.values["Вид"] === "Свой документ");
+  assert.ok(own.every((r) => String(r.values["Номер документа"]).endsWith(".АГИ")));
+});

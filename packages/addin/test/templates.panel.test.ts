@@ -21,9 +21,9 @@ test("кнопки печати по шаблону", () => {
 });
 
 test("неизвестный шаблон книги — «СБД» с предупреждением", () => {
-  assert.deepEqual(resolveTemplate([BUILTIN_SBD, tpl], "t-1"), { template: tpl, warning: null });
+  assert.deepEqual(resolveTemplate([BUILTIN_SBD, tpl], "t-1"), { template: tpl, warning: null, ready: true });
   assert.deepEqual(resolveTemplate([BUILTIN_SBD], "t-x"),
-    { template: BUILTIN_SBD, warning: "Шаблон «t-x» не найден на этом компьютере — печать по «СБД»" });
+    { template: BUILTIN_SBD, warning: "Шаблон «t-x» не найден на этом компьютере — печать по «СБД»", ready: true });
 });
 
 const store = (init: Record<string, string> = {}) => {
@@ -61,4 +61,10 @@ test("ширина сохраняется через 500 мс после изм�
   assert.equal(s.m.get(WIDTH_KEY), "410");
   stop();
   mock.timers.reset();
+});
+
+test("финальная проверка: пока список шаблонов не загружен — без предупреждения и с признаком «не загружен»", () => {
+  assert.deepEqual(resolveTemplate([BUILTIN_SBD], "t-1", false), { template: BUILTIN_SBD, warning: null, ready: false });
+  assert.deepEqual(resolveTemplate([BUILTIN_SBD, tpl], "t-1", true), { template: tpl, warning: null, ready: true });
+  assert.equal(resolveTemplate([BUILTIN_SBD], "sbd", false).ready, true, "«СБД» известен и без сервера");
 });

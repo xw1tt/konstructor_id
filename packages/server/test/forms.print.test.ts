@@ -75,3 +75,16 @@ test("API: задание печати своей формы — PDF и запо
   const fields = await s.req("POST", "/api/form-fields", { bundle: await bundle(), code: "АГИ" });
   assert.equal(fields.json.values["Акт.Номер документа"], `${AOV1}.АГИ`);
 });
+
+test("финальная проверка: скрипт Office ограничен по времени и закрывает только свои процессы", () => {
+  const w = officeScript("docx", "C:\\a.docx", "C:\\o.pdf");
+  assert.match(w, /Start-Job/);
+  assert.match(w, /Wait-Job \$j -Timeout 55/);
+  assert.match(w, /Get-Process WINWORD -ErrorAction SilentlyContinue \| Where-Object \{ \$_\.StartTime -gt \$t0 \} \| Stop-Process -Force/);
+  assert.match(officeScript("xlsx", "C:\\a.xlsx", "C:\\o.pdf"), /Get-Process EXCEL/);
+});
+
+test("финальная проверка: ошибка удаления временной папки не ломает печать", async () => {
+  const { removeQuietly } = await import("@idk/server/forms/convert");
+  assert.doesNotThrow(() => removeQuietly("/proc/1/нет-такой-папки"));
+});

@@ -3,7 +3,7 @@
 // Значение, совпавшее у нескольких полей, ставится временной меткой {Поле#N} — выбор делает пользователь (applyChoices).
 import type { FormData } from "@idk/shared/forms/fields";
 import { openZip, writeZip } from "../zip/zip.ts";
-import { editParagraph, paragraphText, xmlEscape, FormError } from "./docx.ts";
+import { editParagraph, paragraphText, xmlEscape, FormError, elements, mapElements } from "./docx.ts";
 import { ROW as XROW, CELL as XCELL, attr as xattr, texts as xtexts } from "./xlsx.ts";
 
 export interface MarkupPlace { id: number; text: string; context: string; options: string[]; chosen: string }
@@ -12,9 +12,6 @@ export interface MarkupResult { buf: Buffer; found: number; ambiguous: MarkupPla
 /** Порядок выбора по умолчанию для совпадающих значений; остальные — в порядке словаря. */
 const PRIORITY = ["Акт.Номер АОСР", "Акт.Номер", "Акт.Дата", "Акт.Окончание", "Акт.Начало"];
 const LISTS: [string, string][] = [["Материалы", "Материал.Наименование"], ["Схемы", "Схема.Номер"]];
-const PARA = /<w:p(?:\s[^>]*[^/>])?>[\s\S]*?<\/w:p>|<w:p(?:\s[^>]*)?\/>/g;
-const TROW = /<w:tr(?:\s[^>]*[^/>])?>[\s\S]*?<\/w:tr>/g;
-const TCELL = /<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g;
 const RE_ESC = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const searchable = (v: string) => { const t = v.trim(); return !t.includes("\n") && (/\d/.test(t) ? t.length >= 3 : t.length >= 5); };
@@ -82,37 +79,59 @@ function itemEdits(text: string, item: Record<string, string>): [number, number,
   return out;
 }
 
-const textOf = (xml: string) => [...xml.matchAll(PARA)].map((m) => paragraphText(m[0])).join("\n");
+/** Текст ячейки без вложенных таблиц. */
+const cellTextOf = (cell: string) => {
+  const flat = mapElements(cell, "tbl", () => "");
+  return elements(flat, "p").map(({ start, end }) => paragraphText(flat.slice(start, end))).join("\n").trim();
+};
 
-function markupDocxPart(xml: string, data: FormData, mk: Marker): string {
+/** Строка-повтор: ячейки первого элемента → метки; {#Список} в начало первого непустого абзаца, {/Список} в конец
+ *  последнего (одной правкой, если это один абзац). */
+function repeatRow(row: string, list: string, item: Record<string, string>): string {
+  let out = mapElements(row, "tc", (cell) => mapElements(cell, "p", (p) => editParagraph(p, itemEdits(paragraphText(p), item))));
+  const paras = elements(out, "p").filter(({ start, end }) => paragraphText(out.slice(start, end)).length);
+  if (!paras.length) return out;
+  const first = paras[0], last = paras[paras.length - 1];
+  const put = (el: { start: number; end: number }, edits: [number, number, string][]) => {
+    out = out.slice(0, el.start) + editParagraph(out.slice(el.start, el.end), edits) + out.slice(el.end);
+  };
+  const lt = paragraphText(out.slice(last.start, last.end));
+  const endEdit: [number, number, string] = [lt.length - 1, lt.length, lt.slice(-1) + `{/${list}}`];
+  if (first.start === last.start) {
+    const ft = lt;
+    put(first, ft.length === 1 ? [[0, 1, `{#${list}}${ft}{/${list}}`]] : [[0, 1, `{#${list}}` + ft[0]], endEdit]);
+    return out;
+  }
+  put(last, [endEdit]); // сначала последний: смещения первого не меняются
+  const ft = paragraphText(out.slice(first.start, first.end));
+  put(first, [[0, 1, `{#${list}}` + ft[0]]]);
+  return out;
+}
+
+/** Таблица: строка, где ячейка целиком равна наименованию первого элемента, — повтор; идущие сразу за ней строки
+ *  остальных элементов удаляются. Вложенные таблицы — рекурсивно. */
+function markupTable(tbl: string, data: FormData, mk: Marker): string {
+  tbl = mapElements(tbl, "tr", (row) => mapElements(row, "tc", (cell) => mapElements(cell, "tbl", (inner) => markupTable(inner, data, mk))));
   for (const [list, key] of LISTS) {
     const items = data.lists[list] ?? [];
     const names = items.map((i) => i[key]?.trim()).filter(Boolean);
     if (!names.length) continue;
-    let done = false;
-    xml = xml.replace(TROW, (row) => {
-      const t = textOf(row);
-      const has = (n: string) => new RegExp(`(?<![\\p{L}\\p{N}])${RE_ESC(n)}(?![\\p{L}\\p{N}])`, "u").test(t);
-      if (!done && has(names[0])) {
-        done = true;
-        mk.found++;
-        let cells = row.replace(TCELL, (cell) => cell.replace(PARA, (p) => editParagraph(p, itemEdits(paragraphText(p), items[0]))));
-        const paras = [...cells.matchAll(PARA)].filter((m) => paragraphText(m[0]).length);
-        if (paras.length) {
-          const first = paras[0], last = paras[paras.length - 1];
-          const lt = paragraphText(last[0]);
-          const lastNew = editParagraph(last[0], [[lt.length - 1, lt.length, lt.slice(-1) + `{/${list}}`]]);
-          cells = cells.slice(0, last.index!) + lastNew + cells.slice(last.index! + last[0].length);
-          const ft = paragraphText(first[0]);
-          const firstNew = editParagraph(first[0], [[0, 1, `{#${list}}` + ft[0]]]);
-          cells = cells.slice(0, first.index!) + firstNew + cells.slice(first.index! + first[0].length);
-        }
-        return cells;
-      }
-      return done && names.slice(1).some(has) ? "" : row;
-    });
+    const rows = elements(tbl, "tr");
+    const cells = rows.map(({ start, end }) => elements(tbl.slice(start, end), "tc").map((c) => cellTextOf(tbl.slice(start, end).slice(c.start, c.end))));
+    const i = cells.findIndex((cs) => cs.includes(names[0]));
+    if (i < 0) continue;
+    let j = i + 1;
+    while (j < rows.length && cells[j].some((c) => names.slice(1).includes(c))) j++;
+    mk.found++;
+    const row = tbl.slice(rows[i].start, rows[i].end);
+    tbl = tbl.slice(0, rows[i].start) + repeatRow(row, list, items[0]) + tbl.slice(j < rows.length ? rows[j].start : rows[rows.length - 1].end);
   }
-  return xml.replace(PARA, (p) => editParagraph(p, mk.edits(paragraphText(p))));
+  return tbl;
+}
+
+function markupDocxPart(xml: string, data: FormData, mk: Marker): string {
+  const tables = mapElements(xml, "tbl", (tbl) => markupTable(tbl, data, mk));
+  return mapElements(tables, "p", (p) => editParagraph(p, mk.edits(paragraphText(p))));
 }
 
 function markupXlsx(buf: Uint8Array, data: FormData, mk: Marker): Buffer {
@@ -163,8 +182,12 @@ function markupXlsx(buf: Uint8Array, data: FormData, mk: Marker): Buffer {
       const map = (r: number) => r - deleted.filter((d) => d < r).length;
       xml = xml.replace(/<row\b([^>]*?)\sr="(\d+)"/g, (_, pre: string, r: string) => `<row${pre} r="${map(Number(r))}"`)
         .replace(/(<c\b[^>]*?\sr="[A-Z]+)(\d+)"/g, (_, pre: string, r: string) => `${pre}${map(Number(r))}"`)
+        // объединения целиком в удалённых строках убираются, остальные сдвигаются
+        .replace(/<mergeCell ref="([^"]+)"\/>/g, (whole, ref: string) =>
+          [...ref.matchAll(/(\d+)/g)].every((x) => deleted.includes(Number(x[1]))) ? "" : whole)
         .replace(/<(mergeCell|dimension) ref="([^"]+)"\/>/g, (_, tag: string, ref: string) =>
           `<${tag} ref="${ref.replace(/([A-Z]+)(\d+)/g, (__, c: string, r: string) => `${c}${map(Number(r))}`)}"/>`);
+      xml = xml.replace(/<mergeCells count="\d+"/, `<mergeCells count="${(xml.match(/<mergeCell ref=/g) ?? []).length}"`);
     }
     xml = xml.replace(XCELL, (c, head: string, body: string | undefined) => {
       const text = cellText(head, body ?? "");

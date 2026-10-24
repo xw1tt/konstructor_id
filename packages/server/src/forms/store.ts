@@ -4,7 +4,8 @@ import { mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, existsSync
 import { join } from "node:path";
 import { BUILTIN_SBD, SBD_ID, UserTemplate, FormRef, validateTemplate, type TemplateDoc } from "@idk/shared/forms/template";
 import { UserCatalog, type UserCatalog as UserCatalogType } from "@idk/shared/catalog/model";
-import { mergeUserCatalog, referencedUserCatalog } from "@idk/shared/catalog/merge";
+import { BUILTIN_CATALOG } from "@idk/shared/catalog/builtin";
+import { mergeCatalog, mergeUserCatalog, referencedUserCatalog } from "@idk/shared/catalog/merge";
 import { HttpError } from "../http/router.ts";
 import { openZip, writeZip, ZipError } from "../zip/zip.ts";
 
@@ -111,7 +112,7 @@ export class TemplateStore {
   exportZip(id: string): { name: string; buf: Buffer } {
     const t = this.get(id);
     const forms = t.docs.flatMap((d) => (d.form ? [[`forms/${d.form.file}`, this.form(id, d.form.file)] as [string, Buffer]] : []));
-    const files: [string, Buffer][] = [["template.json", JSON.stringify(t, null, 2)], ...forms];
+    const files: [string, Buffer | string][] = [["template.json", JSON.stringify(t, null, 2)], ...forms];
     if (this.catalog) {
       const ref = referencedUserCatalog(this.catalog.user(), t.docs);
       if (ref.docs.length || ref.sections.length) files.push(["catalog.json", JSON.stringify(ref, null, 2)]);
@@ -139,11 +140,15 @@ export class TemplateStore {
       return { ...d, form: { ...d.form, file } };
     }) as TemplateDoc[];
     // catalog.json: свои документы справочника шаблона добавляются к дополнениям этого компьютера.
+    // Битый или конфликтный файл пропускается — шаблон загружается без него.
     if (this.catalog) {
       const raw = files.get("catalog.json")?.().toString("utf8");
       if (raw) {
-        try { this.catalog.save(mergeUserCatalog(this.catalog.user(), UserCatalog.parse(JSON.parse(raw)))); }
-        catch { /* битый catalog.json не мешает загрузке шаблона */ }
+        try {
+          const imported = UserCatalog.parse(JSON.parse(raw));
+          const { errors } = mergeCatalog(BUILTIN_CATALOG, imported);
+          if (!errors.length) this.catalog.save(mergeUserCatalog(this.catalog.user(), imported));
+        } catch { /* битый catalog.json не мешает загрузке шаблона */ }
       }
     }
     this.write(t);

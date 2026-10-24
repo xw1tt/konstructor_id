@@ -55,15 +55,32 @@ export function mergeUserCatalog(a: UserCatalog, b: UserCatalog): UserCatalog {
   return { docs, sections, hidden: [...new Set([...a.hidden, ...b.hidden])] };
 }
 
-/** Дополнения, на которые ссылается шаблон: свои документы шаблона и виды работ с ними. */
-export function referencedUserCatalog(user: UserCatalog, docs: { code: string; catalog?: string }[]): UserCatalog {
-  const codes = new Set(docs.map((d) => d.catalog ?? d.code));
-  const ownDocs = user.docs.filter((d) => codes.has(d.code));
-  const ownCodes = new Set(ownDocs.map((d) => d.code));
+/** Ссылка документа шаблона на справочник: свой код, код документа справочника и коды видов работ. */
+export interface TemplateCatalogRef {
+  code?: string;
+  catalog?: string;
+  works?: string[];
+}
+
+/** Дополнения, на которые ссылается шаблон: свои документы шаблона, его виды работ и все документы этих видов. */
+export function referencedUserCatalog(user: UserCatalog, docs: TemplateCatalogRef[]): UserCatalog {
+  const refDocs = new Set<string>();
+  const refWorks = new Set<string>();
+  for (const d of docs) {
+    const code = d.catalog ?? d.code;
+    if (code) refDocs.add(code);
+    for (const w of d.works ?? []) refWorks.add(w);
+  }
+  // Свои виды работ шаблона — со всеми их документами (встроенные документы справочника не вывозим).
   const sections: CatalogSection[] = [];
   for (const s of user.sections) {
-    const works = s.works.filter((w) => w.docs.some((d) => ownCodes.has(d)));
-    if (works.length) sections.push({ code: s.code, name: s.name, works: structuredClone(works) });
+    const ws = s.works.filter((w) => {
+      if (!refWorks.has(w.code)) return false;
+      for (const d of w.docs) if (!refDocs.has(d)) refDocs.add(d);
+      return true;
+    });
+    if (ws.length) sections.push({ code: s.code, name: s.name, works: structuredClone(ws) });
   }
+  const ownDocs = user.docs.filter((d) => refDocs.has(d.code));
   return { docs: structuredClone(ownDocs), sections, hidden: [] };
 }

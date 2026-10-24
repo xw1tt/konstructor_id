@@ -76,7 +76,7 @@ test("mergeUserCatalog: добавляет отсутствующее, не пе
   assert.deepEqual(m.hidden, ["ВОР", "КЖ"]);
 });
 
-test("referencedUserCatalog: документы шаблона и виды работ с ними", () => {
+test("referencedUserCatalog: документы шаблона без видов работ", () => {
   const user: UserCatalog = {
     docs: [pik, { code: "СЭЛ", name: "Список электролаборатории", clause344: 9, source: "", make: "scan", scope: "kit" }],
     sections: [
@@ -87,6 +87,22 @@ test("referencedUserCatalog: документы шаблона и виды ра�
   };
   const ref = referencedUserCatalog(user, [{ code: "ПИК" }, { code: "АОСР" }]);
   assert.deepEqual(ref.docs.map((d) => d.code), ["ПИК"]);
+  assert.deepEqual(ref.sections, []);
+});
+
+test("referencedUserCatalog: вид работ шаблона — со всеми его документами", () => {
+  const user: UserCatalog = {
+    docs: [pik, { code: "СЭЛ", name: "Список электролаборатории", clause344: 9, source: "", make: "scan", scope: "kit" }],
+    sections: [
+      { code: "ЭМ", name: "ЭМ", works: [{ code: "w1", name: "w1", docs: ["ПИК", "СЭЛ"] }] },
+      { code: "СС", name: "СС", works: [{ code: "w2", name: "w2", docs: ["ПИК"] }] },
+    ],
+    hidden: [],
+  };
+  // шаблон ссылается на w1: вывозится вид работ и оба его документа, даже если в шаблоне есть только ПИК
+  const ref = referencedUserCatalog(user, [{ catalog: "АОСР", works: ["w1"] }, { code: "ПИК" }]);
+  assert.deepEqual(ref.docs.map((d) => d.code).sort(), ["ПИК", "СЭЛ"].sort());
   assert.deepEqual(ref.sections.map((s) => s.code), ["ЭМ"]);
+  assert.deepEqual(ref.sections[0].works.map((w) => w.code), ["w1"]);
   assert.deepEqual(ref.hidden, []);
 });

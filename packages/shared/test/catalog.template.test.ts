@@ -7,6 +7,8 @@ import { UserTemplate, type UserTemplate as UT } from "@idk/shared/forms/templat
 import type { Catalog } from "@idk/shared/catalog/model";
 
 const tpl = (docs: UT["docs"]): UT => UserTemplate.parse({ id: "t-00000000-0000-4000-8000-000000000000", name: "Т", docs, print: {} });
+type CustomDoc = Extract<UT["docs"][number], { kind: "custom" }>;
+const custom = (t: UT, code: string): CustomDoc => t.docs.find((d) => d.kind === "custom" && d.code === code) as CustomDoc;
 
 /** Справочник со своими документами: ПИК (скан, на акт), СЭЛ (скан, на комплект), ФОР (своя форма), АОСР (встроенный). */
 const cat: Catalog = {
@@ -41,16 +43,16 @@ test("addWork: повторный вызов того же вида ничего
 
 test("addWork: скан и своя форма из справочника", () => {
   const t = addWork(addWork(tpl([]), cat, "w2"), cat, "w1");
-  const pik = t.docs.find((d) => d.kind === "custom" && d.code === "ПИК")!;
+  const pik = custom(t, "ПИК");
   assert.equal(pik.scan, true);
   assert.equal(pik.scope, "act");
   assert.equal(pik.form, null);
   assert.deepEqual(pik.works, ["w1"]);
-  const sel = t.docs.find((d) => d.kind === "custom" && d.code === "СЭЛ")!;
+  const sel = custom(t, "СЭЛ");
   assert.equal(sel.scan, true);
   assert.equal(sel.scope, "kit");
   assert.deepEqual(sel.works, ["w2"]);
-  const forr = t.docs.find((d) => d.kind === "custom" && d.code === "ФОР")!;
+  const forr = custom(t, "ФОР");
   assert.equal(forr.scan, false);
   assert.equal(forr.scope, "act");
   assert.equal(t.docs.find((d) => d.kind === "builtin" && d.doc === "aosr")!.works!.length, 2);
@@ -82,7 +84,7 @@ test("removeWork: ручной свой документ без catalog не т�
   t = addWork(t, cat, "w1");
   const r = removeWork(t, "w1");
   assert.equal(r.template.docs.length, 1);
-  assert.deepEqual(r.template.docs[0].code, "АГИ");
+  assert.deepEqual(custom(r.template, "АГИ").code, "АГИ");
   assert.equal(r.removed.length, 3); // АОСР, ПИК и ФОР ушли
 });
 

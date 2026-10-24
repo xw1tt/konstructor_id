@@ -1,17 +1,20 @@
 // План 12, задача 1: каркас встроенного справочника видов документов.
-// Полное наполнение по СП и ПУЭ — задача 6; пункты 344/пр сверяются по тексту приказа там же.
+// Полное наполнение по СП и ПУЭ — задача 6; пункты 344/пр сверены с текстом приложения № 1 к приказу
+// (344/пр: 3 — акты освидетельствования скрытых работ, 11 — результаты испытаний,
+// 12 — документы входного контроля и качества, 13 — журналы работ).
 import type { Catalog } from "./model.ts";
 
 export const BUILTIN_CATALOG: Catalog = {
   version: "2026-10-24",
   docs: [
-    { code: "АОСР", name: "Акт освидетельствования скрытых работ", clause344: 1, source: "", make: "builtin", builtin: "aosr", scope: "act" },
-    { code: "РИМ", name: "Реестр использованных материалов", clause344: 8, source: "", make: "builtin", builtin: "rim", scope: "act" },
-    { code: "ВД", name: "Ведомость смонтированного оборудования, технических средств и материалов", clause344: 8, source: "", make: "builtin", builtin: "vd", scope: "act" },
-    { code: "ВОР", name: "Ведомость объемов выполненных работ", clause344: 1, source: "", make: "builtin", builtin: "vor", scope: "act" },
-    { code: "АВК", name: "Акт входного контроля, технических средств и материалов", clause344: 8, source: "", make: "builtin", builtin: "avk", scope: "act" },
-    { code: "КЖ", name: "Кабельный журнал", clause344: 9, source: "", make: "builtin", builtin: "kj", scope: "act" },
-    { code: "ПСИ", name: "Протокол проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин", clause344: 7, source: "", make: "builtin", builtin: "ip", scope: "act" },
+    { code: "АОСР", name: "Акт освидетельствования скрытых работ", clause344: 3, source: "", make: "builtin", builtin: "aosr", scope: "act" },
+    { code: "РИМ", name: "Реестр использованных материалов", clause344: 12, source: "", make: "builtin", builtin: "rim", scope: "act" },
+    { code: "ВД", name: "Ведомость смонтированного оборудования, технических средств и материалов", clause344: 12, source: "", make: "builtin", builtin: "vd", scope: "act" },
+    // ВОР прикладывается к актам освидетельствования — пункт уточнить в задаче 6 вместе с источниками.
+    { code: "ВОР", name: "Ведомость объемов выполненных работ", clause344: 3, source: "", make: "builtin", builtin: "vor", scope: "act" },
+    { code: "АВК", name: "Акт входного контроля, технических средств и материалов", clause344: 12, source: "", make: "builtin", builtin: "avk", scope: "act" },
+    { code: "КЖ", name: "Кабельный журнал", clause344: 13, source: "", make: "builtin", builtin: "kj", scope: "act" },
+    { code: "ПСИ", name: "Протокол проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин", clause344: 11, source: "", make: "builtin", builtin: "ip", scope: "act" },
   ],
   sections: [
     {

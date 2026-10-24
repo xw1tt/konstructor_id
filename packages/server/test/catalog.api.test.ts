@@ -68,3 +68,48 @@ test("шаблон: выгрузка со своим документом спр
   assert.ok(got.json.catalog.docs.some((d: any) => d.code === "ПИК"));
   assert.ok(got.json.own.includes("ПИК"));
 });
+
+test("шаблон: свой вид работ переживает выгрузку и загрузку", async () => {
+  const s = await startTestServer();
+  await s.req("PUT", "/api/catalog/user", {
+    docs: [pik],
+    sections: [{ code: "ЭМ", name: "Электромонтажные работы", works: [{ code: "w1", name: "w1", docs: ["ПИК", "АОСР"] }] }],
+    hidden: [],
+  });
+  const t = await s.req("POST", "/api/templates", { name: "Т" });
+  const save = await s.req("PUT", `/api/templates/${t.json.id}`, {
+    name: "Т", docs: [{ kind: "custom", code: "ПИК", name: "Протокол", form: null, catalog: "ПИК", works: ["w1"] }],
+  });
+  assert.equal(save.status, 200, JSON.stringify(save.json));
+  const exp = await s.raw("GET", `/api/templates/${t.json.id}/export`);
+  const zip = new Uint8Array(await exp.arrayBuffer());
+
+  const s2 = await startTestServer();
+  const imp = await s2.raw("POST", "/api/templates/import", { body: zip as unknown as BodyInit, headers: { "content-type": "application/octet-stream" } });
+  assert.equal(imp.status, 201);
+  const got = await s2.req("GET", "/api/catalog");
+  assert.ok(got.json.own.includes("w1"));
+  assert.ok(got.json.catalog.docs.some((d: any) => d.code === "ПИК"));
+  const em = got.json.catalog.sections.find((x: any) => x.code === "ЭМ");
+  assert.ok(em.works.some((w: any) => w.code === "w1"));
+});
+
+test("шаблон: конфликтный catalog.json пропускается, шаблон загружается", async () => {
+  const { openZip, writeZip } = await import("@idk/server/zip/zip");
+  const s = await startTestServer();
+  const t = await s.req("POST", "/api/templates", { name: "Т" });
+  const exp = await s.raw("GET", `/api/templates/${t.json.id}/export`);
+  const files = [...openZip(new Uint8Array(await exp.arrayBuffer()))].map(([k, fn]) => [k, fn()] as [string, Buffer]);
+  files.push(["catalog.json", JSON.stringify({
+    docs: [{ code: "АОСР", name: "Конфликт", clause344: 3, source: "", make: "form", scope: "act" }],
+    sections: [], hidden: [],
+  })]);
+  const bad = writeZip(files);
+
+  const s2 = await startTestServer();
+  const imp = await s2.raw("POST", "/api/templates/import", { body: bad as unknown as BodyInit, headers: { "content-type": "application/octet-stream" } });
+  assert.equal(imp.status, 201);
+  const got = await s2.req("GET", "/api/catalog");
+  assert.deepEqual(got.json.own, []);
+  assert.equal(got.json.catalog.docs.filter((d: any) => d.name === "Конфликт").length, 0);
+});

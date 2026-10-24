@@ -1,6 +1,7 @@
 // Метки своих форм: дерево полей для экрана «Поля для шаблона». Значения строит сервер (forms/fields.ts)
 // теми же функциями, что встроенные формы.
 import type { RoleCode } from "../roles.ts";
+import { PROTO_DOC_FIELDS, PROTO_LAB_FIELDS, PROTO_MEMBER_FIELDS, PROTO_INSTRUMENT_FIELDS } from "../protocols/form.ts";
 
 export const ROLE_GROUPS: Record<RoleCode, string> = {
   developer_control: "Технадзор", builder: "Строительство", builder_control: "Стройконтроль",
@@ -22,6 +23,13 @@ export const FIELD_TREE: FieldGroup[] = [
   { group: "Материал", list: "Материалы", fields: ["№", "Наименование", "Марка", "Артикул", "Завод", "Ед.", "Кол-во", "Документы"] },
   { group: "Схема", list: "Схемы", fields: ["№", "Номер", "Наименование", "Дата", "Вид"] },
   { group: "ВОР", list: "ВОР", fields: ["№", "Участок", "Материал", "Ед.", "Объём"] },
+  // План 13: протоколы и акты приёмки (значения — при печати такого документа). Поля «Строки» — заголовки столбцов
+  // документа (см. «Образец .docx»).
+  { group: "Документ", fields: [...PROTO_DOC_FIELDS] },
+  { group: "Лаборатория", fields: [...PROTO_LAB_FIELDS] },
+  { group: "Строка", list: "Строки", fields: ["№"] },
+  { group: "Член", list: "Комиссия", fields: [...PROTO_MEMBER_FIELDS] },
+  { group: "Прибор", list: "Приборы", fields: [...PROTO_INSTRUMENT_FIELDS] },
 ];
 
 export interface FormData { values: Record<string, string>; lists: Record<string, Record<string, string>[]> }

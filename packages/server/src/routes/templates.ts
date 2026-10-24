@@ -18,6 +18,9 @@ const FORM_LIMIT = 30 * 1024 * 1024;
 const disposition = (name: string, kind = "attachment") =>
   `${kind}; filename*=UTF-8''${encodeURIComponent(name).replace(/['()*]/g, (ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase())}`;
 
+import { protoSampleDocx } from "../forms/protoDocx.ts";
+import { PROTO_DEFS, isProtoKind } from "@idk/shared/protocols/defs";
+
 export function templateRoutes(r: Router, store: TemplateStore, now: () => number = Date.now) {
   const marks = new Map<string, { buf: Buffer; type: "docx" | "xlsx"; name: string; at: number }>();
   const mark = (token: string) => {
@@ -49,6 +52,16 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
     const m = mark(c.params.token);
     const choices = Object.fromEntries(Object.entries(q.choices).map(([k, v]) => [Number(k), v]));
     return new Reply(201, store.addForm(c.params.id, applyChoices(m.buf, m.type, choices), m.name));
+  });
+  // План 13: образец .docx с метками протокола или акта — основа своей формы встроенного документа.
+  r.get("/api/forms/sample/:kind", (c) => {
+    if (!isProtoKind(c.params.kind)) throw new HttpError(404, "Образца для этого документа нет");
+    const buf = protoSampleDocx(c.params.kind);
+    c.res.writeHead(200, {
+      "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "content-length": buf.length, "content-disposition": disposition(`${PROTO_DEFS[c.params.kind].code}.docx`),
+    });
+    c.res.end(buf);
   });
   r.get("/api/templates", () => store.list());
   r.post("/api/templates", async (c) => {

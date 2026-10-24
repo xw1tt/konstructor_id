@@ -8,6 +8,7 @@ import { docNumber, formatDateShort, formatDateLong, formatNumber } from "@idk/s
 import { repLine } from "@idk/shared/acts/repLine";
 import { ROLE_GROUPS, type FormData } from "@idk/shared/forms/fields";
 import { buildDocDataFromBundle, buildAvkData } from "../print/fromBundle.ts";
+import { protoFormData } from "@idk/shared/protocols/form";
 
 export type { FormData };
 
@@ -69,8 +70,10 @@ export function formData(b: ActBundle, doc?: { code: string }): FormData {
     v[`${g}.Строка АОСР`] = join((r) => repLine(r, org(r.orgId)));
   }
   const docsOf = new Map(avk.rows.map((r, i) => [i, r.docs]));
+  // Протокол или акт плана 13: группы «Документ», «Лаборатория», списки «Строки», «Комиссия», «Приборы».
+  const proto = b.proto ? protoFormData(b.proto) : { values: {}, lists: {} };
   return {
-    values: v,
+    values: { ...v, ...proto.values },
     lists: {
       "Материалы": vd.rows.map((r, i) => {
         const am = b.actMaterials[i];
@@ -88,6 +91,7 @@ export function formData(b: ActBundle, doc?: { code: string }): FormData {
         "ВОР.№": String(i + 1), "ВОР.Участок": l.group, "ВОР.Материал": mat(l.materialId)?.name ?? "",
         "ВОР.Ед.": mat(l.materialId)?.unit ?? "", "ВОР.Объём": formatNumber(l.quantity),
       })),
+      ...proto.lists,
     },
   };
 }

@@ -71,6 +71,12 @@ export function ojrRows(book: Book): OjrRows {
       issues.push({ table: "Акты", row: a.row, column: column("Акты", "dateStart").header, message: `Нет дат работ — акт «${n}» не попал в раздел 3 журнала` });
       continue;
     }
+    if (from > to) {
+      const dmy = (x: string) => x.split("-").reverse().join(".");
+      issues.push({ table: "Акты", row: a.row, column: column("Акты", "dateStart").header,
+        message: `Начало работ ${dmy(from)} позже окончания ${dmy(to)} — акт «${n}» не попал в раздел 3 журнала` });
+      continue;
+    }
     const works = txt(a.v.works);
     const date = iso(a.v.date) ?? to;
     const signer = who(byName(txt(a.v.vorContractor), "performer") ?? active("performer", date).at(-1));

@@ -13,7 +13,12 @@ export const CABLE_DOC_KINDS = ["kj", "ip"] as const;
 export type CableDocKind = (typeof CABLE_DOC_KINDS)[number];
 /** Акт входного контроля материалов акта. */
 export const AVK_KIND = "avk" as const;
-export const PRINT_KINDS = [...DOC_KINDS, ...CABLE_DOC_KINDS, AVK_KIND] as const;
+/** Протоколы испытаний и акты приёмки (план 13): описания — protocols/defs.ts. */
+export const PROTO_KINDS = [
+  "pkl", "pav", "puzo", "pfn", "pms", "pzu", "pokb", "ppkb", "atp", "aii", "atg", "apnr", "aoma", "arps", "pzov", "ptsks",
+] as const;
+export type ProtoKind = (typeof PROTO_KINDS)[number];
+export const PRINT_KINDS = [...DOC_KINDS, ...CABLE_DOC_KINDS, AVK_KIND, ...PROTO_KINDS] as const;
 export type PrintKind = (typeof PRINT_KINDS)[number];
 
 export const ActInput = z.object({

@@ -40,13 +40,13 @@ test("API: конфликт кода и битые ссылки — 422, доп�
 
 test("API: скрытый документ не в выборе, но находится по коду", async () => {
   const s = await startTestServer();
-  const put = await s.req("PUT", "/api/catalog/user", { docs: [], sections: [], hidden: ["ВОР"] });
+  const put = await s.req("PUT", "/api/catalog/user", { docs: [], sections: [], hidden: ["КЖ"] });
   assert.equal(put.status, 200);
   const { json } = await s.req("GET", "/api/catalog");
-  assert.deepEqual(json.hidden, ["ВОР"]);
-  assert.ok(json.catalog.docs.some((d: any) => d.code === "ВОР"));
+  assert.deepEqual(json.hidden, ["КЖ"]);
+  assert.ok(json.catalog.docs.some((d: any) => d.code === "КЖ"));
   const refs = json.catalog.sections.flatMap((sec: any) => sec.works.flatMap((w: any) => w.docs));
-  assert.ok(!refs.includes("ВОР"));
+  assert.ok(!refs.includes("КЖ"));
 });
 
 test("шаблон: выгрузка со своим документом справочника — загрузка на чистом сервере даёт его", async () => {

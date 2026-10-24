@@ -9,7 +9,8 @@ import type { Catalog } from "@idk/shared/catalog/model";
 /** Каркас справочника задачи 1 (не зависит от наполнения встроенного): 7 документов конструктора, два вида работ. */
 const BUILTIN_CATALOG: Catalog = {
   version: "t",
-  docs: BUILTIN.docs.filter((d) => d.make === "builtin"),
+  docs: [...BUILTIN.docs.filter((d) => d.make === "builtin"),
+    { code: "ВОР", name: "Ведомость объемов выполненных работ", clause344: 3, source: "", make: "builtin", builtin: "vor", scope: "act" }],
   sections: [
     { code: "ЭМ", name: "ЭМ", works: [{ code: "Прокладка КЛ", name: "Прокладка кабельных линий", docs: ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ПСИ"] }] },
     { code: "ЭС", name: "ЭС", works: [{ code: "Монтаж щитов", name: "Монтаж щитов", docs: ["АОСР", "РИМ", "ВД", "ВОР", "АВК"] }] },

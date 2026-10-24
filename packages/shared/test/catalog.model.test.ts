@@ -22,13 +22,14 @@ test("встроенный справочник v1: коды своих доку
     assert.ok(d.source.trim().length > 0, `нет источника у «${d.code}»`);
   }
   const kl = BUILTIN_CATALOG.sections[0].works.find((w) => w.code === "ЭМ.КЛ")!;
-  assert.deepEqual(kl.docs, ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ПСИ", "ПОКБ", "ПКЛ"]);
+  assert.deepEqual(kl.docs, ["АОСР", "РИМ", "ВД", "АВК", "КЖ", "ПСИ", "ПОКБ", "ПКЛ"]);
+  assert.ok(!BUILTIN_CATALOG.docs.some((d) => d.code === "ВОР"), "ВОР в 344/пр не назван — не в справочнике");
 });
 
 test("встроенный справочник: документы конструктора с видами печати", () => {
   const docs = BUILTIN_CATALOG.docs.filter((d) => d.make === "builtin");
   assert.deepEqual(docs.map((d) => [d.code, d.builtin]),
-    [["АОСР", "aosr"], ["РИМ", "rim"], ["ВД", "vd"], ["ВОР", "vor"], ["АВК", "avk"], ["КЖ", "kj"], ["ПСИ", "ip"]]);
+    [["АОСР", "aosr"], ["РИМ", "rim"], ["ВД", "vd"], ["АВК", "avk"], ["КЖ", "kj"], ["ПСИ", "ip"]]);
   for (const d of docs) assert.ok(d.name.length > 0, d.code);
 });
 

@@ -11,7 +11,8 @@
     "test": "tsx --test \"packages/*/test/**/*.test.ts\"",
     "build": "node packages/addin/build.mjs",
     "start": "tsx packages/server/src/main.ts",
-    "seed:sbd": "tsx scripts/seed-sbd.ts"
+    "seed:sbd": "tsx scripts/seed-sbd.ts",
+    "catalog:table": "tsx scripts/catalog-table.ts"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

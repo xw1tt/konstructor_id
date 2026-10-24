@@ -11,6 +11,8 @@ import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../te
 import { issueLines, type IssueLine } from "../print.ts";
 import { assembleKit, kitIssueLines, kitRegistryCount, previewUrl } from "../kit.ts";
 import { IssueList } from "./IssueList.tsx";
+import { kitShortage, type Status } from "@idk/shared/catalog/need";
+import { CatalogContext, shortageText, statusText } from "../catalogApi.ts";
 
 declare const Office: any;
 
@@ -28,6 +30,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
   const tplState = useContext(UserTemplateContext);
   const tpl = tplState.template;
   const options = useContext(PrintOptionsContext);
+  const catalog = useContext(CatalogContext);
   const [busy, setBusy] = useState<"fill" | "build" | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [lines, setLines] = useState<IssueLine[]>([]);
@@ -35,6 +38,8 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
   useEffect(() => { setConfirm(false); setLines([]); setNote(null); }, [kit]);
   if (!kit || !state.book) return null;
   const count = kitRegistryCount(state.book, kit);
+  // Сводка «не хватает документов» — предупреждение, сборку не блокирует.
+  const shortage: { act: string | null; label: string; status: Status }[] = catalog ? kitShortage(tpl, catalog, state.book, kit) : [];
 
   const showIssues = async (issues: Issue[]) => {
     const offsets: Partial<Record<TableName, number>> = {};
@@ -102,6 +107,21 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
             <button className="btn btn-danger" onClick={() => void fill()}>Заменить</button>
             <button className="btn" onClick={() => setConfirm(false)}>Отмена</button>
           </div>
+        </div>
+      )}
+      {shortage.length > 0 && (
+        <div className="warn" role="status" style={{ display: "block", padding: "6px 8px" }}>
+          <b>{shortageText(shortage.length)}</b> — сборку это не блокирует.
+          <ul className="list">
+            {shortage.map((s, i) => (
+              <li key={i}>
+                {s.act ? (
+                  <button className="btn btn-link" onClick={() => void port.filterBy("РеестрИД", "Акт", s.act!)}>акт {s.act}</button>
+                ) : <span>комплект</span>}
+                <span>{statusText(s.status, s.label)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {busy === "build" && <p className="notice">Печатаю документы и склеиваю комплект — это может занять минуту.</p>}

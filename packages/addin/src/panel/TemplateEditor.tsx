@@ -10,6 +10,8 @@ import type { BookState } from "./useBook.ts";
 import { UserTemplateContext } from "./templateContext.ts";
 import { createTemplate, deleteTemplate, saveTemplateDocs, uploadForm, importTemplate } from "./templatesApi.ts";
 import { bundleFor } from "./print.ts";
+import { CatalogContext } from "./catalogApi.ts";
+import { CatalogPicker } from "./CatalogPicker.tsx";
 
 interface Markup { token: string; found: number; ambiguous: { id: number; text: string; context: string; options: string[]; chosen: string }[]; doc: number; name: string }
 
@@ -22,6 +24,8 @@ const toBase64 = async (f: File) => {
 
 export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose(id: string): void }) {
   const ctx = useContext(UserTemplateContext);
+  const catalog = useContext(CatalogContext);
+  const [picker, setPicker] = useState(false);
   const guard = useGuard();
   const [editId, setEditId] = useState(ctx.template.id);
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);
@@ -56,6 +60,12 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
     if (readOnly) return;
     if (await guard(deleteTemplate(t.id).then(() => true), fail)) { ctx.reload(); setEditId(SBD_ID); ok("Шаблон удалён"); }
   };
+
+  /** Названия видов работ документа (по кодам справочника). */
+  const workNames = (codes: string[] | undefined) => (codes ?? []).map((c) =>
+    catalog?.sections.flatMap((s) => s.works).find((w) => w.code === c)?.name ?? c);
+  const patch = (i: number, p: Partial<Extract<TemplateDoc, { kind: "custom" }>>) =>
+    void save(t.docs.map((d, k) => (k === i && d.kind === "custom" ? { ...d, ...p } : d)));
 
   const builtinMissing = PRINT_KINDS.filter((k) => !t.docs.some((d) => d.kind === "builtin" && d.doc === k));
   const move = (i: number, dir: -1 | 1) => {
@@ -126,13 +136,31 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
       {readOnly && <p className="notice">«СБД» — встроенный шаблон, он не меняется. Нажмите «Копия», чтобы сделать свой.</p>}
 
       <h3 className="tools-title">Документы шаблона</h3>
+      {!readOnly && (
+        <div className="row-actions">
+          <button className="btn" aria-expanded={picker} onClick={() => setPicker(!picker)} disabled={!catalog}
+            title={catalog ? undefined : "Справочник не загружен — запустите сервер"}>Из справочника{picker ? " ▴" : " ▾"}</button>
+        </div>
+      )}
+      {picker && catalog && !readOnly && <CatalogPicker catalog={catalog} template={t} onApply={(next) => void save(next.docs)} />}
       <ul className="list tpl-docs">
         {t.docs.map((d, i) => (
           <li key={d.kind === "builtin" ? d.doc : d.code}>
             <div className="tpl-doc-title">
               <b>{docLabel(d)}</b>{d.kind === "custom" && <span className="muted"> · код {d.code}</span>}
-              <span className="muted"> · форма: {d.form ? `своя (${d.form.original || d.form.type})` : d.kind === "builtin" ? "встроенная" : "не загружена"}</span>
+              <span className="muted"> · {d.kind === "custom" && d.scan ? "скан" : `форма: ${d.form ? `своя (${d.form.original || d.form.type})` : d.kind === "builtin" ? "встроенная" : "не загружена"}`}</span>
+              {d.kind === "custom" && <span className="muted"> · {d.scope === "kit" ? "на комплект" : "на акт"}</span>}
+              {(d.works?.length ?? 0) > 0 && <div className="muted tpl-doc-works">Виды работ: {workNames(d.works).join("; ")}</div>}
             </div>
+            {d.kind === "custom" && !readOnly && (
+              <div className="row-actions">
+                <label className="setting-option"><input type="checkbox" checked={!!d.scan} onChange={(e) => patch(i, { scan: e.target.checked })} /> скан (без формы)</label>
+                <select aria-label="На акт или на комплект" value={d.scope ?? "act"} onChange={(e) => patch(i, { scope: e.target.value as "act" | "kit" })}>
+                  <option value="act">на акт</option>
+                  <option value="kit">на комплект</option>
+                </select>
+              </div>
+            )}
             {d.kind === "builtin" && d.doc === "aosr" && (
               <fieldset className="setting" disabled={readOnly}>
                 <legend>П.4: «Исполнительная схема» перед номером схемы</legend>

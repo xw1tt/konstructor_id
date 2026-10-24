@@ -18,6 +18,8 @@ import { FieldsScreen } from "./FieldsScreen.tsx";
 import { listTemplates, resolveTemplate } from "./templatesApi.ts";
 import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import type { ScreenId } from "./screens.ts";
+import type { Catalog } from "@idk/shared/catalog/model";
+import { CatalogContext, loadCatalog, workListNames } from "./catalogApi.ts";
 
 /** Создание книги идёт в несколько шагов; пока оно идёт, панель не переключается на разделы,
  *  хотя таблицы уже появились (иначе экран с предложением переноса пропал бы). */
@@ -76,6 +78,17 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
     void load();
     return () => { alive = false; clearTimeout(timer); };
   }, [listTick]);
+  // Справочник документов — с сервера, повтор каждые 15 с, пока сервер не ответит.
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = () => loadCatalog()
+      .then((r) => { if (alive) setCatalog(r.catalog); })
+      .catch(() => { if (alive) timer = setTimeout(load, 15_000); });
+    void load();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [listTick]);
   const resolved = resolveTemplate(list, template, loaded);
   const templates: TemplatesState = { ...resolved, list, reload: () => setListTick((n) => n + 1) };
   // Настройки печати встроенных документов (п.4 АОСР) — у шаблона книги.
@@ -88,12 +101,21 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const { book, selection } = state;
   const active = selection ? sectionForSheet(selection.sheet) : null;
   const allMissing = !!book && book.missing.length === TABLE_NAMES.length;
+  // Список «ВидыРабот» на листе «Списки»: при загрузке справочника, смене шаблона и после «Обновить разметку».
+  const hasActs = !!book && !book.missing.includes("Акты");
+  const names = catalog ? workListNames(catalog, resolved.template) : null;
+  const listKey = names && hasActs && !state.outdated ? names.join("\n") : null;
+  useEffect(() => {
+    if (listKey === null) return;
+    void port.writeWorkList(listKey.split("\n").filter(Boolean)).catch(() => undefined);
+  }, [port, listKey]);
 
   return (
     <ServerDownContext.Provider value={() => setServerDown(true)}>
       <TemplateContext.Provider value={template}>
       <UserTemplateContext.Provider value={templates}>
       <PrintOptionsContext.Provider value={options}>
+      <CatalogContext.Provider value={catalog}>
         <div className="app">
           <TopBar screen={screen} onScreen={setScreen} template={template} templates={list} onTemplate={chooseTemplate} />
           {serverDown && (
@@ -125,6 +147,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             </>
           )}
         </div>
+      </CatalogContext.Provider>
       </PrintOptionsContext.Provider>
       </UserTemplateContext.Provider>
       </TemplateContext.Provider>

@@ -1,9 +1,9 @@
 // Чтение .xlsx без зависимостей: zip (центральный каталог + inflate) и разбор XML листов регулярными выражениями.
 // Формулы не вычисляются — берётся сохранённое Excel значение <v>.
-import { inflateRawSync } from "node:zlib";
+import { openZip, ZipError, ZIP_NOT, ZIP_BROKEN, ZIP_TOO_BIG } from "../zip/zip.ts";
 import type { CellValue } from "@idk/shared/workbook/values";
 
-export class XlsxError extends Error {}
+export class XlsxError extends ZipError {}
 
 export interface XlsxBook {
   sheets: string[];
@@ -11,41 +11,20 @@ export interface XlsxBook {
   grid(sheet: string): CellValue[][];
 }
 
-/** Предел распакованного размера одной записи: защита от «zip-бомбы» на общем локальном сервере. */
-export const MAX_ENTRY_BYTES = 200 * 1024 * 1024;
-const BROKEN = "Повреждённый файл .xlsx";
+const MESSAGES: Record<string, string> = {
+  [ZIP_NOT]: "Это не файл .xlsx", [ZIP_BROKEN]: "Повреждённый файл .xlsx", [ZIP_TOO_BIG]: "Лист РКЦ слишком большой",
+};
+const asXlsx = <T>(fn: () => T): T => {
+  try { return fn(); } catch (e) {
+    if (e instanceof ZipError && !(e instanceof XlsxError)) throw new XlsxError(MESSAGES[e.message] ?? e.message);
+    throw e;
+  }
+};
 
-/** Каталог zip: записи распаковываются по запросу (лист, общие строки), остальное содержимое книги не трогается. */
+/** Каталог zip с ошибками в терминах .xlsx. */
 function unzip(buf: Buffer): Map<string, () => Buffer> {
-  let end = -1;
-  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65_557); i--) {
-    if (buf.readUInt32LE(i) === 0x06054b50) { end = i; break; }
-  }
-  if (end < 0) throw new XlsxError("Это не файл .xlsx");
-  const count = buf.readUInt16LE(end + 10);
-  let p = buf.readUInt32LE(end + 16);
-  const out = new Map<string, () => Buffer>();
-  for (let n = 0; n < count; n++) {
-    if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) throw new XlsxError(BROKEN);
-    const method = buf.readUInt16LE(p + 10), size = buf.readUInt32LE(p + 20);
-    const nameLen = buf.readUInt16LE(p + 28), extraLen = buf.readUInt16LE(p + 30), commentLen = buf.readUInt16LE(p + 32);
-    const local = buf.readUInt32LE(p + 42);
-    const name = buf.toString("utf8", p + 46, p + 46 + nameLen);
-    out.set(name, () => {
-      try {
-        if (local + 30 > buf.length || buf.readUInt32LE(local) !== 0x04034b50) throw new Error();
-        const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
-        const data = buf.subarray(start, start + size);
-        if (method === 0) return Buffer.from(data);
-        if (method === 8) return inflateRawSync(data, { maxOutputLength: MAX_ENTRY_BYTES });
-      } catch (e) {
-        if ((e as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE") throw new XlsxError("Лист РКЦ слишком большой");
-      }
-      throw new XlsxError(BROKEN);
-    });
-    p += 46 + nameLen + extraLen + commentLen;
-  }
-  return out;
+  const files = asXlsx(() => openZip(buf));
+  return new Map([...files].map(([k, get]) => [k, () => asXlsx(get)]));
 }
 
 const unescape = (s: string) => s

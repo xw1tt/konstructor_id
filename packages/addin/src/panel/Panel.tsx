@@ -12,7 +12,11 @@ import { TopBar } from "./TopBar.tsx";
 import { NormativScreen } from "./NormativScreen.tsx";
 import { AssistantScreen } from "./AssistantScreen.tsx";
 import { SettingsScreen } from "./SettingsScreen.tsx";
-import { TemplateContext, PrintOptionsContext } from "./templateContext.ts";
+import { TemplateContext, PrintOptionsContext, UserTemplateContext, type TemplatesState } from "./templateContext.ts";
+import { TemplateEditor } from "./TemplateEditor.tsx";
+import { FieldsScreen } from "./FieldsScreen.tsx";
+import { listTemplates, resolveTemplate } from "./templatesApi.ts";
+import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import type { ScreenId } from "./screens.ts";
 
 /** Создание книги идёт в несколько шагов; пока оно идёт, панель не переключается на разделы,
@@ -60,6 +64,12 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const [template, setTemplate] = useState<TemplateCode>(DEFAULT_TEMPLATE);
   const [options, setOptions] = useState<PrintOptions>(PrintOptions.parse({}));
   useEffect(() => { void loadTemplate(port).then(setTemplate).catch(() => undefined); }, [port]);
+  const [list, setList] = useState<UserTemplate[]>([BUILTIN_SBD]);
+  const [listTick, setListTick] = useState(0);
+  // Шаблоны компьютера — с сервера; сервер не запущен — только «СБД» (печать всё равно недоступна).
+  useEffect(() => { void listTemplates().then(setList).catch(() => setList([BUILTIN_SBD])); }, [listTick]);
+  const resolved = resolveTemplate(list, template);
+  const templates: TemplatesState = { ...resolved, list, reload: () => setListTick((n) => n + 1) };
   useEffect(() => { void loadPrintOptions(port).then(setOptions).catch(() => undefined); }, [port]);
   const chooseOptions = (o: PrintOptions) => {
     setOptions(o);
@@ -77,9 +87,10 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   return (
     <ServerDownContext.Provider value={() => setServerDown(true)}>
       <TemplateContext.Provider value={template}>
+      <UserTemplateContext.Provider value={templates}>
       <PrintOptionsContext.Provider value={options}>
         <div className="app">
-          <TopBar screen={screen} onScreen={setScreen} template={template} onTemplate={chooseTemplate} />
+          <TopBar screen={screen} onScreen={setScreen} template={template} templates={list} onTemplate={chooseTemplate} />
           {serverDown && (
             <div className="banner" role="alert">
               <p>Сервер не запущен: листы работают, печать и сканы недоступны. Запустите «Конструктор ИД» на компьютере.</p>
@@ -87,7 +98,9 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             </div>
           )}
           {state.error && <p className="error" role="alert">{state.error}</p>}
-          {screen === "settings" ? <SettingsScreen options={options} onOptions={chooseOptions} /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
+          {screen === "templates" ? <TemplateEditor state={state} onChoose={chooseTemplate} />
+            : screen === "fields" ? <FieldsScreen state={state} />
+            : screen === "settings" ? <SettingsScreen options={options} onOptions={chooseOptions} /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
             <>
@@ -108,6 +121,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
           )}
         </div>
       </PrintOptionsContext.Provider>
+      </UserTemplateContext.Provider>
       </TemplateContext.Provider>
     </ServerDownContext.Provider>
   );

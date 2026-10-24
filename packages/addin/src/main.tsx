@@ -5,6 +5,7 @@ import { Panel, type PanelSlots } from "./panel/Panel.tsx";
 import { CardArea } from "./panel/card/RowCard.tsx";
 import { CreateBook } from "./panel/CreateBook.tsx";
 import { TABLE_NAMES } from "@idk/shared/workbook/schema";
+import { restoreWidth, trackWidth } from "./panel/panelWidth.ts";
 
 declare const Office: { onReady: (cb: () => void) => void } | undefined;
 
@@ -23,6 +24,9 @@ const slots: PanelSlots = {
 };
 
 function start() {
+  const storage = (() => { try { return window.localStorage; } catch { return null; } })();
+  restoreWidth(typeof Office !== "undefined" ? Office : undefined, storage);
+  trackWidth(window, storage);
   createRoot(document.getElementById("root")!).render(<Panel port={port} slots={slots} />);
 }
 

@@ -68,3 +68,12 @@ test("финальная проверка: пока список шаблоно�
   assert.deepEqual(resolveTemplate([BUILTIN_SBD, tpl], "t-1", true), { template: tpl, warning: null, ready: true });
   assert.equal(resolveTemplate([BUILTIN_SBD], "sbd", false).ready, true, "«СБД» известен и без сервера");
 });
+
+test("сохранение шаблона передаёт настройку п.4", async () => {
+  const { saveTemplateDocs } = await import("@idk/addin/panel/templatesApi");
+  const g = globalThis as any, saved = g.fetch;
+  let body: any = null;
+  g.fetch = async (_: string, init: RequestInit) => { body = JSON.parse(String(init.body)); return new Response(JSON.stringify({}), { status: 200 }); };
+  try { await saveTemplateDocs({ ...tpl, print: { schemeEach: true } }); } finally { g.fetch = saved; }
+  assert.deepEqual(body.print, { schemeEach: true });
+});

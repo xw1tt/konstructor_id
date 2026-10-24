@@ -19,6 +19,7 @@ export function listSource(col: ColumnDef, table?: TableName): string | null {
     const key = keyColumn(col.ref);
     return key ? `=INDIRECT("${TABLES[col.ref].name}[${key.header}]")` : null;
   }
+  if (col.listRange) return `=${col.listRange}`;
   if (col.type === "enum" && col.values && table) return `=${listName(table, col)}`;
   return null;
 }

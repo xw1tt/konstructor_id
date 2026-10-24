@@ -1,6 +1,7 @@
 // Шаблон пользователя: имя и документы; у документа форма встроенная (по образцу СБД) или своя (.docx/.xlsx с метками).
 import { z } from "zod";
 import { PRINT_KINDS, type PrintKind } from "../acts/schemas.ts";
+import { PrintOptions } from "../templates.ts";
 
 export const SBD_ID = "sbd";
 
@@ -14,16 +15,24 @@ export const FormRef = z.object({ file: z.string().min(1), type: z.enum(["docx",
 export type FormRef = z.infer<typeof FormRef>;
 
 export const TemplateDoc = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("builtin"), doc: z.enum(PRINT_KINDS), form: FormRef.nullable().default(null) }),
-  z.object({ kind: z.literal("custom"), code: z.string(), name: z.string().trim().min(1, "Укажите название документа"), form: FormRef.nullable().default(null) }),
+  z.object({
+    kind: z.literal("builtin"), doc: z.enum(PRINT_KINDS), form: FormRef.nullable().default(null),
+    catalog: z.string().optional(), works: z.array(z.string()).optional(),
+  }),
+  z.object({
+    kind: z.literal("custom"), code: z.string(), name: z.string().trim().min(1, "Укажите название документа"), form: FormRef.nullable().default(null),
+    catalog: z.string().optional(), works: z.array(z.string()).optional(),
+    scope: z.enum(["act", "kit"]).optional(), scan: z.boolean().optional(),
+  }),
 ]);
 export type TemplateDoc = z.infer<typeof TemplateDoc>;
 
-export const UserTemplate = z.object({ id: z.string().min(1), name: z.string(), docs: z.array(TemplateDoc) });
+/** print — настройки печати встроенных документов шаблона (п.4 АОСР: «Исполнительная схема» перед каждой схемой). */
+export const UserTemplate = z.object({ id: z.string().min(1), name: z.string(), docs: z.array(TemplateDoc), print: PrintOptions.default({}) });
 export type UserTemplate = z.infer<typeof UserTemplate>;
 
 export const BUILTIN_SBD: UserTemplate = {
-  id: SBD_ID, name: "СБД",
+  id: SBD_ID, name: "СБД", print: { schemeEach: false },
   docs: (["aosr", "rim", "vd", "vor", "avk", "kj", "ip"] as const).map((doc) => ({ kind: "builtin" as const, doc, form: null })),
 };
 

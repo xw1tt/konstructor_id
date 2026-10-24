@@ -110,3 +110,15 @@ test("План 10: отрицательный остаток специфика�
   const { negativeRule } = await import("@idk/addin/book/layout");
   assert.equal(negativeRule("G", 5), '=AND(ISNUMBER(G5),G5<0)');
 });
+
+test("план 12: «Вид работ» — список из диапазона «ВидыРабот», не строгий; новые столбцы v8 дописываются в конец", async () => {
+  const { missingColumns } = await import("@idk/addin/book/layout");
+  const kinds = column("Акты", "workKinds");
+  assert.equal(listSource(kinds, "Акты"), "=ВидыРабот");
+  assert.equal(strictList(kinds), false);
+  assert.equal(listSource(column("Акты", "skipDocs"), "Акты"), null);
+  const headers = TABLES["Акты"].columns.map((c) => c.header);
+  const v7 = headers.filter((h) => h !== "Вид работ" && h !== "Без документов");
+  assert.deepEqual(headers.slice(-2), ["Вид работ", "Без документов"]);
+  assert.deepEqual(missingColumns("Акты", v7).map((c) => c.header), ["Вид работ", "Без документов"]);
+});

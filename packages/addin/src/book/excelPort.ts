@@ -1,7 +1,7 @@
 // Слой Office.js: книга объекта в Excel. Вся логика — в @idk/shared/workbook; здесь только чтение/запись,
 // разметка, выделение и события. Требуется ExcelApi 1.9.
 import {
-  TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, OBJECT_REQUIRED_LABELS, SCHEMA_VERSION, keyColumn, type TableName, type ColumnDef,
+  TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, OBJECT_REQUIRED_LABELS, SCHEMA_VERSION, WORK_LIST, keyColumn, type TableName, type ColumnDef,
 } from "@idk/shared/workbook/schema";
 import type { CellValue } from "@idk/shared/workbook/values";
 import type { Report, RowData, RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
@@ -73,6 +73,9 @@ async function locate(ctx: any, ws: any, rowIndex: number, colIndex: number, row
 const settings = () => Office.context.document.settings;
 const saveSettings = () => new Promise<void>((resolve, reject) =>
   settings().saveAsync((r: any) => (r.status === "succeeded" ? resolve() : reject(new Error(r.error?.message ?? "Не удалось сохранить настройки")))));
+
+/** Столбец «ВидыРабот» на листе «Списки» — через один пустой после перечислений. */
+const workListColumn = () => TABLE_NAMES.reduce((n, t) => n + TABLES[t].columns.filter((c) => c.type === "enum").length, 0) + 1;
 
 export class ExcelPort implements TableStore {
   host(): HostStatus { return currentHost(); }
@@ -527,6 +530,27 @@ export class ExcelPort implements TableStore {
     this.paint(t, def, important, body.rowIndex + 1, all);
     await ctx.sync();
   }
+  /** Виды работ из справочника шаблона → столбец листа «Списки» и имя «ВидыРабот» (источник списка «Вида работ»). */
+  async writeWorkList(names: string[]) {
+    await Excel.run(async (ctx: any) => {
+      const sheets = ctx.workbook.worksheets;
+      sheets.load("items/name");
+      await ctx.sync();
+      const sheetNames = new Set<string>((sheets.items as any[]).map((w) => w.name));
+      await this.ensureLists(ctx, sheetNames);
+      const ws = ctx.workbook.worksheets.getItem(LISTS_SHEET);
+      const col = workListColumn();
+      ws.getRangeByIndexes(0, col, 1, 1).getEntireColumn().clear("Contents");
+      const values = names.length ? names.map((n) => [n]) : [[""]];
+      const range = ws.getRangeByIndexes(0, col, values.length, 1);
+      range.values = values;
+      range.load("address");
+      await ctx.sync();
+      ctx.workbook.names.getItem(WORK_LIST).formula = `=${range.address}`;
+      await ctx.sync();
+    });
+  }
+
   /** Скрытый лист «Списки» с именованными диапазонами для перечислений (роль, тип, вид). */
   private async ensureLists(ctx: any, sheetNames: Set<string>) {
     const ws = sheetNames.has(LISTS_SHEET) ? ctx.workbook.worksheets.getItem(LISTS_SHEET) : ctx.workbook.worksheets.add(LISTS_SHEET);
@@ -548,6 +572,9 @@ export class ExcelPort implements TableStore {
       await ctx.sync();
       for (const r of ranges) names.getItem(r.name).formula = `=${r.range.address}`;
     }
+    // «ВидыРабот» — заготовка в одну пустую ячейку, чтобы проверка данных «Вида работ» не ссылалась на несуществующее имя;
+    // значения пишет writeWorkList из справочника шаблона.
+    if (!existing.has(WORK_LIST)) names.add(WORK_LIST, ws.getRangeByIndexes(0, workListColumn(), 1, 1));
     ws.visibility = "Hidden";
     await ctx.sync();
   }

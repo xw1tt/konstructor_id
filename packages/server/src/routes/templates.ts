@@ -1,6 +1,7 @@
 // Шаблоны пользователя: список, создание/копия, сохранение, удаление, формы, выгрузка и загрузка.
 import { z } from "zod";
 import { TemplateDoc } from "@idk/shared/forms/template";
+import { PrintOptions } from "@idk/shared/templates";
 import { Router, Reply } from "../http/router.ts";
 import type { TemplateStore } from "../forms/store.ts";
 import { readRaw } from "./rkc.ts";
@@ -56,7 +57,7 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
   });
   r.post("/api/templates/import", async (c) => new Reply(201, store.importZip(await readRaw(c.req, FORM_LIMIT * 4))));
   r.put("/api/templates/:id", async (c) => {
-    const q = await c.body(z.object({ name: z.string(), docs: z.array(TemplateDoc) }));
+    const q = await c.body(z.object({ name: z.string(), docs: z.array(TemplateDoc), print: PrintOptions.optional() }));
     return store.save(c.params.id, q);
   });
   r.delete("/api/templates/:id", (c) => { store.remove(c.params.id); });

@@ -27,7 +27,7 @@ export function resolveTemplate(list: UserTemplate[], id: string, loaded = true)
 
 export const listTemplates = () => apiGet<UserTemplate[]>("/api/templates");
 export const createTemplate = (name: string, from?: string) => apiSend<UserTemplate>("POST", "/api/templates", { name, from });
-export const saveTemplateDocs = (t: UserTemplate) => apiSend<UserTemplate>("PUT", `/api/templates/${t.id}`, { name: t.name, docs: t.docs });
+export const saveTemplateDocs = (t: UserTemplate) => apiSend<UserTemplate>("PUT", `/api/templates/${t.id}`, { name: t.name, docs: t.docs, print: t.print });
 export const deleteTemplate = (id: string) => apiSend<void>("DELETE", `/api/templates/${id}`);
 
 async function rawCall<T>(path: string, init: RequestInit): Promise<T> {

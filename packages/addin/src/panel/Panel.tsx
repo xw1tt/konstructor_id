@@ -1,6 +1,6 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
 import { useEffect, useState, type ReactNode } from "react";
-import { loadTemplate, saveTemplate, loadPrintOptions, savePrintOptions, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
+import { loadTemplate, saveTemplate, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { TABLE_NAMES, type TableName } from "@idk/shared/workbook/schema";
 import type { ExcelPort } from "../book/excelPort.ts";
 import { ServerDownContext } from "../server.tsx";
@@ -62,7 +62,6 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const [creating, setCreating] = useState(false);
   const [screen, setScreen] = useState<ScreenId>("home");
   const [template, setTemplate] = useState<TemplateCode>(DEFAULT_TEMPLATE);
-  const [options, setOptions] = useState<PrintOptions>(PrintOptions.parse({}));
   useEffect(() => { void loadTemplate(port).then(setTemplate).catch(() => undefined); }, [port]);
   const [list, setList] = useState<UserTemplate[]>([BUILTIN_SBD]);
   const [listTick, setListTick] = useState(0);
@@ -79,11 +78,8 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   }, [listTick]);
   const resolved = resolveTemplate(list, template, loaded);
   const templates: TemplatesState = { ...resolved, list, reload: () => setListTick((n) => n + 1) };
-  useEffect(() => { void loadPrintOptions(port).then(setOptions).catch(() => undefined); }, [port]);
-  const chooseOptions = (o: PrintOptions) => {
-    setOptions(o);
-    savePrintOptions(port, o).catch(() => undefined);
-  };
+  // Настройки печати встроенных документов (п.4 АОСР) — у шаблона книги.
+  const options: PrintOptions = resolved.template.print ?? PrintOptions.parse({});
   const chooseTemplate = (t: TemplateCode) => {
     setTemplate(t);
     saveTemplate(port, t).catch(() => undefined);
@@ -109,7 +105,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
           {state.error && <p className="error" role="alert">{state.error}</p>}
           {screen === "templates" ? <TemplateEditor state={state} onChoose={chooseTemplate} />
             : screen === "fields" ? <FieldsScreen state={state} />
-            : screen === "settings" ? <SettingsScreen options={options} onOptions={chooseOptions} /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
+            : screen === "settings" ? <SettingsScreen /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
             <>

@@ -3,6 +3,9 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, existsSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { BUILTIN_SBD, SBD_ID, UserTemplate, FormRef, validateTemplate, type TemplateDoc } from "@idk/shared/forms/template";
+import { UserCatalog, type UserCatalog as UserCatalogType } from "@idk/shared/catalog/model";
+import { BUILTIN_CATALOG } from "@idk/shared/catalog/builtin";
+import { mergeCatalog, mergeUserCatalog, referencedUserCatalog } from "@idk/shared/catalog/merge";
 import { HttpError } from "../http/router.ts";
 import { openZip, writeZip, ZipError } from "../zip/zip.ts";
 
@@ -21,7 +24,7 @@ export function formType(buf: Uint8Array): "docx" | "xlsx" | null {
 
 export class TemplateStore {
   private root: string;
-  constructor(dataDir: string) {
+  constructor(dataDir: string, private catalog?: { user(): UserCatalogType; save(u: UserCatalogType): void }) {
     this.root = join(dataDir, "templates");
     mkdirSync(this.root, { recursive: true });
   }
@@ -57,7 +60,7 @@ export class TemplateStore {
 
   create(name: string, from?: string): UserTemplate {
     const src = from ? this.get(from) : null;
-    const t: UserTemplate = { id: `t-${randomUUID()}`, name: name.trim(), docs: [] };
+    const t: UserTemplate = { id: `t-${randomUUID()}`, name: name.trim(), docs: [], print: src?.print ?? { schemeEach: false } };
     const errors = validateTemplate(t);
     if (errors.length) throw new HttpError(422, errors[0]);
     mkdirSync(join(this.dir(t.id), "forms"), { recursive: true });
@@ -72,10 +75,10 @@ export class TemplateStore {
     return { ...f, file };
   }
 
-  save(id: string, body: { name: string; docs: TemplateDoc[] }): UserTemplate {
+  save(id: string, body: { name: string; docs: TemplateDoc[]; print?: UserTemplate["print"] }): UserTemplate {
     if (id === SBD_ID) throw new HttpError(400, "Встроенный шаблон «СБД» не меняется — сделайте копию");
     this.get(id);
-    const t = UserTemplate.parse({ id, ...body });
+    const t = UserTemplate.parse({ id, ...body, print: body.print ?? this.get(id).print });
     const errors = validateTemplate(t);
     if (errors.length) throw new HttpError(422, errors[0]);
     for (const d of t.docs) if (d.form && !existsSync(join(this.dir(id), "forms", d.form.file))) throw new HttpError(422, `Нет файла формы «${d.form.original}»`);
@@ -109,7 +112,12 @@ export class TemplateStore {
   exportZip(id: string): { name: string; buf: Buffer } {
     const t = this.get(id);
     const forms = t.docs.flatMap((d) => (d.form ? [[`forms/${d.form.file}`, this.form(id, d.form.file)] as [string, Buffer]] : []));
-    return { name: `${t.name}.idk-template`, buf: writeZip([["template.json", JSON.stringify(t, null, 2)], ...forms]) };
+    const files: [string, Buffer | string][] = [["template.json", JSON.stringify(t, null, 2)], ...forms];
+    if (this.catalog) {
+      const ref = referencedUserCatalog(this.catalog.user(), t.docs);
+      if (ref.docs.length || ref.sections.length) files.push(["catalog.json", JSON.stringify(ref, null, 2)]);
+    }
+    return { name: `${t.name}.idk-template`, buf: writeZip(files) };
   }
 
   importZip(buf: Buffer): UserTemplate {
@@ -121,7 +129,7 @@ export class TemplateStore {
     } catch {
       throw new HttpError(422, "Это не файл шаблона (.idk-template)");
     }
-    const t: UserTemplate = { id: `t-${randomUUID()}`, name: src.name, docs: [] };
+    const t: UserTemplate = { id: `t-${randomUUID()}`, name: src.name, docs: [], print: src.print };
     mkdirSync(join(this.dir(t.id), "forms"), { recursive: true });
     t.docs = src.docs.map((d) => {
       if (!d.form) return d;
@@ -131,6 +139,18 @@ export class TemplateStore {
       writeFileSync(join(this.dir(t.id), "forms", file), data);
       return { ...d, form: { ...d.form, file } };
     }) as TemplateDoc[];
+    // catalog.json: свои документы справочника шаблона добавляются к дополнениям этого компьютера.
+    // Битый или конфликтный файл пропускается — шаблон загружается без него.
+    if (this.catalog) {
+      const raw = files.get("catalog.json")?.().toString("utf8");
+      if (raw) {
+        try {
+          const imported = UserCatalog.parse(JSON.parse(raw));
+          const { errors } = mergeCatalog(BUILTIN_CATALOG, imported);
+          if (!errors.length) this.catalog.save(mergeUserCatalog(this.catalog.user(), imported));
+        } catch { /* битый catalog.json не мешает загрузке шаблона */ }
+      }
+    }
     this.write(t);
     return t;
   }

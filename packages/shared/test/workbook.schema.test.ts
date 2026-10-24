@@ -11,7 +11,7 @@ test("заголовки таблиц — как в спецификации", (
     ["Материалы", "Тип", "Номер", "Дата", "Действует до", "Листов", "Наименование для реестра", "Скан"]);
   assert.deepEqual(TABLES["МатериалыАктов"].columns.map((c) => c.header), ["Акт", "Материал", "№ поз. по УСР", "Кол-во", "Сумма ВОР", "№ п/п РКЦ", "Учёт"]);
   assert.deepEqual(TABLES["Объект"].columns.map((c) => c.header), ["Поле", "Значение"]);
-  assert.equal(TABLES["Акты"].columns.length, 19);
+  assert.equal(TABLES["Акты"].columns.length, 21);
   assert.equal(TABLES["КабельныйЖурнал"].columns.length, 11);
   assert.equal(OBJECT_FIELDS[0].label, "Наименование объекта");
 });

@@ -20,3 +20,10 @@ test("проверка кодов своих документов", () => {
   assert.deepEqual(validateTemplate(t(["АГИ", "ИСП2"])), []);
   assert.deepEqual(validateTemplate({ ...t([]), name: "  " }), ["Укажите имя шаблона"]);
 });
+
+test("п.4 АОСР — настройка шаблона: у «СБД» перед первой схемой, старый шаблон без настройки читается", () => {
+  assert.deepEqual(BUILTIN_SBD.print, { schemeEach: false });
+  const old = UserTemplate.parse({ id: "t-1", name: "Старый", docs: [] });
+  assert.deepEqual(old.print, { schemeEach: false });
+  assert.deepEqual(UserTemplate.parse({ id: "t-1", name: "Т", docs: [], print: { schemeEach: true } }).print, { schemeEach: true });
+});

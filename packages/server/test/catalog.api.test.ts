@@ -99,7 +99,7 @@ test("шаблон: конфликтный catalog.json пропускается
   const s = await startTestServer();
   const t = await s.req("POST", "/api/templates", { name: "Т" });
   const exp = await s.raw("GET", `/api/templates/${t.json.id}/export`);
-  const files = [...openZip(new Uint8Array(await exp.arrayBuffer()))].map(([k, fn]) => [k, fn()] as [string, Buffer]);
+  const files = [...openZip(new Uint8Array(await exp.arrayBuffer()))].map(([k, fn]) => [k, fn()] as [string, Buffer | string]);
   files.push(["catalog.json", JSON.stringify({
     docs: [{ code: "АОСР", name: "Конфликт", clause344: 3, source: "", make: "form", scope: "act" }],
     sections: [], hidden: [],

@@ -6,7 +6,7 @@ import type { BookState } from "../useBook.ts";
 import { UserTemplateContext } from "../templateContext.ts";
 import { CatalogContext, skipDoc, statusText } from "../catalogApi.ts";
 
-const MARK: Record<Status, string> = { print: "✓", scan: "✓", noScan: "✗", noForm: "✗" };
+const MARK: Record<Status, string> = { print: "✓", scan: "✓", noScan: "✗", noForm: "✗", noData: "✗" };
 
 export function Completeness({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
   const catalog = useContext(CatalogContext);
@@ -30,8 +30,8 @@ export function Completeness({ port, state, act }: { port: ExcelPort; state: Boo
         <ul className="list completeness" aria-label="Полнота акта">
           {list.map((s) => (
             <li key={docCode(s.doc)}>
-              <span className={s.status === "noScan" || s.status === "noForm" ? "warn" : "ok"}>
-                {MARK[s.status]} {statusText(s.status, s.label)}{s.status === "noScan" ? ` (№${s.number} в «Реестре ИД»)` : ""}
+              <span className={s.status === "noScan" || s.status === "noForm" || s.status === "noData" ? "warn" : "ok"}>
+                {MARK[s.status]} {statusText(s.status, s.label)}{s.status === "noScan" ? ` (№${s.number} в «Реестре ИД»)` : ""}{s.status === "noData" ? " (строка на листе «Протоколы и акты»)" : ""}
               </span>{" "}
               <button className="btn btn-link" onClick={() => void skip(docCode(s.doc))} title="Записать код в «Без документов»">не нужен для этого акта</button>
             </li>

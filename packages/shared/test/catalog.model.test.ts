@@ -7,9 +7,22 @@ import { checkCatalog, type Catalog } from "@idk/shared/catalog/model";
 /** Глубокая копия для «испорченных» вариантов справочника. */
 const copy = (): Catalog => structuredClone(BUILTIN_CATALOG);
 
-test("встроенный справочник: 5 разделов ЭМ/ЭС/СС/АВТ/ПС, по виду работ", () => {
+test("встроенный справочник: 5 разделов ЭМ/ЭС/СС/АВТ/ПС, в каждом виды работ", () => {
   assert.deepEqual(BUILTIN_CATALOG.sections.map((s) => s.code), ["ЭМ", "ЭС", "СС", "АВТ", "ПС"]);
-  for (const s of BUILTIN_CATALOG.sections) assert.equal(s.works.length, 1, s.code);
+  for (const s of BUILTIN_CATALOG.sections) assert.ok(s.works.length >= 1, s.code);
+});
+
+test("встроенный справочник v1: коды своих документов годятся для шаблона, у каждого — источник, все документы используются", () => {
+  const used = new Set(BUILTIN_CATALOG.sections.flatMap((s) => s.works.flatMap((w) => w.docs)));
+  for (const d of BUILTIN_CATALOG.docs) {
+    assert.ok(used.has(d.code), `документ «${d.code}» не нужен ни одному виду работ`);
+    if (d.make === "builtin") continue;
+    assert.match(d.code, /^[A-Za-zА-Яа-яЁё0-9]{1,10}$/, d.code);
+    assert.ok(!["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ИП"].includes(d.code.toUpperCase()), d.code);
+    assert.ok(d.source.trim().length > 0, `нет источника у «${d.code}»`);
+  }
+  const kl = BUILTIN_CATALOG.sections[0].works.find((w) => w.code === "ЭМ.КЛ")!;
+  assert.deepEqual(kl.docs, ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ПСИ", "ПОКБ", "ПКЛ"]);
 });
 
 test("встроенный справочник: документы конструктора с видами печати", () => {
@@ -41,7 +54,7 @@ test("проверка: пункт 344/пр вне 1–13", () => {
 test("проверка: вид работ ссылается на неизвестный документ", () => {
   const c = copy();
   c.sections[0].works[0].docs.push("НЕТ");
-  assert.deepEqual(checkCatalog(c), ["Вид работ «Прокладка КЛ» ссылается на неизвестный документ «НЕТ»"]);
+  assert.deepEqual(checkCatalog(c), ["Вид работ «ЭМ.КЛ» ссылается на неизвестный документ «НЕТ»"]);
 });
 
 test("проверка: make=builtin без вида печати", () => {
@@ -53,5 +66,5 @@ test("проверка: make=builtin без вида печати", () => {
 test("проверка: повтор кода вида работ", () => {
   const c = copy();
   c.sections[1].works.push(structuredClone(c.sections[0].works[0]));
-  assert.deepEqual(checkCatalog(c), ["Повтор кода вида работ «Прокладка КЛ»"]);
+  assert.deepEqual(checkCatalog(c), ["Повтор кода вида работ «ЭМ.КЛ»"]);
 });

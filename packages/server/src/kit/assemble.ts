@@ -4,7 +4,7 @@ import { PDFDocument, StandardFonts, degrees, rgb, type PDFPage, type PDFFont } 
 import type { KitRequest, KitRow, FileRef } from "@idk/shared/kit/request";
 import { orgFullForm } from "@idk/shared/rules";
 import type { Organization } from "@idk/shared/schemas";
-import { isTemplateCode, DEFAULT_TEMPLATE } from "@idk/shared/templates";
+import { DEFAULT_TEMPLATE } from "@idk/shared/templates";
 import { renderBundlePdf } from "../routes/print.ts";
 import { htmlToPdf } from "../print/browser.ts";
 import { resolveScan, loadScan, type ScanContext } from "./files.ts";
@@ -69,7 +69,7 @@ export function stampNumber(page: PDFPage, n: number, font: PDFFont) {
 export async function assembleKit(q: KitRequest, deps: { db: Db; dataDir: string }): Promise<KitResult> {
   const ctx: ScanContext = { ...deps, scanFolder: q.scanFolder };
   const issues: KitIssue[] = [];
-  const template = isTemplateCode(q.template) ? q.template : DEFAULT_TEMPLATE;
+  const template = q.template || DEFAULT_TEMPLATE;
 
   // 1. Файлы и логотипы — все ошибки сразу, до печати.
   const resolved = new Map<KitRow, ReturnType<typeof resolveScan>>();

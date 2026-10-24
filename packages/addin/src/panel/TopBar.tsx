@@ -1,6 +1,9 @@
 // Верхняя строка панели: ⌂ (конструктор), «Норматив», «Помощник», «Шаблоны ▾», «Настройки», значки помощника.
 import { useEffect, useRef, useState } from "react";
-import { TEMPLATES, type TemplateCode } from "@idk/shared/templates";
+import type { TemplateCode } from "@idk/shared/templates";
+import { BUILTIN_SBD } from "@idk/shared/forms/template";
+
+const TEMPLATES = [{ code: BUILTIN_SBD.id, label: BUILTIN_SBD.name }];
 import { ASSISTANT_ICONS, type ScreenId } from "./screens.ts";
 import { AssistantIcon, ChevronIcon, GearIcon, GridIcon, HomeIcon } from "./icons.tsx";
 

@@ -31,7 +31,7 @@ test("чужие ссылки не открываются", () => {
 test("шаблон: по умолчанию СБД, сохранение", async () => {
   const wb = new MemoryWorkbook();
   assert.equal(await loadTemplate(wb), "sbd");
-  await wb.setSetting("idk.template", "zzz"); assert.equal(await loadTemplate(wb), "sbd");
+  await wb.setSetting("idk.template", "zzz"); assert.equal(await loadTemplate(wb), "zzz", "наличие шаблона проверяет панель");
   await saveTemplate(wb, "sbd"); assert.equal(await wb.setting("idk.template"), "sbd");
 });
 test("appendDesignation", () => {

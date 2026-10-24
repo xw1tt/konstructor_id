@@ -9,6 +9,8 @@ import { exportRoutes } from "./routes/export.ts";
 import { kitRoutes } from "./routes/kit.ts";
 import { ojrRoutes } from "./routes/ojr.ts";
 import { rkcRoutes } from "./routes/rkc.ts";
+import { templateRoutes } from "./routes/templates.ts";
+import { TemplateStore } from "./forms/store.ts";
 
 export const DEFAULT_UPLOAD_LIMIT = 200 * 1024 * 1024;
 
@@ -35,6 +37,7 @@ export function createApp(opts: AppOptions) {
   kitRoutes(api, opts.db, opts.dataDir);
   ojrRoutes(api);
   rkcRoutes(api);
+  templateRoutes(api, new TemplateStore(opts.dataDir));
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {
       if (await api.handle(req, res)) return;

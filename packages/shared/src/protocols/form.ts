@@ -40,3 +40,14 @@ export function protoFormData(p: ProtoData): { values: Record<string, string>; l
     },
   };
 }
+
+/** Метки протокола для пакета без протокола: все поля пустые, списки пустые (дерево меток всегда полное). */
+export function emptyProtoFormData(): { values: Record<string, string>; lists: Record<string, Record<string, string>[]> } {
+  return {
+    values: {
+      ...Object.fromEntries(PROTO_DOC_FIELDS.map((k) => [`Документ.${k}`, ""])),
+      ...Object.fromEntries(PROTO_LAB_FIELDS.map((k) => [`Лаборатория.${k}`, ""])),
+    },
+    lists: { "Строки": [], "Комиссия": [], "Приборы": [] },
+  };
+}

@@ -8,7 +8,7 @@ import { docNumber, formatDateShort, formatDateLong, formatNumber } from "@idk/s
 import { repLine } from "@idk/shared/acts/repLine";
 import { ROLE_GROUPS, type FormData } from "@idk/shared/forms/fields";
 import { buildDocDataFromBundle, buildAvkData } from "../print/fromBundle.ts";
-import { protoFormData } from "@idk/shared/protocols/form";
+import { protoFormData, emptyProtoFormData } from "@idk/shared/protocols/form";
 
 export type { FormData };
 
@@ -71,7 +71,7 @@ export function formData(b: ActBundle, doc?: { code: string }): FormData {
   }
   const docsOf = new Map(avk.rows.map((r, i) => [i, r.docs]));
   // Протокол или акт плана 13: группы «Документ», «Лаборатория», списки «Строки», «Комиссия», «Приборы».
-  const proto = b.proto ? protoFormData(b.proto) : { values: {}, lists: {} };
+  const proto = b.proto ? protoFormData(b.proto) : emptyProtoFormData();
   return {
     values: { ...v, ...proto.values },
     lists: {

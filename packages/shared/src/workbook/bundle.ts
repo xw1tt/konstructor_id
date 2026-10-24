@@ -73,7 +73,8 @@ export function createChecker(book: Book, important: ImportantMap) {
       }
       case "refs": {
         const list = splitRefs(v);
-        for (const x of list) if (!find(col.ref!, x)) push(t, r.row, col.header, `Нет в таблице «${TABLES[col.ref!].sheet}»: ${x}`);
+        // Столбец со списком-диапазоном («Вид работ») проверяется по справочнику, а не по таблице книги.
+        if (col.ref) for (const x of list) if (!find(col.ref!, x)) push(t, r.row, col.header, `Нет в таблице «${TABLES[col.ref!].sheet}»: ${x}`);
         return list;
       }
       default:

@@ -4,7 +4,7 @@ import { HELP, OBJECT_HELP } from "./help.ts";
 import type { CellValue } from "./values.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -31,6 +31,8 @@ export interface ColumnDef {
   default?: string | number;
   formula?: string;
   width?: number;
+  /** Имя диапазона Excel со списком значений (для столбцов без таблицы-источника, например «ВидыРабот»). */
+  listRange?: string;
   /** Подсказка: что вносить и в каком формате (≤ 255 символов — ограничение Excel). */
   hint: string;
   /** Значение строки-примера в новой книге. */
@@ -95,6 +97,9 @@ export const isObjectFieldRequired = (label: string) => OBJECT_REQUIRED_LABELS.i
 
 /** Поля таблицы «Объект» с подсказками и значениями примера. */
 export const OBJECT_FIELDS = OBJECT_FIELDS_RAW.map((f) => ({ ...f, hint: OBJECT_HELP[f.key][0], example: OBJECT_HELP[f.key][1] }));
+
+/** Именованный диапазон на листе «Списки» с видами работ из справочника шаблона. */
+export const WORK_LIST = "ВидыРабот";
 
 const c = (key: string, header: string, type: ColType, extra: Partial<ColumnDef> = {}): ColumnDef =>
   ({ key, header, type, hint: "", ...extra });
@@ -176,6 +181,8 @@ export const TABLES: Record<TableName, TableDef> = {
     c("vorContractor", "ВОР: от монтажников", "ref", { ref: "Представители" }),
     c("avkNumber", "АВК: номер", "text", { width: 18 }),
     c("avkDate", "АВК: дата", "date"),
+    c("workKinds", "Вид работ", "refs", { listRange: WORK_LIST, width: 40 }),
+    c("skipDocs", "Без документов", "text", { width: 24 }),
   ]),
   "Схемы": t("Схемы", "Исполнительные схемы", [
     c("act", "Акт", "ref", { ...imp, ref: "Акты", width: 24 }),

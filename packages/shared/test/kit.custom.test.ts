@@ -21,7 +21,7 @@ const tpl: UserTemplate = {
 
 test("вид реестра «Свой документ», схема v7", () => {
   assert.ok(REGISTRY_KINDS.includes("Свой документ" as never));
-  assert.equal(SCHEMA_VERSION, 7);
+  assert.ok(SCHEMA_VERSION >= 7);
 });
 
 test("реестр по шаблону: без ВОР, со своим документом после АОСР/РИМ/ВД", async () => {

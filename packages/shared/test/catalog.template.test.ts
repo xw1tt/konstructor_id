@@ -1,10 +1,20 @@
 // План 12, задача 3: шаблон из справочника — добавить/убрать вид работ.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BUILTIN_CATALOG } from "@idk/shared/catalog/builtin";
+import { BUILTIN_CATALOG as BUILTIN } from "@idk/shared/catalog/builtin";
 import { addWork, removeWork, templateWorks } from "@idk/shared/catalog/template";
 import { UserTemplate, type UserTemplate as UT } from "@idk/shared/forms/template";
 import type { Catalog } from "@idk/shared/catalog/model";
+
+/** Каркас справочника задачи 1 (не зависит от наполнения встроенного): 7 документов конструктора, два вида работ. */
+const BUILTIN_CATALOG: Catalog = {
+  version: "t",
+  docs: BUILTIN.docs.filter((d) => d.make === "builtin"),
+  sections: [
+    { code: "ЭМ", name: "ЭМ", works: [{ code: "Прокладка КЛ", name: "Прокладка кабельных линий", docs: ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ПСИ"] }] },
+    { code: "ЭС", name: "ЭС", works: [{ code: "Монтаж щитов", name: "Монтаж щитов", docs: ["АОСР", "РИМ", "ВД", "ВОР", "АВК"] }] },
+  ],
+};
 
 const tpl = (docs: UT["docs"]): UT => UserTemplate.parse({ id: "t-00000000-0000-4000-8000-000000000000", name: "Т", docs, print: {} });
 type CustomDoc = Extract<UT["docs"][number], { kind: "custom" }>;

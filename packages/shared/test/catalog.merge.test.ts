@@ -30,12 +30,12 @@ test("свой документ и свой вид работ во встрое�
   assert.deepEqual([...catalog.own], ["ПИК", "Прокладка лотков"]);
 });
 
-test("скрытый «ВОР»: не в выборе, но docs справочника находит по коду", () => {
-  const { catalog, errors } = mergeCatalog(BUILTIN_CATALOG, { ...empty, hidden: ["ВОР"] });
+test("скрытый «КЖ»: не в выборе, но docs справочника находит по коду", () => {
+  const { catalog, errors } = mergeCatalog(BUILTIN_CATALOG, { ...empty, hidden: ["КЖ"] });
   assert.deepEqual(errors, []);
-  assert.ok(catalog.docs.some((d) => d.code === "ВОР"));
+  assert.ok(catalog.docs.some((d) => d.code === "КЖ"));
   const refs = catalog.sections.flatMap((s) => s.works.flatMap((w) => w.docs));
-  assert.ok(!refs.includes("ВОР"));
+  assert.ok(!refs.includes("КЖ"));
 });
 
 test("конфликт кода — ошибка, документ не добавляется", () => {

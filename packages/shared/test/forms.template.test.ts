@@ -8,7 +8,8 @@ test("встроенный «СБД»: все встроенные докуме�
   assert.equal(SBD_ID, "sbd");
   assert.equal(BUILTIN_SBD.name, "СБД");
   assert.deepEqual(BUILTIN_SBD.docs.map((d) => d.kind === "builtin" && d.doc), ["aosr", "rim", "vd", "vor", "avk", "kj", "ip"]);
-  assert.deepEqual(BUILTIN_DOC_LABELS, { aosr: "АОСР", rim: "РИМ", vd: "ВД", vor: "ВОР", avk: "АВК", kj: "КЖ", ip: "Протокол" });
+  assert.deepEqual(Object.fromEntries(Object.entries(BUILTIN_DOC_LABELS).slice(0, 7)), { aosr: "АОСР", rim: "РИМ", vd: "ВД", vor: "ВОР", avk: "АВК", kj: "КЖ", ip: "Протокол" });
+  assert.equal(BUILTIN_DOC_LABELS.pav, "ПАВ", "протоколы плана 13 — по кодам справочника");
   assert.ok(UserTemplate.safeParse(BUILTIN_SBD).success);
 });
 

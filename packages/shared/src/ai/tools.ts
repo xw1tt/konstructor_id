@@ -35,7 +35,11 @@ export const BOOK_TOOLS: ToolDef[] = [
     parameters: obj({ table: str("Таблица"), rows: { type: "array", items: { type: "integer" }, description: "Номера строк из read_rows" } }, ["table", "rows"]) },
 ];
 
-export interface Proposal { id: number; change: BookChange; lines: string[] }
+/** Предложение не по книге (план 20): дополнения справочника, метки формы. */
+export type ExtraChange =
+  | { kind: "catalog"; add: import("../catalog/model.ts").UserCatalog }
+  | { kind: "form"; token: string; templateId: string; choices: Record<string, string>; replacements: { text: string; field: string }[] };
+export interface Proposal { id: number; change: BookChange | ExtraChange; lines: string[] }
 
 export interface ToolContext {
   book: Book;

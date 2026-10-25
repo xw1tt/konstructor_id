@@ -24,6 +24,9 @@ test("API: встроенный справочник, дополнения со�
   assert.deepEqual(got.json.own, ["ПИК", "Прокладка лотков"]);
   const em = got.json.catalog.sections.find((x: any) => x.code === "ЭМ");
   assert.ok(em.works.some((w: any) => w.code === "Прокладка лотков"));
+  // План 20: дополнения пользователя как есть — для правок помощника и их отмены.
+  const user = await s.req("GET", "/api/catalog/user");
+  assert.deepEqual(user.json, { docs: [pik], sections: [emSection], hidden: [] });
 });
 
 test("API: конфликт кода и битые ссылки — 422, дополнения не сохраняются", async () => {

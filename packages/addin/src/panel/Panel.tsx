@@ -1,5 +1,6 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
 import { useEffect, useState, type ReactNode } from "react";
+import { catalogKit, catalogApi } from "./kits.ts";
 import { NEEDED_SHEETS_SETTING, sheetPlan } from "@idk/shared/workbook/sheets";
 import { loadTemplate, saveTemplate, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { TABLE_NAMES, type TableName } from "@idk/shared/workbook/schema";
@@ -104,7 +105,8 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   };
   // План 17: «Только нужные листы» — настройка книги; пересчёт при включении и при смене шаблона книги.
   // План 19: разговор с помощником переживает переход между экранами.
-  const [assistant] = useState(() => new AssistantSession({ store: port, chat: aiApi.chat }));
+  // План 20: помощник дополняет справочник — после применения и отмены справочник перечитывается.
+  const [assistant] = useState(() => new AssistantSession({ store: port, chat: aiApi.chat, kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1))] }));
   const [neededOn, setNeededOn] = useState(false);
   useEffect(() => { void port.setting(NEEDED_SHEETS_SETTING).then((v) => setNeededOn(v === "1")).catch(() => undefined); }, [port]);
   const applySheets = async (on: boolean) => {

@@ -20,4 +20,4 @@ Files: `deploy/{Dockerfile,docker-compose.yml,Caddyfile,install.sh,backup.sh}`, 
 - [x] Тесты; архив развёртывания собирается (шаги Dockerfile из архива и адаптер pg проверены вручную на PGlite-сокете).
 
 ### Task 3: Документация, версия 0.20
-- [ ] «Развёртывание облака.md» (Yandex Cloud пошагово), README, инструкция, manifest 0.20.0.0, установщик 0.20.
+- [x] «Развёртывание облака.md» (Yandex Cloud пошагово), README, инструкция, manifest 0.20.0.0, установщик 0.20.

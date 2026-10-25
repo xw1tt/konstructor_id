@@ -40,5 +40,5 @@ Files: `server/src/ai/http.ts`, `server/src/ai/providers.ts`; Test `server/test/
 
 ### Task 3: Маршруты
 Files: `server/src/routes/ai.ts`, `server/src/app.ts`; Test `server/test/ai.routes.test.ts`.
-- [ ] Тесты: CRUD подключений без ключей в ответах; активное; «Проверить»; `/api/ai/chat` через активное, без активного —
+- [x] Тесты: CRUD подключений без ключей в ответах; активное; «Проверить»; `/api/ai/chat` через активное, без активного —
   400 «Не выбрана нейросеть»; расход в журнале и `/api/ai/usage`.

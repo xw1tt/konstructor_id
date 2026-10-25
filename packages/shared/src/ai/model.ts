@@ -22,7 +22,7 @@ export const ProviderInput = z.object({
   baseUrl: z.string().trim().default(""),
   model: z.string().trim().default(""),
   /** Пусто при сохранении — оставить прежний ключ. */
-  key: z.string().default(""),
+  key: z.string().trim().default(""),
   folderId: z.string().trim().default(""),
   scope: z.string().trim().default(""),
   authUrl: z.string().trim().default(""),
@@ -60,6 +60,7 @@ export function providerProblems(p: Provider): string[] {
   else if (!/^https?:\/\//i.test(r.baseUrl)) out.push("Адрес API начинается с http:// или https://");
   if (!r.model) out.push(p.kind === "yandex" ? "Укажите ID каталога или модель" : "Укажите модель");
   if (p.kind !== "local" && !p.key) out.push(p.kind === "gigachat" ? "Укажите ключ авторизации" : "Укажите ключ API");
+  if (p.key && !/^[\x21-\x7e]+$/.test(p.key)) out.push("Ключ содержит недопустимые символы — скопируйте его заново, без пробелов и переносов");
   return out;
 }
 

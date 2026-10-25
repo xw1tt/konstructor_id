@@ -21,7 +21,7 @@ export async function fakeAi(routes: Record<string, Reply[]>, tls?: { key: strin
       const r0 = q.length > 1 ? q.shift()! : q[0];
       if (!r0) { res.writeHead(404); res.end("{}"); return; }
       const r = typeof r0 === "function" ? r0(s) : r0;
-      if ("delayMs" in r && r.delayMs) await new Promise((x) => setTimeout(x, r.delayMs));
+      if ("delayMs" in r && r.delayMs) await new Promise<void>((x) => setTimeout(() => x(), Number((r as { delayMs?: number }).delayMs)));
       res.writeHead(r.status ?? 200, { "content-type": "application/json" });
       res.end(JSON.stringify(r.json));
     });

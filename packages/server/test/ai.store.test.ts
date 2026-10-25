@@ -28,13 +28,13 @@ test("хранилище: без ключей наружу, ключ не сти
   const dir = tmpDir();
   const s = new AiStore(dir);
   assert.throws(() => s.active(), /Не выбрана нейросеть/);
-  const a = s.save("new", inp({ name: "Яндекс", kind: "yandex", folderId: "b1g", key: "секрет" }));
+  const a = s.save("new", inp({ name: "Яндекс", kind: "yandex", folderId: "b1g", key: "s3cret" }));
   assert.equal(a.hasKey, true);
   assert.ok(!("key" in a));
   assert.equal(s.list().active, a.id, "первое подключение — активное");
-  assert.ok(!JSON.stringify(s.list()).includes("секрет"));
+  assert.ok(!JSON.stringify(s.list()).includes("s3cret"));
   s.save(a.id, inp({ name: "Яндекс 2", kind: "yandex", folderId: "b1g" }));
-  assert.equal(s.get(a.id).key, "секрет", "сохранение без ключа оставляет прежний");
+  assert.equal(s.get(a.id).key, "s3cret", "сохранение без ключа оставляет прежний");
   assert.equal(s.get(a.id).name, "Яндекс 2");
   assert.throws(() => s.save("new", inp({ name: "Плохое", kind: "openai" })), /Укажите адрес API/);
   const b = s.save("new", inp({ name: "Ollama", kind: "local", model: "qwen2.5" }));
@@ -43,7 +43,7 @@ test("хранилище: без ключей наружу, ключ не сти
   s.remove(b.id);
   assert.equal(s.list().active, null);
   assert.throws(() => s.remove("нет"), /не найдено/);
-  assert.ok(readFileSync(join(dir, "ai.json"), "utf8").includes("секрет"), "ключ хранится в файле на ПК");
+  assert.ok(readFileSync(join(dir, "ai.json"), "utf8").includes("s3cret"), "ключ хранится в файле на ПК");
 });
 
 test("журнал расхода: итоги текущего месяца по подключениям", () => {

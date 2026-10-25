@@ -15,6 +15,9 @@ import { catalogRoutes } from "./routes/catalog.ts";
 import { formJobRoutes } from "./routes/formJobs.ts";
 import { libraryRoutes } from "./routes/library.ts";
 import { LibraryStore } from "./library/store.ts";
+import { aiRoutes } from "./routes/ai.ts";
+import { AiStore } from "./ai/store.ts";
+import type { Post } from "./ai/providers.ts";
 import { powershellRunner, type OfficeRunner } from "./forms/convert.ts";
 
 export const DEFAULT_UPLOAD_LIMIT = 200 * 1024 * 1024;
@@ -31,6 +34,8 @@ export interface AppOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Перевод своих форм в PDF через Office (по умолчанию — PowerShell + COM на Windows). */
   officeRunner?: OfficeRunner;
+  /** Для тестов: подмена HTTP-запросов к нейросетям. */
+  aiPost?: Post;
 }
 
 export const defaultOrigins = (port = 3443) => [`https://localhost:${port}`, `https://127.0.0.1:${port}`];
@@ -49,6 +54,7 @@ export function createApp(opts: AppOptions) {
   const runner = opts.officeRunner ?? powershellRunner();
   formJobRoutes(api, templates, runner);
   kitRoutes(api, opts.db, opts.dataDir, { templates, runner });
+  aiRoutes(api, new AiStore(opts.dataDir), { post: opts.aiPost });
   libraryRoutes(api, new LibraryStore(opts.dataDir), opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {

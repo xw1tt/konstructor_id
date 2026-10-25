@@ -20,7 +20,9 @@ export function createCloudApp(o: CloudOptions) {
   const ext = o.extend?.(api, { auth, db: o.db }) ?? {};
   authRoutes(api, auth, o.db, ext.meExtra);
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
-    const origin = String(req.headers.origin ?? "");
+    let origin = String(req.headers.origin ?? "");
+    // Запрос со страницы самого сервера (консоль) — свой адрес, не «чужой сайт».
+    try { if (origin && new URL(origin).host === req.headers.host) { delete req.headers.origin; origin = ""; } } catch { /* неверный Origin — проверит роутер */ }
     if (origin && o.allowedOrigins.includes(origin)) {
       res.setHeader("access-control-allow-origin", origin);
       res.setHeader("vary", "Origin");

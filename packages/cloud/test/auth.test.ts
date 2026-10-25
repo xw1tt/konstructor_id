@@ -77,3 +77,10 @@ test("CORS: панель разрешена, чужой сайт — нет; с�
   assert.equal((await c.req("POST", "/api/auth/password", { old: "пароль-владельца", password: "новый-пароль" }, { token: json.token })).status, 204);
   assert.equal((await c.req("POST", "/api/auth/login", { email: "o@o.ru", password: "новый-пароль" })).status, 200);
 });
+
+test("запрос со страницы самого сервера (консоль) — не чужой сайт", async () => {
+  const c = await startCloud({ allowedOrigins: [] });
+  const link = await createOwner(c.db, "o@o.ru", c.url);
+  const r = await c.req("POST", `/api/invites/${tokenOf(link)}`, { password: "пароль-владельца" }, { origin: c.url });
+  assert.equal(r.status, 201);
+});

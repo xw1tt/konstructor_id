@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Конструктор ИД — консоль</title>
+<style>
+  :root { --ink: #1f2a37; --soft: #5b6675; --line: #d9dee5; --paper: #fff; --bg: #f4f6f9; --blue: #1e4a85; --ok: #1d7a46; --err: #b42318; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 "Segoe UI", system-ui, sans-serif; color: var(--ink); background: var(--bg); }
+  a { color: var(--blue); }
+  h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 20px; margin: 4px 0 12px; display: flex; gap: 10px; align-items: center; } h3 { font-size: 15px; margin: 22px 0 8px; }
+  .shell header { display: flex; gap: 16px; align-items: center; padding: 10px 20px; background: var(--ink); color: #fff; flex-wrap: wrap; }
+  .shell header nav { display: flex; gap: 14px; flex: 1; } .shell header nav a { color: #cfe0ff; text-decoration: none; } .shell header nav a:hover { color: #fff; }
+  .shell header .who { color: #cfd6df; font-size: 13px; } .shell header button { background: transparent; color: #fff; border-color: #6b7685; }
+  main { padding: 18px 20px 40px; max-width: 1100px; margin: 0 auto; }
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 10px; }
+  .narrow { max-width: 380px; margin: 60px auto; }
+  label { display: grid; gap: 3px; font-size: 13px; color: var(--soft); }
+  input, select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); min-width: 0; }
+  button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+  button:hover { border-color: var(--blue); } button.primary { background: var(--blue); border-color: var(--blue); color: #fff; } button.danger { color: var(--err); border-color: #e7b4ae; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; align-items: end; }
+  .check { display: flex; gap: 6px; align-items: center; color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 6px 0; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; } th { background: #eef1f5; font-weight: 600; font-size: 12px; color: var(--soft); }
+  td.num, th.num { text-align: right; white-space: nowrap; } .neg { color: var(--err); } .pos { color: var(--ok); }
+  tr.click { cursor: pointer; } tr.click:hover td { background: #f7f9fc; } tr.dim td { color: #9aa3ae; } td.actions { white-space: nowrap; } td.actions button { margin-left: 4px; font-size: 12px; padding: 3px 8px; }
+  .small { font-size: 11px; color: var(--soft); max-width: 320px; overflow-wrap: anywhere; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .stats div { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; } .stats b { font-size: 18px; } .stats span { color: var(--soft); font-size: 12px; }
+  .badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; } .b-active { background: #e3f4ea; color: var(--ok); } .b-readonly { background: #fff1d6; color: #8a5a00; } .b-suspended { background: #fde8e6; color: var(--err); }
+  .muted { color: var(--soft); } .ok { color: var(--ok); } .err { color: var(--err); }
+  .linkbox { background: #eef4ff; border: 1px solid #c9dafc; border-radius: 8px; padding: 8px 10px; display: grid; grid-template-columns: 1fr auto; gap: 6px; margin: 6px 0; }
+  .linkbox p { grid-column: 1 / -1; margin: 0; font-size: 13px; }
+</style>
+</head>
+<body><div id="root"></div><script src="console.js"></script></body>
+</html>

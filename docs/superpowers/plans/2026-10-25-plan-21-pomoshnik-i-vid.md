@@ -27,7 +27,7 @@ Files: `shared/src/ai/prompt.ts`, `shared/src/ai/tools.ts`, `shared/src/ai/agent
 ### Task 2: Панель — прокрутка, компактный вид, ширина
 Files: `AssistantScreen.tsx`, `TopBar.tsx`, `Panel.tsx` (разделы), `icons.tsx`, `screens.ts`, `SettingsScreen.tsx`,
 `panelWidth.ts`, `styles.css`; Test `addin/test/screens.test.ts`, `addin/test/panelwidth.test.ts`.
-- [ ] Тесты: состояние ширины (поддерживается/нет, версия); иконка у каждого экрана и раздела; сборка; снимки экрана
+- [x] Тесты: состояние ширины (поддерживается/нет, версия); иконка у каждого экрана и раздела; сборка; снимки экрана
   широкой и узкой панели.
 
 ### Task 3: Документация и версия 0.19

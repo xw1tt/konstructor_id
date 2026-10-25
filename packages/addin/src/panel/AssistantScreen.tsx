@@ -23,10 +23,11 @@ export function AssistantScreen({ state, session, onSettings, extra }: {
   const [error, setError] = useState("");
   const tpl = useContext(UserTemplateContext);
   const catalog = useContext(CatalogContext);
-  const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => { void aiApi.providers().then(setProviders).catch((e) => setError((e as Error).message)); }, []);
-  useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); });
+  // Прокрутка только окна сообщений и только при новом сообщении (план 21): раньше после каждой клавиши прокручивалась вся панель.
+  const log = useRef<HTMLDivElement>(null);
+  useEffect(() => { const el = log.current; if (el) el.scrollTop = el.scrollHeight; }, [session.items.length, busy, session.pending.length]);
 
   const active = providers?.providers.find((p) => p.id === providers.active) ?? null;
   const masked = active ? resolveProvider({ ...active, key: "" } as Provider).maskNames : false;
@@ -85,10 +86,9 @@ export function AssistantScreen({ state, session, onSettings, extra }: {
           <p>Помощник предложит изменения — вы примените их кнопкой и сможете отменить.</p>
         </div>
       )}
-      <div className="as-log" aria-live="polite">
+      <div className="as-log" aria-live="polite" ref={log}>
         {session.items.map((m, i) => <div key={i} className={`as-msg as-${m.kind}`}>{m.text}</div>)}
         {busy && <div className="as-msg as-tool">Думаю…</div>}
-        <div ref={end} />
       </div>
       {session.pending.length > 0 && !busy && (
         <section className="as-card" aria-label="Предлагаемые изменения">

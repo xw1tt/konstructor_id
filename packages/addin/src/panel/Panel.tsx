@@ -1,5 +1,6 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { SectionIcon } from "./icons.tsx";
 import { catalogKit, catalogApi, FormKit } from "./kits.ts";
 import { FormAttach } from "./FormAttach.tsx";
 import { NEEDED_SHEETS_SETTING, sheetPlan } from "@idk/shared/workbook/sheets";
@@ -162,8 +163,8 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             <>
               <nav className="stamp" role="tablist" aria-label="Разделы">
                 {SECTIONS.map((s) => (
-                  <button key={s.id} role="tab" aria-selected={s.id === active} onClick={() => void port.activateSheet(s.sheets[0])}>
-                    {s.label}
+                  <button key={s.id} role="tab" aria-selected={s.id === active} title={s.label} aria-label={s.label} onClick={() => void port.activateSheet(s.sheets[0])}>
+                    <SectionIcon id={s.id} /><span className="st-label">{s.label}</span>
                   </button>
                 ))}
               </nav>

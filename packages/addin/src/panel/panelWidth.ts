@@ -27,3 +27,16 @@ export function trackWidth(win: Window, storage: Storage | null): () => void {
   win.addEventListener("resize", onResize);
   return () => { clearTimeout(timer); win.removeEventListener("resize", onResize); };
 }
+
+/** План 21: версия Excel и умеет ли она восстанавливать ширину панели (TaskPaneApi 1.1 — Excel 2507 и новее). */
+export function widthSupport(office: any): { version: string | null; supported: boolean } {
+  let version: string | null = null, supported = false;
+  try { version = office?.context?.diagnostics?.version ?? null; } catch { /* нет сведений */ }
+  try { supported = !!office?.context?.requirements?.isSetSupported?.("TaskPaneApi", "1.1"); } catch { /* нет API */ }
+  return { version, supported };
+}
+
+export const widthSupportText = (s: { version: string | null; supported: boolean }) =>
+  s.supported
+    ? "Ширина панели запоминается и восстанавливается при следующем запуске."
+    : `Эта версия Excel${s.version ? ` (${s.version})` : ""} не умеет восстанавливать ширину панели надстройки — это возможно в Excel 2507 и новее (Microsoft 365). Ширину придётся выставлять вручную.`;

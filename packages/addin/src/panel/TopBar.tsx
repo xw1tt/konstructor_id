@@ -1,9 +1,10 @@
-// Верхняя строка панели: ⌂ (конструктор), «Норматив», «Библиотека», «Помощник», «Шаблоны ▾», «Настройки», значки помощника.
+// Верхняя строка панели: ⌂ (конструктор), «Норматив», «Библиотека», «Помощник», «Шаблоны ▾», «Настройки» — значок и
+// подпись; при узкой панели (< 400 px) — только значки с подсказкой (план 21).
 import { useEffect, useRef, useState } from "react";
 import type { TemplateCode } from "@idk/shared/templates";
 import type { UserTemplate } from "@idk/shared/forms/template";
-import { ASSISTANT_ICONS, type ScreenId } from "./screens.ts";
-import { AssistantIcon, ChevronIcon, GearIcon, GridIcon, HomeIcon } from "./icons.tsx";
+import type { ScreenId } from "./screens.ts";
+import { ChevronIcon, GearIcon, GridIcon, HomeIcon, LibraryIcon, NormIcon, SparkIcon } from "./icons.tsx";
 
 export function TopBar({ screen, onScreen, template, templates, onTemplate }: {
   screen: ScreenId; onScreen(s: ScreenId): void; template: TemplateCode; templates: UserTemplate[]; onTemplate(t: TemplateCode): void;
@@ -25,14 +26,14 @@ export function TopBar({ screen, onScreen, template, templates, onTemplate }: {
         <button className={`tb-btn tb-home${screen === "home" ? " tb-active" : ""}`} aria-label="Конструктор ИД"
           aria-current={screen === "home" ? "page" : undefined} title="Конструктор ИД" onClick={() => onScreen("home")}><HomeIcon /></button>
         <button className={`tb-btn${screen === "normativ" ? " tb-active" : ""}`} aria-current={screen === "normativ" ? "page" : undefined}
-          onClick={() => onScreen("normativ")}>Норматив</button>
+          title="Норматив" onClick={() => onScreen("normativ")}><NormIcon /><span className="tb-label">Норматив</span></button>
         <button className={`tb-btn${screen === "library" ? " tb-active" : ""}`} aria-current={screen === "library" ? "page" : undefined}
-          onClick={() => onScreen("library")}>Библиотека</button>
+          title="Библиотека компании" onClick={() => onScreen("library")}><LibraryIcon /><span className="tb-label">Библиотека</span></button>
         <button className={`tb-btn tb-assistant${screen === "assistant" ? " tb-active" : ""}`} aria-current={screen === "assistant" ? "page" : undefined}
-          onClick={() => onScreen("assistant")}><span>Помощник</span></button>
+          title="Помощник" onClick={() => onScreen("assistant")}><SparkIcon /><span className="tb-label">Помощник</span></button>
         <div className="tb-drop" ref={box}>
-          <button className="tb-btn tb-templates" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-            <GridIcon /> Шаблоны <ChevronIcon />
+          <button className="tb-btn tb-templates" aria-haspopup="listbox" aria-expanded={open} title="Шаблоны" onClick={() => setOpen((v) => !v)}>
+            <GridIcon /><span className="tb-label">Шаблоны</span><ChevronIcon />
           </button>
           {open && (
             <ul className="tb-menu" role="menu" aria-label="Шаблон и настройки печати">
@@ -49,13 +50,8 @@ export function TopBar({ screen, onScreen, template, templates, onTemplate }: {
           )}
         </div>
         <button className={`tb-btn tb-settings${screen === "settings" ? " tb-active" : ""}`} aria-current={screen === "settings" ? "page" : undefined}
-          onClick={() => onScreen("settings")}><GearIcon /> Настройки</button>
+          title="Настройки" onClick={() => onScreen("settings")}><GearIcon /><span className="tb-label">Настройки</span></button>
       </nav>
-      <div className="topbar-icons" aria-label="Помощник">
-        {ASSISTANT_ICONS.map((i) => (
-          <button key={i.id} className="tb-icon" disabled aria-label={i.label} title={`${i.label} — скоро`}><AssistantIcon id={i.id} /></button>
-        ))}
-      </div>
     </header>
   );
 }

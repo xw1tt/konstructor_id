@@ -1,6 +1,9 @@
 // Экран «Настройки»: нейросети помощника (план 19), папка библиотеки компании (план 16). Выбор п.4 АОСР — в «Редакторе шаблонов».
 import { useEffect, useState } from "react";
 import { librarySettings, setLibraryDir } from "./libraryApi.ts";
+import { widthSupport, widthSupportText } from "./panelWidth.ts";
+
+declare const Office: unknown;
 import { AiSettings } from "./AiSettings.tsx";
 
 export function SettingsScreen() {
@@ -35,6 +38,8 @@ export function SettingsScreen() {
         <button className="btn btn-primary" onClick={() => void save(dir.trim() || null)}>Сохранить</button>
       </div>
       {msg && <p className={msg.ok ? "notice" : "error"} role={msg.ok ? undefined : "alert"}>{msg.text}</p>}
+      <h3 className="tools-title">Панель</h3>
+      <p className="muted">{widthSupportText(widthSupport(typeof Office !== "undefined" ? Office : undefined))}</p>
       <p className="muted">«Исполнительная схема» в п.4 АОСР настраивается в шаблоне: «Шаблоны ▾» → «Редактор шаблонов», рядом с документом АОСР.</p>
     </main>
   );

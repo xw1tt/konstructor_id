@@ -15,6 +15,7 @@ import { aov1Book, AOV1 } from "../../shared/test/fixtures/aov1Book.ts";
 import { startTestServer } from "./helpers/server.ts";
 import { pdfPages } from "./helpers/pdftext.ts";
 import { tmpDir } from "./helpers/tmp.ts";
+import { PrintOptions } from "@idk/shared/templates";
 
 after(() => closeBrowser());
 
@@ -60,13 +61,13 @@ test("задание живёт 30 минут, хранится не больш�
   let now = 0;
   const jobs = createPrintJobs(() => now);
   const b = await bookBundle();
-  const id = jobs.add({ bundle: b, template: "sbd", options: { schemeEach: false } });
+  const id = jobs.add({ bundle: b, template: "sbd", options: PrintOptions.parse({ schemeEach: false }) });
   now = 29 * 60_000;
   assert.ok(jobs.get(id));
   now = 31 * 60_000;
   assert.equal(jobs.get(id), undefined);
-  const first = jobs.add({ bundle: b, template: "sbd", options: { schemeEach: false } });
-  for (let i = 0; i < 50; i++) jobs.add({ bundle: b, template: "sbd", options: { schemeEach: false } });
+  const first = jobs.add({ bundle: b, template: "sbd", options: PrintOptions.parse({ schemeEach: false }) });
+  for (let i = 0; i < 50; i++) jobs.add({ bundle: b, template: "sbd", options: PrintOptions.parse({ schemeEach: false }) });
   assert.equal(jobs.get(first), undefined);
 });
 

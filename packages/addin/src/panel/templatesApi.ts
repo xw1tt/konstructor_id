@@ -1,5 +1,6 @@
 // Шаблоны пользователя в панели: запросы к серверу, кнопки печати по шаблону, выбор шаблона книги.
-import { BUILTIN_SBD, BUILTIN_DOC_LABELS, type UserTemplate, type TemplateDoc, type FormRef } from "@idk/shared/forms/template";
+import { BUILTIN_SBD, BUILTIN_DOC_LABELS, isBuiltinTemplate, type UserTemplate, type TemplateDoc, type FormRef } from "@idk/shared/forms/template";
+import type { FormDoc, FormSet } from "@idk/shared/templates";
 import type { PrintKind } from "@idk/shared/acts/schemas";
 import { PROTO_DEFS, isProtoKind } from "@idk/shared/protocols/defs";
 import { apiGet, apiSend } from "../api.ts";
@@ -46,3 +47,31 @@ export const uploadForm = (id: string, file: File) =>
 export const importTemplate = (file: File) => rawCall<UserTemplate>("/api/templates/import", { method: "POST", body: file });
 
 export type { UserTemplate, TemplateDoc, FormRef };
+
+// ---------- План 14: наборы форм в редакторе шаблонов ----------
+
+const withPrint = (t: UserTemplate, p: Partial<UserTemplate["print"]>): UserTemplate => ({ ...t, print: { ...t.print, ...p } });
+/** Набор форм и нумерации шаблона. */
+export const withFormSet = (t: UserTemplate, set: FormSet) => withPrint(t, { formSet: set });
+/** Форма документа вопреки набору; null — «по набору». */
+export function withDocForm(t: UserTemplate, doc: FormDoc, set: FormSet | null): UserTemplate {
+  const forms = { ...t.print.forms };
+  if (set) forms[doc] = set;
+  else delete forms[doc];
+  return withPrint(t, { forms });
+}
+/** Коэффициент запаса КЖ «ТИ», %. */
+export const withReserve = (t: UserTemplate, pct: number) => withPrint(t, { kjReserve: pct });
+
+/**
+ * Изменение шаблона: свой — сохраняется на месте; встроенный («СБД», «ТИ») не меняется — создаётся копия
+ * «<имя> (копия)», изменение сохраняется в неё. Возвращает сохранённый шаблон.
+ */
+export async function applyChange(
+  t: UserTemplate, change: (t: UserTemplate) => UserTemplate,
+  api: { create(name: string, from?: string): Promise<UserTemplate>; save(t: UserTemplate): Promise<UserTemplate> } = { create: createTemplate, save: saveTemplateDocs },
+): Promise<UserTemplate> {
+  if (!isBuiltinTemplate(t.id)) return api.save(change(t));
+  const copy = await api.create(`${t.name} (копия)`, t.id);
+  return api.save(change({ ...copy }));
+}

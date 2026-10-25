@@ -14,6 +14,7 @@ import { closeBrowser } from "@idk/server/print/browser";
 import { protoRecords, AOV1 } from "../../shared/test/fixtures/protoBook.ts";
 import { startTestServer } from "./helpers/server.ts";
 import { pdfPages } from "./helpers/pdftext.ts";
+import { PrintOptions } from "@idk/shared/templates";
 
 after(() => closeBrowser());
 
@@ -112,7 +113,7 @@ test("PDF документов этапов 2 и 4: ПОКБ (комиссия, 
 
 test("сборка комплекта с ПКЛ и ПАВ: строки реестра с «л.», документы в PDF", async () => {
   const tpl: UserTemplate = {
-    id: "t-1", name: "Протоколы", print: { schemeEach: false },
+    id: "t-1", name: "Протоколы", print: PrintOptions.parse({ schemeEach: false }),
     docs: [{ kind: "builtin", doc: "aosr", form: null }, { kind: "builtin", doc: "pkl", form: null }, { kind: "builtin", doc: "pav", form: null }],
   };
   const recs = protoRecords();

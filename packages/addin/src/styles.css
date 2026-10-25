@@ -33,7 +33,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .stamp button {
   background: var(--paper); border: 0;
   padding: 6px 4px; font-size: 12px; cursor: pointer; text-align: center; min-height: 34px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
 }
+.stamp button svg { flex: none; opacity: .8; }
 /* Неполный последний ряд: последняя кнопка растягивается на оставшиеся клетки. */
 .stamp button:last-child:nth-child(3n + 1) { grid-column: span 3; }
 .stamp button:last-child:nth-child(3n + 2) { grid-column: span 2; }
@@ -128,8 +130,9 @@ details.section > .body { padding-bottom: 12px; }
 .tb-btn:hover:not(.tb-active) { background: var(--surface); }
 .tb-active { background: var(--ink); color: var(--paper); }
 .tb-home { padding: 4px 6px; }
-.tb-assistant span { background: linear-gradient(90deg, #4f7cff, #b06cff); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.tb-assistant.tb-active span { background: linear-gradient(90deg, #9db6ff, #dcb8ff); -webkit-background-clip: text; background-clip: text; }
+.tb-assistant .tb-label { background: linear-gradient(90deg, #4f7cff, #b06cff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tb-assistant svg { color: #6f74ff; }
+.tb-assistant.tb-active .tb-label { background: linear-gradient(90deg, #9db6ff, #dcb8ff); -webkit-background-clip: text; background-clip: text; }
 .tb-templates { font-weight: 500; }
 .tb-drop { position: relative; }
 .tb-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 10; min-width: 220px; margin: 0; padding: 4px; list-style: none; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 18px rgba(31, 42, 55, .14); }
@@ -218,7 +221,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .as-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .as-head .app-title { margin-right: auto; }
 .as-hints ul { padding-left: 18px; margin: 4px 0; }
-.as-log { display: grid; gap: 6px; margin: 8px 0; }
+/* Окно сообщений прокручивается само (план 21): панель при наборе не сдвигается. */
+.as-log { display: grid; gap: 6px; margin: 8px 0; max-height: max(220px, calc(100vh - 330px)); overflow-y: auto; align-content: start; padding-right: 2px; }
 .as-msg { font-size: 12px; line-height: 1.4; white-space: pre-wrap; padding: 6px 8px; border-radius: 6px; }
 .as-user { background: var(--blue); color: #fff; justify-self: end; max-width: 85%; }
 .as-assistant { background: #f2f4f7; max-width: 95%; }
@@ -237,3 +241,17 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .ai-usage { font-size: 12px; border-collapse: collapse; }
 .ai-usage th, .ai-usage td { border: 1px solid var(--line); padding: 2px 6px; text-align: left; }
 .as-form { margin: 6px 0; }
+
+/* План 21: средняя ширина — «Шаблоны» и «Настройки» без подписей, чтобы верхняя строка помещалась в одну линию. */
+@media (max-width: 539px) { .tb-templates .tb-label, .tb-settings .tb-label { display: none; } }
+
+/* План 21: компактный вид — при узкой панели только значки (подписи — во всплывающей подсказке). */
+@media (max-width: 399px) {
+  .tb-label, .st-label { display: none; }
+  .tb-btn { padding: 4px 6px; }
+  .topbar { flex-wrap: nowrap; }
+  .topbar-nav { flex-wrap: nowrap; gap: 0; }
+  .stamp { grid-template-columns: repeat(9, 1fr); margin: 0 8px; }
+  .stamp button { min-height: 30px; padding: 4px 0; }
+  .stamp button:last-child:nth-child(3n + 1), .stamp button:last-child:nth-child(3n + 2) { grid-column: auto; }
+}

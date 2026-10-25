@@ -4,7 +4,7 @@ import { runTurn, toolLabel } from "@idk/shared/ai/agent";
 import { BOOK_TOOLS, execBookTool, type Proposal, type ToolContext } from "@idk/shared/ai/tools";
 import { applyChanges, undoChanges, type BookChange, type Undo } from "@idk/shared/ai/changes";
 import { NameMask } from "@idk/shared/ai/mask";
-import { systemPrompt, type PromptContext } from "@idk/shared/ai/prompt";
+import { bookSchema, systemPrompt, type PromptContext } from "@idk/shared/ai/prompt";
 import type { Book } from "@idk/shared/workbook/records";
 import type { ImportantMap } from "@idk/shared/workbook/important";
 import type { TableStore } from "@idk/shared/workbook/store";
@@ -45,7 +45,7 @@ export class AssistantSession {
 
   async ask(text: string, c: AskContext, onUpdate: () => void = () => {}): Promise<void> {
     if (this.pending.length) { this.note("Пользователь не стал применять прежние предложения"); this.pending = []; }
-    const system: ChatMessage = { role: "system", content: systemPrompt({ ...c.prompt, template: c.template.name, masked: c.masked }) };
+    const system: ChatMessage = { role: "system", content: systemPrompt({ ...c.prompt, template: c.template.name, masked: c.masked, schema: bookSchema(c.book) }) };
     if (this.history[0]?.role === "system") this.history[0] = system; else this.history.unshift(system);
     this.history.push({ role: "user", content: text });
     this.items.push({ kind: "user", text });
@@ -78,8 +78,11 @@ export class AssistantSession {
   /** Применяет отмеченные предложения: правки книги — одним заходом с отменой, прочие — своими наборами. */
   async apply(ids: number[]): Promise<number> {
     const chosen = this.pending.filter((p) => ids.includes(p.id));
-    const book = chosen.filter((p) => p.change.kind === "add" || p.change.kind === "update" || p.change.kind === "delete");
-    const undo = await applyChanges(this.deps.store, book.map((p) => p.change as BookChange));
+    const isBook = (p: Proposal) => p.change.kind === "add" || p.change.kind === "update" || p.change.kind === "delete" || p.change.kind === "batch";
+    const book = chosen.filter(isBook);
+    // Замена текста (план 21) — одно предложение из многих правок ячеек.
+    const changes = book.flatMap((p) => (p.change.kind === "batch" ? p.change.changes : [p.change as BookChange]));
+    const undo = await applyChanges(this.deps.store, changes);
     const extra: (() => Promise<void>)[] = [];
     for (const p of chosen.filter((x) => !book.includes(x))) {
       for (const k of this.deps.kits ?? []) { const u = await k.apply?.(p); if (u) { extra.push(u); break; } }

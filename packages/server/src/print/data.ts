@@ -1,6 +1,4 @@
-import type { Db } from "../db.ts";
-import { buildDocDataFromBundle } from "./fromBundle.ts";
-import { bundleFromDb } from "./fromDb.ts";
+// Данные документов акта для HTML-шаблонов печати.
 import type { DocKind } from "@idk/shared/acts/schemas";
 import type { RimRow, VdRow, VorRow, SignBlock, AvkRow } from "@idk/shared/acts/rows";
 
@@ -20,8 +18,3 @@ export interface AvkData {
   customerRep: string; contractorRep: string; sectionName: string; sectionCode: string; rows: AvkRow[];
 }
 export type DocData = { aosr: AosrData; rim: RimData; vd: VdData; vor: VorData };
-
-/** Данные документа акта из базы. */
-export function buildDocData<K extends DocKind>(db: Db, actId: number, kind: K): DocData[K] {
-  return buildDocDataFromBundle(bundleFromDb(db, actId), kind);
-}

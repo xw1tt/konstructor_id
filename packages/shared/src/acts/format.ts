@@ -1,5 +1,6 @@
 import type { FormSet, FormDoc, PrintOptions } from "../templates.ts";
 import type { DocKind } from "./schemas.ts";
+import { ACT_DOC_DEFS } from "../docs/defs.ts";
 
 /** Месяцы в родительном падеже («15 октября»). */
 export const MONTHS_GEN: readonly string[] = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
@@ -30,13 +31,9 @@ export const docNumber = (base: string, kind: Exclude<DocKind, "vor">) => `${bas
 
 /** Документы с номером от номера акта по правилам набора (план 14). */
 export type NumberedDoc = "aosr" | "rim" | "vd" | "rp" | "kj" | "ip";
-const SET_SUFFIX: Record<FormSet, Record<NumberedDoc, string>> = {
-  sbd: { aosr: "АОСР", rim: "РИМ", vd: "ВД", rp: "РП", kj: "КЖ", ip: "Протокол" },
-  ti: { aosr: "", rim: "РМ", vd: "ВД", rp: "РП", kj: "КЖ", ip: "П" },
-};
 /** Номер документа акта по набору форм: «СБД» — «<акт>.АОСР», «ТИ» — «<акт>» для АОСР, «<акт>.РМ» для РИМ и т. д. */
 export function docNumberFor(base: string, kind: NumberedDoc, set: FormSet = "sbd"): string {
-  const s = SET_SUFFIX[set][kind];
+  const s = ACT_DOC_DEFS[kind].suffix[set];
   return s ? `${base.trim()}.${s}` : base.trim();
 }
 

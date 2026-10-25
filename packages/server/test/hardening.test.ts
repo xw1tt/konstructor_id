@@ -12,7 +12,7 @@ test("hardening: битая %-кодировка в пути → 400, серве
   assert.equal(r.status, 400);
   const r2 = await s.raw("GET", "/addin/%E0");
   assert.ok(r2.status === 400 || r2.status === 404);
-  assert.equal((await s.req("GET", "/api/export")).status, 200);
+  assert.equal((await s.req("GET", "/api/templates")).status, 200);
 });
 
 test("hardening: скан удалён с диска → 404, сервер жив", async () => {
@@ -24,7 +24,7 @@ test("hardening: скан удалён с диска → 404, сервер жи�
   for (const n of readdirSync(dir)) rmSync(join(dir, n));
   const r = await s.raw("GET", `/api/files/${f.id}`);
   assert.equal(r.status, 404);
-  assert.equal((await s.req("GET", "/api/export")).status, 200);
+  assert.equal((await s.req("GET", "/api/templates")).status, 200);
 });
 
 test("csrf: тело не JSON (text/plain) → 415", async () => {

@@ -2,21 +2,14 @@
 import { randomUUID } from "node:crypto";
 import type { ServerResponse } from "node:http";
 import { Router, Reply, HttpError } from "../http/router.ts";
-import { CABLE_DOC_KINDS, PRINT_KINDS, type CableDocKind, type DocKind, type PrintKind } from "@idk/shared/acts/schemas";
-import { docNumberFor, formOf } from "@idk/shared/acts/format";
-import { tiDocData } from "../print/tiData.ts";
-import { tiVdHtml, tiRmHtml, tiRpHtml, tiKjHtml } from "../print/templates/ti.ts";
-import { tiHeader } from "../print/tiData.ts";
-import { tiJournal } from "@idk/shared/acts/cableDocs";
+import { PRINT_KINDS, type PrintKind } from "@idk/shared/acts/schemas";
+import type { ActDocKind } from "@idk/shared/docs/defs";
+import { renderActDoc } from "../print/docs.ts";
 import { z } from "zod";
 import { ActBundle } from "@idk/shared/workbook/bundle";
 import { DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
-import { buildDocDataFromBundle, buildAvkData } from "../print/fromBundle.ts";
-import { avkHtml } from "../print/templates/avk.ts";
 import { protoHtml } from "../print/templates/proto.ts";
 import { isProtoKind } from "@idk/shared/protocols/defs";
-import { renderHtml, renderCableHtml } from "../print/templates/index.ts";
-import { cableDocData } from "../print/cableData.ts";
 import { htmlToPdf } from "../print/browser.ts";
 
 /** Тело запроса печати: пакет акта и код шаблона (форма заказчика); без кода — СБД. */
@@ -54,40 +47,21 @@ const kindOf = (doc: string): PrintKind => {
   if (!PRINT_KINDS.includes(doc as PrintKind)) throw new HttpError(400, "Неизвестный документ: " + doc);
   return doc as PrintKind;
 };
-const isCable = (k: PrintKind): k is CableDocKind => (CABLE_DOC_KINDS as readonly string[]).includes(k);
 
 /** PDF документа пакета и имя файла (как у прежней печати из базы). */
 export async function renderBundlePdf(b: ActBundle, kind: PrintKind, _template: TemplateCode = DEFAULT_TEMPLATE, options: Partial<PrintOptions> = {}):
   Promise<{ pdf: Buffer; name: string }> {
   // Набор форм и нумерация — из опций шаблона (план 14); код шаблона сам по себе не влияет на печать.
-  const set = options.formSet ?? "sbd";
+  // Документы акта — по описаниям (план 15, print/docs.ts); протоколы плана 13 — по PROTO_DEFS.
   let html: string, name: string;
   if (isProtoKind(kind)) {
     if (b.proto?.kind !== kind) throw new HttpError(400, "В пакете нет данных документа " + kind);
     html = protoHtml(b);
     name = `${b.proto.code} №${b.proto.number}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
-  } else if (kind === "avk") {
-    const d = buildAvkData(b);
-    html = avkHtml(d);
-    name = `АВК ${d.number}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
-  } else if (kind === "kj" && formOf(options, "kj") === "ti") {
-    if (!b.cables) throw new HttpError(400, "В пакете нет данных кабельного журнала");
-    const number = docNumberFor(b.act.baseNumber, "kj", set);
-    html = tiKjHtml({ header: tiHeader(b, b.cables.doc?.journalDate ?? b.act.date), number, journal: tiJournal(b.cables.rows, options.kjReserve ?? 2) });
-    name = `${number}.pdf`;
-  } else if (isCable(kind)) {
-    html = kind === "kj" ? renderCableHtml("kj", cableDocData(b, "kj", set)) : renderCableHtml("ip", cableDocData(b, "ip", set));
-    name = (set === "ti" ? docNumberFor(b.act.baseNumber, kind, set)
-      : kind === "kj" ? b.cables?.doc?.journalCode || `${b.act.baseNumber}.КЖ` : `${b.act.baseNumber}.Протокол`) + ".pdf";
-  } else if (kind === "rp" || ((kind === "vd" || kind === "rim") && formOf(options, kind) === "ti")) {
-    // Формы набора «ТИ» (план 14): ВД, реестр применённых материалов, реестр приложений.
-    const d = tiDocData(b);
-    html = kind === "vd" ? tiVdHtml(d) : kind === "rim" ? tiRmHtml(d) : tiRpHtml(d);
-    name = `${docNumberFor(b.act.baseNumber, kind, set)}.pdf`;
   } else {
-    const dk = kind as DocKind;
-    html = renderHtml(dk, buildDocDataFromBundle(b, dk, options));
-    name = (dk === "vor" ? `${b.act.baseNumber}.ВОР` : docNumberFor(b.act.baseNumber, dk, set)) + ".pdf";
+    const r = renderActDoc(b, kind as ActDocKind, options);
+    html = r.html;
+    name = r.name;
   }
   return { pdf: await htmlToPdf(html, { pageNumbers: kind === "vor" }), name };
 }

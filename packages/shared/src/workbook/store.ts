@@ -12,6 +12,8 @@ export interface TableData {
 
 export interface TableStore {
   read(name: TableName): Promise<TableData | null>;
+  /** Несколько таблиц за один заход (Excel: один Excel.run, план 15); нет — чтение по одной. */
+  readMany?(names: readonly TableName[]): Promise<Map<TableName, TableData | null>>;
   /** Записывает значения по заголовкам; формульные столбцы игнорируются. */
   write(name: TableName, row: number, values: Record<string, CellValue>, links?: Record<string, string | null>): Promise<void>;
   /** Вставляет строки; возвращает индекс первой вставленной (в Excel пустая единственная строка таблицы занимается). */

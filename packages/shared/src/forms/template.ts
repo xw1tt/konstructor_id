@@ -1,5 +1,6 @@
 // Шаблон пользователя: имя и документы; у документа форма встроенная (по образцу СБД) или своя (.docx/.xlsx с метками).
 import { z } from "zod";
+import { ACT_DOC_DEFS, ACT_DOC_KINDS, type ActDocKind } from "../docs/defs.ts";
 import { PRINT_KINDS, PROTO_KINDS, type PrintKind, type ProtoKind } from "../acts/schemas.ts";
 import { PROTO_DEFS } from "../protocols/defs.ts";
 import { PrintOptions } from "../templates.ts";
@@ -7,9 +8,8 @@ import { PrintOptions } from "../templates.ts";
 export const SBD_ID = "sbd";
 
 export const BUILTIN_DOC_LABELS: Record<PrintKind, string> = {
-  aosr: "АОСР", rim: "РИМ", vd: "ВД", vor: "ВОР", avk: "АВК", kj: "КЖ", ip: "Протокол",
+  ...(Object.fromEntries(ACT_DOC_KINDS.map((k) => [k, ACT_DOC_DEFS[k].label])) as Record<ActDocKind, string>),
   ...(Object.fromEntries(PROTO_KINDS.map((k) => [k, PROTO_DEFS[k].code])) as Record<ProtoKind, string>),
-  rp: "РП",
 };
 /** Коды, занятые встроенными документами (номера и виды реестра). */
 const RESERVED = ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ИП", "РП", "РМ", ...PROTO_KINDS.map((k) => PROTO_DEFS[k].code)];

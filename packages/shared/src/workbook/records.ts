@@ -39,10 +39,19 @@ export function tableToRows(name: TableName, t: TableData): BookRow[] {
   return out;
 }
 
-export async function readBook(store: TableStore): Promise<Book> {
+/** Таблицы книги: одним заходом (readMany), если хранилище умеет, иначе по одной. */
+export async function readTables(store: TableStore, names: readonly TableName[] = TABLE_NAMES): Promise<Map<TableName, TableData | null>> {
+  if (store.readMany) return store.readMany(names);
+  const out = new Map<TableName, TableData | null>();
+  for (const name of names) out.set(name, await store.read(name));
+  return out;
+}
+
+/** Книга из прочитанных таблиц (нет в карте или null — таблица отсутствует). */
+export function bookFromTables(tables: ReadonlyMap<TableName, TableData | null>): Book {
   const book: Book = { tables: {}, object: Object.fromEntries(OBJECT_FIELDS.map((f) => [f.key, null])), missing: [] };
   for (const name of TABLE_NAMES) {
-    const t = await store.read(name);
+    const t = tables.get(name);
     if (!t) { book.missing.push(name); continue; }
     const rows = tableToRows(name, t);
     if (name === "Объект") {
@@ -54,4 +63,8 @@ export async function readBook(store: TableStore): Promise<Book> {
     book.tables[name] = rows;
   }
   return book;
+}
+
+export async function readBook(store: TableStore): Promise<Book> {
+  return bookFromTables(await readTables(store));
 }

@@ -104,6 +104,35 @@ export class ExcelPort implements TableStore {
     });
   }
 
+  /** Все таблицы одним Excel.run: значения — одним sync, гиперссылки столбцов «файл» всех таблиц — вторым (план 15). */
+  async readMany(names: readonly TableName[]): Promise<Map<TableName, TableData | null>> {
+    return Excel.run(async (ctx: any) => {
+      const all = ctx.workbook.tables.load("items/name");
+      await ctx.sync();
+      const present = new Set((all.items as any[]).map((t) => t.name as string));
+      const parts = names.filter((n) => present.has(n)).map((name) => {
+        const t = ctx.workbook.tables.getItem(name);
+        return { name, head: t.getHeaderRowRange().load("values"), body: t.getDataBodyRange().load("values,rowCount") };
+      });
+      await ctx.sync();
+      const out = new Map<TableName, TableData | null>(names.map((n) => [n, null]));
+      const cells: { links: (string | null)[][]; ri: number; ci: number; cell: any }[] = [];
+      for (const { name, head, body } of parts) {
+        const headers = (head.values[0] as unknown[]).map(String);
+        const rows = (body.values as CellValue[][]).map((r) => r.map((v) => (v === "" ? null : v)));
+        const links: (string | null)[][] = rows.map((r) => r.map(() => null));
+        const fileCols = TABLES[name].columns.filter((c) => c.type === "file").map((c) => headers.indexOf(c.header)).filter((i) => i >= 0);
+        if (rows.length) for (let ri = 0; ri < rows.length; ri++) for (const ci of fileCols) cells.push({ links, ri, ci, cell: body.getCell(ri, ci).load("hyperlink") });
+        out.set(name, { name, headers, rows, links });
+      }
+      if (cells.length) {
+        await ctx.sync();
+        for (const { links, ri, ci, cell } of cells) links[ri][ci] = cell.hyperlink?.address ?? null;
+      }
+      return out;
+    });
+  }
+
   async write(name: TableName, row: number, values: Record<string, CellValue>, links: Record<string, string | null> = {}) {
     await Excel.run(async (ctx: any) => {
       const t = ctx.workbook.tables.getItem(name);

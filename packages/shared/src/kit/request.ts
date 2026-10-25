@@ -1,5 +1,6 @@
 // Задание сборки комплекта: всё, что нужно серверу для реестра, титула, корешков и документов (план 7, §4).
 import { z } from "zod";
+import { ACT_DOC_DEFS, type ActDocKind } from "../docs/defs.ts";
 import { Organization } from "../schemas.ts";
 import { PRINT_KINDS, type PrintKind } from "../acts/schemas.ts";
 import { withNo } from "../acts/format.ts";
@@ -71,9 +72,8 @@ export const KitRequest = z.object({
 export type KitRequest = z.infer<typeof KitRequest>;
 
 /** Вид строки реестра → документ конструктора. */
-export const PRINTED_KINDS: Partial<Record<RegistryKind, PrintKind>> = {
-  "ВОР": "vor", "АОСР": "aosr", "РИМ": "rim", "РП": "rp", "ВД": "vd", "КЖ": "kj", "Протокол": "ip", "АВК": "avk",
-};
+export const PRINTED_KINDS: Partial<Record<RegistryKind, PrintKind>> =
+  Object.fromEntries(["vor", "aosr", "rim", "rp", "vd", "kj", "ip", "avk"].map((k) => [ACT_DOC_DEFS[k as ActDocKind].registry, k]));
 
 const txt = cellText;
 const H = (t: TableName, key: string) => column(t, key).header;

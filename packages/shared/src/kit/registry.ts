@@ -16,24 +16,12 @@ import type { Catalog } from "../catalog/model.ts";
 import { actDocs, kitDocs } from "../catalog/need.ts";
 import { PROTO_DEFS, PROTO_KINDS } from "../protocols/defs.ts";
 import { findHeader } from "../protocols/find.ts";
+import { ACT_DOC_DEFS, AOSR_NAME, RIM_NAME, VD_NAME, VOR_NAME, KJ_NAME, PROTOCOL_NAME, AVK_NAME, type ActDocKind } from "../docs/defs.ts";
 
-export const KJ_NAME = "Кабельный журнал";
-export const PROTOCOL_NAME = "Протокол проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин";
+export { KJ_NAME, PROTOCOL_NAME, AVK_NAME, RP_NAME, TI_NAMES } from "../docs/defs.ts";
 export const LAB_NAME = "Свидетельство о регистрации электролаборатории";
-export const AVK_NAME = "Акт входного контроля, технических средств и материалов";
-/** Реестр приложений к АОСР (план 14) и наименования строк реестра в наборе «ТИ». */
-export const RP_NAME = "Реестр приложений к АОСР";
-export const TI_NAMES = {
-  rim: "Реестр используемых материалов и документов, подтверждающих их качество, к АОСР",
-  vd: "Ведомость смонтированного электрооборудования и материалов",
-  ip: "Протокол сопротивления изоляции",
-};
-export const DOC_NAMES: Partial<Record<RegistryKind, string>> = {
-  "ВОР": "Ведомость объемов выполненных работ",
-  "АОСР": "Акт освидетельствования скрытых работ",
-  "РИМ": "Реестр использованных материалов",
-  "ВД": "Ведомость смонтированного оборудования, технических средств и материалов",
-};
+/** Наименования СБД по виду реестра (для ОЖР). */
+export const DOC_NAMES: Partial<Record<RegistryKind, string>> = { "ВОР": VOR_NAME, "АОСР": AOSR_NAME, "РИМ": RIM_NAME, "ВД": VD_NAME };
 
 /** Строка реестра: значения по заголовкам таблицы «РеестрИД» и адрес прикреплённого скана. */
 export interface RegistryRecord { values: Record<string, CellValue>; link: string | null }
@@ -146,13 +134,14 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
     const code = txt(act.v.section);
     const date = short(act.v.date);
     const aosrNo = withNo(docNumberFor(n, "aosr", set));
-    if (of("ВОР").length && inTpl("vor")) add("ВОР", n, "б/н", DOC_NAMES["ВОР"]!, date, code);
-    if (inTpl("aosr")) add("АОСР", n, aosrNo, ti ? DOC_NAMES["АОСР"]! : `${DOC_NAMES["АОСР"]} ${txt(act.v.works)}`, date, code);
     const actMats = of("МатериалыАктов");
-    if (actMats.length) {
-      if (inTpl("rim")) add("РИМ", n, withNo(docNumberFor(n, "rim", set)), ti ? `${TI_NAMES.rim} ${aosrNo} от ${date}` : DOC_NAMES["РИМ"]!, date, code);
-      if (inTpl("rp")) add("РП", n, withNo(docNumberFor(n, "rp", set)), `${RP_NAME} ${aosrNo} от ${date}`, date, code);
-      if (inTpl("vd")) add("ВД", n, withNo(docNumberFor(n, "vd", set)), ti ? TI_NAMES.vd : DOC_NAMES["ВД"]!, date, code);
+    // Документы акта по описаниям (план 15): ВОР, АОСР, РИМ/РМ, РП, ВД — строка, если у акта есть их данные.
+    const ctx = { aosrNo, date, works: txt(act.v.works) };
+    for (const k of ["vor", "aosr", "rim", "rp", "vd"] as const satisfies readonly ActDocKind[]) {
+      const def = ACT_DOC_DEFS[k];
+      if (!inTpl(k) || (def.rowsFrom && !of(def.rowsFrom).length)) continue;
+      const number = k === "vor" ? "б/н" : k === "aosr" ? aosrNo : withNo(docNumberFor(n, k, set));
+      add(def.registry, n, number, def.name(set, ctx), date, code);
     }
     for (const d of custom) add("Свой документ", n, withNo(`${n}.${d.code}`), d.name, date, code);
     for (const s of of("Схемы")) {
@@ -167,7 +156,7 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
         else add("КЖ", n, jc ? `№ ${jc}` : "", KJ_NAME, doc ? short(doc.v.journalDate) : "", code);
       }
       if (ti && inTpl("ip")) {
-        add("Протокол", n, withNo(docNumberFor(n, "ip", set)), TI_NAMES.ip, doc ? period(doc.v.dateFrom, doc.v.dateTo) || date : date, code);
+        add("Протокол", n, withNo(docNumberFor(n, "ip", set)), ACT_DOC_DEFS.ip.name(set, ctx), doc ? period(doc.v.dateFrom, doc.v.dateTo) || date : date, code);
         addMeasuring(code);
       } else if (doc && txt(doc.v.protocolNumber) && inTpl("ip")) {
         add("Протокол", n, withNo(txt(doc.v.protocolNumber)), PROTOCOL_NAME, period(doc.v.dateFrom, doc.v.dateTo), code);

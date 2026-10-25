@@ -14,7 +14,7 @@ export const cablesData = JSON.parse(readFileSync(new URL("./aov1-cables.json", 
 };
 const MEASURE_HEADERS = ["А-В", "В-С", "С-А", "A-N (PEN)", "B-N (PEN)", "C-N (PEN)", "A-PE", "B-PE", "C-PE", "N-PE"];
 
-const data = JSON.parse(readFileSync(new URL("../../../server/src/seed/sbd-aov1.data.json", import.meta.url), "utf8")) as {
+const data = JSON.parse(readFileSync(new URL("./sbd-aov1.data.json", import.meta.url), "utf8")) as {
   materials: { name: string; mark: string; article: string; manufacturer: string; unit: string }[];
   docs: { type: keyof typeof QUALITY_DOC_LABELS; number: string; issueDate: string; validUntil: string | null; sheets: number; materials: number[]; registryName: string }[];
   vor: { group: string; material: number; quantity: number }[];

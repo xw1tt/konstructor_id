@@ -19,6 +19,8 @@ export function createCloudApp(o: CloudOptions) {
   const api = new Router(o.allowedOrigins);
   const ext = o.extend?.(api, { auth, db: o.db }) ?? {};
   authRoutes(api, auth, o.db, ext.meExtra);
+  // Проверка, что сервер и база работают (установка, мониторинг).
+  api.get("/api/health", async () => { await o.db.query("SELECT 1"); return { ok: true }; });
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
     let origin = String(req.headers.origin ?? "");
     // Запрос со страницы самого сервера (консоль) — свой адрес, не «чужой сайт».

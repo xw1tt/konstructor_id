@@ -53,12 +53,16 @@ function toOpenAI(m: ChatMessage): unknown {
   }
 }
 
+const hostOf = (u: string) => { try { return new URL(u).hostname; } catch { return ""; } };
+
 async function chatOpenAI(p0: Provider, req: ChatRequest, post: Post): Promise<ChatOut> {
   const p = resolveProvider(p0);
   const headers: Record<string, string> = {};
   if (p.key) headers.authorization = `Bearer ${p.key}`;
   if (p.kind === "yandex" && p.folderId) headers["openai-project"] = p.folderId;
-  const body: Record<string, unknown> = { model: p.model, messages: req.messages.map(toOpenAI), temperature: 0.2 };
+  // Claude (OpenAI-совместимый слой Anthropic): у новых моделей температура ниже 1 — ошибка 400, поэтому не передаётся.
+  const claude = /(^|\.)anthropic\.com$/i.test(hostOf(p.baseUrl)) || /^claude-/i.test(p.model);
+  const body: Record<string, unknown> = { model: p.model, messages: req.messages.map(toOpenAI), ...(claude ? {} : { temperature: 0.2 }) };
   if (req.tools.length) {
     body.tools = req.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
     body.tool_choice = "auto";

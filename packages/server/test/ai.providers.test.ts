@@ -107,3 +107,14 @@ test("YandexGPT: в «ID каталога» не тот идентификато
   assert.match(yandexHint(p, "Permission denied"), /ai\.languageModels\.user/);
   assert.equal(yandexHint(prov({ kind: "openai" }), "Permission denied"), "");
 });
+
+test("Claude через OpenAI-совместимый слой: без temperature (у новых моделей < 1 — ошибка 400)", async () => {
+  const ai = await fakeAi({ "/v1/chat/completions": [
+    { json: { choices: [{ message: { content: "ОК" } }], usage: { prompt_tokens: 5, completion_tokens: 1 } } },
+    { json: { choices: [{ message: { content: "ОК" } }], usage: { prompt_tokens: 5, completion_tokens: 1 } } },
+  ] });
+  await chat(prov({ kind: "openai", baseUrl: `${ai.url}/v1`, key: "sk-ant", model: "claude-sonnet-5-5" }), { messages: [{ role: "user", content: "Ответь ОК" }], tools: [] });
+  assert.ok(!("temperature" in ai.seen[0].body));
+  await chat(prov({ kind: "openai", baseUrl: `${ai.url}/v1`, key: "k", model: "deepseek-chat" }), { messages: [{ role: "user", content: "Ответь ОК" }], tools: [] });
+  assert.equal(ai.seen[1].body.temperature, 0.2);
+});

@@ -6,7 +6,7 @@ import { migrate, pgliteDb } from "@idk/cloud/db";
 
 test("миграции — один раз; запрос с параметрами; транзакция откатывается при ошибке; bigint — числом", async () => {
   const db = await pgliteDb();
-  assert.deepEqual(await migrate(db), ["001_init.sql"]);
+  assert.deepEqual(await migrate(db), ["001_init.sql", "002_billing_from.sql"]);
   assert.deepEqual(await migrate(db), []);
   const id = randomUUID();
   await db.query("INSERT INTO tenants (id, name) VALUES ($1, $2)", [id, "ООО Тест"]);

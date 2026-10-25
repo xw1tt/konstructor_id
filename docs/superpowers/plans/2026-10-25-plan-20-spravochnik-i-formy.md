@@ -32,7 +32,7 @@ Test `shared/test/ai.catalog.test.ts`, `addin/test/kits.panel.test.ts`.
 ### Task 2: Формы — сервер
 Files: `server/src/forms/markup.ts` (`markupText`, `applyPairs`), `server/src/routes/templates.ts`; Test
 `server/test/ai.form.test.ts`.
-- [ ] Тесты: текст разметки .docx; пары → метки (в т. ч. текст через несколько run), выбор вариантов; отсутствующий текст —
+- [x] Тесты: текст разметки .docx; пары → метки (в т. ч. текст через несколько run), выбор вариантов; отсутствующий текст —
   в `missing`; сохранение формы после пар.
 
 ### Task 3: Формы — панель

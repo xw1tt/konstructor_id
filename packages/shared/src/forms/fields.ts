@@ -35,3 +35,7 @@ export const FIELD_TREE: FieldGroup[] = [
 export interface FormData { values: Record<string, string>; lists: Record<string, Record<string, string>[]> }
 
 export const label = (group: string, field: string) => `{${group}.${field}}`;
+
+/** План 20: известные метки «Группа.Поле» (поля строк протокола «Строка.<столбец>» — любые). */
+export const KNOWN_FIELDS: ReadonlySet<string> = new Set(FIELD_TREE.flatMap((g) => g.fields.map((f) => `${g.group}.${f}`)));
+export const isKnownField = (f: string): boolean => KNOWN_FIELDS.has(f.trim()) || /^Строка\.\S/.test(f.trim());

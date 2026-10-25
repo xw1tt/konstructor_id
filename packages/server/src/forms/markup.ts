@@ -4,7 +4,7 @@
 // Значение, совпавшее у нескольких полей, ставится временной меткой {Поле#N} — выбор делает пользователь (applyChoices).
 import type { FormData } from "@idk/shared/forms/fields";
 import { openZip, writeZip } from "../zip/zip.ts";
-import { editParagraph, paragraphText, xmlEscape, FormError, elements, mapElements } from "./docx.ts";
+import { editParagraph, paragraphText, xmlEscape, FormError, elements, mapElements, docxText } from "./docx.ts";
 import { ROW as XROW, CELL as XCELL, attr as xattr, texts as xtexts } from "./xlsx.ts";
 
 export interface MarkupPlace { id: number; text: string; context: string; options: string[]; chosen: string }
@@ -287,4 +287,72 @@ export function applyChoices(buf: Uint8Array, type: "docx" | "xlsx", choices: Re
   const fix = (s: string) => s.replace(re, (_, k: string, id: string) => `{${choices[Number(id)] ?? k}}`);
   const parts = type === "docx" ? /^word\/(document|header\d*|footer\d*)\.xml$/ : /^xl\/(worksheets\/sheet\d+|sharedStrings)\.xml$/;
   return writeZip([...files].map(([name, get]) => (parts.test(name) ? [name, fix(get().toString("utf8"))] : [name, get()])));
+}
+
+// ---------- План 20: разметка помощником ----------
+
+const DOCX_PARTS = /^word\/(document|header\d*|footer\d*)\.xml$/;
+
+/** Текст документа с метками (Word — по абзацам; Excel — непустые ячейки «A1: текст»), не длиннее limit символов. */
+export function markupText(buf: Uint8Array, type: "docx" | "xlsx", limit = 20000): string {
+  let text: string;
+  if (type === "docx") text = docxText(buf);
+  else {
+    const files = openZip(buf);
+    const shared = [...(files.get("xl/sharedStrings.xml")?.().toString("utf8") ?? "").matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => xtexts(m[1]));
+    const lines: string[] = [];
+    for (const [name, get] of files) {
+      if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) continue;
+      for (const m of get().toString("utf8").matchAll(XCELL)) {
+        const head = m[1], body = m[2] ?? "";
+        const t = xattr(head, "t");
+        const v = t === "s" ? shared[Number(body.match(/<v>([\s\S]*?)<\/v>/)?.[1])] : t === "inlineStr" ? xtexts(body) : t === "str" ? body.match(/<v>([\s\S]*?)<\/v>/)?.[1] : null;
+        if (v && v.trim()) lines.push(`${xattr(head, "r")}: ${v}`);
+      }
+    }
+    text = lines.join("\n");
+  }
+  return text.length > limit ? text.slice(0, limit) + "\n…(обрезано)" : text;
+}
+
+export interface Pair { text: string; field: string }
+
+/** Каждое вхождение text заменяется меткой {field} (в Word — и когда текст разбит на несколько кусков). Тексты, которых в
+ *  документе нет, — в missing. Длинные тексты заменяются раньше коротких. */
+export function applyPairs(buf: Uint8Array, type: "docx" | "xlsx", pairs: Pair[]): { buf: Buffer; applied: number; missing: string[] } {
+  const list = pairs.filter((p) => p.text.length > 0).sort((a, b) => b.text.length - a.text.length);
+  const used = new Set<string>();
+  let applied = 0;
+  const editsOf = (text: string): [number, number, string][] => {
+    const taken: [number, number][] = [];
+    const out: [number, number, string][] = [];
+    for (const p of list) {
+      let i = text.indexOf(p.text);
+      while (i >= 0) {
+        const j = i + p.text.length;
+        if (!taken.some(([a, b]) => i < b && j > a)) { taken.push([i, j]); out.push([i, j, `{${p.field.trim()}}`]); used.add(p.text); applied++; }
+        i = text.indexOf(p.text, j);
+      }
+    }
+    return out;
+  };
+  const files = openZip(buf);
+  const out: [string, Buffer | string][] = [];
+  if (type === "docx") {
+    for (const [name, get] of files) {
+      out.push(DOCX_PARTS.test(name) ? [name, mapElements(get().toString("utf8"), "p", (p) => editParagraph(p, editsOf(paragraphText(p))))] : [name, get()]);
+    }
+  } else {
+    const fix = (inner: string) => {
+      const text = xtexts(inner);
+      const e = editsOf(text);
+      return e.length ? `<t xml:space="preserve">${xmlEscape([...e].sort((a, b) => b[0] - a[0]).reduce((s, [a, b, r]) => s.slice(0, a) + r + s.slice(b), text))}</t>` : null;
+    };
+    for (const [name, get] of files) {
+      if (name === "xl/sharedStrings.xml") out.push([name, get().toString("utf8").replace(/<si>([\s\S]*?)<\/si>/g, (m, inner) => { const r = fix(inner); return r ? `<si>${r}</si>` : m; })]);
+      else if (/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) out.push([name, get().toString("utf8").replace(/<is>([\s\S]*?)<\/is>/g, (m, inner) => { const r = fix(inner); return r ? `<is>${r}</is>` : m; })]);
+      else out.push([name, get()]);
+    }
+  }
+  return { buf: writeZip(out), applied, missing: [...new Set(list.map((p) => p.text))].filter((t) => !used.has(t)) };
 }

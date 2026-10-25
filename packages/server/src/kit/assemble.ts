@@ -8,7 +8,8 @@ import { DEFAULT_TEMPLATE } from "@idk/shared/templates";
 import { renderBundlePdf } from "../routes/print.ts";
 import { htmlToPdf } from "../print/browser.ts";
 import { resolveScan, loadScan, type ScanContext } from "./files.ts";
-import { registryHtml, coverHtml, spineHtml, type RegistryLine } from "./templates.ts";
+import { registryHtml, coverHtml, spineHtml, tiRegistryHtml, type RegistryLine } from "./templates.ts";
+import { formOf } from "@idk/shared/acts/format";
 import type { Db } from "../db.ts";
 import type { TemplateStore } from "../forms/store.ts";
 import { renderForm, type OfficeRunner } from "../forms/convert.ts";
@@ -170,7 +171,14 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
       volume: k.volume, parts: Array.from({ length: k.parts }, (_, i) => String(i + 1)), year: k.year,
     })));
   }
-  front.push(await htmlToPdf(registryHtml({ title: registryTitle(q), objectLine, parties, rows: lines }), { pageNumbers: true }));
+  if (formOf(q.options, "registry") === "ti") {
+    front.push(await htmlToPdf(tiRegistryHtml({
+      customer: q.developer?.shortName ?? "", contractor: q.contractor?.shortName ?? "", object: q.object.name,
+      code: k.code, sectionName: k.sectionName, number: k.number, rows: lines,
+    })));
+  } else {
+    front.push(await htmlToPdf(registryHtml({ title: registryTitle(q), objectLine, parties, rows: lines }), { pageNumbers: true }));
+  }
 
   // 4. Склейка.
   const out = await PDFDocument.create();

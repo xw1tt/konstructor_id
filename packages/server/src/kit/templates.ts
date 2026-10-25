@@ -58,6 +58,50 @@ export function registryHtml(d: RegistryData): string {
     ${sign("Сдал:")}${sign("Принял:")}`, "reg");
 }
 
+// План 14: реестр ИД в вёрстке набора «ТИ» (образец «Реестр №4/…Р»).
+export interface TiRegistryData {
+  customer: string; contractor: string; object: string; code: string; sectionName: string; number: string; rows: RegistryLine[];
+}
+
+const TI_REG_STYLE = `<style>
+@page { size: A4 portrait; margin: 10mm 10mm 10mm 15mm; }
+body.tireg { font-size: 9pt; }
+.tr-head { display: grid; grid-template-columns: 1fr 1fr; column-gap: 10mm; margin-bottom: 8pt; }
+.tr-val { border-bottom: 0.6pt solid #000; text-align: center; min-height: 11pt; }
+.tr-cap { font-size: 6pt; text-align: center; margin-bottom: 4pt; }
+.tr-head > div:nth-child(n+3) { margin-top: 10pt; }
+.tr-title { text-align: center; font-weight: bold; font-size: 11pt; margin-top: 8pt; }
+table.grid.tr-t th, table.grid.tr-t td { font-size: 8.5pt; }
+table.grid.tr-t td.l { text-align: left; }
+.tr-sign { display: grid; grid-template-columns: 18mm 70mm 8mm 35mm 8mm 30mm; align-items: end; margin-top: 12pt; break-inside: avoid; }
+.tr-sign .line { border-bottom: 0.6pt solid #000; height: 11pt; }
+.tr-sign .cap { font-size: 6pt; text-align: center; }
+</style>`;
+
+export function tiRegistryHtml(d: TiRegistryData): string {
+  const title = `Реестр №${d.number}/${d.code}.Р`;
+  const rows = d.rows.map((r) =>
+    `<tr class="row"><td class="c">${r.n}</td><td class="l">${e(r.name)}</td><td class="c">${e(r.number)}</td><td class="c">${e(r.date)}</td>` +
+    `<td class="c">${r.sheets}</td><td class="c">${e(r.pages.replace(/^л\.\s*/, ""))}</td></tr>`).join("");
+  const sign = (label: string) => `<div class="tr-sign"><div>${label}</div><div class="line"></div><div></div><div class="line"></div><div></div><div class="line"></div>
+    <div></div><div class="cap">(Ф.И.О.)</div><div></div><div class="cap">(подпись)</div><div></div><div class="cap">(дата)</div></div>`;
+  return page(title, `${TI_REG_STYLE}
+    <div class="tr-head">
+      <div><div>Заказчик: ${e(d.customer)}</div><div style="margin-top:6pt">Подрядчик: ${e(d.contractor)}</div></div>
+      <div><div class="tr-val">${e(d.object)}</div><div class="tr-cap">(объект)</div></div>
+      <div><div class="tr-val">${e(d.code)}</div><div class="tr-cap">(шифр проекта)</div></div>
+      <div><div class="tr-val">${e(d.sectionName)}</div><div class="tr-cap">(участок)</div></div>
+    </div>
+    <div class="tr-title">${e(title)}</div>
+    <div class="tr-title" style="margin-top:0;font-weight:normal">Исполнительной документации</div>
+    <table class="grid tr-t" style="margin-top:6pt">
+      <colgroup><col style="width:6%"><col style="width:40%"><col style="width:20%"><col style="width:12%"><col style="width:9%"><col style="width:13%"></colgroup>
+      <thead><tr><th>№п/п</th><th>Наименование документа</th><th>№ документа</th><th>Дата документа</th><th>Кол-во листов</th><th>Страницы по списку</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${sign("Сдал:")}${sign("Принял:")}`, "tireg");
+}
+
 const FRAME = "#2f5597";
 const logos = (list: string[], cls: string) =>
   list.length ? `<div class="${cls}">${list.map((src) => `<img src="${e(src)}" alt="">`).join("")}</div>` : "";

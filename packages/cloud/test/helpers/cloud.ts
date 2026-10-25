@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { after } from "node:test";
 import { migrate, pgliteDb, type Db } from "@idk/cloud/db";
 import { createCloudApp, type CloudOptions } from "@idk/cloud/app";
+import { extendCloud } from "@idk/cloud/extend";
 
 export const PANEL = "https://localhost:3443";
 
@@ -16,7 +17,7 @@ export async function startCloud(o: Partial<CloudOptions> = {}): Promise<TestClo
   const db = await pgliteDb();
   await migrate(db);
   const clock = { now: new Date("2026-10-25T09:00:00Z") };
-  const { handler } = createCloudApp({ db, allowedOrigins: [PANEL], now: () => clock.now, ...o });
+  const { handler } = createCloudApp({ db, allowedOrigins: [PANEL], now: () => clock.now, extend: extendCloud("https://id.example.ru", () => clock.now), ...o });
   const server = createServer(handler);
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   after(async () => { server.close(); await db.close(); });

@@ -18,8 +18,10 @@ export async function balanceKop(db: Db, tenantId: string): Promise<number> {
   return Number(r?.s ?? 0);
 }
 
-export function accessOf(status: string, balance: number, creditKop: number): Access {
+/** Доступ: приостановлен владельцем; без платного тарифа (свой, пробный) — активен; иначе — пока баланс выше −кредита. */
+export function accessOf(status: string, balance: number, creditKop: number, paid = true): Access {
   if (status === "suspended") return "suspended";
+  if (!paid) return "active";
   return balance > -Math.abs(creditKop) ? "active" : "readonly";
 }
 
@@ -59,7 +61,7 @@ export async function tenantState(db: Db, tenantId: string) {
     `SELECT t.status, t.seats, t.credit_kop, tr.name AS tariff, tr.seat_month_kop FROM tenants t LEFT JOIN tariffs tr ON tr.id = t.tariff_id WHERE t.id = $1`, [tenantId]);
   if (!t) return null;
   const bal = await balanceKop(db, tenantId);
-  const access = accessOf(t.status, bal, Number(t.credit_kop));
+  const access = accessOf(t.status, bal, Number(t.credit_kop), Number(t.seat_month_kop ?? 0) > 0);
   return { balanceRub: rub(bal), access, accessLabel: ACCESS_LABELS[access], tariff: t.tariff, seats: t.seats, creditRub: rub(Number(t.credit_kop)),
     seatMonthRub: t.seat_month_kop === null ? null : rub(Number(t.seat_month_kop)) };
 }

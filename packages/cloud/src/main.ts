@@ -6,6 +6,7 @@ import { migrate, pgDb, pgliteDb, type Db } from "./db.ts";
 import { createCloudApp } from "./app.ts";
 import { createOwner } from "./cli.ts";
 import { extendCloud } from "./extend.ts";
+import { accrueFees } from "./billing.ts";
 
 const env = process.env;
 const publicUrl = env.PUBLIC_URL ?? `http://localhost:${env.PORT ?? 8080}`;
@@ -29,4 +30,8 @@ if (cmd === "create-owner") {
   const { handler } = createCloudApp({ db, allowedOrigins: [...origins, new URL(publicUrl).origin], extend: extendCloud(publicUrl) });
   const port = Number(env.PORT ?? 8080);
   createServer(handler).listen(port, () => console.log(`Облачный сервер: ${publicUrl} (порт ${port})`));
+  // Абонентская плата: при запуске и каждый час (одна операция на компанию и московские сутки, пропуски догоняются).
+  const bill = () => accrueFees(db, new Date()).then((n) => { if (n) console.log(`Списано абонентских плат: ${n}`); }).catch((e) => console.error("Списание:", e));
+  void bill();
+  setInterval(bill, 3600_000).unref();
 }

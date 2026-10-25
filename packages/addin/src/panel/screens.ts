@@ -1,5 +1,6 @@
 // Экраны верхней строки и значки помощника (пока без действия).
-export type ScreenId = "home" | "normativ" | "library" | "assistant" | "settings" | "templates" | "fields";
+/** «wizard» — мастер первого акта (план 17): открывается кнопкой в книге, не из верхней строки. */
+export type ScreenId = "home" | "normativ" | "library" | "assistant" | "settings" | "templates" | "fields" | "wizard";
 
 export const SCREENS: readonly { id: ScreenId; label: string }[] = [
   { id: "home", label: "Конструктор ИД" },

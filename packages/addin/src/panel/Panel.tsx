@@ -1,5 +1,6 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
 import { useEffect, useState, type ReactNode } from "react";
+import { NEEDED_SHEETS_SETTING, sheetPlan } from "@idk/shared/workbook/sheets";
 import { loadTemplate, saveTemplate, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { TABLE_NAMES, type TableName } from "@idk/shared/workbook/schema";
 import type { ExcelPort } from "../book/excelPort.ts";
@@ -16,6 +17,7 @@ import { TemplateContext, PrintOptionsContext, UserTemplateContext, type Templat
 import { TemplateEditor } from "./TemplateEditor.tsx";
 import { FieldsScreen } from "./FieldsScreen.tsx";
 import { LibraryScreen } from "./LibraryScreen.tsx";
+import { WizardScreen } from "./WizardScreen.tsx";
 import { listTemplates, resolveTemplate } from "./templatesApi.ts";
 import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import type { ScreenId } from "./screens.ts";
@@ -98,6 +100,17 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
     setTemplate(t);
     saveTemplate(port, t).catch(() => undefined);
   };
+  // План 17: «Только нужные листы» — настройка книги; пересчёт при включении и при смене шаблона книги.
+  const [neededOn, setNeededOn] = useState(false);
+  useEffect(() => { void port.setting(NEEDED_SHEETS_SETTING).then((v) => setNeededOn(v === "1")).catch(() => undefined); }, [port]);
+  const applySheets = async (on: boolean) => {
+    if (!state.book) return;
+    const p = sheetPlan(resolved.template, state.book, on);
+    await port.setSheetsVisible(p.visible, p.hidden);
+  };
+  const needed = { on: neededOn, set: async (v: boolean) => { await port.setSetting(NEEDED_SHEETS_SETTING, v ? "1" : "0"); setNeededOn(v); await applySheets(v); } };
+  const tplKey = `${resolved.template.id}:${resolved.template.docs.length}`;
+  useEffect(() => { if (neededOn && state.book) void applySheets(true).catch(() => undefined); }, [tplKey, neededOn, !!state.book]); // eslint-disable-line react-hooks/exhaustive-deps
   const flow: CreateFlow = { start: () => setCreating(true), finish: () => { setCreating(false); state.refresh(); } };
   const { book, selection } = state;
   const active = selection ? sectionForSheet(selection.sheet) : null;
@@ -129,6 +142,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
           {screen === "templates" ? <TemplateEditor state={state} onChoose={chooseTemplate} />
             : screen === "fields" ? <FieldsScreen state={state} />
             : screen === "library" ? <LibraryScreen port={port} state={state} />
+            : screen === "wizard" ? <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
             : screen === "settings" ? <SettingsScreen /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
@@ -142,7 +156,14 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
               </nav>
               {(book.missing.length > 0 || state.outdated) && slots.create?.(state, book.missing, flow)}
               <main className="content">
-                <SheetTools port={port} state={state} onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))} />
+                {/* Мастер первого акта (план 17): в книге без актов и на листе «База актов». */}
+                {((book.tables["Акты"]?.length ?? 0) === 0 || selection?.sheet === "База актов") && !book.missing.includes("Акты") && (
+                  <div className={(book.tables["Акты"]?.length ?? 0) === 0 ? "banner wiz-banner" : "row-actions"}>
+                    {(book.tables["Акты"]?.length ?? 0) === 0 && <p>В книге ещё нет актов. Мастер проведёт от объекта до печати АОСР за 5 шагов.</p>}
+                    <button className="btn btn-primary" onClick={() => setScreen("wizard")}>Мастер первого акта</button>
+                  </div>
+                )}
+                <SheetTools port={port} state={state} needed={needed} onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))} />
                 <TableTools port={port} state={state} />
                 {slots.card?.(state)}
               </main>

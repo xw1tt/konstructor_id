@@ -14,11 +14,13 @@ interface Props {
   state: BookState;
   /** Вызывается после добавления строк в таблицу (значения новой строки по умолчанию). */
   onRowsAdded?: (table: TableName, first: number, n: number) => Promise<void>;
+  /** План 17: «Только нужные листы» — состояние и переключение. */
+  needed?: { on: boolean; set(v: boolean): Promise<void> };
 }
 
 interface PendingDelete { rows: number[]; text: string; table: TableName | null; sheet: string }
 
-export function SheetTools({ port, state, onRowsAdded }: Props) {
+export function SheetTools({ port, state, onRowsAdded, needed }: Props) {
   const { selection: s, book } = state;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -113,6 +115,12 @@ export function SheetTools({ port, state, onRowsAdded }: Props) {
       )}
       {importantOpen && state.table && (
         <ImportantDialog port={port} state={state} table={state.table.name} onClose={() => setImportantOpen(false)} />
+      )}
+      {needed && (
+        <label className="setting-option" title="Скрыть листы, которые не нужны документам шаблона книги (лист с данными не скрывается)">
+          <input type="checkbox" checked={needed.on} disabled={busy}
+            onChange={(e) => void run(async () => { await needed.set(e.target.checked); }, false)} /> Только нужные листы
+        </label>
       )}
       {note && <p className="muted" role="status">{note}</p>}
       {error && <p className="error" role="alert">{error}</p>}

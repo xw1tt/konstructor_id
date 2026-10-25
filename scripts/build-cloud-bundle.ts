@@ -1,7 +1,7 @@
 // Архив развёртывания облака и набор для Windows:
 //   npx tsx scripts/build-cloud-bundle.ts [версия]
 //   → dist/konstruktor-cloud-<версия>.tar.gz (исходники shared/server/cloud, package.json панели для npm ci, deploy/)
-//   → dist/Облако-Конструктор-ИД-<версия>.zip (Облако.cmd + архив + «Развёртывание облака.md») — для запуска на ПК
+//   → dist/Облако-Конструктор-ИД-<версия>.zip (Облако.cmd + cloud.ps1 + архив + «Развёртывание облака.md») — для запуска на ПК
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { writeZip } from "../packages/server/src/zip/zip.ts";
@@ -16,6 +16,7 @@ console.log(`Архив облака: dist/${tgz} (${files.length} файлов)
 const zip = `dist/Облако-Конструктор-ИД-${version}.zip`;
 writeFileSync(zip, writeZip([
   ["Облако.cmd", readFileSync("deploy/windows/Облако.cmd")],
+  ["cloud.ps1", readFileSync("deploy/windows/cloud.ps1")],
   [tgz, readFileSync(`dist/${tgz}`)],
   ["Развёртывание облака.md", readFileSync("docs/Развёртывание облака.md")],
 ]));

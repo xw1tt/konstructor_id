@@ -29,17 +29,19 @@ test("/api/health — сервер и база работают", async () => {
   assert.deepEqual((await c.req("GET", "/api/health")).json, { ok: true });
 });
 
-test("Облако.cmd: строки CRLF, кодировка UTF-8, права ключа, пункты меню, команды сервера", () => {
-  const buf = readFileSync(new URL("../../../deploy/windows/Облако.cmd", import.meta.url));
-  const s = buf.toString("utf8");
+test("Облако.cmd — только латиница (cmd путает метки в UTF-8); логика в cloud.ps1: UTF-8 с BOM, меню, права ключа, команды", () => {
+  const cmd = readFileSync(new URL("../../../deploy/windows/Облако.cmd", import.meta.url));
+  assert.ok([...cmd].every((b) => b < 128), "в Облако.cmd нет не-ASCII символов");
+  assert.match(cmd.toString(), /powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0cloud\.ps1"/);
+  const ps = readFileSync(new URL("../../../deploy/windows/cloud.ps1", import.meta.url));
+  assert.deepEqual([...ps.subarray(0, 3)], [0xef, 0xbb, 0xbf], "BOM — иначе Windows PowerShell 5.1 прочитает кириллицу неверно");
+  const s = ps.toString("utf8");
   assert.ok(!/[^\r]\n/.test(s), "строки — CRLF");
-  assert.match(s, /^@echo off\r\nchcp 65001/);
-  assert.match(s, /icacls "%KEY%" \/inheritance:r/);
+  assert.match(s, /icacls \$Key \/inheritance:r/);
   assert.match(s, /StrictHostKeyChecking=accept-new/);
-  assert.match(s, /sudo bash deploy\/install\.sh '!EMAIL!' '!DOMAIN!'/);
+  assert.match(s, /sudo bash deploy\/install\.sh '\$\(\$s\.Email\)' '\$\(\$s\.Domain\)'/);
   assert.match(s, /sudo bash deploy\/update\.sh/);
-  assert.match(s, /create-owner '!EMAIL!'/);
+  assert.match(s, /create-owner '\$\(\$s\.Email\)'/);
   assert.match(s, /konstruktor-cloud-\*\.tar\.gz/);
-  // В блоках if ( … ) скобки в тексте экранированы, иначе cmd закроет блок раньше.
-  for (const line of s.split("\r\n").filter((l) => /^\s{2,}echo /.test(l))) assert.ok(!/[^^][()]/.test(line.replace(/^\s+echo /, "")), line);
+  for (const m of ["1", "2", "3", "4", "5", "6"]) assert.ok(s.includes(`  ${m} — `), `пункт ${m}`);
 });

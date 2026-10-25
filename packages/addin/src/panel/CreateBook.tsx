@@ -1,15 +1,14 @@
-// Создание книги объекта (листы и таблицы), перенос данных из базы сервера, восстановление разметки.
+// Создание книги объекта (листы и таблицы, строки-примеры) и восстановление разметки.
 import { useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
-import { ExportData, exportToBook, exportLinks, writeBook, isEmptyExport } from "@idk/shared/workbook/migrate";
+import { writeBook } from "@idk/shared/workbook/write";
 import { loadImportant } from "@idk/shared/workbook/important";
 import type { ExcelPort } from "../book/excelPort.ts";
-import { apiGet, ServerUnavailableError } from "../api.ts";
 import type { BookState } from "./useBook.ts";
 import type { CreateFlow } from "./Panel.tsx";
 import { exampleRows } from "@idk/shared/workbook/examples";
 
-type Step = { kind: "idle" } | { kind: "busy"; text: string } | { kind: "offer"; data: ExportData } | { kind: "done"; text: string };
+type Step = { kind: "idle" } | { kind: "busy"; text: string } | { kind: "done"; text: string };
 
 export function CreateBook({ port, state, missing, full, flow }: {
   port: ExcelPort; state: BookState; missing: TableName[]; full: boolean; flow: CreateFlow;
@@ -26,14 +25,7 @@ export function CreateBook({ port, state, missing, full, flow }: {
     try {
       await port.ensureBook(await loadImportant(port));
       if (!fullMode) { setStep({ kind: "done", text: "Разметка обновлена." }); state.refresh(); return; }
-      let data: ExportData | null = null;
-      try {
-        data = ExportData.parse(await apiGet("/api/export"));
-      } catch (e) {
-        if (!(e instanceof ServerUnavailableError)) throw e;
-      }
-      if (data && !isEmptyExport(data)) setStep({ kind: "offer", data });
-      else await withExamples();
+      await withExamples();
     } catch (e) {
       setError((e as Error).message);
       setStep({ kind: "idle" });
@@ -41,7 +33,7 @@ export function CreateBook({ port, state, missing, full, flow }: {
     }
   };
 
-  /** Новая книга без переноса: строки-примеры во всех таблицах. */
+  /** Новая книга: строки-примеры во всех таблицах. */
   const withExamples = async () => {
     setStep({ kind: "busy", text: "Добавляю строки-примеры…" });
     try {
@@ -50,18 +42,6 @@ export function CreateBook({ port, state, missing, full, flow }: {
       setError(`Примеры не добавлены: ${(e as Error).message}`);
     }
     flow.finish();
-  };
-
-  const migrate = async (data: ExportData) => {
-    setStep({ kind: "busy", text: "Переношу данные…" });
-    try {
-      await writeBook(port, exportToBook(data, location.origin), exportLinks(data, location.origin));
-      flow.finish();
-    } catch (e) {
-      setError(`Перенос прерван: ${(e as Error).message}`);
-      setStep({ kind: "idle" });
-      flow.finish();
-    }
   };
 
   if (!fullMode) {
@@ -84,18 +64,6 @@ export function CreateBook({ port, state, missing, full, flow }: {
         «Комплекты», «Реестр ИД». В каждой таблице будет строка-пример, а при выделении ячейки — подсказка, что в неё вносить.</p>
       {step.kind === "idle" && <button className="btn btn-primary" onClick={() => void create()}>Создать книгу объекта</button>}
       {step.kind === "busy" && <p className="notice">{step.text}</p>}
-      {step.kind === "offer" && (
-        <div className="confirm" role="alertdialog" aria-label="Перенос данных">
-          <p>
-            В базе есть данные (организаций {step.data.organizations.length}, материалов {step.data.materials.length},
-            актов {step.data.acts.length}). Перенести в книгу?
-          </p>
-          <div className="row-actions">
-            <button className="btn btn-primary" onClick={() => void migrate(step.data)}>Перенести</button>
-            <button className="btn" onClick={() => void withExamples()}>Не переносить</button>
-          </div>
-        </div>
-      )}
       {step.kind === "done" && <p className="notice">{step.text}</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </main>

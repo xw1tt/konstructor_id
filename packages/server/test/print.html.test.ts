@@ -1,16 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { join } from "node:path";
-import { openDb } from "@idk/server/db";
-import { seedSbdAov1 } from "@idk/server/seed/sbdAov1";
-import { buildDocData } from "@idk/server/print/data";
 import { renderHtml } from "@idk/server/print/templates/index";
-import { tmpDir } from "./helpers/tmp.ts";
+import { buildDocDataFromBundle } from "@idk/server/print/fromBundle";
+import { aov1Bundle } from "./helpers/aov1.ts";
 
-const db = openDb(join(tmpDir(), "db.sqlite"));
-const { actId } = seedSbdAov1(db);
+const b = await aov1Bundle();
+const buildDocData = <K extends "aosr" | "rim" | "vd" | "vor">(k: K) => buildDocDataFromBundle(b, k);
 const text = (kind: "aosr" | "rim" | "vd" | "vor") =>
-  renderHtml(kind, buildDocData(db, actId, kind)).replace(/<style[\s\S]*?<\/style>/g, "").replace(/<[^>]+>/g, " ")
+  renderHtml(kind, buildDocData(kind)).replace(/<style[\s\S]*?<\/style>/g, "").replace(/<[^>]+>/g, " ")
     .replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ");
 
 test("aosr: шапка с полными реквизитами застройщика", () => {
@@ -52,7 +49,7 @@ test("aosr: подписи — 6 фамилий в порядке ролей", (
 });
 
 test("rim: 24 строки, первая — паспорт №3/405", () => {
-  const html = renderHtml("rim", buildDocData(db, actId, "rim"));
+  const html = renderHtml("rim", buildDocData("rim"));
   assert.equal((html.match(/<tr class="row">/g) ?? []).length, 24);
   const t = text("rim");
   assert.ok(t.includes("Реестр использованных материалов №К32.В.СТ.АОВ1.01.00.1.РИМ"));
@@ -61,13 +58,13 @@ test("rim: 24 строки, первая — паспорт №3/405", () => {
 });
 
 test("vd: 20 строк, кабель 1618,9 м.", () => {
-  const html = renderHtml("vd", buildDocData(db, actId, "vd"));
+  const html = renderHtml("vd", buildDocData("vd"));
   assert.equal((html.match(/<tr class="row">/g) ?? []).length, 20);
   assert.match(text("vd"), /1 б\/н Кабель для промышленного интерфейса RS-485.* м\. 1618,9/);
 });
 
 test("vor: 98 пронумерованных строк, 5 групп", () => {
-  const html = renderHtml("vor", buildDocData(db, actId, "vor"));
+  const html = renderHtml("vor", buildDocData("vor"));
   assert.equal((html.match(/<tr class="(row|group)">/g) ?? []).length, 98);
   assert.equal((html.match(/<tr class="group">/g) ?? []).length, 5);
   const t = text("vor");
@@ -78,14 +75,14 @@ test("vor: 98 пронумерованных строк, 5 групп", () => {
 test("html: экранирование", async () => {
   const { escapeHtml } = await import("@idk/server/print/templates/common");
   assert.equal(escapeHtml(`<test & "x">`), "&lt;test &amp; &quot;x&quot;&gt;");
-  db.prepare("UPDATE acts SET works=? WHERE id=?").run(`<script>alert(1)</script> & "x"`, actId);
-  const html = renderHtml("aosr", buildDocData(db, actId, "aosr"));
+  const bad = await aov1Bundle((r) => { r["Акты"][0]["Работы (п.1)"] = `<script>alert(1)</script> & "x"`; });
+  const html = renderHtml("aosr", buildDocDataFromBundle(bad, "aosr"));
   assert.ok(!html.includes("<script>alert"));
   assert.ok(html.includes("&lt;script&gt;"));
 });
 
 test("rim: материал с несколькими документами — наименование один раз, группа в своём tbody", () => {
-  const html = renderHtml("rim", buildDocData(db, actId, "rim"));
+  const html = renderHtml("rim", buildDocData("rim"));
   const kabel = "Кабель СегментКИ-485-ПсЭнг(А)-HF 1х2х0,78-300 В";
   const t = text("rim");
   assert.equal(t.split(kabel).length - 1, 1);
@@ -95,9 +92,6 @@ test("rim: материал с несколькими документами —
 });
 
 test("aosr: настройка «Исполнительная схема» перед каждой схемой", async () => {
-  const { buildDocDataFromBundle } = await import("@idk/server/print/fromBundle");
-  const { bundleFromDb } = await import("@idk/server/print/fromDb");
-  const b = bundleFromDb(db, actId);
   assert.equal(buildDocDataFromBundle(b, "aosr", { schemeEach: true }).p4.filter((l) => l.startsWith("Исполнительная схема")).length, 6);
   assert.equal(buildDocDataFromBundle(b, "aosr").p4.filter((l) => l.startsWith("Исполнительная схема")).length, 1);
 });

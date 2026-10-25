@@ -1,32 +1,19 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { join } from "node:path";
-import { openDb } from "@idk/server/db";
-import { seedSbdAov1 } from "@idk/server/seed/sbdAov1";
 import { buildDocDataFromBundle } from "@idk/server/print/fromBundle";
-import { bundleFromDb } from "@idk/server/print/fromDb";
 import { createPrintJobs } from "@idk/server/routes/print";
 import { closeBrowser } from "@idk/server/print/browser";
-import { DOC_KINDS } from "@idk/shared/acts/schemas";
 import { readBook } from "@idk/shared/workbook/records";
 import { buildBundle } from "@idk/shared/workbook/bundle";
 import { defaultImportant } from "@idk/shared/workbook/important";
 import { aov1Book, AOV1 } from "../../shared/test/fixtures/aov1Book.ts";
 import { startTestServer } from "./helpers/server.ts";
 import { pdfPages } from "./helpers/pdftext.ts";
-import { tmpDir } from "./helpers/tmp.ts";
 import { PrintOptions } from "@idk/shared/templates";
 
 after(() => closeBrowser());
 
 const bookBundle = async () => buildBundle(await readBook(aov1Book()), AOV1, defaultImportant()).bundle!;
-
-test("пакет из книги даёт те же данные документов, что база", async () => {
-  const db = openDb(join(tmpDir(), "db.sqlite"));
-  const { actId } = seedSbdAov1(db);
-  const fromBook = await bookBundle();
-  for (const k of DOC_KINDS) assert.deepEqual(buildDocDataFromBundle(fromBook, k), buildDocDataFromBundle(bundleFromDb(db, actId), k), k);
-});
 
 test("POST /api/print/aosr → PDF с номером акта", async () => {
   const s = await startTestServer();

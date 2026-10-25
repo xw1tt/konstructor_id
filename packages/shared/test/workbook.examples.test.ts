@@ -57,7 +57,7 @@ test("листа «Нормативы» в схеме нет", () => {
 
 test("примеры записываются в свежую книгу (пустая строка таблиц, подписи «Объекта») на свои места", async () => {
   const { OBJECT_FIELDS: F } = await import("@idk/shared/workbook/schema");
-  const { writeBook } = await import("@idk/shared/workbook/migrate");
+  const { writeBook } = await import("@idk/shared/workbook/write");
   const wb = new MemoryWorkbook({ "Объект": F.map((f) => ({ "Поле": f.label })) }, { placeholder: true });
   await writeBook(wb, exampleRows(), {});
   const obj = await wb.read("Объект");

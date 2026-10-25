@@ -40,7 +40,7 @@ Files: удалить `server/src/routes/export.ts`, `server/src/print/fromDb.ts
 `fromBundle.ts`), `server/src/seed/`, `scripts/seed-sbd.ts`, старые `server/src/repo/*` кроме `normCatalog.ts` (+ `util.ts`,
 если нужен), `shared/src/workbook/migrate.ts` → `shared/src/workbook/write.ts` (`writeBook`, `BookRecords`, `BookLinks`);
 `server/src/app.ts`, `addin/src/panel/CreateBook.tsx`; тесты печати на `aov1Records`; удалить тесты переноса.
-- [ ] Тесты: `/api/export` → 404; печать АОСР/РИМ/ВД/ВОР из книги — проверки прежних тестов печати из базы; нормативы,
+- [x] Тесты: `/api/export` → 404; печать АОСР/РИМ/ВД/ВОР из книги — проверки прежних тестов печати из базы; нормативы,
   сканы, примеры новой книги — зелёные.
 
 ### Task 3: Описания документов акта (shared)

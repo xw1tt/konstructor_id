@@ -1,6 +1,5 @@
 // Комплект на панели: строка → комплект, ошибки сборки со ссылками на ячейки, задание сборки на сервере.
 import { TABLES, column, type TableName } from "@idk/shared/workbook/schema";
-import { assertAccess } from "./access.ts";
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
 import { isExampleValue } from "@idk/shared/workbook/examples";
 import type { Book } from "@idk/shared/workbook/records";
@@ -50,7 +49,6 @@ export async function assembleKit(book: Book, kit: string, important: ImportantM
   tpl?: UserTemplate): Promise<KitOutcome> {
   const { request, issues } = buildKitRequest(book, kit, important, template, options, new Date(), tpl);
   if (!request) return { kind: "issues", issues };
-  assertAccess("/api/kit-jobs");
   let res: Response;
   try {
     res = await fetch("/api/kit-jobs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });

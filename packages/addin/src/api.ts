@@ -1,5 +1,4 @@
 import type { FileRow } from "@idk/shared/schemas";
-import { assertAccess } from "./panel/access.ts";
 
 /** Сервер недоступен (не запущен или нет сети) — отличается от ошибок, которые вернул сам сервер. */
 export class ServerUnavailableError extends Error {
@@ -9,7 +8,6 @@ export class ServerUnavailableError extends Error {
 }
 
 async function call<T>(path: string, init: RequestInit): Promise<T> {
-  assertAccess(path);
   let res: Response;
   try {
     res = await fetch(path, init);

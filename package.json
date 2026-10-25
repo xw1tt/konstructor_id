@@ -5,16 +5,13 @@
   "workspaces": [
     "packages/shared",
     "packages/server",
-    "packages/addin",
-    "packages/cloud"
+    "packages/addin"
   ],
   "scripts": {
     "test": "tsx --test \"packages/*/test/**/*.test.ts\"",
-    "build": "node packages/addin/build.mjs && node packages/cloud/build.mjs",
+    "build": "node packages/addin/build.mjs",
     "start": "tsx packages/server/src/main.ts",
-    "catalog:table": "tsx scripts/catalog-table.ts",
-    "cloud": "tsx packages/cloud/src/main.ts",
-    "build:cloud": "node packages/cloud/build.mjs"
+    "catalog:table": "tsx scripts/catalog-table.ts"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

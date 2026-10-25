@@ -4,5 +4,3 @@ dist/
 *.sqlite
 build/
 *.tsbuildinfo
-console-dist/
-cloud-data/

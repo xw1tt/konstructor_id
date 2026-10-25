@@ -255,11 +255,3 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   .stamp button { min-height: 30px; padding: 4px 0; }
   .stamp button:last-child:nth-child(3n + 1), .stamp button:last-child:nth-child(3n + 2) { grid-column: auto; }
 }
-
-/* План 25: облако — строка статуса и вход. */
-.cloud-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; padding: 3px 12px; font-size: 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.cloud-warn { background: #fff4e0; }
-.cloud-link { background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink); font: inherit; text-align: left; }
-.cloud-reason { color: #8a5a00; }
-.cloud-login { display: grid; gap: 8px; max-width: 320px; }
-.cloud-login input { font: inherit; padding: 4px 6px; }

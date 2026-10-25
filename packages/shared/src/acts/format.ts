@@ -1,13 +1,14 @@
 import type { FormSet, FormDoc, PrintOptions } from "../templates.ts";
 import type { DocKind } from "./schemas.ts";
 
-const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+/** Месяцы в родительном падеже («15 октября»). */
+export const MONTHS_GEN: readonly string[] = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 
 /** "2026-07-28" → "28 июля 2026 г." */
 export function formatDateLong(iso: string | null): string {
   if (!iso) return "";
   const [y, m, d] = iso.split("-").map(Number);
-  return `${d} ${MONTHS[m - 1]} ${y} г.`;
+  return `${d} ${MONTHS_GEN[m - 1]} ${y} г.`;
 }
 
 /** "2025-05-09" → "09.05.2025 г." */

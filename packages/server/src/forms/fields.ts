@@ -4,7 +4,8 @@ import type { ActBundle } from "@idk/shared/workbook/bundle";
 import type { Organization } from "@idk/shared/schemas";
 import { ROLE_CODES, type RoleCode } from "@idk/shared/roles";
 import { activeRepresentatives } from "@idk/shared/rules";
-import { docNumber, formatDateShort, formatDateLong, formatNumber } from "@idk/shared/acts/format";
+import { docNumberFor, formatDateShort, formatDateLong, formatNumber, MONTHS_GEN } from "@idk/shared/acts/format";
+import type { FormSet } from "@idk/shared/templates";
 import { repLine } from "@idk/shared/acts/repLine";
 import { ROLE_GROUPS, type FormData } from "@idk/shared/forms/fields";
 import { buildDocDataFromBundle, buildAvkData } from "../print/fromBundle.ts";
@@ -12,11 +13,14 @@ import { protoFormData, emptyProtoFormData } from "@idk/shared/protocols/form";
 
 export type { FormData };
 
-export function formData(b: ActBundle, doc?: { code: string }): FormData {
+/** Метки своей формы. doc.code — код своего документа (номер «<акт>.<код>»); doc.set — набор форм шаблона (нумерация). */
+export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): FormData {
+  const set = doc?.set ?? "sbd";
+  const [yy, mm, dd] = (b.act.date ?? "").split("-");
   const act = b.act;
   const org = (id: number | null | undefined): Organization | undefined => b.organizations.find((o) => o.id === id);
   const section = act.sectionId !== null ? b.sections.find((s) => s.id === act.sectionId) : undefined;
-  const aosr = buildDocDataFromBundle(b, "aosr");
+  const aosr = buildDocDataFromBundle(b, "aosr", { formSet: set });
   const vd = buildDocDataFromBundle(b, "vd");
   const avk = buildAvkData(b);
   const mat = (id: number) => b.materials.find((m) => m.id === id);
@@ -31,12 +35,17 @@ export function formData(b: ActBundle, doc?: { code: string }): FormData {
     "Объект.Проектировщик": org(section?.designerOrgId ?? b.object.roles.designer)?.shortName ?? "",
     "Объект.Шифр РД": section?.code ?? "",
     "Объект.Раздел": section?.name ?? "",
+    "Объект.Подрядчик": org(act.performerOrgId)?.shortName ?? "",
     "Акт.Номер": act.baseNumber,
-    "Акт.Номер документа": doc ? `${act.baseNumber}.${doc.code}` : aosr.number,
+    "Акт.Номер документа": doc?.code ? `${act.baseNumber}.${doc.code}` : aosr.number,
     "Акт.Номер АОСР": aosr.number,
-    "Акт.Номер РИМ": docNumber(act.baseNumber, "rim"),
-    "Акт.Номер ВД": docNumber(act.baseNumber, "vd"),
+    "Акт.Номер РИМ": docNumberFor(act.baseNumber, "rim", set),
+    "Акт.Номер ВД": docNumberFor(act.baseNumber, "vd", set),
+    "Акт.Номер РП": docNumberFor(act.baseNumber, "rp", set),
     "Акт.Дата": formatDateShort(act.date),
+    "Акт.День": dd ?? "",
+    "Акт.Месяц": mm ? MONTHS_GEN.at(Number(mm) - 1) ?? "" : "",
+    "Акт.Год": yy ?? "",
     "Акт.Дата прописью": aosr.date,
     "Акт.Работы": act.works,
     "Акт.Начало": formatDateShort(act.dateStart),

@@ -7,7 +7,8 @@ import type { Issue } from "../workbook/bundle.ts";
 import type { QualityDoc } from "../schemas.ts";
 import type { ActMaterialInput } from "../acts/schemas.ts";
 import { QUALITY_DOC_LABELS, type QualityDocType } from "../roles.ts";
-import { docNumber, formatDateShort, withNo } from "../acts/format.ts";
+import { docNumberFor, formatDateShort, withNo } from "../acts/format.ts";
+import type { FormSet } from "../templates.ts";
 import { avkDefaultNumber, rimDocDate, rimDocName, rimDocOrder } from "../acts/rows.ts";
 import type { PrintKind } from "../acts/schemas.ts";
 import type { TemplateDoc, UserTemplate } from "../forms/template.ts";
@@ -20,6 +21,13 @@ export const KJ_NAME = "Кабельный журнал";
 export const PROTOCOL_NAME = "Протокол проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин";
 export const LAB_NAME = "Свидетельство о регистрации электролаборатории";
 export const AVK_NAME = "Акт входного контроля, технических средств и материалов";
+/** Реестр приложений к АОСР (план 14) и наименования строк реестра в наборе «ТИ». */
+export const RP_NAME = "Реестр приложений к АОСР";
+export const TI_NAMES = {
+  rim: "Реестр используемых материалов и документов, подтверждающих их качество, к АОСР",
+  vd: "Ведомость смонтированного электрооборудования и материалов",
+  ip: "Протокол сопротивления изоляции",
+};
 export const DOC_NAMES: Partial<Record<RegistryKind, string>> = {
   "ВОР": "Ведомость объемов выполненных работ",
   "АОСР": "Акт освидетельствования скрытых работ",
@@ -87,6 +95,9 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
     !template ? null : catalog ? actDocs(template, catalog, book, act).docs : template.docs.filter((d) => !onKit(d));
   const issues: Issue[] = [];
   const rows = (t: TableName) => book.tables[t] ?? [];
+  // Набор форм шаблона (план 14): нумерация и наименования строк.
+  const set: FormSet = template?.print?.formSet ?? "sbd";
+  const ti = set === "ti";
   const { kitRow, acts } = kitActs(book, kit);
   if (!kitRow) {
     issues.push({ table: "Комплекты", row: null, column: "№ реестра", message: `Комплект «${kit}» не найден на листе «Комплекты»` });
@@ -128,17 +139,20 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
       continue;
     }
     const need = docsOf(n);
-    const inTpl = (k: PrintKind) => !need || need.some((d) => d.kind === "builtin" && d.doc === k);
+    // Без шаблона — все встроенные документы «СБД» (РП — только явно в шаблоне, план 14).
+    const inTpl = (k: PrintKind) => (!need ? k !== "rp" : need.some((d) => d.kind === "builtin" && d.doc === k));
     const custom = (need ?? []).filter(own);
     const of = (t: TableName) => rows(t).filter((r) => txt(r.v.act) === n);
     const code = txt(act.v.section);
     const date = short(act.v.date);
+    const aosrNo = withNo(docNumberFor(n, "aosr", set));
     if (of("ВОР").length && inTpl("vor")) add("ВОР", n, "б/н", DOC_NAMES["ВОР"]!, date, code);
-    if (inTpl("aosr")) add("АОСР", n, withNo(docNumber(n, "aosr")), `${DOC_NAMES["АОСР"]} ${txt(act.v.works)}`, date, code);
+    if (inTpl("aosr")) add("АОСР", n, aosrNo, ti ? DOC_NAMES["АОСР"]! : `${DOC_NAMES["АОСР"]} ${txt(act.v.works)}`, date, code);
     const actMats = of("МатериалыАктов");
     if (actMats.length) {
-      if (inTpl("rim")) add("РИМ", n, withNo(docNumber(n, "rim")), DOC_NAMES["РИМ"]!, date, code);
-      if (inTpl("vd")) add("ВД", n, withNo(docNumber(n, "vd")), DOC_NAMES["ВД"]!, date, code);
+      if (inTpl("rim")) add("РИМ", n, withNo(docNumberFor(n, "rim", set)), ti ? `${TI_NAMES.rim} ${aosrNo} от ${date}` : DOC_NAMES["РИМ"]!, date, code);
+      if (inTpl("rp")) add("РП", n, withNo(docNumberFor(n, "rp", set)), `${RP_NAME} ${aosrNo} от ${date}`, date, code);
+      if (inTpl("vd")) add("ВД", n, withNo(docNumberFor(n, "vd", set)), ti ? TI_NAMES.vd : DOC_NAMES["ВД"]!, date, code);
     }
     for (const d of custom) add("Свой документ", n, withNo(`${n}.${d.code}`), d.name, date, code);
     for (const s of of("Схемы")) {
@@ -148,8 +162,14 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
     if (of("КабельныйЖурнал").length && (inTpl("kj") || inTpl("ip"))) {
       const doc = of("ДокументыКабелей")[0];
       const jc = doc ? txt(doc.v.journalCode) : "";
-      if (inTpl("kj")) add("КЖ", n, jc ? `№ ${jc}` : "", KJ_NAME, doc ? short(doc.v.journalDate) : "", code);
-      if (doc && txt(doc.v.protocolNumber) && inTpl("ip")) {
+      if (inTpl("kj")) {
+        if (ti) add("КЖ", n, withNo(docNumberFor(n, "kj", set)), KJ_NAME, doc ? short(doc.v.journalDate) || date : date, code);
+        else add("КЖ", n, jc ? `№ ${jc}` : "", KJ_NAME, doc ? short(doc.v.journalDate) : "", code);
+      }
+      if (ti && inTpl("ip")) {
+        add("Протокол", n, withNo(docNumberFor(n, "ip", set)), TI_NAMES.ip, doc ? period(doc.v.dateFrom, doc.v.dateTo) || date : date, code);
+        addMeasuring(code);
+      } else if (doc && txt(doc.v.protocolNumber) && inTpl("ip")) {
         add("Протокол", n, withNo(txt(doc.v.protocolNumber)), PROTOCOL_NAME, period(doc.v.dateFrom, doc.v.dateTo), code);
         addMeasuring(code);
       }
@@ -177,7 +197,8 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
     for (const d of rimDocOrder(ams, byMat)) {
       if (seenDocs.has(d.id)) continue;
       seenDocs.add(d.id);
-      add("Документ качества", n, withNo(d.number), `${QUALITY_DOC_LABELS[d.type]}: ${rimDocName(d, ams, materials)}`, rimDocDate(d), code, rowOf.get(d.id));
+      if (ti) add("Документ качества", n, d.number.replace(/^№\s*/, ""), QUALITY_DOC_LABELS[d.type], d.issueDate ? formatDateShort(d.issueDate) : "б/д", code, rowOf.get(d.id));
+      else add("Документ качества", n, withNo(d.number), `${QUALITY_DOC_LABELS[d.type]}: ${rimDocName(d, ams, materials)}`, rimDocDate(d), code, rowOf.get(d.id));
     }
   }
   // Документы «на комплект» (скан свидетельства и т. п.) — одна строка на комплект, номер — код документа.

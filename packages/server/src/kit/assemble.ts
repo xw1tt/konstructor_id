@@ -86,7 +86,7 @@ async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template: strin
     const d = findDoc(t.docs, f.doc);
     if (!d?.form) throw new Error(`У документа «${f.doc}» нет своей формы в шаблоне «${t.name}»`);
     const code = docCode(d);
-    return (await renderForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, code ? { code } : undefined, deps.runner)).pdf;
+    return (await renderForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set: t.print.formSet }, deps.runner)).pdf;
   }
   return (await renderBundlePdf(b, row.doc!.kind!, template, q.options)).pdf;
 }

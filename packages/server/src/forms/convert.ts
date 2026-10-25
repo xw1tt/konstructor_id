@@ -1,5 +1,6 @@
 // Печать своей формы: подстановка меток → PDF через установленный Word/Excel (PowerShell + COM, без окна),
 // а без Office — своими силами (HTML → Edge) с предупреждением.
+import type { FormSet } from "@idk/shared/templates";
 import { execFile } from "node:child_process";
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -53,7 +54,7 @@ export function removeQuietly(dir: string) {
 
 export interface RenderedForm { pdf: Buffer; source: Buffer; warnings: string[]; via: "word" | "excel" | "html" }
 
-export async function renderForm(b: ActBundle, form: FormRef & { buf: Buffer }, doc: { code: string } | undefined, runner: OfficeRunner): Promise<RenderedForm> {
+export async function renderForm(b: ActBundle, form: FormRef & { buf: Buffer }, doc: { code?: string; set?: FormSet } | undefined, runner: OfficeRunner): Promise<RenderedForm> {
   const data = formData(b, doc);
   const filled = form.type === "docx" ? fillDocx(form.buf, data) : fillXlsx(form.buf, data);
   const warnings = [...filled.warnings];

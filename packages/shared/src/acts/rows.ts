@@ -2,7 +2,8 @@ import type { Material, QualityDoc, Representative } from "../schemas.ts";
 import { QUALITY_DOC_LABELS, QUALITY_DOC_TYPES, type RoleCode } from "../roles.ts";
 import { activeRepresentatives } from "../rules.ts";
 import type { ActDocumentInput, ActMaterialInput, VorLineInput } from "./schemas.ts";
-import { docNumber, formatDateShort, formatNumber, withNo } from "./format.ts";
+import { docNumberFor, formatDateShort, formatNumber, withNo } from "./format.ts";
+import type { FormSet } from "../templates.ts";
 
 export const MATERIALS_INLINE_LIMIT = 5;
 
@@ -30,11 +31,11 @@ const docShort = (d: QualityDoc) =>
 
 /** П.3 АОСР. */
 export function point3Lines(
-  actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>, base: string,
+  actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>, base: string, set: FormSet = "sbd",
 ): string[] {
   if (actMaterials.length > MATERIALS_INLINE_LIMIT) {
     return [
-      `Согласно реестру использованных материалов №${docNumber(base, "rim")} ведомости смонтированного оборудования, технических средств и материалов №${docNumber(base, "vd")}`,
+      `Согласно реестру использованных материалов №${docNumberFor(base, "rim", set)} ведомости смонтированного оборудования, технических средств и материалов №${docNumberFor(base, "vd", set)}`,
     ];
   }
   const mm = matMap(materials);

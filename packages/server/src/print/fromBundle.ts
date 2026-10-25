@@ -3,7 +3,7 @@ import type { RoleCode } from "@idk/shared/roles";
 import type { Organization, Representative } from "@idk/shared/schemas";
 import type { ActBundle } from "@idk/shared/workbook/bundle";
 import { activeRepresentatives, orgFullForm } from "@idk/shared/rules";
-import { docNumber, formatDateLong, formatDateShort } from "@idk/shared/acts/format";
+import { docNumberFor, formatDateLong, formatDateShort } from "@idk/shared/acts/format";
 import { repLine } from "@idk/shared/acts/repLine";
 import { point3Lines, point4Lines, rimRows, vdRows, vorRows, signers, avkRows, avkDefaultNumber, SIGN_LABELS } from "@idk/shared/acts/rows";
 import type { PrintOptions } from "@idk/shared/templates";
@@ -31,7 +31,8 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
   const actMats = b.actMaterials;
   const vor = b.vor;
   const docsByMaterial = new Map(actMats.map((m) => [m.materialId, b.qualityDocs.filter((d) => d.materialIds.includes(m.materialId))]));
-  const aosrNumber = docNumber(act.baseNumber, "aosr");
+  const set = options.formSet ?? "sbd";
+  const aosrNumber = docNumberFor(act.baseNumber, "aosr", set);
   const repText = (r: Representative | undefined) =>
     r ? [r.position, org(r.orgId)?.shortName ?? "", r.fullName].map((s) => s.trim()).filter(Boolean).join(" ") : "";
 
@@ -54,7 +55,7 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
         works: act.works,
         p2: [`Шифр рабочей документации: ${section?.code ?? ""}`, act.sheets && `листы ${act.sheets}`]
           .filter(Boolean).join(" ") + [act.revision, designer?.shortName].filter(Boolean).map((s) => `, ${s}`).join(""),
-        p3: point3Lines(actMats, mats, docsByMaterial, act.baseNumber),
+        p3: point3Lines(actMats, mats, docsByMaterial, act.baseNumber, set),
         p4: point4Lines(b.documents, options),
         dateStart: formatDateLong(act.dateStart),
         dateEnd: formatDateLong(act.dateEnd),
@@ -67,11 +68,11 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
       };
     },
     rim: (): RimData => ({
-      aosrNumber, number: docNumber(act.baseNumber, "rim"),
+      aosrNumber, number: docNumberFor(act.baseNumber, "rim", set),
       rows: rimRows(actMats, mats, docsByMaterial), signs: signers(reps, APPENDIX_ROLES, act.date),
     }),
     vd: (): VdData => ({
-      aosrNumber, number: docNumber(act.baseNumber, "vd"),
+      aosrNumber, number: docNumberFor(act.baseNumber, "vd", set),
       rows: vdRows(actMats, mats, vor), signs: signers(reps, APPENDIX_ROLES, act.date),
     }),
     vor: (): VorData => ({

@@ -38,8 +38,9 @@ export function formJobRoutes(r: Router, store: TemplateStore, runner: OfficeRun
     if (!d) throw new HttpError(404, `Документа «${q.doc}» нет в шаблоне «${t.name}»`);
     if (!d.form) throw new HttpError(400, `У документа «${docLabel(d)}» нет своей формы — печать встроенной`);
     const code = docCode(d);
-    const res = await renderForm(q.bundle, { ...d.form, buf: store.form(t.id, d.form.file) }, code ? { code } : undefined, runner);
-    const number = formData(q.bundle, code ? { code } : undefined).values["Акт.Номер документа"];
+    const set = t.print.formSet;
+    const res = await renderForm(q.bundle, { ...d.form, buf: store.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set }, runner);
+    const number = formData(q.bundle, { ...(code ? { code } : {}), set }).values["Акт.Номер документа"];
     const id = randomUUID();
     for (const [k, j] of jobs) if (now() - j.at > FORM_TTL_MS) jobs.delete(k);
     jobs.set(id, { pdf: res.pdf, source: res.source, name: `${docLabel(d)} ${number}`, type: d.form.type, at: now() });
@@ -59,7 +60,8 @@ export function formJobRoutes(r: Router, store: TemplateStore, runner: OfficeRun
     c.res.end(j.source);
   });
   r.post("/api/form-fields", async (c) => {
-    const q = await c.body(z.object({ bundle: ActBundle, code: z.string().optional() }), JSON_LIMIT);
-    return formData(q.bundle, q.code ? { code: q.code } : undefined);
+    const q = await c.body(z.object({ bundle: ActBundle, code: z.string().optional(), template: z.string().optional() }), JSON_LIMIT);
+    const set = q.template ? store.get(q.template).print.formSet : undefined;
+    return formData(q.bundle, { ...(q.code ? { code: q.code } : {}), ...(set ? { set } : {}) });
   });
 }

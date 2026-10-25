@@ -29,13 +29,22 @@ echo   2 — обновить сервер этим архивом
 echo   3 — новая ссылка для входа владельца
 echo   4 — журнал сервера (последние 100 строк)
 echo   5 — скачать резервные копии базы в эту папку
+echo   6 — начать заново: забыть IP, логин, почту, домен и ключ
 echo.
-set /p "MODE=Выберите (1–5): "
+set /p "MODE=Выберите (1–6): "
+if "%MODE%"=="6" goto :reset
 
-if not defined IP set /p "IP=Публичный IP-адрес ВМ (Yandex Cloud → ВМ → Обзор): "
+rem Каждый ответ можно поправить: Enter — оставить прежний (в квадратных скобках).
+set "V=" & set /p "V=Публичный IP-адрес ВМ (Yandex Cloud → ВМ → Обзор) [!IP!]: "
+if not "!V!"=="" set "IP=!V!"
 if "!IP!"=="" goto :end
-set /p "U=Логин на ВМ [!USER!]: "
-if not "!U!"=="" set "USER=!U!"
+set "V=" & set /p "V=Логин на ВМ [!USER!]: "
+if not "!V!"=="" set "USER=!V!"
+if exist "%KEY%" (
+  set "V=" & set /p "V=Ключ SSH уже сохранён. Заменить другим файлом? (д/Enter — нет): "
+  if /i "!V!"=="д" del "%KEY%"
+  if /i "!V!"=="y" del "%KEY%"
+)
 
 if not exist "%KEY%" (
   echo.
@@ -60,12 +69,21 @@ if "%MODE%"=="5" goto :backups
 goto :end
 
 :install
-if not defined EMAIL set /p "EMAIL=Ваша почта (вход владельца сервиса): "
+set "V=" & set /p "V=Ваша почта (вход владельца сервиса) [!EMAIL!]: "
+if not "!V!"=="" set "EMAIL=!V!"
 if "!EMAIL!"=="" goto :end
 echo.
-echo Свой домен (например id.firma.ru, A-запись на !IP!) — или просто Enter, тогда адрес будет вида IP.sslip.io
-set /p "DOMAIN=Домен [без домена]: "
-call :save
+echo Свой домен (например id.firma.ru, A-запись на !IP!) — или «-», если домена нет: адрес будет вида IP.sslip.io
+set "V=" & set /p "V=Домен [!DOMAIN!]: "
+if "!V!"=="-" set "DOMAIN="
+if not "!V!"=="" if not "!V!"=="-" set "DOMAIN=!V!"
+call :reset
+if exist "%CFG%" del "%CFG%"
+if exist "%KEY%" del "%KEY%"
+echo Настройки и сохранённый ключ удалены — запустите файл заново.
+goto :end
+
+:save
 echo.
 echo ВАЖНО: в Yandex Cloud → Virtual Private Cloud → Группы безопасности у группы ВМ должны быть открыты
 echo входящие TCP-порты 80 и 443 (источник 0.0.0.0/0). Без них не выпустится сертификат HTTPS.
@@ -88,7 +106,8 @@ call :save
 goto :done
 
 :owner
-if not defined EMAIL set /p "EMAIL=Почта владельца сервиса: "
+set "V=" & set /p "V=Почта владельца сервиса [!EMAIL!]: "
+if not "!V!"=="" set "EMAIL=!V!"
 %SSH% -t "cd ~/konstruktor-cloud/deploy && sudo docker compose exec -T app npx tsx packages/cloud/src/main.ts create-owner '!EMAIL!'"
 call :save
 goto :done

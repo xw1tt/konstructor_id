@@ -72,3 +72,11 @@ export function blockReason(m: CloudMode): string | null {
     case "expired": return "Нет связи с облаком больше суток — печать и помощник недоступны до восстановления связи";
   }
 }
+
+/** Новый адрес сразу проверяется (/api/health): опечатка или адрес-пример не должны выглядеть как «вход завис». */
+export async function withHealth(r: { mode: CloudMode; cache: CloudCache }, fetcher: Fetcher): Promise<{ mode: CloudMode; cache: CloudCache }> {
+  if (!r.cache.url || r.mode.kind !== "login") return r;
+  let ok = false;
+  try { ok = (await fetcher(`${r.cache.url}/api/health`)).ok; } catch { ok = false; }
+  return ok ? r : { ...r, mode: { kind: "login", error: `Облако по адресу ${r.cache.url} не отвечает — проверьте адрес (он печатается в конце установки) и интернет` } };
+}

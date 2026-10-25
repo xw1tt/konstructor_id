@@ -1,7 +1,7 @@
 // План 25: облако в панели — режимы доступа, вход, работа без связи 24 часа, ограничение работы.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkCloud, cloudLogin, blockReason, emptyCache, normUrl, OFFLINE_MS } from "@idk/addin/panel/cloud";
+import { checkCloud, cloudLogin, blockReason, emptyCache, normUrl, OFFLINE_MS, withHealth } from "@idk/addin/panel/cloud";
 import { assertAccess, setAccessBlock } from "@idk/addin/panel/access";
 
 const me = (access: string) => ({ user: { id: "u", email: "e@x.ru", name: "Иванов", role: "engineer" }, tenant: { id: "t", name: "ООО Монтаж", balanceRub: 100, access, accessLabel: "" } });
@@ -51,4 +51,13 @@ test("вход: ошибка облака, нет связи, успех; огр
   assert.doesNotThrow(() => assertAccess("/api/templates"), "шаблоны, сканы, справочник — можно");
   setAccessBlock(null);
   assert.doesNotThrow(() => assertAccess("/api/print-jobs"));
+});
+
+test("0.20.1: новый адрес проверяется — не отвечает — понятная ошибка; отвечает — вход", async () => {
+  const c = { ...emptyCache(), url: "https://51-250-10-20.sslip.io" };
+  const r = await checkCloud(c, async () => json(200, {}), 0);
+  const bad = await withHealth(r, async () => { throw new TypeError("timeout"); });
+  assert.match((bad.mode as any).error, /Облако по адресу https:\/\/51-250-10-20\.sslip\.io не отвечает/);
+  const good = await withHealth(r, async (u) => { assert.equal(u, "https://51-250-10-20.sslip.io/api/health"); return json(200, { ok: true }); });
+  assert.deepEqual(good.mode, { kind: "login" });
 });

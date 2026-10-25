@@ -1,9 +1,11 @@
 // План 25: облако в панели — состояние, вход, строка статуса, раздел «Облако» в настройках.
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { blockReason, checkCloud, CHECK_MS, cloudLogin, emptyCache, loadCache, normUrl, saveCache, type CloudCache, type CloudMode } from "./cloud.ts";
+import { blockReason, checkCloud, CHECK_MS, cloudLogin, emptyCache, loadCache, normUrl, saveCache, withHealth, type CloudCache, type CloudMode } from "./cloud.ts";
 import { setAccessBlock } from "./access.ts";
 
 const storage = (() => { try { return window.localStorage; } catch { return null; } })();
+/** Запрос к облаку не дольше 15 секунд: неверный адрес не должен «подвешивать» вход. */
+const fetchT = (url: string, init?: RequestInit) => fetch(url, { ...init, signal: AbortSignal.timeout(15_000) });
 const money = (r: number | undefined) => (r === undefined ? "" : `${r.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽`);
 
 export interface CloudCtl {
@@ -19,7 +21,7 @@ export function useCloud(): CloudCtl {
   const apply = useCallback((r: { mode: CloudMode; cache: CloudCache }) => {
     ref.current = r.cache; setCache(r.cache); saveCache(storage, r.cache); setMode(r.mode); setAccessBlock(blockReason(r.mode));
   }, []);
-  const refresh = useCallback(async () => apply(await checkCloud(ref.current, fetch, Date.now())), [apply]);
+  const refresh = useCallback(async () => apply(await checkCloud(ref.current, fetchT, Date.now())), [apply]);
   useEffect(() => {
     // До ответа облака — по последнему известному статусу (сутки), чтобы панель не мигала экраном входа.
     const c = ref.current;
@@ -34,8 +36,15 @@ export function useCloud(): CloudCtl {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return {
     mode, cache, busy, refresh,
-    setUrl: async (url) => { setBusy(true); try { apply(await checkCloud({ ...emptyCache(), url: url.trim() ? normUrl(url) : "" }, fetch, Date.now())); } finally { setBusy(false); } },
-    login: async (email, pw) => { setBusy(true); try { apply(await cloudLogin(ref.current, email.trim(), pw, fetch, Date.now())); } finally { setBusy(false); } },
+    setUrl: async (url) => {
+      setBusy(true);
+      try {
+        const u = url.trim() ? normUrl(url) : "";
+        // Адрес сразу проверяется: опечатка или адрес-пример не должны выглядеть как «вход завис».
+        apply(await withHealth(await checkCloud({ ...emptyCache(), url: u }, fetchT, Date.now()), fetchT));
+      } finally { setBusy(false); }
+    },
+    login: async (email, pw) => { setBusy(true); try { apply(await cloudLogin(ref.current, email.trim(), pw, fetchT, Date.now())); } finally { setBusy(false); } },
     logout: async () => {
       const c = ref.current;
       try { if (c.token) await fetch(`${c.url}/api/auth/logout`, { method: "POST", headers: { authorization: `Bearer ${c.token}` } }); } catch { /* нет связи — выходим на ПК */ }

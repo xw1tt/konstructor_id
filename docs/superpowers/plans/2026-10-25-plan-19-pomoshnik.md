@@ -34,7 +34,7 @@ Files: `shared/src/ai/{changes,tools,mask,agent,prompt}.ts`; Test `shared/test/a
 ### Task 2: Панель — чат и настройки
 Files: `addin/src/panel/aiApi.ts`, `addin/src/panel/assistant.ts` (сессия: история, предложения, применение, отмена),
 `AssistantScreen.tsx`, `AiSettings.tsx`, `SettingsScreen.tsx`, `styles.css`; Test `addin/test/assistant.panel.test.ts`.
-- [ ] Тесты (модель книги, подменённый api): ход с предложением → карточка; применить отмеченные; отменить; история знает о
+- [x] Тесты (модель книги, подменённый api): ход с предложением → карточка; применить отмеченные; отменить; история знает о
   применении; нет подключения — понятная ошибка; сборка панели; снимок экрана.
 
 ### Task 3: Документация

@@ -213,3 +213,26 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .wiz-nav { margin-top: 10px; }
 .wiz-banner { margin-bottom: 6px; }
 .issues { font-size: 12px; padding-left: 18px; }
+
+/* План 19: помощник и нейросети */
+.as-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.as-head .app-title { margin-right: auto; }
+.as-hints ul { padding-left: 18px; margin: 4px 0; }
+.as-log { display: grid; gap: 6px; margin: 8px 0; }
+.as-msg { font-size: 12px; line-height: 1.4; white-space: pre-wrap; padding: 6px 8px; border-radius: 6px; }
+.as-user { background: var(--blue); color: #fff; justify-self: end; max-width: 85%; }
+.as-assistant { background: #f2f4f7; max-width: 95%; }
+.as-tool { color: var(--ink-soft); font-size: 11px; padding: 0 8px; }
+.as-tool::before { content: "⋯ "; }
+.as-note { color: var(--ink-soft); font-style: italic; padding: 0 8px; }
+.as-error { color: var(--danger); border: 1px solid var(--danger); }
+.as-card { border: 1px solid var(--blue); border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+.as-prop { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+.as-line { display: block; }
+.as-input { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: end; margin-top: 6px; }
+.as-input textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 12px; padding: 4px 6px; }
+.ai-row { display: flex; flex-wrap: wrap; gap: 4px; justify-content: space-between; align-items: center; }
+.ai-form { margin: 6px 0; padding: 6px; border: 1px solid var(--line); }
+.ai-form select, .ai-form input { width: 100%; box-sizing: border-box; font-size: 12px; padding: 3px 5px; }
+.ai-usage { font-size: 12px; border-collapse: collapse; }
+.ai-usage th, .ai-usage td { border: 1px solid var(--line); padding: 2px 6px; text-align: left; }

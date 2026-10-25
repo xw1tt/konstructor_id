@@ -18,6 +18,8 @@ import { TemplateEditor } from "./TemplateEditor.tsx";
 import { FieldsScreen } from "./FieldsScreen.tsx";
 import { LibraryScreen } from "./LibraryScreen.tsx";
 import { WizardScreen } from "./WizardScreen.tsx";
+import { AssistantSession } from "./assistant.ts";
+import { aiApi } from "./aiApi.ts";
 import { listTemplates, resolveTemplate } from "./templatesApi.ts";
 import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import type { ScreenId } from "./screens.ts";
@@ -101,6 +103,8 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
     saveTemplate(port, t).catch(() => undefined);
   };
   // План 17: «Только нужные листы» — настройка книги; пересчёт при включении и при смене шаблона книги.
+  // План 19: разговор с помощником переживает переход между экранами.
+  const [assistant] = useState(() => new AssistantSession({ store: port, chat: aiApi.chat }));
   const [neededOn, setNeededOn] = useState(false);
   useEffect(() => { void port.setting(NEEDED_SHEETS_SETTING).then((v) => setNeededOn(v === "1")).catch(() => undefined); }, [port]);
   const applySheets = async (on: boolean) => {
@@ -143,7 +147,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             : screen === "fields" ? <FieldsScreen state={state} />
             : screen === "library" ? <LibraryScreen port={port} state={state} />
             : screen === "wizard" ? <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
-            : screen === "settings" ? <SettingsScreen /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
+            : screen === "settings" ? <SettingsScreen /> : screen === "assistant" ? <AssistantScreen port={port} state={state} session={assistant} onSettings={() => setScreen("settings")} /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
             <>

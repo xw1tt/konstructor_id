@@ -8,6 +8,8 @@ const optDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null)
 export const CableRow = z.object({
   group: str, designation: str, from: str, to: str, direction: str,
   cableMark: str, cableLength: optNum, pipeMark: str, pipeLength: optNum, note: str,
+  /** План 14: длина по проекту и по способам прокладки (КЖ набора «ТИ»). */
+  projectLength: optNum, tray: optNum, smoothPipe: optNum, corrugatedPipe: optNum,
 });
 export type CableRow = z.infer<typeof CableRow>;
 

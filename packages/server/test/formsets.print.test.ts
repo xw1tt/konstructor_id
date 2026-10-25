@@ -84,3 +84,28 @@ test("печать по опциям: ВД и РИМ — форма набора
   const sbdVd = await renderBundlePdf(b, "vd", "ti", PrintOptions.parse({ formSet: "ti", forms: { vd: "sbd" } }));
   assert.match((await pdfPages(sbdVd.pdf)).join(" "), /Ведомость смонтированного оборудования, технических средств и материалов/, "форма ВД «СБД» в наборе «ТИ»");
 });
+
+test("КЖ «ТИ»: шапка, номер по набору, графы способов прокладки; 120 кабелей — шапка таблицы на страницах; протокол — №акт.П", async () => {
+  const { buildCableBundle } = await import("@idk/shared/workbook/cables");
+  const recs: any = aov1Records();
+  recs["ДокументыКабелей"] = [];
+  const first = recs["КабельныйЖурнал"][0];
+  recs["КабельныйЖурнал"] = Array.from({ length: 120 }, (_, i) => ({ ...first, "Обозначение кабеля, жгута, трубы": `N-${i + 1}`, "Труба гладкая, м": 5, "Труба гофрированная, м": 2 }));
+  const b = buildCableBundle(await readBook(new MemoryWorkbook(recs)), AOV1, defaultImportant(), "kj", { set: "ti" }).bundle!;
+  const kj = await renderBundlePdf(b, "kj", "ti", TI);
+  assert.equal(kj.name, `${AOV1}.КЖ.pdf`);
+  const pages = await pdfPages(kj.pdf);
+  assert.ok(pages.length >= 3, String(pages.length));
+  assert.match(pages[0], new RegExp(`Кабельный журнал №${AOV1.replace(/\./g, "\\.")}\\.КЖ`));
+  assert.match(pages[0], /\(подрядная организация\)/);
+  for (const [i, t] of pages.entries()) if (/N-\d/.test(t)) assert.match(t, /Труба гофрированная/, `шапка на странице ${i + 1}`);
+  const all = pages.join(" ");
+  assert.match(all, /N-120/);
+  assert.match(all, /Итого всего/);
+  assert.match(all, /с учетом кф запаса 2%/);
+  assert.match(all, /Принял:/);
+  const ipB = buildCableBundle(await readBook(new MemoryWorkbook(recs)), AOV1, defaultImportant(), "ip", { set: "ti" }).bundle!;
+  const ip = await renderBundlePdf(ipB, "ip", "ti", TI);
+  assert.equal(ip.name, `${AOV1}.П.pdf`);
+  assert.match((await pdfPages(ip.pdf)).join(" "), new RegExp(`Протокол №${AOV1.replace(/\./g, "\\.")}\\.П`));
+});

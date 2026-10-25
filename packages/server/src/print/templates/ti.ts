@@ -1,5 +1,6 @@
 // План 14: формы набора «ТИ» по образцам ООО «Техноинжиниринг» — ВД, реестр применённых материалов (РМ), реестр приложений (РП).
 import type { TiData, TiHeader, TiSign } from "../tiData.ts";
+import type { TiJournal } from "@idk/shared/acts/cableDocs";
 import { e, page } from "./common.ts";
 
 export const TI_STYLE = `<style>
@@ -75,4 +76,36 @@ export function tiRpHtml(d: TiData): string {
       <thead><tr><th>№</th><th>Наименование</th><th>Дата документа</th><th>Номер документа</th><th>Лист</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>${tiSignsHtml(d.signs)}`, "ti");
+}
+
+const KJ_STYLE = `<style>
+@page { size: A4 landscape; margin: 10mm 10mm 10mm 12mm; }
+table.grid.ti-kj th, table.grid.ti-kj td { font-size: 8pt; text-align: center; }
+table.grid.ti-kj tr.grp td { font-weight: bold; }
+table.grid.ti-kj tr.tot td { font-weight: bold; }
+.kj-sign { display: grid; grid-template-columns: 20mm 70mm 10mm 40mm 10mm 30mm; align-items: end; margin-top: 10pt; break-inside: avoid; }
+.kj-sign .line { border-bottom: 0.6pt solid #000; height: 11pt; }
+.kj-sign .cap { font-size: 6pt; text-align: center; }
+.kj-signs { break-inside: avoid; }
+</style>`;
+
+/** Кабельный журнал «ТИ»: шапка, таблица по образцу, итоги, запас, «Сдал/Принял». */
+export function tiKjHtml(d: { header: TiHeader; number: string; journal: TiJournal }): string {
+  const j = d.journal;
+  const body = j.lines.map((l) => l.kind === "group"
+    ? `<tr class="grp"><td colspan="9">${e(l.title)}</td></tr>`
+    : `<tr class="row"><td>${e(l.designation)}</td><td>${e(l.from)}</td><td>${e(l.to)}</td><td>${e(l.mark)}</td><td>${e(l.project)}</td><td>${e(l.fact)}</td><td>${e(l.tray)}</td><td>${e(l.smooth)}</td><td>${e(l.corrugated)}</td></tr>`).join("");
+  const totals = `<tr class="tot"><td colspan="3"></td><td>Итого всего</td><td></td><td></td><td>${e(j.total.tray)}</td><td>${e(j.total.smooth)}</td><td>${e(j.total.corrugated)}</td></tr>` +
+    j.byMark.map((m) => `<tr class="tot"><td colspan="3"></td><td>в т.ч. ${e(m.mark)}</td><td>${e(m.project)}</td><td>${e(m.fact)}</td><td></td><td></td><td></td></tr>`).join("") +
+    `<tr class="tot"><td colspan="3"></td><td>с учетом кф запаса ${e(j.reserve.pct)}%</td><td></td><td>${e(j.reserve.fact)}</td><td>${e(j.reserve.tray)}</td><td>${e(j.reserve.smooth)}</td><td>${e(j.reserve.corrugated)}</td></tr>`;
+  const sign = (label: string) => `<div class="kj-sign"><div>${label}</div><div class="line"></div><div></div><div class="line"></div><div></div><div class="line"></div>
+    <div></div><div></div><div></div><div class="cap">Подпись</div><div></div><div class="cap">Дата</div></div>`;
+  return page(`КЖ ${d.number}`, `${TI_STYLE}${KJ_STYLE}${tiHeaderHtml(d.header)}
+    <div class="ti-title" style="font-size:12pt">Кабельный журнал №${e(d.number)}</div>
+    <table class="grid ti-kj" style="margin-top:6pt">
+      <colgroup><col style="width:12%"><col style="width:10%"><col style="width:10%"><col style="width:22%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:10%"></colgroup>
+      <thead><tr><th rowspan="2">Обозначение кабеля, провода</th><th colspan="2">Трасса</th><th colspan="3">Кабель</th><th colspan="3">Способ прокладки</th></tr>
+        <tr><th>Начало</th><th>Конец</th><th>Марка</th><th>Длина по проекту, м</th><th>Длина фактическая, м</th><th>Лоток</th><th>Труба гладкая</th><th>Труба гофрированная</th></tr></thead>
+      <tbody>${body}${totals}</tbody>
+    </table><div class="kj-signs">${sign("Сдал:")}${sign("Принял:")}</div>`, "ti");
 }

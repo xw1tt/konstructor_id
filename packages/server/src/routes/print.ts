@@ -5,7 +5,9 @@ import { Router, Reply, HttpError } from "../http/router.ts";
 import { CABLE_DOC_KINDS, PRINT_KINDS, type CableDocKind, type DocKind, type PrintKind } from "@idk/shared/acts/schemas";
 import { docNumberFor, formOf } from "@idk/shared/acts/format";
 import { tiDocData } from "../print/tiData.ts";
-import { tiVdHtml, tiRmHtml, tiRpHtml } from "../print/templates/ti.ts";
+import { tiVdHtml, tiRmHtml, tiRpHtml, tiKjHtml } from "../print/templates/ti.ts";
+import { tiHeader } from "../print/tiData.ts";
+import { tiJournal } from "@idk/shared/acts/cableDocs";
 import { z } from "zod";
 import { ActBundle } from "@idk/shared/workbook/bundle";
 import { DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
@@ -68,9 +70,15 @@ export async function renderBundlePdf(b: ActBundle, kind: PrintKind, _template: 
     const d = buildAvkData(b);
     html = avkHtml(d);
     name = `АВК ${d.number}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
+  } else if (kind === "kj" && formOf(options, "kj") === "ti") {
+    if (!b.cables) throw new HttpError(400, "В пакете нет данных кабельного журнала");
+    const number = docNumberFor(b.act.baseNumber, "kj", set);
+    html = tiKjHtml({ header: tiHeader(b, b.cables.doc?.journalDate ?? b.act.date), number, journal: tiJournal(b.cables.rows, options.kjReserve ?? 2) });
+    name = `${number}.pdf`;
   } else if (isCable(kind)) {
-    html = kind === "kj" ? renderCableHtml("kj", cableDocData(b, "kj")) : renderCableHtml("ip", cableDocData(b, "ip"));
-    name = (kind === "kj" ? b.cables?.doc?.journalCode || `${b.act.baseNumber}.КЖ` : `${b.act.baseNumber}.Протокол`) + ".pdf";
+    html = kind === "kj" ? renderCableHtml("kj", cableDocData(b, "kj", set)) : renderCableHtml("ip", cableDocData(b, "ip", set));
+    name = (set === "ti" ? docNumberFor(b.act.baseNumber, kind, set)
+      : kind === "kj" ? b.cables?.doc?.journalCode || `${b.act.baseNumber}.КЖ` : `${b.act.baseNumber}.Протокол`) + ".pdf";
   } else if (kind === "rp" || ((kind === "vd" || kind === "rim") && formOf(options, kind) === "ti")) {
     // Формы набора «ТИ» (план 14): ВД, реестр применённых материалов, реестр приложений.
     const d = tiDocData(b);

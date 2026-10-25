@@ -5,6 +5,7 @@ import { cellText, parseNumberCell, type CellValue } from "./values.ts";
 import type { Book, BookRow } from "./records.ts";
 import type { ImportantMap } from "./important.ts";
 import type { TableStore } from "./store.ts";
+import type { FormSet } from "../templates.ts";
 import { MEASURE_KEYS, type CablesData, type CableRow, type MarkMeasure } from "./cableTypes.ts";
 
 export type CableDocKind = "kj" | "ip";
@@ -14,8 +15,10 @@ export const markKey = (mark: string) => mark.trim().replace(/\s+/g, " ").toUppe
 
 const txt = cellText;
 
-export function buildCableBundle(book: Book, actNumber: string, important: ImportantMap, kind: CableDocKind):
+/** opts.set — набор форм шаблона: в «ТИ» номер журнала и протокола — от номера акта, строка «ДокументыКабелей» не обязательна. */
+export function buildCableBundle(book: Book, actNumber: string, important: ImportantMap, kind: CableDocKind, opts: { set?: FormSet } = {}):
   { bundle: ActBundle | null; issues: Issue[] } {
+  const ti = opts.set === "ti";
   const base = buildBundle(book, actNumber, important);
   const n = actNumber.trim();
   const c = createChecker(book, important);
@@ -26,10 +29,10 @@ export function buildCableBundle(book: Book, actNumber: string, important: Impor
   const cables = cableRows.map((r) => ({ r, v: c.checkRow("КабельныйЖурнал", r) }));
 
   const docRow = ofAct("ДокументыКабелей")[0];
-  if (!docRow) c.push("ДокументыКабелей", null, "Акт", `Нет строки акта «${n}» в таблице «ДокументыКабелей»`);
+  if (!docRow && !ti) c.push("ДокументыКабелей", null, "Акт", `Нет строки акта «${n}» в таблице «ДокументыКабелей»`);
   // Важные поля строки документов — только те, что нужны печатаемому документу.
   const KJ_ONLY = ["journalCode", "journalDate"], IP_ONLY = ["protocolNumber", "dateFrom", "dateTo"];
-  const skip = new Set((kind === "kj" ? IP_ONLY : KJ_ONLY).map((k) => column("ДокументыКабелей", k).header));
+  const skip = new Set((ti ? [...KJ_ONLY, ...IP_ONLY] : kind === "kj" ? IP_ONLY : KJ_ONLY).map((k) => column("ДокументыКабелей", k).header));
   const docImportant: ImportantMap = { ...important, "ДокументыКабелей": (important["ДокументыКабелей"] ?? []).filter((h) => !skip.has(h)) };
   const dc = createChecker(book, docImportant);
   const doc = docRow ? dc.checkRow("ДокументыКабелей", docRow) : null;
@@ -68,6 +71,8 @@ export function buildCableBundle(book: Book, actNumber: string, important: Impor
       group: txt(r.v.group), designation: txt(r.v.designation), from: txt(r.v.from), to: txt(r.v.to), direction: txt(r.v.direction),
       cableMark: txt(r.v.cableMark), cableLength: (v.cableLength as number | null) ?? null, pipeMark: txt(r.v.pipeMark),
       pipeLength: (v.pipeLength as number | null) ?? null, note: txt(r.v.note),
+      projectLength: (v.projectLength as number | null) ?? null, tray: (v.tray as number | null) ?? null,
+      smoothPipe: (v.smoothPipe as number | null) ?? null, corrugatedPipe: (v.corrugatedPipe as number | null) ?? null,
     })),
     marks: [...markRows.values()].map((r): MarkMeasure => ({
       mark: txt(r.v.mark), purpose: txt(r.v.purpose),

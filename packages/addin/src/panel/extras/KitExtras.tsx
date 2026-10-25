@@ -80,7 +80,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     setNote(null);
     const where = { kit };
     if (b.form) {
-      const r = await guard(printForm(state.book!, "", state.important, tpl.id, b.key, b.doc, where), (m) => setNote({ text: m, error: true }));
+      const r = await guard(printForm(state.book!, "", state.important, tpl.id, b.key, b.doc, where, options), (m) => setNote({ text: m, error: true }));
       if (r?.issues.length) await showIssues(r.issues);
       if (r?.job?.warnings.length) setNote({ text: `${r.job.name}: ${r.job.warnings.join(". ")}`, error: true });
     } else {

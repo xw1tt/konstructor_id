@@ -59,17 +59,17 @@ export function protoBundleFor(book: Book, kind: ProtoKind, where: { act?: strin
 }
 
 /** Пакет для печати документа: протокол или акт плана 13, кабельный (КЖ, протокол изоляции) или пакет акта. */
-function printBundle(book: Book, where: { act?: string; kit?: string }, important: ImportantMap, doc: PrintKind | null) {
+function printBundle(book: Book, where: { act?: string; kit?: string }, important: ImportantMap, doc: PrintKind | null, options?: PrintOptions) {
   if (isProtoKind(doc)) return protoBundleFor(book, doc, where, important);
   const act = where.act ?? "";
-  return doc === "kj" || doc === "ip" ? buildCableBundle(book, act, important, doc) : buildBundle(book, act, important);
+  return doc === "kj" || doc === "ip" ? buildCableBundle(book, act, important, doc, { set: options?.formSet }) : buildBundle(book, act, important);
 }
 
 /** Проверяет акт; при ошибках возвращает их, иначе создаёт задание печати и открывает предпросмотр. Документ «на комплект»
  *  печатается из карточки комплекта: where.kit. */
 export async function printAct(book: Book, actNumber: string, important: ImportantMap, doc: PrintKind, template: TemplateCode,
   options?: PrintOptions, where: { act?: string; kit?: string } = { act: actNumber }): Promise<Issue[]> {
-  const { bundle, issues } = printBundle(book, where, important, doc);
+  const { bundle, issues } = printBundle(book, where, important, doc, options);
   if (!bundle) return issues;
   const { id } = await apiSend<{ id: string }>("POST", "/api/print-jobs", { ...bundle, template, options });
   openPreview(previewJobUrl(id, doc, location.origin));
@@ -80,14 +80,14 @@ export const previewFormUrl = (id: string, origin: string) =>
   `${origin}/addin/preview.html?src=${encodeURIComponent(`/api/form-jobs/${id}`)}`;
 
 /** Пакет акта для своей формы: для КЖ/протокола — кабельный, протокола или акта плана 13 — его пакет, иначе обычный. */
-export function bundleFor(book: Book, actNumber: string, important: ImportantMap, doc: PrintKind | null) {
-  return printBundle(book, { act: actNumber }, important, doc);
+export function bundleFor(book: Book, actNumber: string, important: ImportantMap, doc: PrintKind | null, options?: PrintOptions) {
+  return printBundle(book, { act: actNumber }, important, doc, options);
 }
 
 /** Печать документа по своей форме шаблона: проверка акта, задание на сервере, предпросмотр. */
 export async function printForm(book: Book, actNumber: string, important: ImportantMap, templateId: string, key: string, doc: PrintKind | null,
-  where: { act?: string; kit?: string } = { act: actNumber }): Promise<{ issues: Issue[]; job?: { id: string; warnings: string[]; name: string } }> {
-  const { bundle, issues } = printBundle(book, where, important, doc);
+  where: { act?: string; kit?: string } = { act: actNumber }, options?: PrintOptions): Promise<{ issues: Issue[]; job?: { id: string; warnings: string[]; name: string } }> {
+  const { bundle, issues } = printBundle(book, where, important, doc, options);
   if (!bundle) return { issues };
   const job = await apiSend<{ id: string; warnings: string[]; name: string }>("POST", "/api/form-jobs", { bundle, template: templateId, doc: key });
   openPreview(previewFormUrl(job.id, location.origin));

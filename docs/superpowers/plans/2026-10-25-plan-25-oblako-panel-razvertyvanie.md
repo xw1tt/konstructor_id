@@ -15,7 +15,7 @@ Test `addin/test/cloud.panel.test.ts`.
   статусу, потом ограничение; ограничение работы по путям; снимок экрана.
 
 ### Task 2: Развёртывание
-Files: `deploy/{Dockerfile,docker-compose.yml,Caddyfile,install.sh,backup.sh}`, `scripts/build-cloud-bundle.mjs`; Test
+Files: `deploy/{Dockerfile,docker-compose.yml,Caddyfile,install.sh,backup.sh}`, `scripts/build-cloud-bundle.ts`, `deploy/windows/Облако.cmd`; Test
 `cloud/test/deploy.test.ts` (файлы согласованы: переменные, порты, команда владельца).
 - [x] Тесты; архив развёртывания собирается (шаги Dockerfile из архива и адаптер pg проверены вручную на PGlite-сокете).
 

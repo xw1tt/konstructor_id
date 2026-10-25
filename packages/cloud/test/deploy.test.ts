@@ -28,3 +28,18 @@ test("/api/health — сервер и база работают", async () => {
   const c = await startCloud();
   assert.deepEqual((await c.req("GET", "/api/health")).json, { ok: true });
 });
+
+test("Облако.cmd: строки CRLF, кодировка UTF-8, права ключа, пункты меню, команды сервера", () => {
+  const buf = readFileSync(new URL("../../../deploy/windows/Облако.cmd", import.meta.url));
+  const s = buf.toString("utf8");
+  assert.ok(!/[^\r]\n/.test(s), "строки — CRLF");
+  assert.match(s, /^@echo off\r\nchcp 65001/);
+  assert.match(s, /icacls "%KEY%" \/inheritance:r/);
+  assert.match(s, /StrictHostKeyChecking=accept-new/);
+  assert.match(s, /sudo bash deploy\/install\.sh '!EMAIL!' '!DOMAIN!'/);
+  assert.match(s, /sudo bash deploy\/update\.sh/);
+  assert.match(s, /create-owner '!EMAIL!'/);
+  assert.match(s, /konstruktor-cloud-\*\.tar\.gz/);
+  // В блоках if ( … ) скобки в тексте экранированы, иначе cmd закроет блок раньше.
+  for (const line of s.split("\r\n").filter((l) => /^\s{2,}echo /.test(l))) assert.ok(!/[^^][()]/.test(line.replace(/^\s+echo /, "")), line);
+});

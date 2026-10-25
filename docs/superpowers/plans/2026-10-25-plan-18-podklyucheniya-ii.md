@@ -34,7 +34,7 @@ Files: `shared/src/ai/model.ts`, `server/src/ai/store.ts`; Test `server/test/ai.
 
 ### Task 2: HTTP и адаптеры
 Files: `server/src/ai/http.ts`, `server/src/ai/providers.ts`; Test `server/test/ai.providers.test.ts`.
-- [ ] Тесты (подставной сервер): OpenAI-совместимый — запрос (tools, заголовки yandex), ответ текстом и вызовами
+- [x] Тесты (подставной сервер): OpenAI-совместимый — запрос (tools, заголовки yandex), ответ текстом и вызовами
   инструментов, история с результатами инструментов; GigaChat — токен (Basic, RqUID, scope), кеш, 401 → новый токен,
   functions/function_call, результат `role: function`; ошибка провайдера → понятный текст; таймаут.
 

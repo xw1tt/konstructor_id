@@ -39,7 +39,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
     setMade(null);
     let issues: Issue[] | undefined;
     if (b.form) {
-      const r = await guard(printForm(state.book!, act, state.important, tpl.template.id, b.key, b.doc), setError);
+      const r = await guard(printForm(state.book!, act, state.important, tpl.template.id, b.key, b.doc, { act }, options), setError);
       issues = r?.issues;
       if (r?.job) setMade(r.job);
     } else {

@@ -4,13 +4,14 @@ import assert from "node:assert/strict";
 import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import { templateButtons, resolveTemplate } from "@idk/addin/panel/templatesApi";
 import { restoreWidth, trackWidth, WIDTH_KEY } from "@idk/addin/panel/panelWidth";
+import { PrintOptions } from "@idk/shared/templates";
 
 const form = { file: "x.docx", type: "docx" as const, original: "x.docx" };
 const tpl: UserTemplate = { id: "t-1", name: "ПИК", docs: [
   { kind: "builtin", doc: "aosr", form },
   { kind: "custom", code: "АГИ", name: "Акт гидр. испытаний", form },
   { kind: "custom", code: "ЧЕР", name: "Черновик", form: null },
-] };
+], print: PrintOptions.parse({}) };
 
 test("кнопки печати по шаблону", () => {
   assert.deepEqual(templateButtons(BUILTIN_SBD).map((b) => b.label), ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "Протокол"]);
@@ -74,6 +75,6 @@ test("сохранение шаблона передаёт настройку п
   const g = globalThis as any, saved = g.fetch;
   let body: any = null;
   g.fetch = async (_: string, init: RequestInit) => { body = JSON.parse(String(init.body)); return new Response(JSON.stringify({}), { status: 200 }); };
-  try { await saveTemplateDocs({ ...tpl, print: { schemeEach: true } }); } finally { g.fetch = saved; }
-  assert.deepEqual(body.print, { schemeEach: true });
+  try { await saveTemplateDocs({ ...tpl, print: PrintOptions.parse({ schemeEach: true }) }); } finally { g.fetch = saved; }
+  assert.deepEqual(body.print, PrintOptions.parse({ schemeEach: true }));
 });

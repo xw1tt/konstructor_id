@@ -2,7 +2,8 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, existsSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import { BUILTIN_SBD, SBD_ID, UserTemplate, FormRef, validateTemplate, type TemplateDoc, upgradeTemplate } from "@idk/shared/forms/template";
+import { PrintOptions } from "@idk/shared/templates";
+import { BUILTIN_TEMPLATES, isBuiltinTemplate, UserTemplate, FormRef, validateTemplate, type TemplateDoc, upgradeTemplate } from "@idk/shared/forms/template";
 import { UserCatalog, type UserCatalog as UserCatalogType } from "@idk/shared/catalog/model";
 import { BUILTIN_CATALOG } from "@idk/shared/catalog/builtin";
 import { mergeCatalog, mergeUserCatalog, referencedUserCatalog } from "@idk/shared/catalog/merge";
@@ -40,11 +41,12 @@ export class TemplateStore {
         try { return [upgradeTemplate(UserTemplate.parse(JSON.parse(readFileSync(join(this.root, d.name, "template.json"), "utf8"))))]; } catch { return []; }
       })
       .sort((a, b) => a.name.localeCompare(b.name, "ru"));
-    return [BUILTIN_SBD, ...own];
+    return [...BUILTIN_TEMPLATES, ...own];
   }
 
   get(id: string): UserTemplate {
-    if (id === SBD_ID) return BUILTIN_SBD;
+    const builtin = BUILTIN_TEMPLATES.find((t) => t.id === id);
+    if (builtin) return builtin;
     const f = join(this.dir(id), "template.json");
     if (!existsSync(f)) throw new HttpError(404, `Шаблон «${id}» не найден`);
     return upgradeTemplate(UserTemplate.parse(JSON.parse(readFileSync(f, "utf8"))));
@@ -60,7 +62,7 @@ export class TemplateStore {
 
   create(name: string, from?: string): UserTemplate {
     const src = from ? this.get(from) : null;
-    const t: UserTemplate = { id: `t-${randomUUID()}`, name: name.trim(), docs: [], print: src?.print ?? { schemeEach: false } };
+    const t: UserTemplate = { id: `t-${randomUUID()}`, name: name.trim(), docs: [], print: src?.print ?? PrintOptions.parse({}) };
     const errors = validateTemplate(t);
     if (errors.length) throw new HttpError(422, errors[0]);
     mkdirSync(join(this.dir(t.id), "forms"), { recursive: true });
@@ -76,7 +78,7 @@ export class TemplateStore {
   }
 
   save(id: string, body: { name: string; docs: TemplateDoc[]; print?: UserTemplate["print"] }): UserTemplate {
-    if (id === SBD_ID) throw new HttpError(400, "Встроенный шаблон «СБД» не меняется — сделайте копию");
+    if (isBuiltinTemplate(id)) throw new HttpError(400, `Встроенный шаблон «${this.get(id).name}» не меняется — сделайте копию`);
     this.get(id);
     const t = UserTemplate.parse({ id, ...body, print: body.print ?? this.get(id).print });
     const errors = validateTemplate(t);
@@ -87,13 +89,13 @@ export class TemplateStore {
   }
 
   remove(id: string) {
-    if (id === SBD_ID) throw new HttpError(400, "Встроенный шаблон «СБД» не удаляется");
+    if (isBuiltinTemplate(id)) throw new HttpError(400, `Встроенный шаблон «${this.get(id).name}» не удаляется`);
     this.get(id);
     rmSync(this.dir(id), { recursive: true, force: true });
   }
 
   addForm(id: string, buf: Buffer, original: string): FormRef {
-    if (id === SBD_ID) throw new HttpError(400, "Встроенный шаблон «СБД» не меняется — сделайте копию");
+    if (isBuiltinTemplate(id)) throw new HttpError(400, `Встроенный шаблон «${this.get(id).name}» не меняется — сделайте копию`);
     this.get(id);
     const type = formType(buf);
     if (!type) throw new HttpError(422, NEED_OFFICE_FILE);

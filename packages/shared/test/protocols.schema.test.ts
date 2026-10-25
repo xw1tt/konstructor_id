@@ -7,7 +7,7 @@ import { PROTO_DEFS, PROTO_KINDS, PROTO_ROW_TABLES } from "../src/protocols/defs
 const NEW_SHEETS = ["Протоколы и акты", "Замеры электрики", "Барабаны и трубы", "Замеры СКС и ВОЛС"];
 
 test("схема v9: новые листы в конце, прежние на месте", () => {
-  assert.equal(SCHEMA_VERSION, 9);
+  assert.ok(SCHEMA_VERSION >= 9);
   assert.deepEqual(SHEETS.slice(-4).map((s) => s.name), NEW_SHEETS);
   assert.equal(SHEETS[0].name, "Реквизиты");
   assert.deepEqual(SHEETS.find((s) => s.name === "Протоколы и акты")!.tables, ["Протоколы", "ПереченьОборудования"]);

@@ -5,7 +5,7 @@ import type { CellValue } from "./values.ts";
 import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -73,7 +73,7 @@ export function docTypeFromBook(label: string): QualityDocType | null {
 export const SCHEME_KINDS = ["Схема", "Прочее"] as const;
 
 /** Виды строк реестра ИД: документы, которые печатает конструктор (по акту), и сканы. */
-export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Свой документ", "Акт/протокол", "Прочее"] as const;
+export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "РП", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Свой документ", "Акт/протокол", "Прочее"] as const;
 export type RegistryKind = (typeof REGISTRY_KINDS)[number];
 export const YES_NO = ["да", "нет"] as const;
 /** Источник позиции спецификации; пометка позиции, пропавшей из нового РКЦ. */
@@ -243,6 +243,11 @@ export const TABLES: Record<TableName, TableDef> = {
     c("pipeMark", "Труба: марка, диаметр", "text"),
     c("pipeLength", "Труба: длина, м", "number"),
     c("note", "Примечание", "text"),
+    // План 14: кабельный журнал набора «ТИ» — длина по проекту и по способам прокладки (факт = их сумма).
+    c("projectLength", "Длина по проекту, м", "number"),
+    c("tray", "Лоток, м", "number"),
+    c("smoothPipe", "Труба гладкая, м", "number"),
+    c("corrugatedPipe", "Труба гофрированная, м", "number"),
   ]),
   "Электролаборатория": t("Электролаборатория", "Изоляция", [
     c("nameAddress", "Организация и адрес", "longtext", { ...imp, isKey: true, width: 50 }),

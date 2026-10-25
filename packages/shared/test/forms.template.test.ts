@@ -23,8 +23,8 @@ test("проверка кодов своих документов", () => {
 });
 
 test("п.4 АОСР — настройка шаблона: у «СБД» перед первой схемой, старый шаблон без настройки читается", () => {
-  assert.deepEqual(BUILTIN_SBD.print, { schemeEach: false });
+  assert.deepEqual(BUILTIN_SBD.print, { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2 });
   const old = UserTemplate.parse({ id: "t-1", name: "Старый", docs: [] });
-  assert.deepEqual(old.print, { schemeEach: false });
-  assert.deepEqual(UserTemplate.parse({ id: "t-1", name: "Т", docs: [], print: { schemeEach: true } }).print, { schemeEach: true });
+  assert.deepEqual(old.print, { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2 });
+  assert.deepEqual(UserTemplate.parse({ id: "t-1", name: "Т", docs: [], print: { schemeEach: true } }).print, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2 });
 });

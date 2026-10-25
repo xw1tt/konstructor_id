@@ -32,7 +32,7 @@ test("30 строк — один лист, 31 — два", async () => {
 
 test("две марки — ИТОГО по каждой и Всего; трубы; заголовки групп", () => {
   const r = (designation: string, cableMark: string, cableLength: number, group = "", pipeMark = "", pipeLength: number | null = null): CableRow =>
-    ({ group, designation, from: "", to: "", direction: "", cableMark, cableLength, pipeMark, pipeLength, note: "" });
+    ({ group, designation, from: "", to: "", direction: "", cableMark, cableLength, pipeMark, pipeLength, note: "", projectLength: null, tray: null, smoothPipe: null, corrugatedPipe: null });
   const lines = journalLines([r("1", "А", 10.5, "Этаж П1"), r("2", "Б", 5, "Этаж П1", "Труба 20", 3), r("3", "А", 1, "Этаж П2")]);
   assert.deepEqual(lines.map((l) => l.kind === "group" ? `г:${l.title}` : l.kind === "cable" ? `к:${l.row.designation}` : `${l.label}:${l.mark}:${l.length}${l.pipe ? ":т" : ""}`),
     ["г:Этаж П1", "к:1", "к:2", "г:Этаж П2", "к:3", "ИТОГО:А:11,5", "ИТОГО:Б:5", "Всего::16,5", "ИТОГО:Труба 20:3:т"]);

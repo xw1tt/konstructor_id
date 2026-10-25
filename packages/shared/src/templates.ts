@@ -19,7 +19,20 @@ export async function saveTemplate(store: TableStore, code: TemplateCode): Promi
 
 /** Настройки печати книги (меню «Шаблоны ▾»). schemeEach — «Исполнительная схема» перед каждой схемой п.4 АОСР
  *  (по умолчанию — только перед первой из подряд идущих, как в образце СБД). */
-export const PrintOptions = z.object({ schemeEach: z.boolean().default(false) });
+export const FORM_SETS = ["sbd", "ti"] as const;
+export type FormSet = (typeof FORM_SETS)[number];
+export const FORM_SET_LABELS: Record<FormSet, string> = { sbd: "СБД", ti: "ТИ" };
+/** Документы, у которых есть встроенные варианты форм (план 14). */
+export const FORM_DOCS = ["vd", "rim", "kj", "registry"] as const;
+export type FormDoc = (typeof FORM_DOCS)[number];
+
+/** formSet — набор форм и нумерации; forms — форма документа вопреки набору; kjReserve — запас в КЖ «ТИ», %. */
+export const PrintOptions = z.object({
+  schemeEach: z.boolean().default(false),
+  formSet: z.enum(FORM_SETS).default("sbd"),
+  forms: z.object(Object.fromEntries(FORM_DOCS.map((d) => [d, z.enum(FORM_SETS).optional()])) as Record<FormDoc, z.ZodOptional<z.ZodEnum<["sbd", "ti"]>>>).default({}),
+  kjReserve: z.number().min(0).max(100).default(2),
+});
 export type PrintOptions = z.infer<typeof PrintOptions>;
 const OPTIONS_KEY = "idk.print";
 

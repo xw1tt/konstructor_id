@@ -1,7 +1,8 @@
 // Редактор шаблонов: имя, документы (встроенные и свои), форма каждого документа — встроенная или своя .docx/.xlsx,
 // загрузка формы, разметка по заполненному образцу, выгрузка/загрузка шаблона. Шаблоны хранятся на компьютере (сервер).
 import { useContext, useState } from "react";
-import { BUILTIN_SBD, BUILTIN_DOC_LABELS, SBD_ID, docLabel, validateTemplate, type TemplateDoc, type UserTemplate } from "@idk/shared/forms/template";
+import { BUILTIN_SBD, BUILTIN_DOC_LABELS, SBD_ID, docLabel, validateTemplate, isBuiltinTemplate, type TemplateDoc, type UserTemplate } from "@idk/shared/forms/template";
+import { FORM_SETS, FORM_SET_LABELS, type FormDoc, type FormSet } from "@idk/shared/templates";
 import { PRINT_KINDS, type PrintKind } from "@idk/shared/acts/schemas";
 import { isProtoKind } from "@idk/shared/protocols/defs";
 import { cellText } from "@idk/shared/workbook/values";
@@ -9,7 +10,7 @@ import { apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
 import type { BookState } from "./useBook.ts";
 import { UserTemplateContext } from "./templateContext.ts";
-import { createTemplate, deleteTemplate, saveTemplateDocs, uploadForm, importTemplate } from "./templatesApi.ts";
+import { createTemplate, deleteTemplate, saveTemplateDocs, uploadForm, importTemplate, applyChange, withFormSet, withDocForm, withReserve } from "./templatesApi.ts";
 import { bundleFor } from "./print.ts";
 import { CatalogContext } from "./catalogApi.ts";
 import { CatalogPicker } from "./CatalogPicker.tsx";
@@ -37,7 +38,7 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
   /** Подтверждение необратимого: удаление шаблона (со всеми формами) или документа шаблона. */
   const [confirm, setConfirm] = useState<{ text: string; run(): void } | null>(null);
   const t = ctx.list.find((x) => x.id === editId) ?? BUILTIN_SBD;
-  const readOnly = t.id === SBD_ID;
+  const readOnly = isBuiltinTemplate(t.id);
   const acts = (state.book?.tables["Акты"] ?? []).map((r) => cellText(r.v.baseNumber)).filter(Boolean);
   const fail = (text: string) => setNote({ text, error: true });
   const ok = (text: string) => setNote({ text });
@@ -56,6 +57,24 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
     const r = await guard(createTemplate(name, from), fail);
     if (r) { setNewName(""); ctx.reload(); setEditId(r.id); ok(`Шаблон «${r.name}» создан`); }
   };
+
+  /** Изменение набора и форм: у встроенного шаблона — копия с изменением (план 14). */
+  const change = async (fn: (x: UserTemplate) => UserTemplate) => {
+    const r = await guard(applyChange(t, fn), fail);
+    if (!r) return;
+    ctx.reload();
+    if (r.id !== t.id) { setEditId(r.id); ok(`«${t.name}» не меняется — создана копия «${r.name}» с этой настройкой`); } else ok("Сохранено");
+  };
+  /** Выбор формы документа: «по набору» или конкретный набор. */
+  const formSelect = (doc: FormDoc, label: string) => (
+    <label className="setting-option">{label}{" "}
+      <select value={t.print.forms?.[doc] ?? ""} onChange={(e) => void change((x) => withDocForm(x, doc, (e.target.value || null) as FormSet | null))}>
+        <option value="">по набору ({FORM_SET_LABELS[t.print.formSet ?? "sbd"]})</option>
+        {FORM_SETS.map((s) => <option key={s} value={s}>{FORM_SET_LABELS[s]}</option>)}
+      </select>
+    </label>
+  );
+  const FORM_DOC_OF: Partial<Record<PrintKind, FormDoc>> = { vd: "vd", rim: "rim", kj: "kj" };
 
   const remove = async () => {
     if (readOnly) return;
@@ -134,7 +153,18 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
           }} />
         </label>
       </div>
-      {readOnly && <p className="notice">«СБД» — встроенный шаблон, он не меняется. Нажмите «Копия», чтобы сделать свой.</p>}
+      {readOnly && <p className="notice">«{t.name}» — встроенный шаблон, он не меняется. Выбор набора и форм ниже создаст копию с этой настройкой; «Копия» — просто копия.</p>}
+
+      <h3 className="tools-title">Набор форм и нумерация</h3>
+      <div className="row-actions">
+        <label className="setting-option">Набор{" "}
+          <select aria-label="Набор форм" value={t.print.formSet ?? "sbd"} onChange={(e) => void change((x) => withFormSet(x, e.target.value as FormSet))}>
+            {FORM_SETS.map((s) => <option key={s} value={s}>{FORM_SET_LABELS[s]}</option>)}
+          </select>
+        </label>
+        {formSelect("registry", "Реестр ИД:")}
+      </div>
+      <p className="muted">«СБД» — номера «акт.АОСР», «акт.РИМ»… «ТИ» — АОСР без суффикса, «акт.РМ», «акт.РП», «акт.ВД», «акт.КЖ», «акт.П».</p>
 
       <h3 className="tools-title">Документы шаблона</h3>
       {!readOnly && (
@@ -160,6 +190,17 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                   <option value="act">на акт</option>
                   <option value="kit">на комплект</option>
                 </select>
+              </div>
+            )}
+            {d.kind === "builtin" && FORM_DOC_OF[d.doc] && !d.form && (
+              <div className="row-actions">
+                {formSelect(FORM_DOC_OF[d.doc]!, "Форма:")}
+                {d.doc === "kj" && (t.print.forms?.kj ?? t.print.formSet) === "ti" && (
+                  <label className="setting-option">Запас, %{" "}
+                    <input type="number" min={0} max={100} step={0.5} style={{ width: "5em" }} defaultValue={t.print.kjReserve ?? 2} key={`${t.id}-res`}
+                      onBlur={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v !== (t.print.kjReserve ?? 2)) void change((x) => withReserve(x, v)); }} />
+                  </label>
+                )}
               </div>
             )}
             {d.kind === "builtin" && d.doc === "aosr" && (

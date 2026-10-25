@@ -9,8 +9,9 @@ import { UserTemplate, upgradeTemplate, docLabel } from "@idk/shared/forms/templ
 import { PROTO_DEFS, PROTO_KINDS } from "@idk/shared/protocols/defs";
 import { readBook } from "@idk/shared/workbook/records";
 import { protoBook, AOV1 } from "./fixtures/protoBook.ts";
+import { PrintOptions } from "@idk/shared/templates";
 
-const empty: UserTemplate = { id: "t", name: "Т", docs: [], print: { schemeEach: false } };
+const empty: UserTemplate = { id: "t", name: "Т", docs: [], print: PrintOptions.parse({ schemeEach: false }) };
 
 test("справочник: 16 документов печатает конструктор, вид — из PROTO_DEFS", () => {
   assert.deepEqual(checkCatalog(BUILTIN_CATALOG), []);

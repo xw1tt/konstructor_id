@@ -11,10 +11,11 @@ import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import { kitRecords } from "./fixtures/kitBook.ts";
 import { AOV1 } from "./fixtures/aov1Book.ts";
 import type { Catalog } from "@idk/shared/catalog/model";
+import { PrintOptions } from "@idk/shared/templates";
 
 const form = { file: "00000000-0000-0000-0000-000000000000.docx", type: "docx" as const, original: "agi.docx" };
 const tpl: UserTemplate = {
-  id: "t-1", name: "ПИК", print: { schemeEach: false },
+  id: "t-1", name: "ПИК", print: PrintOptions.parse({ schemeEach: false }),
   docs: [
     ...BUILTIN_SBD.docs.filter((d) => d.kind === "builtin" && d.doc !== "vor"),
     { kind: "custom", code: "АГИ", name: "Акт гидравлических испытаний", form },
@@ -66,7 +67,7 @@ const twoActs = () => kitRecords((r) => {
   r["АктыКомплектов"] = [...r["АктыКомплектов"], { "Комплект": "1", "Акт": AOV2 }];
 });
 const scanTpl: UserTemplate = {
-  id: "t-2", name: "Сканы", print: { schemeEach: false },
+  id: "t-2", name: "Сканы", print: PrintOptions.parse({ schemeEach: false }),
   docs: [
     { kind: "builtin", doc: "aosr", form: null, catalog: "АОСР", works: ["КЛ"] },
     { kind: "custom", code: "ПИК", name: "Протокол испытания кабеля", form: null, catalog: "ПИК", works: ["КЛ"], scope: "act", scan: true },

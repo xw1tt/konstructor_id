@@ -85,3 +85,59 @@ export function protocolRows(rows: CableRow[], marks: MarkMeasure[]): ProtocolRo
     };
   });
 }
+
+// ---------- План 14: кабельный журнал набора «ТИ» ----------
+
+export type TiJournalLine =
+  | { kind: "group"; title: string }
+  | { kind: "cable"; designation: string; from: string; to: string; mark: string; project: string; fact: string; tray: string; smooth: string; corrugated: string };
+
+export interface TiJournal {
+  lines: TiJournalLine[];
+  /** «Итого всего» по способам прокладки. */
+  total: { tray: string; smooth: string; corrugated: string };
+  /** «в т.ч. <марка>»: длина по проекту («-», если не задана ни у одного кабеля) и фактическая. */
+  byMark: { mark: string; project: string; fact: string }[];
+  /** «с учетом кф запаса N%»: факт и способы × (1 + N/100), вверх до целого. */
+  reserve: { pct: string; fact: string; tray: string; smooth: string; corrugated: string };
+}
+
+const sum = (xs: (number | null)[]) => xs.reduce<number>((a, x) => a + (x ?? 0), 0);
+const round3 = (x: number) => Math.round(x * 1000) / 1000;
+
+/** Фактическая длина кабеля: сумма заполненных способов прокладки; ни одного — «Кабель: длина». */
+export const factLength = (r: CableRow): number | null =>
+  [r.tray, r.smoothPipe, r.corrugatedPipe].some((x) => x !== null) ? round3(sum([r.tray, r.smoothPipe, r.corrugatedPipe])) : r.cableLength;
+
+export function tiJournal(rows: CableRow[], reservePct: number): TiJournal {
+  const lines: TiJournalLine[] = [];
+  let group = "";
+  for (const r of rows) {
+    const g = r.group.trim();
+    if (g && g !== group) lines.push({ kind: "group", title: g });
+    if (g) group = g;
+    lines.push({
+      kind: "cable", designation: r.designation, from: r.from, to: r.to, mark: r.cableMark,
+      project: r.projectLength === null ? "-" : formatNumber(r.projectLength), fact: formatNumber(factLength(r)),
+      tray: formatNumber(r.tray), smooth: formatNumber(r.smoothPipe), corrugated: formatNumber(r.corrugatedPipe),
+    });
+  }
+  const tray = round3(sum(rows.map((r) => r.tray))), smooth = round3(sum(rows.map((r) => r.smoothPipe))), corr = round3(sum(rows.map((r) => r.corrugatedPipe)));
+  const marks = new Map<string, { mark: string; project: number | null; fact: number }>();
+  for (const r of rows) {
+    if (!r.cableMark.trim()) continue;
+    const k = markKey(r.cableMark);
+    const m = marks.get(k) ?? { mark: r.cableMark, project: null, fact: 0 };
+    if (r.projectLength !== null) m.project = round3((m.project ?? 0) + r.projectLength);
+    m.fact = round3(m.fact + (factLength(r) ?? 0));
+    marks.set(k, m);
+  }
+  const factAll = round3([...marks.values()].reduce((a, m) => a + m.fact, 0));
+  const up = (x: number) => String(Math.ceil(round3(x * (1 + reservePct / 100))));
+  return {
+    lines,
+    total: { tray: formatNumber(tray), smooth: formatNumber(smooth), corrugated: formatNumber(corr) },
+    byMark: [...marks.values()].map((m) => ({ mark: m.mark, project: m.project === null ? "-" : formatNumber(m.project), fact: formatNumber(m.fact) })),
+    reserve: { pct: formatNumber(reservePct), fact: up(factAll), tray: up(tray), smooth: up(smooth), corrugated: up(corr) },
+  };
+}

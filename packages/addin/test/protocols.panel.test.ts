@@ -9,9 +9,10 @@ import { templateButtons } from "@idk/addin/panel/templatesApi";
 import { statusText } from "@idk/addin/panel/catalogApi";
 import { protoBundleFor, bundleFor } from "@idk/addin/panel/print";
 import { protoRecords, AOV1 } from "../../shared/test/fixtures/protoBook.ts";
+import { PrintOptions } from "@idk/shared/templates";
 
 const tpl: UserTemplate = {
-  id: "t-1", name: "Т", print: { schemeEach: false },
+  id: "t-1", name: "Т", print: PrintOptions.parse({ schemeEach: false }),
   docs: [{ kind: "builtin", doc: "aosr", form: null }, { kind: "builtin", doc: "pkl", form: null }, { kind: "builtin", doc: "pav", form: null }],
 };
 const book = async (patch?: Parameters<typeof protoRecords>[0]) => readBook(new MemoryWorkbook(protoRecords(patch) as any));

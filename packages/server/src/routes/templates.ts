@@ -34,7 +34,7 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
     const buf = Buffer.from(q.file, "base64");
     const type = formType(buf);
     if (!type) throw new HttpError(422, NEED_OFFICE_FILE);
-    const res = markupForm(buf, type, formData(q.bundle, q.code ? { code: q.code } : undefined));
+    const res = markupForm(buf, type, formData(q.bundle, { ...(q.code ? { code: q.code } : {}), set: store.get(c.params.id).print.formSet }));
     for (const [k, m] of marks) if (now() - m.at > MARKUP_TTL_MS) marks.delete(k);
     const token = randomUUID();
     marks.set(token, { buf: res.buf, type, name: q.name, at: now() });

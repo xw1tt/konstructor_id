@@ -72,7 +72,7 @@ export type KitRequest = z.infer<typeof KitRequest>;
 
 /** Вид строки реестра → документ конструктора. */
 export const PRINTED_KINDS: Partial<Record<RegistryKind, PrintKind>> = {
-  "ВОР": "vor", "АОСР": "aosr", "РИМ": "rim", "ВД": "vd", "КЖ": "kj", "Протокол": "ip", "АВК": "avk",
+  "ВОР": "vor", "АОСР": "aosr", "РИМ": "rim", "РП": "rp", "ВД": "vd", "КЖ": "kj", "Протокол": "ip", "АВК": "avk",
 };
 
 const txt = cellText;
@@ -195,8 +195,8 @@ export function buildKitRequest(
   const issues: Issue[] = [];
   for (const [act, kinds] of needs) {
     const results = [
-      ...(kinds.has("ip") ? [buildCableBundle(book, act, important, "ip")] : []),
-      ...(kinds.has("kj") ? [buildCableBundle(book, act, important, "kj")] : []),
+      ...(kinds.has("ip") ? [buildCableBundle(book, act, important, "ip", { set: options.formSet })] : []),
+      ...(kinds.has("kj") ? [buildCableBundle(book, act, important, "kj", { set: options.formSet })] : []),
       ...(!kinds.has("ip") && !kinds.has("kj") ? [buildBundle(book, act, important)] : []),
     ];
     for (const x of results) issues.push(...x.issues);

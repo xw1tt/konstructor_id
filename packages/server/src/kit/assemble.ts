@@ -8,7 +8,8 @@ import { DEFAULT_TEMPLATE } from "@idk/shared/templates";
 import { renderBundlePdf } from "../routes/print.ts";
 import { htmlToPdf } from "../print/browser.ts";
 import { resolveScan, loadScan, type ScanContext } from "./files.ts";
-import { registryHtml, coverHtml, spineHtml, type RegistryLine } from "./templates.ts";
+import { registryHtml, coverHtml, spineHtml, tiRegistryHtml, type RegistryLine } from "./templates.ts";
+import { formOf } from "@idk/shared/acts/format";
 import type { Db } from "../db.ts";
 import type { TemplateStore } from "../forms/store.ts";
 import { renderForm, type OfficeRunner } from "../forms/convert.ts";
@@ -86,7 +87,7 @@ async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template: strin
     const d = findDoc(t.docs, f.doc);
     if (!d?.form) throw new Error(`У документа «${f.doc}» нет своей формы в шаблоне «${t.name}»`);
     const code = docCode(d);
-    return (await renderForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, code ? { code } : undefined, deps.runner)).pdf;
+    return (await renderForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set: t.print.formSet }, deps.runner)).pdf;
   }
   return (await renderBundlePdf(b, row.doc!.kind!, template, q.options)).pdf;
 }
@@ -170,7 +171,14 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
       volume: k.volume, parts: Array.from({ length: k.parts }, (_, i) => String(i + 1)), year: k.year,
     })));
   }
-  front.push(await htmlToPdf(registryHtml({ title: registryTitle(q), objectLine, parties, rows: lines }), { pageNumbers: true }));
+  if (formOf(q.options, "registry") === "ti") {
+    front.push(await htmlToPdf(tiRegistryHtml({
+      customer: q.developer?.shortName ?? "", contractor: q.contractor?.shortName ?? "", object: q.object.name,
+      code: k.code, sectionName: k.sectionName, number: k.number, rows: lines,
+    })));
+  } else {
+    front.push(await htmlToPdf(registryHtml({ title: registryTitle(q), objectLine, parties, rows: lines }), { pageNumbers: true }));
+  }
 
   // 4. Склейка.
   const out = await PDFDocument.create();

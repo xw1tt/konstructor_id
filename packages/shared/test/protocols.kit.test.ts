@@ -8,9 +8,10 @@ import { registryRows } from "@idk/shared/kit/registry";
 import { buildKitRequest } from "@idk/shared/kit/request";
 import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import { protoRecords, AOV1 } from "./fixtures/protoBook.ts";
+import { PrintOptions } from "@idk/shared/templates";
 
 const tpl: UserTemplate = {
-  id: "t-1", name: "Протоколы", print: { schemeEach: false },
+  id: "t-1", name: "Протоколы", print: PrintOptions.parse({ schemeEach: false }),
   docs: [
     { kind: "builtin", doc: "aosr", form: null }, { kind: "builtin", doc: "kj", form: null }, { kind: "builtin", doc: "ip", form: null },
     { kind: "builtin", doc: "pkl", form: null }, { kind: "builtin", doc: "pav", form: null }, { kind: "builtin", doc: "puzo", form: null },

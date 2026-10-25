@@ -17,6 +17,7 @@ import { TemplateContext, PrintOptionsContext, UserTemplateContext, type Templat
 import { TemplateEditor } from "./TemplateEditor.tsx";
 import { FieldsScreen } from "./FieldsScreen.tsx";
 import { LibraryScreen } from "./LibraryScreen.tsx";
+import { WizardScreen } from "./WizardScreen.tsx";
 import { listTemplates, resolveTemplate } from "./templatesApi.ts";
 import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import type { ScreenId } from "./screens.ts";
@@ -141,6 +142,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
           {screen === "templates" ? <TemplateEditor state={state} onChoose={chooseTemplate} />
             : screen === "fields" ? <FieldsScreen state={state} />
             : screen === "library" ? <LibraryScreen port={port} state={state} />
+            : screen === "wizard" ? <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
             : screen === "settings" ? <SettingsScreen /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
@@ -154,6 +156,13 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
               </nav>
               {(book.missing.length > 0 || state.outdated) && slots.create?.(state, book.missing, flow)}
               <main className="content">
+                {/* Мастер первого акта (план 17): в книге без актов и на листе «База актов». */}
+                {((book.tables["Акты"]?.length ?? 0) === 0 || selection?.sheet === "База актов") && !book.missing.includes("Акты") && (
+                  <div className={(book.tables["Акты"]?.length ?? 0) === 0 ? "banner wiz-banner" : "row-actions"}>
+                    {(book.tables["Акты"]?.length ?? 0) === 0 && <p>В книге ещё нет актов. Мастер проведёт от объекта до печати АОСР за 5 шагов.</p>}
+                    <button className="btn btn-primary" onClick={() => setScreen("wizard")}>Мастер первого акта</button>
+                  </div>
+                )}
                 <SheetTools port={port} state={state} needed={needed} onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))} />
                 <TableTools port={port} state={state} />
                 {slots.card?.(state)}

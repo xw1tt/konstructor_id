@@ -198,3 +198,18 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .lib-list { list-style: none; margin: 0 0 8px; padding: 0; max-height: 50vh; overflow: auto; border: 1px solid var(--line); }
 .lib-list li { border-bottom: 1px solid var(--line); padding: 3px 6px; }
 .lib-list label { display: flex; gap: 6px; align-items: flex-start; cursor: pointer; }
+
+/* План 17: мастер первого акта */
+.wiz-steps { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; padding: 0; margin: 4px 0 8px; counter-reset: wiz; font-size: 11px; }
+.wiz-steps li { counter-increment: wiz; padding: 2px 6px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink-soft); }
+.wiz-steps li::before { content: counter(wiz) ". "; }
+.wiz-steps li.wiz-cur { background: var(--blue); border-color: var(--blue); color: #fff; }
+.wiz-steps li.wiz-done { color: var(--ink); }
+.wiz-form { display: grid; gap: 6px; }
+.wiz-form fieldset { border: 1px solid var(--line); padding: 6px 8px 8px; margin: 0; display: grid; gap: 6px; }
+.wiz-form legend { font-size: 12px; font-weight: 600; padding: 0 4px; }
+.wiz-form input, .wiz-form textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 12px; padding: 3px 5px; }
+.wiz-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.wiz-nav { margin-top: 10px; }
+.wiz-banner { margin-bottom: 6px; }
+.issues { font-size: 12px; padding-left: 18px; }

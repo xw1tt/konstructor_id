@@ -38,7 +38,7 @@ Files: `shared/src/wizard.ts`; Test `shared/test/wizard.test.ts`.
 ### Task 3: Мастер — экран
 Files: `addin/src/panel/WizardScreen.tsx`, `Panel.tsx` (кнопка в пустой книге и в «Базе актов»), `screens.ts` (ScreenId),
 `styles.css`; Test `addin/test/wizard.panel.test.ts` (запись через TableStore).
-- [ ] Тесты: «Создать акт» пишет строки в книгу на модели; сборка панели; снимок экрана мастера проверен глазами.
+- [x] Тесты: «Создать акт» пишет строки в книгу на модели; сборка панели; снимок экрана мастера проверен глазами.
 
 ### Task 4: Документация и версия 0.17
 - [ ] README, инструкция, `manifest.xml` 0.17.0.0, установщик по умолчанию 0.17, отметки плана.

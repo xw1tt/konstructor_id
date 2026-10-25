@@ -47,7 +47,7 @@ Files: удалить `server/src/routes/export.ts`, `server/src/print/fromDb.ts
 Files: `shared/src/docs/defs.ts` (новый), `shared/src/acts/format.ts` (`docNumberFor` через defs), `shared/src/kit/registry.ts`
 (наименования), `shared/src/kit/request.ts` (`PRINTED_KINDS`), `shared/src/forms/template.ts` (подписи); Test
 `shared/test/docdefs.test.ts`.
-- [ ] Тесты: на каждый вид и набор — суффикс, наименование реестра, вид реестра, подпись — равны прежним значениям
+- [x] Тесты: на каждый вид и набор — суффикс, наименование реестра, вид реестра, подпись — равны прежним значениям
   (таблица в тесте); `PRINTED_KINDS` и `BUILTIN_DOC_LABELS` как прежде; `tables` каждого вида — существующие таблицы.
 
 ### Task 4: Печать по описаниям (server)

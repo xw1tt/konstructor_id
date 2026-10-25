@@ -32,33 +32,33 @@
 Files: `shared/src/templates.ts` (PrintOptions), `shared/src/acts/format.ts` (`docNumberFor`, `FormSet`, `formOf`),
 `shared/src/acts/schemas.ts` (`rp` в PRINT_KINDS), `shared/src/forms/template.ts` (`BUILTIN_TI`, подпись РП),
 `server/src/forms/store.ts` (список и get «ти»); Test `shared/test/formsets.test.ts`.
-- [ ] Тесты: таблица §2.1 для обоих наборов; `PrintOptions.parse({})` = sbd, forms {}, kjReserve 2; шаблон без новых полей
+- [x] Тесты: таблица §2.1 для обоих наборов; `PrintOptions.parse({})` = sbd, forms {}, kjReserve 2; шаблон без новых полей
   парсится (RF 2); `formOf`; `BUILTIN_TI` документы и print; store.list: СБД, ТИ, свои; get("ti").
 
 ### Task 2: Нумерация в реестре, АОСР, метках; книга v10; РП в реестре
 Files: `shared/src/workbook/schema.ts`, `help.ts`, `kit/registry.ts`, `acts/rows.ts` (p3), `server/src/print/fromBundle.ts`,
 `server/src/forms/fields.ts`, `shared/src/forms/fields.ts`; Test `shared/test/formsets.registry.test.ts`.
-- [ ] Тесты: v10, столбцы КЖ в конце, «РП» в видах реестра после «РИМ»; реестр по «ТИ»: наименования и номера §3; строка РП
+- [x] Тесты: v10, столбцы КЖ в конце, «РП» в видах реестра после «РИМ»; реестр по «ТИ»: наименования и номера §3; строка РП
   после РИМ; «СБД» без изменений; p3 «ТИ» с `.РМ`/`.ВД`; метки «Акт.День/Месяц/Год», «Объект.Подрядчик», «Акт.Номер РП».
 
 ### Task 3: Формы ВД, РМ, РП «ТИ»
 Files: Create `server/src/print/templates/ti.ts`; Modify `print/data.ts`, `fromBundle.ts`, `routes/print.ts`; Test `server/test/formsets.print.test.ts`.
-- [ ] Тесты HTML: ВД — шапка, номер, графы, марка/артикул, подписи; РМ — группы, нумерация материалов, «б/д» (RF 4); РП —
+- [x] Тесты HTML: ВД — шапка, номер, графы, марка/артикул, подписи; РМ — группы, нумерация материалов, «б/д» (RF 4); РП —
   строки и листы; выбор формы по options; PDF каждой.
 
 ### Task 4: КЖ «ТИ»
 Files: `shared/src/workbook/cableTypes.ts`, `cables.ts` (новые поля, необязательные шифр/№ в «ТИ»), `acts/cableDocs.ts`
 (`tiJournal`), `server/src/print/templates/ti.ts`, `cableData.ts`; Test `shared/test/formsets.kj.test.ts`, дополнить print-тест.
-- [ ] Тесты: факт = сумма / длина / частично (RF 1); итоги, «в т.ч.» по маркам, запас N% вверх; без шифра журнала в «ТИ»
+- [x] Тесты: факт = сумма / длина / частично (RF 1); итоги, «в т.ч.» по маркам, запас N% вверх; без шифра журнала в «ТИ»
   (RF 3); PDF на 120 кабелей — шапка таблицы на страницах.
 
 ### Task 5: Реестр ИД «ТИ» в комплекте
 Files: `server/src/kit/templates.ts` (`tiRegistryHtml`), `kit/assemble.ts`; Test `server/test/formsets.kit.test.ts`.
-- [ ] Тесты: комплект «ТИ» — заголовок «Реестр №1/<шифр>.Р», «Страницы по списку» без «л.», документы РП/РМ/ВД в PDF.
+- [x] Тесты: комплект «ТИ» — заголовок «Реестр №1/<шифр>.Р», «Страницы по списку» без «л.», документы РП/РМ/ВД в PDF.
 
 ### Task 6: Редактор шаблонов и панель
 Files: `addin/src/panel/TemplateEditor.tsx`, `print.ts` (опции в кабельный пакет), `templatesApi.ts`; Test `addin/test/formsets.panel.test.ts`.
-- [ ] Тесты: `withForm(t, doc, set)` и `withSet` — новые print; у встроенного — копия, исходный не меняется (RF 5); сборка панели.
+- [x] Тесты: `withForm(t, doc, set)` и `withSet` — новые print; у встроенного — копия, исходный не меняется (RF 5); сборка панели.
 
 ### Task 7: Документация, выпуск 0.15
-- [ ] README, инструкция, версия 0.15; весь набор; слияние; установщик.
+- [x] README, инструкция, версия 0.15; весь набор; слияние; установщик.

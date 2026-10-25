@@ -43,7 +43,7 @@ Files: `server/src/library/store.ts`, `server/src/routes/library.ts`, `server/sr
 Files: `addin/src/panel/libraryApi.ts`, `addin/src/panel/library.ts` (добавление в книгу/в библиотеку через TableStore и
 api), `addin/src/panel/LibraryScreen.tsx`, `TopBar.tsx`, `screens.ts`, `Panel.tsx`, `TableTools.tsx`, `SettingsScreen.tsx`,
 `styles.css`; Test `addin/test/library.panel.test.ts`.
-- [ ] Тесты (на модели книги и подменённом api): «Добавить в книгу» — строки и ссылки сканов, итог «добавлено/уже были»;
+- [x] Тесты (на модели книги и подменённом api): «Добавить в книгу» — строки и ссылки сканов, итог «добавлено/уже были»;
   повтор — без дублей; «В библиотеку» строк таблицы — fileId из ссылки скана, итог «добавлено/обновлено»; сборка панели.
 
 ### Task 4: Документация

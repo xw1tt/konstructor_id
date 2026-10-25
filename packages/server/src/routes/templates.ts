@@ -57,7 +57,10 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
   });
   r.get("/api/templates/:id/markup/:token", (c) => {
     const m = mark(c.params.token);
-    const buf = applyChoices(m.buf, m.type, {});
+    // План 20: выбор вариантов помощника — в ?choices={"id":"Поле"}.
+    let choices: Record<number, string> = {};
+    try { choices = Object.fromEntries(Object.entries(JSON.parse(c.query.get("choices") ?? "{}") as Record<string, string>).map(([k, v]) => [Number(k), String(v)])); } catch { /* без выбора */ }
+    const buf = applyChoices(m.buf, m.type, choices);
     c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": buf.length,
       "content-disposition": disposition(m.name.replace(/\.(docx|xlsx)$/i, "") + ` (с метками).${m.type}`) });
     c.res.end(buf);

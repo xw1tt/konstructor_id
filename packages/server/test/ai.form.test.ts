@@ -52,6 +52,8 @@ test("маршруты: разметка → текст → пары (неизв
   assert.equal(bad.json.error, "Неизвестное поле: Акт.Цвет");
   const ok = await s.req("POST", `/api/templates/${t.id}/markup/${mk.json.token}/pairs`, { replacements: [{ text: "Подземная часть, оси 1-5", field: "Объект.Раздел" }] });
   assert.deepEqual(ok.json, { applied: 1, missing: [] });
+  const dl = Buffer.from(await (await s.raw("GET", `/api/templates/${t.id}/markup/${mk.json.token}?choices=${encodeURIComponent(JSON.stringify({ 99: "Акт.Дата" }))}`)).arrayBuffer());
+  assert.match(docxText(dl), /Участок: \{Объект\.Раздел\}/, "скачивание для проверки — с новыми метками");
   const saved = await s.req("POST", `/api/templates/${t.id}/markup/${mk.json.token}`, { choices: {} });
   assert.equal(saved.status, 201);
   const file = Buffer.from(await (await s.raw("GET", `/api/templates/${t.id}/forms/${saved.json.file}`)).arrayBuffer());

@@ -38,7 +38,7 @@ Files: `server/src/forms/markup.ts` (`markupText`, `applyPairs`), `server/src/ro
 ### Task 3: Формы — панель
 Files: `addin/src/panel/kits.ts` (`formKit`), `AssistantScreen.tsx` (вложение, «Скачать для проверки», «Сохранить как форму»);
 Test `addin/test/kits.panel.test.ts`.
-- [ ] Тесты: без файла — ошибка; read_form → места, текст, поля; propose_form — неизвестное поле, нет текста — ошибка;
+- [x] Тесты: без файла — ошибка; read_form → места, текст, поля; propose_form — неизвестное поле, нет текста — ошибка;
   применение → пары на сервере; сборка; снимок экрана.
 
 ### Task 4: Документация и версия 0.18

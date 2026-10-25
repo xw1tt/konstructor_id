@@ -1,5 +1,6 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
 import { useEffect, useState, type ReactNode } from "react";
+import { NEEDED_SHEETS_SETTING, sheetPlan } from "@idk/shared/workbook/sheets";
 import { loadTemplate, saveTemplate, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { TABLE_NAMES, type TableName } from "@idk/shared/workbook/schema";
 import type { ExcelPort } from "../book/excelPort.ts";
@@ -98,6 +99,17 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
     setTemplate(t);
     saveTemplate(port, t).catch(() => undefined);
   };
+  // План 17: «Только нужные листы» — настройка книги; пересчёт при включении и при смене шаблона книги.
+  const [neededOn, setNeededOn] = useState(false);
+  useEffect(() => { void port.setting(NEEDED_SHEETS_SETTING).then((v) => setNeededOn(v === "1")).catch(() => undefined); }, [port]);
+  const applySheets = async (on: boolean) => {
+    if (!state.book) return;
+    const p = sheetPlan(resolved.template, state.book, on);
+    await port.setSheetsVisible(p.visible, p.hidden);
+  };
+  const needed = { on: neededOn, set: async (v: boolean) => { await port.setSetting(NEEDED_SHEETS_SETTING, v ? "1" : "0"); setNeededOn(v); await applySheets(v); } };
+  const tplKey = `${resolved.template.id}:${resolved.template.docs.length}`;
+  useEffect(() => { if (neededOn && state.book) void applySheets(true).catch(() => undefined); }, [tplKey, neededOn, !!state.book]); // eslint-disable-line react-hooks/exhaustive-deps
   const flow: CreateFlow = { start: () => setCreating(true), finish: () => { setCreating(false); state.refresh(); } };
   const { book, selection } = state;
   const active = selection ? sectionForSheet(selection.sheet) : null;
@@ -142,7 +154,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
               </nav>
               {(book.missing.length > 0 || state.outdated) && slots.create?.(state, book.missing, flow)}
               <main className="content">
-                <SheetTools port={port} state={state} onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))} />
+                <SheetTools port={port} state={state} needed={needed} onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))} />
                 <TableTools port={port} state={state} />
                 {slots.card?.(state)}
               </main>

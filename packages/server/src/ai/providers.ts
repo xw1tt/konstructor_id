@@ -7,9 +7,20 @@ import { NetError, post as defaultPost, type PostOpts, type PostResult } from ".
 export type Post = (url: string, body: unknown, opts?: PostOpts) => Promise<PostResult>;
 export interface ChatOut { message: AssistantMessage; usage: Usage }
 
+/** Подсказка к частым ошибкам Yandex Cloud: в «ID каталога» — не тот идентификатор, у сервисного аккаунта нет роли. */
+export function yandexHint(p: Provider, msg: string): string {
+  if (p.kind !== "yandex") return "";
+  const m = /does not match with service account folder ID '([^']+)'/.exec(msg);
+  if (m) return `. В поле «ID каталога» указан «${p.folderId}», а сервисный аккаунт ключа — из каталога ${m[1]}: впишите ${m[1]}` +
+    " (ID каталога начинается с «b1g»; «aje…» — это ID сервисного аккаунта или ключа)";
+  if (/permission denied/i.test(msg)) return ". Выдайте сервисному аккаунту роль ai.languageModels.user в этом каталоге";
+  return "";
+}
+
 const fail = (p: Provider, r: PostResult): never => {
-  const msg = r.json?.error?.message ?? r.json?.message ?? r.json?.error ?? r.text.slice(0, 300);
-  throw new HttpError(502, `${p.name}: ошибка ${r.status}${msg ? ` — ${typeof msg === "string" ? msg : JSON.stringify(msg)}` : ""}`);
+  const raw = r.json?.error?.message ?? r.json?.message ?? r.json?.error ?? r.text.slice(0, 300);
+  const msg = raw ? (typeof raw === "string" ? raw : JSON.stringify(raw)) : "";
+  throw new HttpError(502, `${p.name}: ошибка ${r.status}${msg ? ` — ${msg}` : ""}${yandexHint(p, msg)}`);
 };
 
 async function send(p: Provider, url: string, body: unknown, opts: PostOpts, post: Post): Promise<PostResult> {

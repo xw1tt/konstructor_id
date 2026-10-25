@@ -98,3 +98,12 @@ test("ошибки: ответ провайдера с кодом, нет свя
   const slow = await fakeAi({ "/x": [{ json: {}, delayMs: 300 }] });
   await assert.rejects(post(`${slow.url}/x`, {}, { timeoutMs: 50 }), /не ответила вовремя/);
 });
+
+test("YandexGPT: в «ID каталога» не тот идентификатор — подсказка с нужным каталогом; нет роли — подсказка про роль", async () => {
+  const { yandexHint } = await import("@idk/server/ai/providers");
+  const p = prov({ kind: "yandex", name: "YandexGPT", folderId: "ajen1vav06fpt69018ru" });
+  const h = yandexHint(p, "rpc error: code = InvalidArgument desc = Specified folder ID 'ajen1vav06fpt69018ru' does not match with service account folder ID 'b1g72v5lagsvoubhp07k'");
+  assert.match(h, /В поле «ID каталога» указан «ajen1vav06fpt69018ru».*впишите b1g72v5lagsvoubhp07k/);
+  assert.match(yandexHint(p, "Permission denied"), /ai\.languageModels\.user/);
+  assert.equal(yandexHint(prov({ kind: "openai" }), "Permission denied"), "");
+});

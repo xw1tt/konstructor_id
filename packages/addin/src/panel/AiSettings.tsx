@@ -79,6 +79,9 @@ export function AiSettings() {
               <input type="password" autoComplete="off" value={form.key} placeholder={form.hasKey ? "сохранён — оставьте пустым, чтобы не менять" : ""} onChange={(e) => set("key", e.target.value)} /></label>
           )}
           {form.kind === "yandex" && field("ID каталога", "folderId", "b1g…")}
+          {form.kind === "yandex" && form.folderId.trim() && !/^b1g/.test(form.folderId.trim()) && (
+            <p className="error">Похоже, это не ID каталога: он начинается с «b1g» (консоль Yandex Cloud → каталог → «Обзор»). «aje…» — ID сервисного аккаунта или ключа.</p>
+          )}
           {form.kind === "gigachat" && (
             <label className="field"><span className="field-label">Тип доступа</span>
               <select value={form.scope || GIGACHAT_SCOPES[0]} onChange={(e) => set("scope", e.target.value)}>

@@ -13,6 +13,8 @@ import { TemplateStore } from "./forms/store.ts";
 import { CatalogStore } from "./catalog/store.ts";
 import { catalogRoutes } from "./routes/catalog.ts";
 import { formJobRoutes } from "./routes/formJobs.ts";
+import { libraryRoutes } from "./routes/library.ts";
+import { LibraryStore } from "./library/store.ts";
 import { powershellRunner, type OfficeRunner } from "./forms/convert.ts";
 
 export const DEFAULT_UPLOAD_LIMIT = 200 * 1024 * 1024;
@@ -47,6 +49,7 @@ export function createApp(opts: AppOptions) {
   const runner = opts.officeRunner ?? powershellRunner();
   formJobRoutes(api, templates, runner);
   kitRoutes(api, opts.db, opts.dataDir, { templates, runner });
+  libraryRoutes(api, new LibraryStore(opts.dataDir), opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {
       if (await api.handle(req, res)) return;

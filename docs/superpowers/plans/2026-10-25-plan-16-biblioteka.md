@@ -35,7 +35,7 @@ Files: `shared/src/library/model.ts`; Test `shared/test/library.model.test.ts`.
 
 ### Task 2: Хранилище и маршруты (server)
 Files: `server/src/library/store.ts`, `server/src/routes/library.ts`, `server/src/app.ts`; Test `server/test/library.test.ts`.
-- [ ] Тесты: настройки (по умолчанию `<dataDir>/library`, смена папки, недоступная папка → 400 с путём); добавление и
+- [x] Тесты: настройки (по умолчанию `<dataDir>/library`, смена папки, недоступная папка → 400 с путём); добавление и
   обновление по ключу (`created` true/false); два хранилища на одной папке — одна запись; поиск `q`; удаление; скан из
   локального файла копируется в библиотеку и импортируется обратно (новый fileId, то же содержимое).
 

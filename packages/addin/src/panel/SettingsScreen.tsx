@@ -5,6 +5,7 @@ import { widthSupport, widthSupportText } from "./panelWidth.ts";
 
 declare const Office: unknown;
 import { AiSettings } from "./AiSettings.tsx";
+import { CloudSettings } from "./CloudUi.tsx";
 
 export function SettingsScreen() {
   const [dir, setDir] = useState("");
@@ -27,6 +28,7 @@ export function SettingsScreen() {
   return (
     <main className="content settings">
       <h2 className="app-title">Настройки</h2>
+      <CloudSettings />
       <AiSettings />
       <h3 className="tools-title">Папка библиотеки компании</h3>
       <p className="muted">Чтобы у всех инженеров была одна библиотека, укажите общую сетевую папку, например

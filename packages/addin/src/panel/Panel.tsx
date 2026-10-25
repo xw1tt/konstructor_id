@@ -1,5 +1,6 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { CloudContext, CloudLogin, CloudStatus, useCloud } from "./CloudUi.tsx";
 import { SectionIcon } from "./icons.tsx";
 import { catalogKit, catalogApi, FormKit } from "./kits.ts";
 import { FormAttach } from "./FormAttach.tsx";
@@ -68,6 +69,8 @@ function Header() {
 
 function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const state = useBook(port);
+  // План 25: облако — вход и статус доступа компании (без адреса — работа как раньше).
+  const cloud = useCloud();
   const [serverDown, setServerDown] = useState(false);
   const [creating, setCreating] = useState(false);
   const [screen, setScreen] = useState<ScreenId>("home");
@@ -139,6 +142,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   }, [port, listKey]);
 
   return (
+    <CloudContext.Provider value={cloud}>
     <ServerDownContext.Provider value={() => setServerDown(true)}>
       <TemplateContext.Provider value={template}>
       <UserTemplateContext.Provider value={templates}>
@@ -146,6 +150,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
       <CatalogContext.Provider value={catalog}>
         <div className="app">
           <TopBar screen={screen} onScreen={setScreen} template={template} templates={list} onTemplate={chooseTemplate} />
+          <CloudStatus cloud={cloud} onSettings={() => setScreen("settings")} />
           {serverDown && (
             <div className="banner" role="alert">
               <p>Сервер не запущен: листы работают, печать и сканы недоступны. Запустите «Конструктор ИД» на компьютере.</p>
@@ -153,7 +158,8 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             </div>
           )}
           {state.error && <p className="error" role="alert">{state.error}</p>}
-          {screen === "templates" ? <TemplateEditor state={state} onChoose={chooseTemplate} />
+          {cloud.mode.kind === "login" && screen !== "settings" ? <CloudLogin cloud={cloud} />
+            : screen === "templates" ? <TemplateEditor state={state} onChoose={chooseTemplate} />
             : screen === "fields" ? <FieldsScreen state={state} />
             : screen === "library" ? <LibraryScreen port={port} state={state} />
             : screen === "wizard" ? <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
@@ -189,5 +195,6 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
       </UserTemplateContext.Provider>
       </TemplateContext.Provider>
     </ServerDownContext.Provider>
+    </CloudContext.Provider>
   );
 }

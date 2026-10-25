@@ -1,7 +1,7 @@
 // План 19: инструменты помощника — описания для модели и исполнение на данных книги. Правки не применяются:
 // каждое верное предложение становится «Предложением №N» для карточки «Предлагаемые изменения».
 import type { ToolDef, ToolCall } from "./model.ts";
-import { TABLES, TABLE_NAMES, type TableName } from "../workbook/schema.ts";
+import { TABLES, TABLE_NAMES, column, type TableName } from "../workbook/schema.ts";
 import { cellText } from "../workbook/values.ts";
 import type { Book } from "../workbook/records.ts";
 import type { ImportantMap } from "../workbook/important.ts";
@@ -10,7 +10,9 @@ import type { Catalog } from "../catalog/model.ts";
 import { completeness, actWorks } from "../catalog/need.ts";
 import { docLabel, type UserTemplate } from "../forms/template.ts";
 import { FORM_SET_LABELS } from "../templates.ts";
-import { describeChange, isTable, showValue, validateChange, type BookChange } from "./changes.ts";
+import { describeChange, isTable, showValue, toCell, validateChange, type BookChange } from "./changes.ts";
+import { ojrRows } from "../ojr.ts";
+import type { CellValue } from "../workbook/values.ts";
 import type { NameMask } from "./mask.ts";
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties, required });
@@ -27,6 +29,12 @@ export const BOOK_TOOLS: ToolDef[] = [
   { name: "get_catalog", description: "Справочник видов работ и документов (разделы, виды работ, коды документов). Отбор — по тексту.",
     parameters: obj({ query: str("Текст для отбора (необязательно)") }) },
   { name: "get_template", description: "Шаблон книги: название, набор форм, документы по порядку.", parameters: obj({}) },
+  { name: "search_book", description: "Найти текст во всей книге (без учёта регистра, по части слова): где встречается фамилия, марка, номер и т. п. Возвращает таблицу, номер строки, столбец и значение.",
+    parameters: obj({ text: str("Что искать, например «Беляц»"), table: str("Только в этой таблице (необязательно)") }, ["text"]) },
+  { name: "check_ojr", description: "Сверить общий журнал работ с актами: раздел 3 (по датам: работы и подписант) или 5 (исполнительная документация) — чего не хватает, что лишнее, что отличается от «Заполнить из актов».",
+    parameters: obj({ section: { type: "integer", enum: [3, 5], description: "Раздел журнала: 3 или 5" } }, ["section"]) },
+  { name: "propose_replace", description: "Предложить заменить текст во всех ячейках, где он встречается (пользователь подтвердит одним предложением). Без учёта регистра; можно ограничить таблицей и столбцом.",
+    parameters: obj({ find: str("Что заменить (точный текст, как в книге)"), replace: str("На что заменить"), table: str("Только в этой таблице (необязательно)"), column: str("Только в этом столбце (необязательно)") }, ["find", "replace"]) },
   { name: "propose_add_rows", description: "Предложить добавить строки в таблицу (пользователь подтвердит). Ссылки на другие таблицы — значением их ключевого столбца.",
     parameters: obj({ table: str("Таблица"), rows: { type: "array", items: VALUES, description: "Строки" } }, ["table", "rows"]) },
   { name: "propose_update", description: "Предложить изменить ячейки одной строки (пользователь подтвердит).",
@@ -38,6 +46,8 @@ export const BOOK_TOOLS: ToolDef[] = [
 /** Предложение не по книге (план 20): дополнения справочника, метки формы. */
 export type ExtraChange =
   | { kind: "catalog"; add: import("../catalog/model.ts").UserCatalog }
+  /** План 21: несколько правок книги одним предложением (замена текста). */
+  | { kind: "batch"; changes: BookChange[] }
   | { kind: "form"; token: string; templateId: string; choices: Record<string, string>; replacements: { text: string; field: string }[] };
 export interface Proposal { id: number; change: BookChange | ExtraChange; lines: string[] }
 
@@ -120,6 +130,104 @@ function getTemplate(ctx: ToolContext) {
   return json({ name: t.name, formSet: FORM_SET_LABELS[t.print?.formSet ?? "sbd"], docs: t.docs.map(docLabel) });
 }
 
+/** Столбцы, в которых можно искать и заменять текст. */
+const textCols = (t: TableName) => TABLES[t].columns.filter((c) => c.type !== "formula" && c.type !== "file" && !c.service);
+const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function searchBook(ctx: ToolContext, a: Record<string, unknown>) {
+  const text = cellText((a.text as string) ?? null).trim();
+  if (text.length < 2) return err("Слишком короткий текст для поиска");
+  if (a.table && !isTable(a.table)) return err(`Нет таблицы «${String(a.table)}»`);
+  const needle = text.toLowerCase();
+  const hits: { table: string; sheet: string; row: number; column: string; value: string }[] = [];
+  let total = 0;
+  for (const t of (a.table ? [a.table as TableName] : TABLE_NAMES)) {
+    for (const r of ctx.book.tables[t] ?? []) for (const c of TABLES[t].columns) {
+      const v = showValue(c, r.v[c.key] ?? null);
+      if (!v.toLowerCase().includes(needle)) continue;
+      total++;
+      if (hits.length < 60) hits.push({ table: t, sheet: TABLES[t].sheet, row: r.row + 1, column: c.header, value: v.length > 200 ? v.slice(0, 200) + "…" : v });
+    }
+  }
+  return ctx.mask.mask(json({ text, total, hits, note: total > hits.length ? `Показаны первые ${hits.length}` : undefined }));
+}
+
+const dmy = (v: CellValue) => showValue({ key: "d", header: "", type: "date", hint: "" }, v);
+
+function checkOjr(ctx: ToolContext, a: Record<string, unknown>) {
+  const section = Number(a.section);
+  if (section !== 3 && section !== 5) return err("section — 3 или 5");
+  const exp = ojrRows(ctx.book);
+  const t: TableName = section === 3 ? "ОЖР3" : "ОЖР5";
+  if (ctx.book.missing.includes(t)) return err(`В книге нет таблицы «${t}» — нужно «Обновить разметку»`);
+  const have = ctx.book.tables[t] ?? [];
+  const norm = (v: CellValue) => cellText(v).replace(/\s+/g, " ").trim();
+  const out: Record<string, unknown> = { section, table: t, sheet: TABLES[t].sheet, expectedRows: section === 3 ? exp.s3.length : exp.s5.length, bookRows: have.length };
+  if (section === 3) {
+    const H = (k: string) => column("ОЖР3", k).header;
+    const want = new Map(exp.s3.map((r) => [dmy(r[H("date")]), r]));
+    const got = new Map(have.map((r) => [dmy(r.v.date), r]));
+    out.missingDates = [...want.keys()].filter((d) => !got.has(d)).map((d) => `${d}: акты ${cellText(want.get(d)![H("acts")])}`);
+    out.extraDates = [...got.keys()].filter((d) => !want.has(d)).map((d) => `${d}, строка ${got.get(d)!.row + 1}`);
+    out.different = [...want.entries()].filter(([d]) => got.has(d)).flatMap(([d, w]) => {
+      const g = got.get(d)!;
+      const diff: string[] = [];
+      if (norm(w[H("works")]) !== norm(g.v.works)) diff.push(`работы: в журнале «${norm(g.v.works).slice(0, 150)}», по актам «${norm(w[H("works")]).slice(0, 150)}»`);
+      if (norm(w[H("signer")]) !== norm(g.v.signer)) diff.push(`представитель: в журнале «${norm(g.v.signer)}», по актам «${norm(w[H("signer")])}»`);
+      return diff.length ? [`${d} (строка ${g.row + 1}): ${diff.join("; ")}`] : [];
+    });
+  } else {
+    const H = (k: string) => column("ОЖР5", k).header;
+    const want = new Map(exp.s5.map((r) => [norm(r[H("name")]), r]));
+    const got = new Map(have.map((r) => [norm(r.v.name), r]));
+    out.missing = [...want.keys()].filter((n) => !got.has(n)).map((n) => n.slice(0, 200));
+    out.extra = [...got.entries()].filter(([n]) => !want.has(n)).map(([n, r]) => `строка ${r.row + 1}: ${n.slice(0, 200)}`);
+    out.different = [...want.entries()].filter(([n]) => got.has(n) && norm(want.get(n)![H("signed")]) !== norm(got.get(n)!.v.signed))
+      .map(([n, w]) => `«${n.slice(0, 120)}» (строка ${got.get(n)!.row + 1}): в журнале «${norm(got.get(n)!.v.signed)}», по актам «${norm(w[H("signed")])}»`);
+  }
+  for (const k of Object.keys(out)) if (Array.isArray(out[k]) && (out[k] as unknown[]).length > 40) out[k] = [...(out[k] as unknown[]).slice(0, 40), `… и ещё ${(out[k] as unknown[]).length - 40}`];
+  out.actIssues = exp.issues.map((i) => i.message);
+  out.hint = "Исправить журнал целиком — кнопка «Заполнить из актов» на листе журнала (ручные условия производства работ сохраняются).";
+  return ctx.mask.mask(json(out));
+}
+
+function proposeReplace(ctx: ToolContext, a: Record<string, unknown>) {
+  const find = cellText((a.find as string) ?? null);
+  const repl = cellText((a.replace as string) ?? null);
+  if (find.trim().length < 2) return err("find — не короче 2 символов");
+  if (a.table && !isTable(a.table)) return err(`Нет таблицы «${String(a.table)}»`);
+  const re = new RegExp(esc(find), "gi");
+  const changes: BookChange[] = [];
+  const lines: string[] = [];
+  let cellsN = 0;
+  for (const t of (a.table ? [a.table as TableName] : TABLE_NAMES)) {
+    const cols = textCols(t).filter((c) => !a.column || c.header === String(a.column).trim());
+    if (a.column && a.table && !cols.length) return err(`В таблице «${t}» нет столбца «${String(a.column)}», в котором можно заменять текст`);
+    for (const r of ctx.book.tables[t] ?? []) {
+      const values: Record<string, CellValue> = {};
+      for (const c of cols) {
+        if (c.type === "date" || c.type === "number" || c.type === "int") continue;
+        const old = cellText(r.v[c.key] ?? null);
+        if (!re.test(old)) { re.lastIndex = 0; continue; }
+        re.lastIndex = 0;
+        const next = old.replace(re, repl);
+        const v = toCell(t, c, next);
+        if (!v.ok) return err(`${v.error} (строка ${r.row + 1}: «${next}»)`);
+        values[c.header] = v.value;
+        cellsN++;
+        if (lines.length < 60) lines.push(`«${TABLES[t].sheet}» (${t}), строка ${r.row + 1}, ${c.header}: «${old}» → «${next}»`);
+      }
+      if (Object.keys(values).length) changes.push({ kind: "update", table: t, row: r.row, values });
+    }
+  }
+  if (!changes.length) return err(`Текст «${find}» не найден${a.table ? ` в «${String(a.table)}»` : ""} — проверь написание через search_book`);
+  if (cellsN > 500) return err(`Слишком много ячеек (${cellsN}) — ограничь таблицей или столбцом`);
+  if (cellsN > lines.length) lines.push(`… и ещё ${cellsN - lines.length}`);
+  const id = ctx.proposals.length + 1;
+  ctx.proposals.push({ id, change: { kind: "batch", changes }, lines: [`Заменить «${find}» на «${repl}» — ячеек: ${cellsN}`, ...lines] });
+  return json({ ok: true, proposal: id, cells: cellsN, note: `Предложение №${id} (одна замена во всех ячейках) будет показано пользователю.` });
+}
+
 /** Исполняет вызов инструмента книги. Неизвестный инструмент — null (другие наборы инструментов). */
 export function execBookTool(ctx: ToolContext, call: ToolCall): string | null {
   const a = ctx.mask.unmaskDeep(call.arguments ?? {});
@@ -129,6 +237,9 @@ export function execBookTool(ctx: ToolContext, call: ToolCall): string | null {
     case "check_act": return checkAct(ctx, a);
     case "get_catalog": return getCatalog(ctx, a);
     case "get_template": return getTemplate(ctx);
+    case "search_book": return searchBook(ctx, a);
+    case "check_ojr": return checkOjr(ctx, a);
+    case "propose_replace": return proposeReplace(ctx, a);
     case "propose_add_rows": case "propose_update": case "propose_delete": {
       const kind = call.name === "propose_add_rows" ? "add" : call.name === "propose_update" ? "update" : "delete";
       const v = validateChange(ctx.book, kind, a);

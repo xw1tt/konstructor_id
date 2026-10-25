@@ -42,6 +42,9 @@ export function toolLabel(c: ToolCall): string {
     case "propose_add_rows": return `Готовлю добавление строк в «${String(a.table ?? "")}»`;
     case "propose_update": return `Готовлю изменение «${String(a.table ?? "")}»`;
     case "propose_delete": return `Готовлю удаление из «${String(a.table ?? "")}»`;
+    case "search_book": return `Ищу в книге «${String(a.text ?? "")}»`;
+    case "check_ojr": return `Сверяю раздел ${String(a.section ?? "")} ОЖР с актами`;
+    case "propose_replace": return `Готовлю замену «${String(a.find ?? "")}» → «${String(a.replace ?? "")}»`;
     case "propose_catalog": return "Готовлю дополнение справочника";
     case "read_form": return "Размечаю приложенную форму";
     case "propose_form": return "Готовлю метки формы";

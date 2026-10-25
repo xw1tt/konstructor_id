@@ -48,3 +48,19 @@ test("ошибка подключения — сообщение в чате, в
   assert.deepEqual(s.items.at(-1), { kind: "error", text: "Не выбрана нейросеть: «Настройки» → «Нейросети»" });
   assert.equal(s.history.filter((m) => m.role === "user").length, 0);
 });
+
+test("план 21: замена текста — одно предложение, применение всех ячеек и отмена; в подсказке — схема книги", async () => {
+  const wb = new MemoryWorkbook(aov1Records() as any);
+  const before = await readBook(wb);
+  const seen: ChatMessage[][] = [];
+  const queue: ChatReply[] = [reply("", [{ name: "propose_replace", arguments: { find: "Востров В.П.", replace: "Антрохин И.В." } }]), reply("Предлагаю замену.")];
+  const s = new AssistantSession({ store: wb, chat: async (m) => { seen.push(m); return queue.shift()!; } });
+  await s.ask("поменяй Вострова на Антрохина", { book: before, important: defaultImportant(), catalog: null, template: BUILTIN_SBD, masked: false,
+    prompt: { today: "25.10.2026", sheet: "База актов", table: "Акты", row: 0, act: AOV1 } });
+  assert.match(String(seen[0][0].content), /«Представители» — Представители/);
+  assert.equal(s.pending.length, 1);
+  assert.equal(await s.apply([1]), 1);
+  assert.equal((await readBook(wb)).tables["Акты"]![0].v.vorContractor, "Антрохин И.В.");
+  await s.revert();
+  assert.deepEqual(await readBook(wb), before);
+});

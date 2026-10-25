@@ -1,4 +1,4 @@
-// Верхняя строка панели: ⌂ (конструктор), «Норматив», «Помощник», «Шаблоны ▾», «Настройки», значки помощника.
+// Верхняя строка панели: ⌂ (конструктор), «Норматив», «Библиотека», «Помощник», «Шаблоны ▾», «Настройки», значки помощника.
 import { useEffect, useRef, useState } from "react";
 import type { TemplateCode } from "@idk/shared/templates";
 import type { UserTemplate } from "@idk/shared/forms/template";
@@ -26,6 +26,8 @@ export function TopBar({ screen, onScreen, template, templates, onTemplate }: {
           aria-current={screen === "home" ? "page" : undefined} title="Конструктор ИД" onClick={() => onScreen("home")}><HomeIcon /></button>
         <button className={`tb-btn${screen === "normativ" ? " tb-active" : ""}`} aria-current={screen === "normativ" ? "page" : undefined}
           onClick={() => onScreen("normativ")}>Норматив</button>
+        <button className={`tb-btn${screen === "library" ? " tb-active" : ""}`} aria-current={screen === "library" ? "page" : undefined}
+          onClick={() => onScreen("library")}>Библиотека</button>
         <button className={`tb-btn tb-assistant${screen === "assistant" ? " tb-active" : ""}`} aria-current={screen === "assistant" ? "page" : undefined}
           onClick={() => onScreen("assistant")}><span>Помощник</span></button>
         <div className="tb-drop" ref={box}>

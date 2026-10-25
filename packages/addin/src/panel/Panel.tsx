@@ -15,6 +15,7 @@ import { SettingsScreen } from "./SettingsScreen.tsx";
 import { TemplateContext, PrintOptionsContext, UserTemplateContext, type TemplatesState } from "./templateContext.ts";
 import { TemplateEditor } from "./TemplateEditor.tsx";
 import { FieldsScreen } from "./FieldsScreen.tsx";
+import { LibraryScreen } from "./LibraryScreen.tsx";
 import { listTemplates, resolveTemplate } from "./templatesApi.ts";
 import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import type { ScreenId } from "./screens.ts";
@@ -127,6 +128,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
           {state.error && <p className="error" role="alert">{state.error}</p>}
           {screen === "templates" ? <TemplateEditor state={state} onChoose={chooseTemplate} />
             : screen === "fields" ? <FieldsScreen state={state} />
+            : screen === "library" ? <LibraryScreen port={port} state={state} />
             : screen === "settings" ? <SettingsScreen /> : screen === "assistant" ? <AssistantScreen /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (

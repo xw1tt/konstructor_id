@@ -192,3 +192,9 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .completeness li .ok { color: var(--ok); }
 .catalog-picker .setting-option { align-items: flex-start; }
 .tpl-doc-works { font-size: 11px; }
+
+/* План 16: библиотека компании */
+.lib-search { width: 100%; box-sizing: border-box; margin: 6px 0; padding: 4px 6px; }
+.lib-list { list-style: none; margin: 0 0 8px; padding: 0; max-height: 50vh; overflow: auto; border: 1px solid var(--line); }
+.lib-list li { border-bottom: 1px solid var(--line); padding: 3px 6px; }
+.lib-list label { display: flex; gap: 6px; align-items: flex-start; cursor: pointer; }

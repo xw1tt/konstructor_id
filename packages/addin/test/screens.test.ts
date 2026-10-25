@@ -7,7 +7,7 @@ import { printAct } from "@idk/addin/panel/print";
 import { aov1Book, AOV1 } from "../../shared/test/fixtures/aov1Book.ts";
 
 test("экраны и значки помощника", () => {
-  assert.deepEqual(SCREENS.map((s) => [s.id, s.label]), [["home", "Конструктор ИД"], ["normativ", "Норматив"], ["assistant", "Помощник"], ["settings", "Настройки"], ["templates", "Редактор шаблонов"], ["fields", "Поля для шаблона"]]);
+  assert.deepEqual(SCREENS.map((s) => [s.id, s.label]), [["home", "Конструктор ИД"], ["normativ", "Норматив"], ["library", "Библиотека"], ["assistant", "Помощник"], ["settings", "Настройки"], ["templates", "Редактор шаблонов"], ["fields", "Поля для шаблона"]]);
   assert.deepEqual(ASSISTANT_ICONS.map((i) => i.label), ["Поиск", "История", "Сообщения", "Уведомления", "Справка", "Меню"]);
   assert.deepEqual(ASSISTANT_ICONS.map((i) => i.id), ["search", "history", "chat", "bell", "help", "menu"]);
 });

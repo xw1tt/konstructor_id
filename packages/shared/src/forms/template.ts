@@ -9,9 +9,10 @@ export const SBD_ID = "sbd";
 export const BUILTIN_DOC_LABELS: Record<PrintKind, string> = {
   aosr: "АОСР", rim: "РИМ", vd: "ВД", vor: "ВОР", avk: "АВК", kj: "КЖ", ip: "Протокол",
   ...(Object.fromEntries(PROTO_KINDS.map((k) => [k, PROTO_DEFS[k].code])) as Record<ProtoKind, string>),
+  rp: "РП",
 };
 /** Коды, занятые встроенными документами (номера и виды реестра). */
-const RESERVED = ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ИП", ...PROTO_KINDS.map((k) => PROTO_DEFS[k].code)];
+const RESERVED = ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ИП", "РП", "РМ", ...PROTO_KINDS.map((k) => PROTO_DEFS[k].code)];
 
 export const FormRef = z.object({ file: z.string().min(1), type: z.enum(["docx", "xlsx"]), original: z.string().default("") });
 export type FormRef = z.infer<typeof FormRef>;
@@ -34,9 +35,19 @@ export const UserTemplate = z.object({ id: z.string().min(1), name: z.string(), 
 export type UserTemplate = z.infer<typeof UserTemplate>;
 
 export const BUILTIN_SBD: UserTemplate = {
-  id: SBD_ID, name: "СБД", print: { schemeEach: false },
+  id: SBD_ID, name: "СБД", print: { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2 },
   docs: (["aosr", "rim", "vd", "vor", "avk", "kj", "ip"] as const).map((doc) => ({ kind: "builtin" as const, doc, form: null })),
 };
+
+/** Встроенный шаблон «ТИ» (план 14): формы и нумерация по образцам ООО «Техноинжиниринг». */
+export const TI_ID = "ti";
+export const BUILTIN_TI: UserTemplate = {
+  id: TI_ID, name: "ТИ", print: { schemeEach: false, formSet: "ti", forms: {}, kjReserve: 2 },
+  docs: (["aosr", "rim", "rp", "vd", "kj", "ip"] as const).map((doc) => ({ kind: "builtin" as const, doc, form: null })),
+};
+/** Встроенные шаблоны (только чтение). */
+export const BUILTIN_TEMPLATES = [BUILTIN_SBD, BUILTIN_TI];
+export const isBuiltinTemplate = (id: string) => BUILTIN_TEMPLATES.some((t) => t.id === id);
 
 /** Ошибки шаблона: имя, коды своих документов (формат, повтор, занятые встроенными). */
 export function validateTemplate(t: UserTemplate): string[] {

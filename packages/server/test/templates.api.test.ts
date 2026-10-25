@@ -19,7 +19,7 @@ test("список, копия «СБД», переименование, сво�
   const docs = [...c.json.docs, { kind: "custom", code: "АГИ", name: "Акт гидр. испытаний", form: null }];
   const put = await s.req("PUT", `/api/templates/${c.json.id}`, { name: "ПИК-2", docs });
   assert.equal(put.status, 200, JSON.stringify(put.json));
-  assert.equal((await s.req("GET", "/api/templates")).json[1].name, "ПИК-2");
+  assert.equal((await s.req("GET", "/api/templates")).json[2].name, "ПИК-2");
   const bad = await s.req("PUT", `/api/templates/${c.json.id}`, { name: "ПИК-2", docs: [{ kind: "custom", code: "АОСР", name: "x", form: null }] });
   assert.equal(bad.status, 422);
   assert.equal(bad.json.error, "Код «АОСР» занят встроенным документом");
@@ -28,7 +28,7 @@ test("список, копия «СБД», переименование, сво�
   assert.equal(del.status, 400);
   assert.equal(del.json.error, "Встроенный шаблон «СБД» не удаляется");
   assert.equal((await s.req("DELETE", `/api/templates/${c.json.id}`)).status, 204);
-  assert.equal((await s.req("GET", "/api/templates")).json.length, 1);
+  assert.equal((await s.req("GET", "/api/templates")).json.length, 2, "встроенные «СБД» и «ТИ»");
 });
 
 test("формы: .docx принимается, PDF и .doc — 422; скачивание", async () => {
@@ -64,16 +64,16 @@ test("выгрузка и загрузка шаблона; шаблоны пер
   assert.equal(t2.docs[0].code, "АГИ");
   assert.equal((await s2.raw("GET", `/api/templates/${t2.id}/forms/${t2.docs[0].form.file}`)).status, 200);
   const again = await startTestServer({ dataDir: s.dataDir });
-  assert.equal((await again.req("GET", "/api/templates")).json[1].name, "Свой");
+  assert.equal((await again.req("GET", "/api/templates")).json[2].name, "Свой");
 });
 
 test("п.4 АОСР сохраняется в шаблоне", async () => {
   const s = await startTestServer();
   const { json: t } = await s.req("POST", "/api/templates", { name: "П4", from: "sbd" });
-  assert.deepEqual(t.print, { schemeEach: false });
+  assert.deepEqual(t.print, { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2 });
   const put = await s.req("PUT", `/api/templates/${t.id}`, { name: "П4", docs: t.docs, print: { schemeEach: true } });
   assert.equal(put.status, 200);
-  assert.deepEqual((await s.req("GET", "/api/templates")).json.find((x: any) => x.id === t.id).print, { schemeEach: true });
+  assert.deepEqual((await s.req("GET", "/api/templates")).json.find((x: any) => x.id === t.id).print, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2 });
   const copy = await s.req("POST", "/api/templates", { name: "Копия", from: t.id });
-  assert.deepEqual(copy.json.print, { schemeEach: true }, "копия наследует настройку");
+  assert.deepEqual(copy.json.print, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2 }, "копия наследует настройку");
 });

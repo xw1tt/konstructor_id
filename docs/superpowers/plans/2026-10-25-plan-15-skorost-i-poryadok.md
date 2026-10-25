@@ -53,7 +53,7 @@ Files: `shared/src/docs/defs.ts` (новый), `shared/src/acts/format.ts` (`doc
 ### Task 4: Печать по описаниям (server)
 Files: `server/src/print/docs.ts` (новый: `ACT_DOC_RENDER`, `actDocFileName`), `server/src/routes/print.ts`; Test
 `server/test/docdefs.print.test.ts`.
-- [ ] Тесты: имена файлов 8 видов × 2 набора и выбор формы (`forms.vd = sbd` в «ТИ») как прежде; документ без формы набора
+- [x] Тесты: имена файлов 8 видов × 2 набора и выбор формы (`forms.vd = sbd` в «ТИ») как прежде; документ без формы набора
   «ТИ» (ВОР, АВК) печатается по «СБД»; весь набор зелёный.
 
 ### Task 5: Документация

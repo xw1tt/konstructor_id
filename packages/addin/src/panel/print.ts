@@ -1,5 +1,6 @@
 // Печать акта из книги: сборка пакета, проверка, задание печати на сервере, окно предпросмотра.
 import { TABLES, type TableName } from "@idk/shared/workbook/schema";
+import { ACT_DOC_DEFS, isActDocKind } from "@idk/shared/docs/defs";
 import type { PrintKind } from "@idk/shared/acts/schemas";
 import { buildBundle, type ActBundle, type Issue } from "@idk/shared/workbook/bundle";
 import { cellText } from "@idk/shared/workbook/values";
@@ -62,7 +63,9 @@ export function protoBundleFor(book: Book, kind: ProtoKind, where: { act?: strin
 function printBundle(book: Book, where: { act?: string; kit?: string }, important: ImportantMap, doc: PrintKind | null, options?: PrintOptions) {
   if (isProtoKind(doc)) return protoBundleFor(book, doc, where, important);
   const act = where.act ?? "";
-  return doc === "kj" || doc === "ip" ? buildCableBundle(book, act, important, doc, { set: options?.formSet }) : buildBundle(book, act, important);
+  // Пакет по описанию документа (план 15): кабельный — КЖ и протокол изоляции.
+  return doc && isActDocKind(doc) && ACT_DOC_DEFS[doc].bundle === "cable"
+    ? buildCableBundle(book, act, important, doc as "kj" | "ip", { set: options?.formSet }) : buildBundle(book, act, important);
 }
 
 /** Проверяет акт; при ошибках возвращает их, иначе создаёт задание печати и открывает предпросмотр. Документ «на комплект»

@@ -1,10 +1,11 @@
 // Состояние панели, синхронизированное с книгой через события Excel. Копии данных панель не хранит:
 // выделение и текущая таблица перечитываются при смене выделения, вся книга — при изменении ячеек.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { column, SCHEMA_VERSION, type TableName } from "@idk/shared/workbook/schema";
+import { column, SCHEMA_VERSION, TABLE_NAMES, type TableName } from "@idk/shared/workbook/schema";
 import { cellText } from "@idk/shared/workbook/values";
 import type { TableData } from "@idk/shared/workbook/store";
-import { readBook, type Book } from "@idk/shared/workbook/records";
+import type { Book } from "@idk/shared/workbook/records";
+import { BookCache } from "./bookCache.ts";
 import { loadImportant, type ImportantMap } from "@idk/shared/workbook/important";
 import type { ChangeEvent, ExcelPort, Selection } from "../book/excelPort.ts";
 import { tablesOnSheet } from "./tableTools.ts";
@@ -49,6 +50,11 @@ export function useBook(port: ExcelPort): BookState {
   // таблицу целиком (со ссылками сканов это долго).
   const cache = useRef(new Map<TableName, TableData | null>());
   const seq = useRef(0);
+  /** План 15: таблицы книги; после правки перечитываются только изменённые. */
+  const books = useRef<BookCache | null>(null);
+  if (!books.current) books.current = new BookCache(port);
+  /** Таблицы изменённых ячеек с последнего перечитывания (null — изменение вне наших таблиц). */
+  const changed = useRef<(TableName | null)[] | "all">("all");
 
   const readSelection = useCallback(async () => {
     const my = ++seq.current;
@@ -76,10 +82,15 @@ export function useBook(port: ExcelPort): BookState {
     }
   }, [port]);
 
-  const readAll = useCallback(async () => {
+  const readAll = useCallback(async (all = true) => {
     cache.current.clear();
+    const what = all ? "all" : changed.current;
+    changed.current = [];
     try {
-      setBook(await readBook(port));
+      const c = books.current!;
+      setBook(what === "all" ? await c.full() : await c.refresh(what));
+      // Прочитанные таблицы — сразу и для карточки строки.
+      for (const n of TABLE_NAMES) { const t = c.table(n); if (t !== undefined) cache.current.set(n, t); }
       setImportant(await loadImportant(port));
       setOutdated(isOutdated(await port.setting(VERSION_SETTING)));
     } catch (e) {
@@ -101,8 +112,10 @@ export function useBook(port: ExcelPort): BookState {
       const a = await port.onSelection(() => later("sel", () => void readSelection()));
       const b = await port.onChange((e) => {
         cache.current.clear(); // карточка не должна показать старые значения до перечитывания книги
+        // Блок через несколько ячеек мог задеть соседнюю таблицу листа — тогда перечитать всё.
+        if (changed.current !== "all") changed.current.push(e.multi ? null : e.table);
         for (const l of listeners.current) l(e);
-        later("all", () => void readAll());
+        later("all", () => void readAll(false));
       });
       if (alive) off = [a, b];
       else { void a(); void b(); }

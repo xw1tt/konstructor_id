@@ -31,7 +31,7 @@ Files: `shared/src/workbook/store.ts` (`readMany?`), `shared/src/workbook/record
 `shared/src/workbook/memory.ts` (счётчик чтений для тестов не нужен — `readMany` в модели), `addin/src/book/excelPort.ts`
 (`readMany`), `addin/src/panel/bookCache.ts` (новый: `BookCache` — таблицы, `full()`, `refreshTable(name)`),
 `addin/src/panel/useBook.ts`; Test `shared/test/readmany.test.ts`, `addin/test/bookcache.test.ts`.
-- [ ] Тесты: `readBook` через `readMany` = через `read`; `bookFromTables` с отсутствующей таблицей → `missing`;
+- [x] Тесты: `readBook` через `readMany` = через `read`; `bookFromTables` с отсутствующей таблицей → `missing`;
   `BookCache`: полное чтение одним `readMany`; изменение одной таблицы → один `read` этой таблицы, книга = полному чтению
   (в т. ч. после вставки строк и правки «Объекта»); неизвестная таблица/ошибка → полное чтение.
 

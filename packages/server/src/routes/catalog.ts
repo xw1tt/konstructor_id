@@ -13,6 +13,8 @@ export function catalogRoutes(r: Router, store: CatalogStore) {
     return { catalog: rest, own: [...own], hidden: user.hidden };
   });
 
+  r.get("/api/catalog/user", () => store.user());
+
   r.put("/api/catalog/user", async (c) => {
     const q = await c.body(UserCatalog);
     const { errors } = mergeCatalog(BUILTIN_CATALOG, q);

@@ -1,5 +1,7 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { catalogKit, catalogApi, FormKit } from "./kits.ts";
+import { FormAttach } from "./FormAttach.tsx";
 import { NEEDED_SHEETS_SETTING, sheetPlan } from "@idk/shared/workbook/sheets";
 import { loadTemplate, saveTemplate, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { TABLE_NAMES, type TableName } from "@idk/shared/workbook/schema";
@@ -104,7 +106,14 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   };
   // План 17: «Только нужные листы» — настройка книги; пересчёт при включении и при смене шаблона книги.
   // План 19: разговор с помощником переживает переход между экранами.
-  const [assistant] = useState(() => new AssistantSession({ store: port, chat: aiApi.chat }));
+  // План 20: помощник дополняет справочник — после применения и отмены справочник перечитывается.
+  // План 20: формы заказчика — разметка помощником по акту под курсором, в шаблоне книги.
+  const tplRef = useRef(resolved.template.id);
+  tplRef.current = resolved.template.id;
+  const actRef = useRef<string | null>(null);
+  actRef.current = state.lastAct;
+  const [formKit] = useState(() => new FormKit({ templateId: () => tplRef.current, act: () => actRef.current }));
+  const [assistant] = useState(() => new AssistantSession({ store: port, chat: aiApi.chat, kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit] }));
   const [neededOn, setNeededOn] = useState(false);
   useEffect(() => { void port.setting(NEEDED_SHEETS_SETTING).then((v) => setNeededOn(v === "1")).catch(() => undefined); }, [port]);
   const applySheets = async (on: boolean) => {
@@ -147,7 +156,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             : screen === "fields" ? <FieldsScreen state={state} />
             : screen === "library" ? <LibraryScreen port={port} state={state} />
             : screen === "wizard" ? <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
-            : screen === "settings" ? <SettingsScreen /> : screen === "assistant" ? <AssistantScreen port={port} state={state} session={assistant} onSettings={() => setScreen("settings")} /> : screen === "normativ" ? (
+            : screen === "settings" ? <SettingsScreen /> : screen === "assistant" ? <AssistantScreen port={port} state={state} session={assistant} onSettings={() => setScreen("settings")} extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />} /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
             <>

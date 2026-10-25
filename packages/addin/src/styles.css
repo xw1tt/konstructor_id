@@ -236,3 +236,4 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .ai-form select, .ai-form input { width: 100%; box-sizing: border-box; font-size: 12px; padding: 3px 5px; }
 .ai-usage { font-size: 12px; border-collapse: collapse; }
 .ai-usage th, .ai-usage td { border: 1px solid var(--line); padding: 2px 6px; text-align: left; }
+.as-form { margin: 6px 0; }

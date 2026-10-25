@@ -2,7 +2,7 @@
 import type { ChatMessage, ChatReply, ToolCall, ToolDef } from "@idk/shared/ai/model";
 import { runTurn, toolLabel } from "@idk/shared/ai/agent";
 import { BOOK_TOOLS, execBookTool, type Proposal, type ToolContext } from "@idk/shared/ai/tools";
-import { applyChanges, undoChanges, type Undo } from "@idk/shared/ai/changes";
+import { applyChanges, undoChanges, type BookChange, type Undo } from "@idk/shared/ai/changes";
 import { NameMask } from "@idk/shared/ai/mask";
 import { systemPrompt, type PromptContext } from "@idk/shared/ai/prompt";
 import type { Book } from "@idk/shared/workbook/records";
@@ -79,7 +79,7 @@ export class AssistantSession {
   async apply(ids: number[]): Promise<number> {
     const chosen = this.pending.filter((p) => ids.includes(p.id));
     const book = chosen.filter((p) => p.change.kind === "add" || p.change.kind === "update" || p.change.kind === "delete");
-    const undo = await applyChanges(this.deps.store, book.map((p) => p.change));
+    const undo = await applyChanges(this.deps.store, book.map((p) => p.change as BookChange));
     const extra: (() => Promise<void>)[] = [];
     for (const p of chosen.filter((x) => !book.includes(x))) {
       for (const k of this.deps.kits ?? []) { const u = await k.apply?.(p); if (u) { extra.push(u); break; } }

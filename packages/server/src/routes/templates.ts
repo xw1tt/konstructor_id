@@ -10,7 +10,8 @@ import { ActBundle } from "@idk/shared/workbook/bundle";
 import { HttpError } from "../http/router.ts";
 import { formType, NEED_OFFICE_FILE } from "../forms/store.ts";
 import { formData } from "../forms/fields.ts";
-import { markupForm, applyChoices } from "../forms/markup.ts";
+import { markupForm, applyChoices, applyPairs, markupText } from "../forms/markup.ts";
+import { isKnownField } from "@idk/shared/forms/fields";
 
 const MARKUP_TTL_MS = 30 * 60_000;
 
@@ -40,9 +41,26 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
     marks.set(token, { buf: res.buf, type, name: q.name, at: now() });
     return new Reply(201, { token, found: res.found, ambiguous: res.ambiguous, type });
   });
+  // План 20: текст размеченного образца и новые метки от помощника (поверх разметки; выбор вариантов — при сохранении).
+  r.get("/api/templates/:id/markup/:token/text", (c) => {
+    const m = mark(c.params.token);
+    return { text: markupText(m.buf, m.type) };
+  });
+  r.post("/api/templates/:id/markup/:token/pairs", async (c) => {
+    const q = await c.body(z.object({ replacements: z.array(z.object({ text: z.string().min(1), field: z.string().min(1) })) }));
+    const bad = q.replacements.find((p) => !isKnownField(p.field));
+    if (bad) throw new HttpError(400, `Неизвестное поле: ${bad.field}`);
+    const m = mark(c.params.token);
+    const res = applyPairs(m.buf, m.type, q.replacements);
+    marks.set(c.params.token, { ...m, buf: res.buf, at: now() });
+    return { applied: res.applied, missing: res.missing };
+  });
   r.get("/api/templates/:id/markup/:token", (c) => {
     const m = mark(c.params.token);
-    const buf = applyChoices(m.buf, m.type, {});
+    // План 20: выбор вариантов помощника — в ?choices={"id":"Поле"}.
+    let choices: Record<number, string> = {};
+    try { choices = Object.fromEntries(Object.entries(JSON.parse(c.query.get("choices") ?? "{}") as Record<string, string>).map(([k, v]) => [Number(k), String(v)])); } catch { /* без выбора */ }
+    const buf = applyChoices(m.buf, m.type, choices);
     c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": buf.length,
       "content-disposition": disposition(m.name.replace(/\.(docx|xlsx)$/i, "") + ` (с метками).${m.type}`) });
     c.res.end(buf);

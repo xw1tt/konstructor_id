@@ -4,16 +4,25 @@ import type { FormSet, PrintOptions } from "@idk/shared/templates";
 import type { ActDocKind } from "@idk/shared/docs/defs";
 import { HttpError } from "../../http/router.ts";
 import { writeBook } from "../../xlsx/book.ts";
-import type { Layout } from "../../xlsx/layout.ts";
+import type { Sheet } from "../../xlsx/book.ts";
 import { actDocFileName, actDocFormFor } from "../docs.ts";
 import { buildDocDataFromBundle } from "../fromBundle.ts";
 import { aosrSheet } from "./aosr.ts";
+import { rimSheet, vdSheet, vorSheet, avkSheet, ipSheet, kjSheet } from "./sbd.ts";
+import { buildAvkData } from "../fromBundle.ts";
+import { cableDocData } from "../cableData.ts";
 
-type RenderXlsx = (b: ActBundle, o: Partial<PrintOptions>, set: FormSet) => Layout;
+type RenderXlsx = (b: ActBundle, o: Partial<PrintOptions>, set: FormSet) => Sheet;
 
 /** Excel-формы документов по наборам (те же ключи, что у ACT_DOC_RENDER). */
 export const ACT_DOC_XLSX: Partial<Record<ActDocKind, Partial<Record<FormSet, RenderXlsx>>>> = {
-  aosr: { sbd: (b, o) => aosrSheet(buildDocDataFromBundle(b, "aosr", o)) },
+  aosr: { sbd: (b, o) => aosrSheet(buildDocDataFromBundle(b, "aosr", o)).sheet },
+  rim: { sbd: (b, o) => rimSheet(buildDocDataFromBundle(b, "rim", o)).sheet },
+  vd: { sbd: (b, o) => vdSheet(buildDocDataFromBundle(b, "vd", o)).sheet },
+  vor: { sbd: (b, o) => vorSheet(buildDocDataFromBundle(b, "vor", o)).sheet },
+  avk: { sbd: (b) => avkSheet(buildAvkData(b)).sheet },
+  kj: { sbd: (b, _o, set) => kjSheet(cableDocData(b, "kj", set)) },
+  ip: { sbd: (b, _o, set) => ipSheet(cableDocData(b, "ip", set)).sheet },
 };
 
 export const xlsxName = (pdfName: string) => pdfName.replace(/\.pdf$/i, "") + ".xlsx";
@@ -23,5 +32,5 @@ export function renderActXlsx(b: ActBundle, kind: ActDocKind, options: Partial<P
   const form = actDocFormFor(kind, options);
   const render = ACT_DOC_XLSX[kind]?.[form];
   if (!render) throw new HttpError(400, "Для этого документа Excel не формируется");
-  return { xlsx: writeBook([render(b, options, set).sheet]), name: xlsxName(actDocFileName(b, kind, set, form)) };
+  return { xlsx: writeBook([render(b, options, set)]), name: xlsxName(actDocFileName(b, kind, set, form)) };
 }

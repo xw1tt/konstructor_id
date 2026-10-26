@@ -12,11 +12,18 @@ export interface CellStyle {
   wrap?: boolean;
   /** Уменьшать шрифт, если текст не помещается (строки значений, разбитые заранее). */
   shrink?: boolean;
-  /** Тонкие рамки: верх, низ, лево, право. */
-  border?: { t?: boolean; b?: boolean; l?: boolean; r?: boolean };
+  /** Рамки: верх, низ, лево, право (true — тонкая или borderStyle, «medium» — толстая). */
+  border?: { t?: Side; b?: Side; l?: Side; r?: Side };
+  /** Толщина рамок (по умолчанию тонкая). */
+  borderStyle?: "thin" | "medium";
   /** Заливка, RGB «D9D9D9». */
   fill?: string;
+  /** Шрифт (по умолчанию Times New Roman). */
+  font?: string;
+  /** Поворот текста, градусы (90 — снизу вверх). */
+  rotate?: number;
 }
+export type Side = boolean | "medium";
 export const FONT = "Times New Roman";
 export const DEFAULT_SIZE = 10;
 
@@ -50,6 +57,19 @@ export class Sheet {
     for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) this.set(r, c, r === r1 && c === c1 ? v : "", s);
     if (r1 !== r2 || c1 !== c2) this.merges.push([r1, c1, r2, c2]);
   }
+  /** Толстая рамка вокруг области (у краевых ячеек). */
+  outline(r1: number, c1: number, r2: number, c2: number) {
+    for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) {
+      if (r !== r1 && r !== r2 && c !== c1 && c !== c2) continue;
+      const cell = this.get(r, c) ?? { v: "", s: {} };
+      const b = { ...cell.s.border };
+      if (r === r1) b.t = "medium";
+      if (r === r2) b.b = "medium";
+      if (c === c1) b.l = "medium";
+      if (c === c2) b.r = "medium";
+      this.set(r, c, cell.v, { ...cell.s, border: b });
+    }
+  }
   height(r: number, pt: number) { this.heights.set(r, Math.round(pt * 4) / 4); if (r > this.maxRow) this.maxRow = r; }
   /** Разрыв страницы после строки r. */
   breakAfter(r: number) { if (r > 0 && !this.breaks.includes(r)) this.breaks.push(r); }
@@ -82,12 +102,13 @@ class Styles {
     return list.length - 1;
   }
   id(s: CellStyle): number {
-    const font = this.idx(this.fonts, `<font>${s.b ? "<b/>" : ""}${s.i ? "<i/>" : ""}${s.u ? `<u/>` : ""}<sz val="${s.size ?? DEFAULT_SIZE}"/><name val="${FONT}"/><family val="1"/><charset val="204"/></font>`);
+    const font = this.idx(this.fonts, `<font>${s.b ? "<b/>" : ""}${s.i ? "<i/>" : ""}${s.u ? `<u/>` : ""}<sz val="${s.size ?? DEFAULT_SIZE}"/><name val="${s.font ?? FONT}"/><family val="${s.font && s.font !== FONT ? 2 : 1}"/><charset val="204"/></font>`);
     const fill = s.fill ? this.idx(this.fills, `<fill><patternFill patternType="solid"><fgColor rgb="FF${s.fill}"/><bgColor indexed="64"/></patternFill></fill>`) : 0;
-    const side = (on: boolean | undefined, n: string) => (on ? `<${n} style="thin"><color indexed="64"/></${n}>` : `<${n}/>`);
+    const bs = s.borderStyle ?? "thin";
+    const side = (on: Side | undefined, n: string) => (on ? `<${n} style="${on === "medium" ? "medium" : bs}"><color indexed="64"/></${n}>` : `<${n}/>`);
     const b = s.border ?? {};
     const border = this.idx(this.borders, `<border>${side(b.l, "left")}${side(b.r, "right")}${side(b.t, "top")}${side(b.b, "bottom")}<diagonal/></border>`);
-    const al = `<alignment horizontal="${s.h ?? "left"}" vertical="${s.v ?? "bottom"}"${s.wrap ? ` wrapText="1"` : ""}${s.shrink ? ` shrinkToFit="1"` : ""}/>`;
+    const al = `<alignment horizontal="${s.h ?? "left"}" vertical="${s.v ?? "bottom"}"${s.rotate ? ` textRotation="${s.rotate}"` : ""}${s.wrap ? ` wrapText="1"` : ""}${s.shrink ? ` shrinkToFit="1"` : ""}/>`;
     return this.idx(this.xfs, `<xf numFmtId="0" fontId="${font}" fillId="${fill}" borderId="${border}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">${al}</xf>`);
   }
   xml() {

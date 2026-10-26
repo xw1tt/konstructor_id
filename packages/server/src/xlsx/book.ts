@@ -70,7 +70,8 @@ export class Sheet {
       this.set(r, c, cell.v, { ...cell.s, border: b });
     }
   }
-  height(r: number, pt: number) { this.heights.set(r, Math.round(pt * 4) / 4); if (r > this.maxRow) this.maxRow = r; }
+  /** Высота строки, пт (Excel допускает не больше 409). */
+  height(r: number, pt: number) { this.heights.set(r, Math.min(409, Math.round(pt * 4) / 4)); if (r > this.maxRow) this.maxRow = r; }
   /** Разрыв страницы после строки r. */
   breakAfter(r: number) { if (r > 0 && !this.breaks.includes(r)) this.breaks.push(r); }
 }

@@ -54,9 +54,14 @@ export function removeQuietly(dir: string) {
 
 export interface RenderedForm { pdf: Buffer; source: Buffer; warnings: string[]; via: "word" | "excel" | "html" }
 
-export async function renderForm(b: ActBundle, form: FormRef & { buf: Buffer }, doc: { code?: string; set?: FormSet } | undefined, runner: OfficeRunner): Promise<RenderedForm> {
+/** Заполненный файл своей формы (без перевода в PDF). */
+export function fillForm(b: ActBundle, form: FormRef & { buf: Buffer }, doc: { code?: string; set?: FormSet } | undefined): { buf: Buffer; warnings: string[] } {
   const data = formData(b, doc);
-  const filled = form.type === "docx" ? fillDocx(form.buf, data) : fillXlsx(form.buf, data);
+  return form.type === "docx" ? fillDocx(form.buf, data) : fillXlsx(form.buf, data);
+}
+
+export async function renderForm(b: ActBundle, form: FormRef & { buf: Buffer }, doc: { code?: string; set?: FormSet } | undefined, runner: OfficeRunner): Promise<RenderedForm> {
+  const filled = fillForm(b, form, doc);
   const warnings = [...filled.warnings];
   const dir = mkdtempSync(join(tmpdir(), "idk-form-"));
   try {

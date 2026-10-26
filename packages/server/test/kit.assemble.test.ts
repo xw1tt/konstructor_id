@@ -186,3 +186,22 @@ test("План 11: свой документ шаблона — в компле�
   const front = pages.findIndex((x) => /Сдал:.*Принял:/.test(x)) + 1;
   assert.match(pages[front + Number(m![1]) - 1], /АКТ ГИДРОИСПЫТАНИЙ .*\.АГИ/);
 });
+
+test("Excel комплекта: архив — по файлу .xlsx на каждый документ реестра (без сканов), по порядку", async () => {
+  const { openZip } = await import("@idk/server/zip/zip");
+  const s = await startTestServer();
+  const q = await request();
+  q.kit.cover = false;
+  q.kit.spine = false;
+  const r = await s.req("POST", "/api/kit-jobs", q);
+  assert.equal(r.status, 201, JSON.stringify(r.json));
+  const res = await s.raw("GET", `/api/kit-jobs/${r.json.id}/xlsx`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("content-type"), "application/zip");
+  assert.match(decodeURIComponent(res.headers.get("content-disposition") ?? ""), /^attachment;.*Реестр №1 Том 1 Часть 1 \(Excel\)\.zip/);
+  const names = [...openZip(new Uint8Array(await res.arrayBuffer())).keys()];
+  const docs = q.rows.filter((x) => x.doc);
+  assert.equal(names.length, docs.length, names.join(", "));
+  assert.ok(names.every((n, i) => n.startsWith(String(i + 1).padStart(2, "0") + " ") && n.endsWith(".xlsx")), names.join(", "));
+  assert.equal((await s.req("GET", "/api/kit-jobs/нет/xlsx")).status, 404);
+});

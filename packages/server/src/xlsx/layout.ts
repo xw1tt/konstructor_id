@@ -189,3 +189,15 @@ export const pctCols = (totalMm: number, pct: number[]) => {
 /** Сколько столбцов сетки шириной colMm занимает текст. */
 export const colsFor = (text: string, colMm: number, size = DEFAULT_SIZE, bold = false, italic = false) =>
   Math.ceil((textWidth(text, size, bold, italic) + 6) / (colMm * PT_PER_MM));
+
+/** Доли (%) → целые числа столбцов сетки n (наибольшие остатки; каждой графе — не меньше одного). */
+export function gridSpans(pct: number[], n: number): number[] {
+  const sum = pct.reduce((s, p) => s + p, 0);
+  const exact = pct.map((p) => (p * n) / sum);
+  const out = exact.map((x) => Math.max(1, Math.floor(x)));
+  let left = n - out.reduce((s, x) => s + x, 0);
+  const order = exact.map((x, i) => [x - Math.floor(x), i] as const).sort((a, b) => b[0] - a[0]);
+  for (let k = 0; left > 0; k = (k + 1) % order.length, left--) out[order[k][1]]++;
+  for (let k = order.length - 1; left < 0; k = (k - 1 + order.length) % order.length) if (out[order[k][1]] > 1) { out[order[k][1]]--; left++; }
+  return out;
+}

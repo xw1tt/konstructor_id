@@ -51,6 +51,8 @@ export function point3Lines(
  * (с настройкой schemeEach — перед каждой), строки разделяются «;» (у последней строки списка — без знака).
  */
 export function point4Lines(docs: ActDocumentInput[], opts: { schemeEach?: boolean } = {}): string[] {
+  // Документы не добавлены — «Не требуется» (а не пустая строка).
+  if (!docs.length) return ["Не требуется"];
   const sorted = [...docs].sort(byOrder);
   return sorted.map((d, i) => {
     const last = i === sorted.length - 1;

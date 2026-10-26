@@ -85,6 +85,10 @@ test("point3Lines: больше 5 материалов — ссылка на Р�
   ]);
 });
 
+test("point4Lines: нет документов — «Не требуется»", () => {
+  assert.deepEqual(point4Lines([]), ["Не требуется"]);
+});
+
 test("point4Lines: схема и прочий документ", () => {
   const docs: ActDocumentInput[] = [
     { kind: "other", number: "1", name: "Протокол проверки сопротивления изоляции", date: "2026-06-06", fileId: null, sortOrder: 2 },

@@ -49,7 +49,7 @@ export function formJobRoutes(r: Router, store: TemplateStore, runner: OfficeRun
   });
   r.get("/api/form-jobs/:id", (c) => {
     const j = get(c.params.id);
-    c.res.writeHead(200, { "content-type": "application/pdf", "content-length": j.pdf.length, "cache-control": "no-store",
+    c.res.writeHead(200, { "content-type": "application/pdf", "content-length": j.pdf.length, "cache-control": "no-store", "x-source-type": j.type,
       "content-disposition": disposition(`${j.name}.pdf`, c.query.get("download") ? "attachment" : "inline") });
     c.res.end(j.pdf);
   });

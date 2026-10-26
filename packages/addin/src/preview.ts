@@ -1,5 +1,22 @@
-// Окно предпросмотра: показывает PDF, адрес которого передан в ?src=…
+// Окно предпросмотра: показывает PDF, адрес которого передан в ?src=…, и ссылку на тот же документ в Excel (Word).
 declare const Office: any;
+
+/** Ссылка «Скачать Excel» по адресу PDF: документ печати, своя форма (тип файла формы) или комплект (архив). */
+export function editableLink(src: string, formType: string | null): { href: string; label: string } | null {
+  if (/^\/api\/print-jobs\/[^/?]+\/[^/?]+$/.test(src)) return { href: `${src}?format=xlsx`, label: "Скачать Excel" };
+  if (/^\/api\/form-jobs\/[^/?]+$/.test(src)) return { href: `${src}/source`, label: formType === "docx" ? "Скачать Word" : "Скачать Excel" };
+  if (/^\/api\/kit-jobs\/[^/?]+$/.test(src)) return { href: `${src}/xlsx`, label: "Скачать Excel (архив)" };
+  return null;
+}
+
+function showEditable(src: string, formType: string | null) {
+  const a = document.getElementById("xl") as HTMLAnchorElement | null;
+  const l = editableLink(src, formType);
+  if (!a || !l) return;
+  a.href = l.href;
+  a.textContent = l.label;
+  a.hidden = false;
+}
 
 async function show() {
   const src = new URLSearchParams(location.search).get("src") ?? "";
@@ -27,6 +44,7 @@ async function show() {
       const open = document.getElementById("open") as HTMLAnchorElement;
       open.href = src;
       open.hidden = false;
+      showEditable(src, null);
       frame.src = src;
     } catch (e) {
       msg.hidden = false;
@@ -45,6 +63,7 @@ async function show() {
     document.title = name;
     dl.href = url;
     dl.download = name;
+    showEditable(src, r.headers.get("x-source-type"));
     frame.src = url;
   } catch (e) {
     msg.hidden = false;
@@ -53,5 +72,7 @@ async function show() {
   }
 }
 
-if (typeof Office !== "undefined" && Office?.onReady) Office.onReady(() => void show());
-else void show();
+if (typeof document !== "undefined") {
+  if (typeof Office !== "undefined" && Office?.onReady) Office.onReady(() => void show());
+  else void show();
+}

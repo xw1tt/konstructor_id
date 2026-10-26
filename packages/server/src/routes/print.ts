@@ -11,6 +11,8 @@ import { DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/t
 import { protoHtml } from "../print/templates/proto.ts";
 import { isProtoKind } from "@idk/shared/protocols/defs";
 import { htmlToPdf } from "../print/browser.ts";
+import { renderActXlsx } from "../print/xlsx/index.ts";
+import { protoXlsx } from "../print/xlsx/proto.ts";
 
 /** Тело запроса печати: пакет акта и код шаблона (форма заказчика); без кода — СБД. */
 export const PrintRequest = ActBundle.extend({ template: z.string().default(DEFAULT_TEMPLATE), options: PrintOptions.default({}) });
@@ -66,6 +68,19 @@ export async function renderBundlePdf(b: ActBundle, kind: PrintKind, _template: 
   return { pdf: await htmlToPdf(html, { pageNumbers: kind === "vor" }), name };
 }
 
+/** Excel документа пакета: та же форма и те же данные, что у PDF; имя — как у PDF, с .xlsx. */
+export function renderBundleXlsx(b: ActBundle, kind: PrintKind, options: Partial<PrintOptions> = {}): { xlsx: Buffer; name: string } {
+  if (isProtoKind(kind)) {
+    if (b.proto?.kind !== kind) throw new HttpError(400, "В пакете нет данных документа " + kind);
+    return protoXlsx(b);
+  }
+  return renderActXlsx(b, kind as ActDocKind, options);
+}
+
+export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const attachment = (name: string) =>
+  `attachment; filename*=UTF-8''${encodeURIComponent(name.replace(/[\\/:*?"<>|]/g, "_")).replace(/['()*]/g, (ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase())}`;
+
 /** PDF документа пакета в ответ. */
 export async function sendBundlePdf(res: ServerResponse, b: ActBundle, kind: PrintKind, template: TemplateCode = DEFAULT_TEMPLATE,
   options: Partial<PrintOptions> = {}) {
@@ -88,6 +103,13 @@ export function printRoutes(r: Router, jobs = createPrintJobs()) {
   r.get("/api/print-jobs/:job/:doc", async (c) => {
     const j = jobs.get(c.params.job);
     if (!j) throw new HttpError(404, "Задание печати не найдено или устарело");
-    await sendBundlePdf(c.res, j.bundle, kindOf(c.params.doc), j.template, j.options);
+    const kind = kindOf(c.params.doc);
+    if (c.query.get("format") === "xlsx") {
+      const { xlsx, name } = renderBundleXlsx(j.bundle, kind, j.options);
+      c.res.writeHead(200, { "content-type": XLSX_MIME, "content-length": xlsx.length, "content-disposition": attachment(name), "cache-control": "no-store" });
+      c.res.end(xlsx);
+      return;
+    }
+    await sendBundlePdf(c.res, j.bundle, kind, j.template, j.options);
   });
 }

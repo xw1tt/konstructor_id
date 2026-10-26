@@ -87,8 +87,8 @@ test("rim: материал с несколькими документами —
   const t = text("rim");
   assert.equal(t.split(kabel).length - 1, 1);
   assert.match(html, /<tbody class="grp">/);
-  assert.match(html, /<td class="nm open">Кабель СегментКИ[^<]*<\/td>/);
-  assert.match(html, /<td class="nm cont"><\/td>/);
+  // Наименование группы — одна ячейка на все строки документов материала.
+  assert.match(html, /<td class="l" rowspan="\d+">Кабель СегментКИ[^<]*<\/td>/);
 });
 
 test("aosr: настройка «Исполнительная схема» перед каждой схемой", async () => {

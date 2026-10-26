@@ -4,7 +4,7 @@ import type { ServerResponse } from "node:http";
 import { Router, Reply, HttpError } from "../http/router.ts";
 import { PRINT_KINDS, type PrintKind } from "@idk/shared/acts/schemas";
 import type { ActDocKind } from "@idk/shared/docs/defs";
-import { renderActDoc } from "../print/docs.ts";
+import { renderActDoc, view } from "../print/docs.ts";
 import { z } from "zod";
 import { ActBundle } from "@idk/shared/workbook/bundle";
 import { DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
@@ -58,7 +58,7 @@ export async function renderBundlePdf(b: ActBundle, kind: PrintKind, _template: 
   let html: string, name: string;
   if (isProtoKind(kind)) {
     if (b.proto?.kind !== kind) throw new HttpError(400, "В пакете нет данных документа " + kind);
-    html = protoHtml(b);
+    html = protoHtml(b, view(kind, options));
     name = `${b.proto.code} №${b.proto.number}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
   } else {
     const r = renderActDoc(b, kind as ActDocKind, options);
@@ -72,7 +72,7 @@ export async function renderBundlePdf(b: ActBundle, kind: PrintKind, _template: 
 export function renderBundleXlsx(b: ActBundle, kind: PrintKind, options: Partial<PrintOptions> = {}): { xlsx: Buffer; name: string } {
   if (isProtoKind(kind)) {
     if (b.proto?.kind !== kind) throw new HttpError(400, "В пакете нет данных документа " + kind);
-    return protoXlsx(b);
+    return protoXlsx(b, view(kind, options));
   }
   return renderActXlsx(b, kind as ActDocKind, options);
 }

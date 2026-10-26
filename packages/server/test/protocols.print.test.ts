@@ -46,8 +46,8 @@ test("HTML протокола лаборатории ПАВ: шапка лабо
   assert.match(h, /Предмет: Щит ЩР-1/);
   assert.match(h, /Нормативные и технические документы[^<]*: ПУЭ, п\. 1\.8\.37 \(3\)/);
   assert.equal((h.match(/<tr class="r">/g) ?? []).length, 2);
-  assert.match(h, /<td>QF1<\/td>/);
-  assert.match(h, /<td>соответствует<\/td>/);
+  assert.match(h, /<td[^>]*>QF1<\/td>/);
+  assert.match(h, /<td[^>]*>соответствует<\/td>/);
   assert.match(h, /Перечень используемых средств измерений/);
   assert.match(h, /Руководитель электролаборатории/);
   assert.match(h, /Испытания провел/);

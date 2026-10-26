@@ -9,9 +9,9 @@ import { PRINT_KINDS } from "@idk/shared/acts/schemas";
 const B = "4/АТ-4182-03-РД3.9.15-СУДИО";
 
 test("опции по умолчанию: набор СБД, без своих форм, запас 2 %; шаблон без новых полей парсится", () => {
-  assert.deepEqual(PrintOptions.parse({}), { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2 });
+  assert.deepEqual(PrintOptions.parse({}), { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, blanks: {} });
   const old = UserTemplate.parse({ id: "t-1", name: "Старый", docs: [], print: { schemeEach: true } });
-  assert.deepEqual(old.print, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2 });
+  assert.deepEqual(old.print, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, blanks: {} });
 });
 
 test("нумерация СБД и ТИ", () => {

@@ -255,3 +255,10 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   .stamp button { min-height: 30px; padding: 4px 0; }
   .stamp button:last-child:nth-child(3n + 1), .stamp button:last-child:nth-child(3n + 2) { grid-column: auto; }
 }
+
+/* Настройка бланка в редакторе шаблонов: графа — галочка и заголовок. */
+.blank-editor { margin-top: 6px; }
+.blank-editor .setting { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0 0; }
+.blank-col { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
+.blank-col .setting-option { padding: 0; flex: 0 0 auto; }
+.blank-col input[type="text"], .blank-col input:not([type]) { flex: 1; min-width: 0; }

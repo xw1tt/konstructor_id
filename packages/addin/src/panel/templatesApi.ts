@@ -75,3 +75,12 @@ export async function applyChange(
   const copy = await api.create(`${t.name} (копия)`, t.id);
   return api.save(change({ ...copy }));
 }
+
+/** Настройки бланка документа (скрытые графы и строки, свои заголовки); пустые — бланк по умолчанию. */
+export function withBlank(t: UserTemplate, key: string, s: { hide: string[]; headers: Record<string, string> }): UserTemplate {
+  const blanks = { ...(t.print.blanks ?? {}) };
+  const headers = Object.fromEntries(Object.entries(s.headers).filter(([, v]) => v.trim()));
+  if (!s.hide.length && !Object.keys(headers).length) delete blanks[key];
+  else blanks[key] = { hide: [...new Set(s.hide)], headers };
+  return withPrint(t, { blanks });
+}

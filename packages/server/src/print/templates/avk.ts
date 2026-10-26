@@ -1,6 +1,10 @@
 // Акт входного контроля технических средств и материалов — альбомный лист, как стр. 27–28 образца «Монтаж кабеля».
 import type { AvkData } from "../data.ts";
 import { e, page } from "./common.ts";
+import { blankView, type BlankView } from "@idk/shared/blanks";
+import { htmlBlankTable, type BodyRow } from "../blankTable.ts";
+
+export const avkRowsOf = (d: AvkData): BodyRow[] => d.rows.map((r, i) => ({ cls: "row", cells: { n: i + 1, name: r.name, manufacturer: r.manufacturer, quantity: r.quantity, docs: r.docs } }));
 
 const STYLE = `<style>
 @page { size: A4 landscape; margin: 10mm 12mm 10mm 15mm; }
@@ -21,9 +25,7 @@ table.grid.avk-t td.l { text-align: left; }
 .avk-sign .cap { font-size: 6.5pt; }
 </style>`;
 
-export function avkHtml(d: AvkData): string {
-  const rows = d.rows.map((r, i) =>
-    `<tr class="row"><td class="c">${i + 1}</td><td class="l">${e(r.name)}</td><td class="c">${e(r.manufacturer)}</td><td class="c">${e(r.quantity)}</td><td class="c">${e(r.docs)}</td></tr>`).join("");
+export function avkHtml(d: AvkData, view: BlankView = blankView("avk:sbd")): string {
   const sign = (label: string, who: string) =>
     `<div class="avk-sign"><div class="who">${e(label)}: ${e(who)}</div><div class="cap">Должность/ФИО/Подпись</div></div>`;
   return page(`АВК ${d.number}`, `${STYLE}
@@ -36,10 +38,6 @@ export function avkHtml(d: AvkData): string {
     <div class="avk-rep">Представитель монтажной организации: ${e(d.contractorRep)}</div>
     <div class="avk-text">Составили настоящий акт о том, что поступившие на строительный объект следующие технические средства и материалы для зоны ${e(d.sectionName)}
       прошедшие входной контроль соответствуют технической документации. Спецификации РД, Техническим решениям авторского надзора : <u>${e(d.sectionCode)}</u></div>
-    <table class="grid avk-t">
-      <colgroup><col style="width:4%"><col style="width:30%"><col style="width:17%"><col style="width:9%"><col style="width:40%"></colgroup>
-      <thead><tr><th>п/п</th><th>Наименование оборудования, материала</th><th>Производитель</th><th>Кол-во / Единица</th><th>Номера Сертификатов, отказных писем, паспортов</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
+    ${htmlBlankTable(view, avkRowsOf(d), { cls: "avk-t" })}
     ${sign("Представитель заказчика", d.customerRep)}${sign("Представитель монтажной организации", d.contractorRep)}`, "avk");
 }

@@ -7,6 +7,13 @@ import { formatNumber } from "@idk/shared/acts/format";
 import { Sheet, type CellStyle } from "../../xlsx/book.ts";
 import { Layout, pctCols, wrapLines, type TCell } from "../../xlsx/layout.ts";
 import { fitFont } from "../templates/kj.ts";
+import { blankView, type BlankView } from "@idk/shared/blanks";
+import { xlsxBlankTable } from "../blankTable.ts";
+import { rimRowsOf } from "../templates/rim.ts";
+import { vdRowsOf } from "../templates/vd.ts";
+import { vorRowsOf } from "../templates/vor.ts";
+import { avkRowsOf } from "../templates/avk.ts";
+import { ipRowsOf } from "../templates/ip.ts";
 import { PORTRAIT } from "./aosr.ts";
 
 const W = 180;
@@ -23,35 +30,26 @@ function appendixHead(L: Layout, appx: string[], head: string[]) {
 /** Подписи как в АОСР: надпись роли, ФИО полужирным курсивом на линии. */
 const signs = (L: Layout, s: { label: string; names: string[] }[]) => { L.gap(6); L.signs(s); };
 
-export function rimSheet(d: RimData): Layout {
-  const L = new Layout(d.number || "РИМ", pctCols(W, [5, 32, 22, 19, 14, 8]), PORTRAIT);
+export function rimSheet(d: RimData, view: BlankView = blankView("rim:sbd")): Layout {
+  const L = new Layout(d.number || "РИМ", pctCols(W, view.columns.map((x) => x.width)), PORTRAIT);
   appendixHead(L, ["Приложение №2", `Приложение к акту освидетельствования скрытых работ №${d.aosrNumber}`],
     ["Реестр использованных материалов", `№${d.number}`, "Сопроводительные документы качества (паспорта, сертификаты, заключения и т.д.)"]);
-  // Наименование группы документов одного материала — одна объединённая ячейка на все её строки.
-  const body: TCell[][] = d.rows.map((r, i) => {
-    const size = d.rows.slice(i + 1).findIndex((x) => !x.cont);
-    const rowspan = size === -1 ? d.rows.length - i : size + 1;
-    const name: TCell[] = r.cont ? [] : [{ text: r.name, rowspan, style: { v: "center" } }];
-    return [c(i + 1, C), ...name, c(r.type, C), c(r.number, C), c(r.date, C), c(r.sheets, C)];
-  });
-  L.table([[{ header: "№ п/п" }, { header: "Наименование материалов" }, { header: "Тип документа" }, { header: "Номер документа" }, { header: "Дата документа" }, { header: "Кол-во листов" }], nums(6)],
-    body, { size: 9.5 });
+  xlsxBlankTable(L, view, rimRowsOf(d), { nums: true, size: 9.5 });
   signs(L, d.signs);
   return L;
 }
 
-export function vdSheet(d: VdData): Layout {
-  const L = new Layout(d.number || "ВД", pctCols(W, [6, 8, 41, 13, 13, 8, 11]), PORTRAIT);
+export function vdSheet(d: VdData, view: BlankView = blankView("vd:sbd")): Layout {
+  const L = new Layout(d.number || "ВД", pctCols(W, view.columns.map((x) => x.width)), PORTRAIT);
   appendixHead(L, ["Приложение №1", `Приложение к акту освидетельствования скрытых работ №${d.aosrNumber}`],
     ["Ведомость смонтированного оборудования, технических средств и материалов", `№${d.number}`]);
-  L.table([[{ header: "№ п/п" }, { header: "№ поз по УСР" }, { header: "Наименование оборудования, комплекта" }, { header: "Артикул" }, { header: "Завод изготовитель" }, { header: "Ед. изм." }, { header: "Кол-во" }], nums(7)],
-    d.rows.map((r, i) => [c(i + 1, C), c(r.position, C), c(r.name), c(r.article, C), c(r.manufacturer, C), c(r.unit, C), c(r.quantity, C)]), { size: 9.5 });
+  xlsxBlankTable(L, view, vdRowsOf(d), { nums: true, size: 9.5 });
   signs(L, d.signs);
   return L;
 }
 
-export function vorSheet(d: VorData): Layout {
-  const L = new Layout("ВОР", pctCols(W, [5, 55, 8, 8, 24]), { ...PORTRAIT, pageNumbers: true });
+export function vorSheet(d: VorData, view: BlankView = blankView("vor:sbd")): Layout {
+  const L = new Layout("ВОР", pctCols(W, view.columns.map((x) => x.width)), { ...PORTRAIT, pageNumbers: true });
   const S = 8;
   L.para("Объект:", { b: true, size: S });
   L.para(d.objectName, { size: S });
@@ -63,29 +61,23 @@ export function vorSheet(d: VorData): Layout {
   L.para("Объём работ составлен согласно комплектам исполнительной документации:", { size: S });
   L.para(`№ ${d.sectionCode}`, { size: S });
   L.gap(6);
-  let n = 0;
-  L.table([[{ header: "№" }, { header: "Наименование работ" }, { header: "Ед. изм." }, { header: "Объем" }, { header: "Примечания" }], nums(5)],
-    d.rows.map((r) => {
-      n++;
-      return r.kind === "group"
-        ? [c(n, C), c(r.title, { b: true, h: "center" }), c(""), c(""), c("")]
-        : [c(n, C), c(r.name), c(r.unit, C), c(r.quantity, C), c("")];
-    }), { size: S });
+  xlsxBlankTable(L, view, vorRowsOf(d), { nums: true, size: S });
   L.gap(14);
-  for (const [label, who] of [["Представитель заказчика", d.customer], ["Представитель монтажной организации", d.contractor]]) {
-    L.line([{ c1: 1, c2: 3, text: `${label}: ${who}` }, { c1: 5, c2: 5, text: "", under: true, caption: "(подпись)" }], S);
+  // Надпись — на все графы, кроме последней; линия подписи — последняя графа.
+  if (view.shown("signs")) for (const [label, who] of [["Представитель заказчика", d.customer], ["Представитель монтажной организации", d.contractor]]) {
+    L.line([{ c1: 1, c2: Math.max(1, L.cols - 2), text: `${label}: ${who}` }, { c1: L.cols, c2: L.cols, text: "", under: true, caption: "(подпись)" }], S);
     L.gap(10);
   }
   return L;
 }
 
-export function avkSheet(d: AvkData): Layout {
-  // Альбомный лист, поля 10/12/10/15 мм: 297 − 27 = 270 мм.
-  const L = new Layout(`АВК ${d.number}`, pctCols(270, [4, 30, 17, 9, 40]), { landscape: true, margins: [10, 12, 10, 15] });
+export function avkSheet(d: AvkData, view: BlankView = blankView("avk:sbd")): Layout {
+  // Альбомный лист, поля 10/12/10/15 мм: 297 − 27 = 270 мм; сетка 54 столбца по 5 мм.
+  const L = new Layout(`АВК ${d.number}`, Array(54).fill(5), { landscape: true, margins: [10, 12, 10, 15] });
   const S = 9.5;
   L.para(`Акт входного контроля, технических средств и материалов № ${d.number}`, { b: true, h: "center", size: 13 });
   L.gap(6);
-  L.line([{ c1: 1, c2: 2, text: d.city ? `Адрес : ${d.city}` : "" }, { c1: 4, c2: 5, text: `Дата составления: ${d.date}`, style: { h: "right" } }], S);
+  L.line([{ c1: 1, c2: 27, text: d.city ? `Адрес : ${d.city}` : "" }, { c1: 28, c2: 54, text: `Дата составления: ${d.date}`, style: { h: "right" } }], S);
   L.para(d.customer ? `Заказчик: ${d.customer}` : "", { h: "right", size: S });
   L.gap(6);
   L.para(`Наименование объекта: ${d.objectName}`, { size: S });
@@ -96,8 +88,7 @@ export function avkSheet(d: AvkData): Layout {
   L.gap(4);
   L.para(`Составили настоящий акт о том, что поступившие на строительный объект следующие технические средства и материалы для зоны ${d.sectionName} прошедшие входной контроль соответствуют технической документации. Спецификации РД, Техническим решениям авторского надзора : ${d.sectionCode}`, { size: S });
   L.gap(8);
-  L.table([[{ header: "п/п" }, { header: "Наименование оборудования, материала" }, { header: "Производитель" }, { header: "Кол-во / Единица" }, { header: "Номера Сертификатов, отказных писем, паспортов" }]],
-    d.rows.map((r, i) => [c(i + 1, C), c(r.name), c(r.manufacturer, C), c(r.quantity, C), c(r.docs, C)]), { size: 9 });
+  xlsxBlankTable(L, view, avkRowsOf(d), { size: 9 });
   for (const [label, who] of [["Представитель заказчика", d.customerRep], ["Представитель монтажной организации", d.contractorRep]]) {
     L.gap(10);
     L.field(`${label}: ${who}`, "", { size: S, i: false });
@@ -108,9 +99,9 @@ export function avkSheet(d: AvkData): Layout {
 
 const PAIRS = ["А-В", "В-С", "С-А", "A-N (PEN)", "B-N (PEN)", "C-N (PEN)", "A-PE", "B-PE", "C-PE", "N-PE"];
 
-export function ipSheet(d: IpData): Layout {
-  // Альбомный лист, поля 10 мм: 277 мм; 15 столбцов как в таблице результатов.
-  const L = new Layout(`Протокол ${d.number}`, pctCols(277, [4, 16, 16, 6, 6, ...PAIRS.map(() => 5.2)]), { landscape: true, margins: [10, 10, 10, 10] });
+export function ipSheet(d: IpData, view: BlankView = blankView("ip:sbd")): Layout {
+  // Альбомный лист, поля 10 мм: 277 мм; столбцы — как графы таблицы результатов (видимые по настройке бланка).
+  const L = new Layout(`Протокол ${d.number}`, pctCols(277, view.columns.map((x) => x.width)), { landscape: true, margins: [10, 10, 10, 10] });
   ipHead(L, d.lab.nameAddress, d.lab.certificate, `Заказчик: ${d.customer} Объект: ${d.object}. Проектная документация: ${d.project} Дата проведения измерений: ${d.dates}`);
   const S = 9;
   L.para(`Протокол №${d.number}`, { b: true, h: "center", size: 11 });
@@ -125,24 +116,20 @@ export function ipSheet(d: IpData): Layout {
   L.gap(4);
   L.para(`Нормативные и технические документы, на соответствие требованиям которых проведены измерения (испытания): ${d.normative}`, { b: true, size: S });
   L.para("Результаты измерений:", { b: true, size: S });
-  L.table([
-    [{ header: "№ п/п", rowspan: 2 }, { header: "Наименование линий, электрических машин по проекту, рабочее напряжение.", rowspan: 2 },
-      { header: "Марка провода, кабеля, кол-во жил сечение провода, кабеля, (мм2)", rowspan: 2 }, { header: "Напряжение мегаомметра, В", rowspan: 2 },
-      { header: "Допуст. сопрот. изоляции (Мом)", rowspan: 2 }, { header: "Сопротивление изоляции, (Мом)", span: 10 }],
-    PAIRS.map((p) => ({ header: p })),
-    nums(15),
-  ], d.rows.map((r) => [c(r.n, C), c(r.line), c(r.mark, C), c(r.voltage, C), c(r.allowed, C), ...r.values.map((v) => c(v, C))]),
-  { size: 8, minRow: 28 });
+  xlsxBlankTable(L, view, ipRowsOf(d), { nums: true, size: 8, minRow: 28 });
   L.gap(4);
   L.para(d.integrity, { size: S });
   L.para(`Заключение на соответствие требованиям НТД: ${d.conclusion}`, { size: S });
   L.gap(4);
-  L.para("Перечень используемых средств измерений.", { size: S });
-  instruments(L, d.instruments);
+  if (view.shown("instruments")) {
+    L.para("Перечень используемых средств измерений.", { size: S });
+    instruments(L, d.instruments);
+  }
   L.gap(12);
-  L.line([{ c1: 1, c2: 3, text: "Руководитель электролаборатории:" }, { c1: 4, c2: 8, text: d.lab.head }], S);
+  const half = Math.max(2, Math.floor(L.cols / 2));
+  L.line([{ c1: 1, c2: Math.max(1, Math.floor(half / 2)), text: "Руководитель электролаборатории:" }, { c1: Math.floor(half / 2) + 1, c2: half, text: d.lab.head }], S);
   L.gap(8);
-  L.line([{ c1: 1, c2: 3, text: "Испытания провел:" }, { c1: 4, c2: 8, text: d.lab.tester }], S);
+  L.line([{ c1: 1, c2: Math.max(1, Math.floor(half / 2)), text: "Испытания провел:" }, { c1: Math.floor(half / 2) + 1, c2: half, text: d.lab.tester }], S);
   return L;
 }
 

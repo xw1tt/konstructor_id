@@ -39,6 +39,7 @@ table.grid thead { display: table-header-group; }
 table.grid tr { break-inside: avoid; }
 table.grid th { font-weight: bold; text-align: center; }
 table.grid td.c, table.grid th.c { text-align: center; }
+table.grid td.l { text-align: left; }
 table.grid tr.nums td { text-align: center; font-weight: bold; }
 body.vor { font-size: 8pt; }
 body.vor .obj { margin: 6pt 0 10pt; }

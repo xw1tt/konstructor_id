@@ -1,6 +1,8 @@
 // Протокол проверки сопротивления изоляции: альбомный лист, таблица без ограничения страниц, как стр. 20–23 образца.
 import type { IpData } from "../cableData.ts";
 import { e, page } from "./common.ts";
+import { blankView, type BlankView } from "@idk/shared/blanks";
+import { htmlBlankTable, type BodyRow } from "../blankTable.ts";
 
 const STYLE = `<style>
 @page { size: A4 landscape; margin: 10mm 10mm 10mm 10mm; }
@@ -20,10 +22,11 @@ table.grid.ip-si th, table.grid.ip-si td { font-size: 7.5pt; text-align: center;
 .ip-tail { break-inside: avoid; }
 </style>`;
 
-const PAIRS = ["А-В", "В-С", "С-А", "A-N (PEN)", "B-N (PEN)", "C-N (PEN)", "A-PE", "B-PE", "C-PE", "N-PE"];
+export const ipRowsOf = (d: IpData): BodyRow[] => d.rows.map((r) => ({
+  cells: { n: r.n, line: r.line, mark: r.mark, voltage: r.voltage, allowed: r.allowed, ...Object.fromEntries(r.values.map((v, i) => [`p${i}`, v])) },
+}));
 
-export function ipHtml(d: IpData): string {
-  const rows = d.rows.map((r) => `<tr><td>${r.n}</td><td class="l">${e(r.line)}</td><td>${e(r.mark)}</td><td>${e(r.voltage)}</td><td>${e(r.allowed)}</td>${r.values.map((v) => `<td>${e(v)}</td>`).join("")}</tr>`).join("");
+export function ipHtml(d: IpData, view: BlankView = blankView("ip:sbd")): string {
   const si = d.instruments.map((i) => `<tr><td>${e(i.name)}</td><td>${e(i.type)}</td><td>${e(i.range)}</td><td>${e(i.accuracy)}</td><td>${e(i.serial)}</td><td>${e(i.certificate)}</td><td>${e(i.checkedOn)}</td><td>${e(i.nextCheck)}</td><td>${e(i.authority)}</td></tr>`).join("");
   const body = `
   <div class="ip-head">
@@ -39,28 +42,18 @@ export function ipHtml(d: IpData): string {
   <div class="ip-c cap">(приемо-сдаточные, сличительные, контрольные испытания, эксплуатационные, для целей сертификации)</div>
   <p class="ip-b" style="margin-top:6pt">Нормативные и технические документы, на соответствие требованиям которых проведены измерения (испытания): ${e(d.normative)}</p>
   <p class="ip-b" style="margin:4pt 0">Результаты измерений:</p>
-  <table class="grid ip-t">
-    <colgroup><col style="width:4%"><col style="width:16%"><col style="width:16%"><col style="width:6%"><col style="width:6%">${PAIRS.map(() => '<col style="width:5.2%">').join("")}</colgroup>
-    <thead>
-      <tr><th rowspan="2">№ п/п</th><th rowspan="2">Наименование линий, электрических машин по проекту, рабочее напряжение.</th>
-        <th rowspan="2">Марка провода, кабеля, кол-во жил сечение провода, кабеля, (мм2)</th><th rowspan="2">Напряжение мегаомметра, В</th>
-        <th rowspan="2">Допуст. сопрот. изоляции (Мом)</th><th colspan="10">Сопротивление изоляции, (Мом)</th></tr>
-      <tr>${PAIRS.map((p) => `<th>${p}</th>`).join("")}</tr>
-      <tr class="nums">${Array.from({ length: 15 }, (_, i) => `<td>${i + 1}</td>`).join("")}</tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
+  ${htmlBlankTable(view, ipRowsOf(d), { cls: "ip-t", nums: true })}
   <div class="ip-tail">
     <p>${e(d.integrity)}</p>
     <p style="margin-top:4pt">Заключение на соответствие требованиям НТД: ${e(d.conclusion)}</p>
-    <p style="margin-top:6pt">Перечень используемых средств измерений.</p>
+    ${view.shown("instruments") ? `<p style="margin-top:6pt">Перечень используемых средств измерений.</p>` : ""}
   </div>
-  <table class="grid ip-si">
+  ${view.shown("instruments") ? `<table class="grid ip-si">
     <thead><tr><th rowspan="2">Наименование СИ</th><th rowspan="2">Тип применяемого СИ</th><th rowspan="2">Диапазон измерений</th><th rowspan="2">Точность измерений</th>
       <th rowspan="2">Заводской номер</th><th rowspan="2">№ свидетельства о поверке</th><th colspan="2">Дата поверки</th><th rowspan="2">Орган государственной метрологической службы, проводивший поверку</th></tr>
       <tr><th>последней</th><th>очередной</th></tr></thead>
     <tbody>${si}</tbody>
-  </table>
+  </table>` : ""}
   <div class="ip-signs"><div>Руководитель электролаборатории:</div><div>${e(d.lab.head)}</div><div>Испытания провел:</div><div>${e(d.lab.tester)}</div></div>`;
   return page(`Протокол №${d.number}`, STYLE + body, "ip");
 }

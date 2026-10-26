@@ -2,6 +2,8 @@
 import type { TiData, TiHeader, TiSign } from "../tiData.ts";
 import type { TiJournal } from "@idk/shared/acts/cableDocs";
 import { e, page } from "./common.ts";
+import { blankView, type BlankView } from "@idk/shared/blanks";
+import { htmlBlankTable, type BodyRow } from "../blankTable.ts";
 
 export const TI_STYLE = `<style>
 body.ti { font-size: 9pt; }
@@ -37,18 +39,21 @@ export function tiHeaderHtml(h: TiHeader): string {
 export const tiSignsHtml = (signs: TiSign[]) => `<div class="ti-signs">${signs.map((s) =>
   `<div class="ti-sign"><div class="lbl">${e(s.label)}</div>${s.names.map((n) => `<div class="name">${e(n) || "&nbsp;"}</div><div class="cap">(фамилия, инициалы, подпись)</div>`).join("")}</div>`).join("")}</div>`;
 
-const nums = (n: number) => `<tr class="nums">${Array.from({ length: n }, (_, i) => `<td>${i + 1}</td>`).join("")}</tr>`;
+export const tiVdRows = (d: TiData): BodyRow[] => d.vd.map((r) => ({ cls: "row", cells: { n: r.n, name: r.name, type: r.type, quantity: r.quantity, unit: r.unit, note: "" } }));
 
-export function tiVdHtml(d: TiData): string {
-  const rows = d.vd.map((r) => `<tr class="row"><td class="c">${r.n}</td><td class="l">${e(r.name)}</td><td class="c">${e(r.type)}</td><td class="c">${e(r.quantity)}</td><td class="c">${e(r.unit)}</td><td></td></tr>`).join("");
+/** РМ: строки документов (серые), под ними материалы этих документов — наименование до конца строки. */
+export const tiRmRows = (d: TiData): BodyRow[] => d.rm.flatMap((g) => [
+  ...g.docs.map((x): BodyRow => ({ cls: "ti-doc", style: { fill: "D9D9D9" }, cells: { n: "", name: x.type, date: x.date, number: x.number } })),
+  ...g.items.map((i): BodyRow => ({ cls: "row", cells: { n: `${i.n}.`, name: { text: i.name, rest: true } } })),
+]);
+
+export const tiRpRows = (d: TiData): BodyRow[] => d.rp.map((r) => ({ cls: "row", cells: { n: r.n, type: r.type, date: r.date, number: r.number, sheets: r.sheets || "" } }));
+
+export function tiVdHtml(d: TiData, view: BlankView = blankView("vd:ti")): string {
   return page(`ВД ${d.vdNumber}`, `${TI_STYLE}${tiHeaderHtml(d.header)}
     <div class="ti-title">ВЕДОМОСТЬ № ${e(d.vdNumber)}</div>
     <div class="ti-title" style="margin-top:0">СМОНТИРОВАННОГО ЭЛЕКТРООБОРУДОВАНИЯ И МАТЕРИАЛОВ</div>
-    <table class="grid ti-t" style="margin-top:6pt">
-      <colgroup><col style="width:6%"><col style="width:42%"><col style="width:20%"><col style="width:8%"><col style="width:8%"><col style="width:16%"></colgroup>
-      <thead><tr><th>№ п/п</th><th>Наименование электрооборудования, комплекта</th><th>Тип, марка</th><th>Кол-во</th><th>Ед. изм.</th><th>Примечания</th></tr>${nums(6)}</thead>
-      <tbody>${rows}</tbody>
-    </table>${tiSignsHtml(d.signs)}`, "ti");
+    ${htmlBlankTable(view, tiVdRows(d), { cls: "ti-t", nums: true, style: "margin-top:6pt" })}${tiSignsHtml(d.signs)}`, "ti");
 }
 
 const appendixHead = (title: string, sub: string, number: string, d: TiData) =>
@@ -56,26 +61,14 @@ const appendixHead = (title: string, sub: string, number: string, d: TiData) =>
    <div class="ti-title" style="margin-top:0">№${e(number)}</div>
    <div class="ti-sub">к АОСР ${e(d.aosrNumber)} от ${e(d.actDate)}г.</div>`;
 
-export function tiRmHtml(d: TiData): string {
-  const rows = d.rm.map((g) =>
-    g.docs.map((x) => `<tr class="ti-doc"><td></td><td class="l">${e(x.type)}</td><td class="c">${e(x.date)}</td><td class="c">${e(x.number)}</td></tr>`).join("") +
-    g.items.map((i) => `<tr class="row"><td class="c">${i.n}.</td><td class="l" colspan="3">${e(i.name)}</td></tr>`).join("")).join("");
+export function tiRmHtml(d: TiData, view: BlankView = blankView("rim:ti")): string {
   return page(`РМ ${d.rmNumber}`, `${TI_STYLE}${appendixHead("РЕЕСТР", "применённых материалов", d.rmNumber, d)}
-    <table class="grid ti-t">
-      <colgroup><col style="width:6%"><col style="width:54%"><col style="width:14%"><col style="width:26%"></colgroup>
-      <thead><tr><th>№</th><th>Наименование</th><th>Дата документа</th><th>Номер документа</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>${tiSignsHtml(d.signs)}`, "ti");
+    ${htmlBlankTable(view, tiRmRows(d), { cls: "ti-t" })}${tiSignsHtml(d.signs)}`, "ti");
 }
 
-export function tiRpHtml(d: TiData): string {
-  const rows = d.rp.map((r) => `<tr class="row"><td class="c">${r.n}</td><td class="l">${e(r.type)}</td><td class="c">${e(r.date)}</td><td class="c">${e(r.number)}</td><td class="c">${r.sheets || ""}</td></tr>`).join("");
+export function tiRpHtml(d: TiData, view: BlankView = blankView("rp:ti")): string {
   return page(`РП ${d.rpNumber}`, `${TI_STYLE}${appendixHead("РЕЕСТР", "документов, подтверждающих соответствие работ", d.rpNumber, d)}
-    <table class="grid ti-t">
-      <colgroup><col style="width:6%"><col style="width:40%"><col style="width:14%"><col style="width:32%"><col style="width:8%"></colgroup>
-      <thead><tr><th>№</th><th>Наименование</th><th>Дата документа</th><th>Номер документа</th><th>Лист</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>${tiSignsHtml(d.signs)}`, "ti");
+    ${htmlBlankTable(view, tiRpRows(d), { cls: "ti-t" })}${tiSignsHtml(d.signs)}`, "ti");
 }
 
 const KJ_STYLE = `<style>
@@ -89,23 +82,24 @@ table.grid.ti-kj tr.tot td { font-weight: bold; }
 .kj-signs { break-inside: avoid; }
 </style>`;
 
-/** Кабельный журнал «ТИ»: шапка, таблица по образцу, итоги, запас, «Сдал/Принял». */
-export function tiKjHtml(d: { header: TiHeader; number: string; journal: TiJournal }): string {
-  const j = d.journal;
-  const body = j.lines.map((l) => l.kind === "group"
-    ? `<tr class="grp"><td colspan="9">${e(l.title)}</td></tr>`
-    : `<tr class="row"><td>${e(l.designation)}</td><td>${e(l.from)}</td><td>${e(l.to)}</td><td>${e(l.mark)}</td><td>${e(l.project)}</td><td>${e(l.fact)}</td><td>${e(l.tray)}</td><td>${e(l.smooth)}</td><td>${e(l.corrugated)}</td></tr>`).join("");
-  const totals = `<tr class="tot"><td colspan="3"></td><td>Итого всего</td><td></td><td></td><td>${e(j.total.tray)}</td><td>${e(j.total.smooth)}</td><td>${e(j.total.corrugated)}</td></tr>` +
-    j.byMark.map((m) => `<tr class="tot"><td colspan="3"></td><td>в т.ч. ${e(m.mark)}</td><td>${e(m.project)}</td><td>${e(m.fact)}</td><td></td><td></td><td></td></tr>`).join("") +
-    `<tr class="tot"><td colspan="3"></td><td>с учетом кф запаса ${e(j.reserve.pct)}%</td><td></td><td>${e(j.reserve.fact)}</td><td>${e(j.reserve.tray)}</td><td>${e(j.reserve.smooth)}</td><td>${e(j.reserve.corrugated)}</td></tr>`;
+/** Строки КЖ «ТИ»: кабели по группам, итоги (по настройке бланка). Подпись итога — в графе «Марка», без неё — в первой. */
+export function tiKjRows(j: TiJournal, view: BlankView): BodyRow[] {
+  const rows: BodyRow[] = j.lines.map((l) => l.kind === "group"
+    ? { full: l.title, cls: "grp", style: { b: true } }
+    : { cls: "row", cells: { designation: l.designation, from: l.from, to: l.to, mark: l.mark, project: l.project, fact: l.fact, tray: l.tray, smooth: l.smooth, corrugated: l.corrugated } });
+  const label = view.shown("mark") ? "mark" : "designation";
+  const tot = (cells: Record<string, string>): BodyRow => ({ cls: "tot", style: { b: true }, cells });
+  if (view.shown("total")) rows.push(tot({ [label]: "Итого всего", tray: j.total.tray, smooth: j.total.smooth, corrugated: j.total.corrugated }));
+  if (view.shown("byMark")) for (const m of j.byMark) rows.push(tot({ [label]: `в т.ч. ${m.mark}`, project: m.project, fact: m.fact }));
+  if (view.shown("reserve")) rows.push(tot({ [label]: `с учетом кф запаса ${j.reserve.pct}%`, fact: j.reserve.fact, tray: j.reserve.tray, smooth: j.reserve.smooth, corrugated: j.reserve.corrugated }));
+  return rows;
+}
+
+/** Кабельный журнал «ТИ»: шапка, таблица по образцу (графы — по настройке бланка), итоги, запас, «Сдал/Принял». */
+export function tiKjHtml(d: { header: TiHeader; number: string; journal: TiJournal }, view: BlankView = blankView("kj:ti")): string {
   const sign = (label: string) => `<div class="kj-sign"><div>${label}</div><div class="line"></div><div></div><div class="line"></div><div></div><div class="line"></div>
     <div></div><div></div><div></div><div class="cap">Подпись</div><div></div><div class="cap">Дата</div></div>`;
   return page(`КЖ ${d.number}`, `${TI_STYLE}${KJ_STYLE}${tiHeaderHtml(d.header)}
     <div class="ti-title" style="font-size:12pt">Кабельный журнал №${e(d.number)}</div>
-    <table class="grid ti-kj" style="margin-top:6pt">
-      <colgroup><col style="width:12%"><col style="width:10%"><col style="width:10%"><col style="width:22%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:10%"></colgroup>
-      <thead><tr><th rowspan="2">Обозначение кабеля, провода</th><th colspan="2">Трасса</th><th colspan="3">Кабель</th><th colspan="3">Способ прокладки</th></tr>
-        <tr><th>Начало</th><th>Конец</th><th>Марка</th><th>Длина по проекту, м</th><th>Длина фактическая, м</th><th>Лоток</th><th>Труба гладкая</th><th>Труба гофрированная</th></tr></thead>
-      <tbody>${body}${totals}</tbody>
-    </table><div class="kj-signs">${sign("Сдал:")}${sign("Принял:")}</div>`, "ti");
+    ${htmlBlankTable(view, tiKjRows(d.journal, view), { cls: "ti-kj", style: "margin-top:6pt" })}${view.shown("signs") ? `<div class="kj-signs">${sign("Сдал:")}${sign("Принял:")}</div>` : ""}`, "ti");
 }

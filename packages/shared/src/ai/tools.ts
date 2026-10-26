@@ -48,7 +48,9 @@ export type ExtraChange =
   | { kind: "catalog"; add: import("../catalog/model.ts").UserCatalog }
   /** План 21: несколько правок книги одним предложением (замена текста). */
   | { kind: "batch"; changes: BookChange[] }
-  | { kind: "form"; token: string; templateId: string; choices: Record<string, string>; replacements: { text: string; field: string }[] };
+  | { kind: "form"; token: string; templateId: string; choices: Record<string, string>; replacements: { text: string; field: string }[] }
+  /** Настройки печати и бланков шаблона. */
+  | import("./templateTools.ts").TemplateChange;
 export interface Proposal { id: number; change: BookChange | ExtraChange; lines: string[] }
 
 export interface ToolContext {

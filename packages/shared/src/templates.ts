@@ -2,6 +2,7 @@
 // Встроенные документы печатаются по формам СБД при любом шаблоне; свои формы — через /api/form-jobs.
 import { z } from "zod";
 import type { TableStore } from "./workbook/store.ts";
+import { BlankSettings } from "./blanks.ts";
 
 export type TemplateCode = string;
 export const DEFAULT_TEMPLATE: TemplateCode = "sbd";
@@ -26,12 +27,14 @@ export const FORM_SET_LABELS: Record<FormSet, string> = { sbd: "СБД", ti: "Т
 export const FORM_DOCS = ["vd", "rim", "kj", "registry"] as const;
 export type FormDoc = (typeof FORM_DOCS)[number];
 
-/** formSet — набор форм и нумерации; forms — форма документа вопреки набору; kjReserve — запас в КЖ «ТИ», %. */
+/** formSet — набор форм и нумерации; forms — форма документа вопреки набору; kjReserve — запас в КЖ «ТИ», %;
+ *  blanks — настройки бланков: скрытые графы и блоки, свои заголовки граф (ключ — «вид:набор», у протоколов — вид). */
 export const PrintOptions = z.object({
   schemeEach: z.boolean().default(false),
   formSet: z.enum(FORM_SETS).default("sbd"),
   forms: z.object(Object.fromEntries(FORM_DOCS.map((d) => [d, z.enum(FORM_SETS).optional()])) as Record<FormDoc, z.ZodOptional<z.ZodEnum<["sbd", "ti"]>>>).default({}),
   kjReserve: z.number().min(0).max(100).default(2),
+  blanks: z.record(BlankSettings).default({}),
 });
 export type PrintOptions = z.infer<typeof PrintOptions>;
 const OPTIONS_KEY = "idk.print";

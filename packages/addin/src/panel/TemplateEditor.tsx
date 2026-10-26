@@ -10,7 +10,9 @@ import { apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
 import type { BookState } from "./useBook.ts";
 import { UserTemplateContext } from "./templateContext.ts";
-import { createTemplate, deleteTemplate, saveTemplateDocs, uploadForm, importTemplate, applyChange, withFormSet, withDocForm, withReserve } from "./templatesApi.ts";
+import { createTemplate, deleteTemplate, saveTemplateDocs, uploadForm, importTemplate, applyChange, withFormSet, withDocForm, withReserve, withBlank } from "./templatesApi.ts";
+import { BlankEditor } from "./BlankEditor.tsx";
+import { blankKeyFor } from "@idk/shared/blanks";
 import { bundleFor } from "./print.ts";
 import { CatalogContext } from "./catalogApi.ts";
 import { CatalogPicker } from "./CatalogPicker.tsx";
@@ -203,6 +205,10 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                 )}
               </div>
             )}
+            {d.kind === "builtin" && !d.form && (() => {
+              const key = blankKeyFor(d.doc, t.print);
+              return key ? <BlankEditor blankKey={key} value={t.print.blanks?.[key] ?? null} onChange={(v) => void change((x) => withBlank(x, key, v))} /> : null;
+            })()}
             {d.kind === "builtin" && d.doc === "aosr" && (
               <fieldset className="setting" disabled={readOnly}>
                 <legend>П.4: «Исполнительная схема» перед номером схемы</legend>

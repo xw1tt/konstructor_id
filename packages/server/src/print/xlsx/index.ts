@@ -5,7 +5,7 @@ import type { ActDocKind } from "@idk/shared/docs/defs";
 import { HttpError } from "../../http/router.ts";
 import { writeBook } from "../../xlsx/book.ts";
 import type { Sheet } from "../../xlsx/book.ts";
-import { actDocFileName, actDocFormFor } from "../docs.ts";
+import { actDocFileName, actDocFormFor, view } from "../docs.ts";
 import { buildDocDataFromBundle } from "../fromBundle.ts";
 import { aosrSheet } from "./aosr.ts";
 import { rimSheet, vdSheet, vorSheet, avkSheet, ipSheet, kjSheet } from "./sbd.ts";
@@ -26,19 +26,19 @@ type RenderXlsx = (b: ActBundle, o: Partial<PrintOptions>, set: FormSet) => Shee
 /** Excel-формы документов по наборам (те же ключи, что у ACT_DOC_RENDER). */
 export const ACT_DOC_XLSX: Record<ActDocKind, Partial<Record<FormSet, RenderXlsx>>> = {
   aosr: { sbd: (b, o) => aosrSheet(buildDocDataFromBundle(b, "aosr", o)).sheet },
-  rim: { sbd: (b, o) => rimSheet(buildDocDataFromBundle(b, "rim", o)).sheet, ti: (b) => tiRmSheet(tiDocData(b)).sheet },
-  vd: { sbd: (b, o) => vdSheet(buildDocDataFromBundle(b, "vd", o)).sheet, ti: (b) => tiVdSheet(tiDocData(b)).sheet },
-  vor: { sbd: (b, o) => vorSheet(buildDocDataFromBundle(b, "vor", o)).sheet },
-  avk: { sbd: (b) => avkSheet(buildAvkData(b)).sheet },
+  rim: { sbd: (b, o) => rimSheet(buildDocDataFromBundle(b, "rim", o), view("rim:sbd", o)).sheet, ti: (b, o) => tiRmSheet(tiDocData(b), view("rim:ti", o)).sheet },
+  vd: { sbd: (b, o) => vdSheet(buildDocDataFromBundle(b, "vd", o), view("vd:sbd", o)).sheet, ti: (b, o) => tiVdSheet(tiDocData(b), view("vd:ti", o)).sheet },
+  vor: { sbd: (b, o) => vorSheet(buildDocDataFromBundle(b, "vor", o), view("vor:sbd", o)).sheet },
+  avk: { sbd: (b, o) => avkSheet(buildAvkData(b), view("avk:sbd", o)).sheet },
   kj: {
     sbd: (b, _o, set) => kjSheet(cableDocData(b, "kj", set)),
     ti: (b, o, set) => tiKjSheet({
       header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date), number: docNumberFor(b.act.baseNumber, "kj", set),
       journal: tiJournal(cables(b).rows, o.kjReserve ?? 2),
-    }).sheet,
+    }, view("kj:ti", o)).sheet,
   },
-  ip: { sbd: (b, _o, set) => ipSheet(cableDocData(b, "ip", set)).sheet },
-  rp: { ti: (b) => tiRpSheet(tiDocData(b)).sheet },
+  ip: { sbd: (b, o, set) => ipSheet(cableDocData(b, "ip", set), view("ip:sbd", o)).sheet },
+  rp: { ti: (b, o) => tiRpSheet(tiDocData(b), view("rp:ti", o)).sheet },
 };
 
 export const xlsxName = (pdfName: string) => pdfName.replace(/\.pdf$/i, "") + ".xlsx";

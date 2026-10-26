@@ -9,6 +9,8 @@ import { mergeUserCatalog } from "@idk/shared/catalog/merge";
 import type { UserCatalog } from "@idk/shared/catalog/model";
 import { apiGet, apiSend } from "../api.ts";
 import type { ToolKit } from "./assistant.ts";
+import { TEMPLATE_TOOLS, getBlanks, validateBlankProposal, validatePrintProposal } from "@idk/shared/ai/templateTools";
+import type { UserTemplate } from "@idk/shared/forms/template";
 
 export interface CatalogApi {
   user(): Promise<UserCatalog>;
@@ -147,4 +149,62 @@ export class FormKit implements ToolKit {
     this.changed();
     return async () => { this.ready = null; this.changed(); };
   }
+}
+
+// ---------- Бланки и настройки печати шаблона ----------
+
+export interface TemplateApi {
+  list(): Promise<UserTemplate[]>;
+  save(t: UserTemplate): Promise<UserTemplate>;
+  create(name: string, from?: string): Promise<UserTemplate>;
+  remove(id: string): Promise<void>;
+  /** Выбрать шаблон для книги. */
+  choose(id: string): Promise<void>;
+}
+
+/**
+ * Бланки шаблона: get_blanks — что настраивается; propose_blank / propose_print_settings → предложение; применение —
+ * сохранение настроек печати шаблона (встроенный — копия, выбранная для книги), отмена — прежние настройки.
+ */
+export function templateKit(api: TemplateApi, onChanged: () => void = () => {}): ToolKit {
+  return {
+    tools: TEMPLATE_TOOLS,
+    async exec(call: ToolCall, ctx: ToolContext) {
+      const a = call.arguments ?? {};
+      if (call.name === "get_blanks") return json(getBlanks(ctx.template, a.doc ? String(a.doc) : undefined));
+      if (call.name !== "propose_blank" && call.name !== "propose_print_settings") return null;
+      // Предложения одного ответа накапливаются: следующее строится от уже предложенных настроек.
+      const prev = [...ctx.proposals].reverse().find((p) => p.change.kind === "template" && p.change.templateId === ctx.template.id);
+      const t = prev && prev.change.kind === "template" ? { ...ctx.template, print: prev.change.after } : ctx.template;
+      const r = call.name === "propose_blank" ? validateBlankProposal(t, a) : validatePrintProposal(t, a);
+      if (!r.ok) return json({ error: r.error });
+      const change = prev && prev.change.kind === "template" ? { ...r.change, before: prev.change.before } : r.change;
+      if (prev) ctx.proposals.splice(ctx.proposals.indexOf(prev), 1);
+      const id = ctx.proposals.length + 1;
+      ctx.proposals.push({ id, change, lines: prev ? [...prev.lines.filter((l) => !l.startsWith("Шаблон «") || !l.includes("встроенный")), ...r.lines] : r.lines });
+      ctx.proposals.forEach((p, i) => { p.id = i + 1; });
+      return json({ ok: true, proposal: ctx.proposals.length, note: "Предложение будет показано пользователю; он сам решит, применять ли его." });
+    },
+    async apply(p: Proposal) {
+      if (p.change.kind !== "template") return null;
+      const c = p.change;
+      const list = await api.list();
+      const cur = list.find((x) => x.id === c.templateId);
+      if (!cur) throw new Error(`Шаблон «${c.templateName}» не найден — попросите помощника заново`);
+      if (c.copy) {
+        const copy = await api.create(`${cur.name} (копия)`, cur.id);
+        await api.save({ ...copy, print: c.after });
+        await api.choose(copy.id);
+        onChanged();
+        return async () => { await api.choose(cur.id); await api.remove(copy.id); onChanged(); };
+      }
+      await api.save({ ...cur, print: c.after });
+      onChanged();
+      return async () => {
+        const now = (await api.list()).find((x) => x.id === c.templateId);
+        if (now) await api.save({ ...now, print: c.before });
+        onChanged();
+      };
+    },
+  };
 }

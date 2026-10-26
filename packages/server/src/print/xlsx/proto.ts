@@ -5,7 +5,10 @@ import type { ProtoData } from "@idk/shared/protocols/types";
 import { formatDateShort } from "@idk/shared/acts/format";
 import { HttpError } from "../../http/router.ts";
 import { writeBook, type CellStyle } from "../../xlsx/book.ts";
-import { Layout, gridSpans, type TCell } from "../../xlsx/layout.ts";
+import { Layout } from "../../xlsx/layout.ts";
+import { blankView, type BlankView } from "@idk/shared/blanks";
+import { xlsxBlankTable } from "../blankTable.ts";
+import { protoRowsOf } from "../templates/proto.ts";
 import { protoLandscape } from "../templates/proto.ts";
 import { ipHead, instruments } from "./sbd.ts";
 
@@ -15,18 +18,8 @@ const dates = (p: ProtoData) => [formatDateShort(p.dateFrom), formatDateShort(p.
 const subtitle = (name: string) => name.replace(/^(Протокол|Акт)\s+/, "");
 const plainDate = (iso: string | null) => formatDateShort(iso).replace(/ г\.$/, "");
 
-/** Таблица результатов по описанию: «№ п/п» и графы с долями ширины. */
-function resultTable(L: Layout, p: ProtoData) {
-  const cols = PROTO_DEFS[p.kind].columns;
-  const spans = gridSpans([4, ...cols.map((c) => c.width ?? 8)], L.cols);
-  const head = [
-    [{ header: "№ п/п", span: spans[0] }, ...cols.map((c, i) => ({ header: c.header, span: spans[i + 1] }))],
-    spans.map((sp, i) => ({ header: String(i + 1), span: sp })),
-  ];
-  const body: TCell[][] = p.rows.map((r, n) => [{ text: n + 1, span: spans[0], style: C },
-    ...cols.map((c, i) => ({ text: r[c.key] ?? "", span: spans[i + 1], style: i === 0 ? {} : C }))]);
-  L.table(head, body, { size: 8.5 });
-}
+/** Таблица результатов по описанию и настройке бланка. */
+const resultTable = (L: Layout, p: ProtoData, view: BlankView) => xlsxBlankTable(L, view, protoRowsOf(p), { nums: true, size: 8.5 });
 
 /** Строка подписи: должность (надпись), линия 35 мм, ФИО 45 мм — у правого края. */
 function signRow(L: Layout, label: string, name: string) {
@@ -40,7 +33,7 @@ function signRow(L: Layout, label: string, name: string) {
   ], S);
 }
 
-export function protoSheet(b: ActBundle): Layout {
+export function protoSheet(b: ActBundle, view?: BlankView): Layout {
   const p = b.proto;
   if (!p) throw new HttpError(400, "В пакете нет данных протокола или акта");
   const landscape = protoLandscape(p);
@@ -48,6 +41,7 @@ export function protoSheet(b: ActBundle): Layout {
   const n = landscape ? 55 : 36;
   const L = new Layout(`${p.code} №${p.number}`, Array(n).fill(width / n), { landscape, margins: landscape ? [10, 10, 10, 10] : [10, 10, 10, 20] });
   const def = PROTO_DEFS[p.kind];
+  view ??= blankView(p.kind);
   const sub = () => L.para(subtitle(p.name), { b: true, h: "center", size: S });
   if (p.signer === "lab") {
     const lab = p.lab ?? { nameAddress: "", certificate: "", head: "", tester: "" };
@@ -67,11 +61,13 @@ export function protoSheet(b: ActBundle): Layout {
     if (p.subject) L.para(`Предмет: ${p.subject}`, { size: S });
     L.gap(3);
     L.para("Результаты измерений:", { b: true, size: S });
-    resultTable(L, p);
+    resultTable(L, p, view);
     L.para(`Заключение: ${p.conclusion}`, { size: S });
     L.gap(4);
-    L.para("Перечень используемых средств измерений.", { size: S });
-    instruments(L, p.instruments.map((i) => ({ ...i, checkedOn: plainDate(i.checkedOn), nextCheck: plainDate(i.nextCheck) })));
+    if (view.shown("instruments")) {
+      L.para("Перечень используемых средств измерений.", { size: S });
+      instruments(L, p.instruments.map((i) => ({ ...i, checkedOn: plainDate(i.checkedOn), nextCheck: plainDate(i.nextCheck) })));
+    }
     L.gap(6);
     signRow(L, "Руководитель электролаборатории:", lab.head);
     signRow(L, "Испытания провел:", lab.tester);
@@ -89,7 +85,7 @@ export function protoSheet(b: ActBundle): Layout {
   for (const m of p.commission) L.para(`•  ${m.role}: ${[m.position, m.org, m.name].filter(Boolean).join(" ")}`, { size: S }, 2);
   if (def.intro) L.para(def.intro, { size: S });
   L.gap(3);
-  resultTable(L, p);
+  resultTable(L, p, view);
   L.para(`Заключение: ${p.conclusion}`, { size: S });
   L.para(`Нормативы: ${p.normative}`, { size: S });
   L.gap(8);
@@ -98,7 +94,7 @@ export function protoSheet(b: ActBundle): Layout {
   return L;
 }
 
-export function protoXlsx(b: ActBundle): { xlsx: Buffer; name: string } {
-  const L = protoSheet(b);
+export function protoXlsx(b: ActBundle, view?: BlankView): { xlsx: Buffer; name: string } {
+  const L = protoSheet(b, view);
   return { xlsx: writeBook([L.sheet]), name: `${b.proto!.code} №${b.proto!.number}.xlsx`.replace(/[\\/:*?"<>|]/g, "_") };
 }

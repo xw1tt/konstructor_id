@@ -1,7 +1,7 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SectionIcon } from "./icons.tsx";
-import { catalogKit, catalogApi, FormKit } from "./kits.ts";
+import { catalogKit, catalogApi, FormKit, templateKit } from "./kits.ts";
 import { FormAttach } from "./FormAttach.tsx";
 import { NEEDED_SHEETS_SETTING, sheetPlan } from "@idk/shared/workbook/sheets";
 import { loadTemplate, saveTemplate, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
@@ -23,7 +23,7 @@ import { LibraryScreen } from "./LibraryScreen.tsx";
 import { WizardScreen } from "./WizardScreen.tsx";
 import { AssistantSession } from "./assistant.ts";
 import { aiApi } from "./aiApi.ts";
-import { listTemplates, resolveTemplate } from "./templatesApi.ts";
+import { listTemplates, resolveTemplate, saveTemplateDocs, createTemplate, deleteTemplate } from "./templatesApi.ts";
 import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
 import type { ScreenId } from "./screens.ts";
 import type { Catalog } from "@idk/shared/catalog/model";
@@ -114,7 +114,14 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const actRef = useRef<string | null>(null);
   actRef.current = state.lastAct;
   const [formKit] = useState(() => new FormKit({ templateId: () => tplRef.current, act: () => actRef.current }));
-  const [assistant] = useState(() => new AssistantSession({ store: port, chat: aiApi.chat, kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit] }));
+  // Бланки и настройки печати шаблона: применение сохраняет шаблон (встроенный — копией, выбранной для книги).
+  const chooseRef = useRef(chooseTemplate);
+  chooseRef.current = chooseTemplate;
+  const [tplKit] = useState(() => templateKit({
+    list: listTemplates, save: saveTemplateDocs, create: createTemplate, remove: deleteTemplate,
+    choose: async (id) => { chooseRef.current(id); },
+  }, () => setListTick((n) => n + 1)));
+  const [assistant] = useState(() => new AssistantSession({ store: port, chat: aiApi.chat, kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit, tplKit] }));
   const [neededOn, setNeededOn] = useState(false);
   useEffect(() => { void port.setting(NEEDED_SHEETS_SETTING).then((v) => setNeededOn(v === "1")).catch(() => undefined); }, [port]);
   const applySheets = async (on: boolean) => {

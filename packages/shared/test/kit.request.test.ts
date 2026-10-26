@@ -38,7 +38,7 @@ test("сканы — свои или найденные по номеру в и�
     r["Объект"].push({ "Поле": "Папка сканов", "Значение": "D:\\Сканы" });
     r["Организации"][0]["Логотип"] = "sbd.png";
   });
-  const { request, issues } = buildKitRequest(book, "1", defaultImportant(), "sbd", { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2 }, NOW);
+  const { request, issues } = buildKitRequest(book, "1", defaultImportant(), "sbd", { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, blanks: {} }, NOW);
   assert.deepEqual(issues, []);
   const q = KitRequest.parse(JSON.parse(JSON.stringify(request)));
   assert.equal(q.acts.length, 1);
@@ -63,7 +63,7 @@ test("сканы — свои или найденные по номеру в и�
   assert.equal(q.designer!.shortName, 'ООО "МАРКС ИНЖИНИРИНГ"');
   assert.equal(q.contractor!.shortName, 'ООО "Велесстрой"');
   assert.deepEqual(q.logos, { developer: { name: "sbd.png", link: null }, contractor: null });
-  assert.deepEqual(q.options, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2 });
+  assert.deepEqual(q.options, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, blanks: {} });
   assert.equal(q.object.contractNumber, "КУТ03-Р-СМР-36-26");
 });
 

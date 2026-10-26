@@ -5,7 +5,7 @@
            xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
            xsi:type="TaskPaneApp">
   <Id>bdd0800e-8a08-4f03-a027-e7ab802df506</Id>
-  <Version>0.22.0.0</Version>
+  <Version>0.23.0.0</Version>
   <ProviderName>Конструктор ИД</ProviderName>
   <DefaultLocale>ru-RU</DefaultLocale>
   <DisplayName DefaultValue="Конструктор ИД" />

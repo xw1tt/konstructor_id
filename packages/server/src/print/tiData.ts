@@ -23,7 +23,8 @@ export interface TiData {
   aosrNumber: string; actDate: string;
   vdNumber: string; rmNumber: string; rpNumber: string;
   vd: { n: number; name: string; type: string; quantity: string; unit: string }[];
-  rm: { type: string; date: string; number: string; items: { n: number; name: string }[] }[];
+  /** Группы РМ: документы (подряд, на один и тот же набор материалов), затем эти материалы. */
+  rm: { docs: { type: string; date: string; number: string }[]; items: { n: number; name: string }[] }[];
   rp: { n: number; type: string; date: string; number: string; sheets: number }[];
   signs: TiSign[];
 }
@@ -57,13 +58,29 @@ export function tiDocData(b: ActBundle): TiData {
       const m = mats.get(am.materialId);
       return { n: i + 1, name: m?.name ?? "", type: m?.mark || m?.article || "", quantity: formatNumber(am.quantity ?? totals.get(am.materialId) ?? null), unit: m?.unit ?? "" };
     }),
-    rm: docs.map((d) => ({
-      type: QUALITY_DOC_LABELS[d.type], date: d.issueDate ? dmy(d.issueDate) : "б/д", number: d.number.replace(/^№\s*/, ""),
-      items: ordered.filter((am) => d.materialIds.includes(am.materialId)).map((am) => ({ n: ++n, name: mats.get(am.materialId)?.name ?? "" })),
+    rm: rmGroups(docs, ordered).map((g) => ({
+      docs: g.docs.map((d) => ({ type: QUALITY_DOC_LABELS[d.type], date: d.issueDate ? dmy(d.issueDate) : "б/д", number: d.number.replace(/^№\s*/, "") })),
+      items: g.mats.map((am) => ({ n: ++n, name: mats.get(am.materialId)?.name ?? "" })),
     })),
     rp: docs.map((d, i) => ({ n: i + 1, type: QUALITY_DOC_LABELS[d.type], date: d.issueDate ? dmy(d.issueDate) : "б/д", number: d.number.replace(/^№\s*/, ""), sheets: d.sheets })),
     signs: tiSigns(b, act.date),
   };
+}
+
+/**
+ * Группы РМ: подряд идущие документы на один и тот же набор материалов акта объединяются —
+ * сначала все документы (паспорт, сертификат…), затем материал один раз.
+ */
+export function rmGroups<D extends { materialIds: number[] }, M extends { materialId: number }>(docs: D[], ordered: M[]): { docs: D[]; mats: M[] }[] {
+  const out: { docs: D[]; mats: M[]; key: string }[] = [];
+  for (const d of docs) {
+    const mats = ordered.filter((am) => d.materialIds.includes(am.materialId));
+    const key = mats.map((m) => m.materialId).join(",");
+    const last = out.at(-1);
+    if (last && last.key === key) last.docs.push(d);
+    else out.push({ docs: [d], mats, key });
+  }
+  return out.map(({ docs, mats }) => ({ docs, mats }));
 }
 
 /** Подписи пяти ролей АОСР: подпись роли и ФИО действующих на дату (пусто — строка для подписи). */

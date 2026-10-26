@@ -8,7 +8,7 @@ import { buildBundle } from "@idk/shared/workbook/bundle";
 import { PrintOptions } from "@idk/shared/templates";
 import { renderBundlePdf } from "@idk/server/routes/print";
 import { tiVdHtml, tiRmHtml, tiRpHtml } from "@idk/server/print/templates/ti";
-import { tiDocData } from "@idk/server/print/tiData";
+import { tiDocData, rmGroups } from "@idk/server/print/tiData";
 import { closeBrowser } from "@idk/server/print/browser";
 import { aov1Records, AOV1 } from "../../shared/test/fixtures/aov1Book.ts";
 import { pdfPages } from "./helpers/pdftext.ts";
@@ -43,19 +43,19 @@ test("ВД «ТИ»: шапка, номер, графы, марка (иначе 
   assert.match(h, /\(фамилия, инициалы, подпись\)/);
 });
 
-test("РМ «ТИ»: строка документа, под ней его материалы с номерами; документ без даты — «б/д»", async () => {
+test("РМ «ТИ»: строки документов, под ними их материалы с номерами; документ без даты — «б/д»", async () => {
   const b = await bundle((r) => { r["ДокументыКачества"][0]["Дата"] = null; r["ДокументыКачества"][0]["Действует до"] = null; });
   const d = tiDocData(b);
   assert.ok(d.rm.length > 0);
   assert.ok(d.rm.every((g) => g.items.length > 0));
   const nums = d.rm.flatMap((g) => g.items.map((i) => i.n));
   assert.deepEqual(nums, nums.map((_, i) => i + 1), "материалы пронумерованы подряд");
-  assert.ok(d.rm.some((g) => g.date === "б/д"));
+  assert.ok(d.rm.some((g) => g.docs.some((x) => x.date === "б/д")));
   const h = tiRmHtml(d);
   assert.match(h, /применённых материалов/);
   assert.match(h, new RegExp(`№${AOV1.replace(/\./g, "\\.")}\\.РМ`));
   assert.match(h, new RegExp(`к АОСР ${AOV1.replace(/\./g, "\\.")} от 28\\.07\\.2026г\\.`));
-  assert.equal((h.match(/class="ti-doc"/g) ?? []).length, d.rm.length);
+  assert.equal((h.match(/class="ti-doc"/g) ?? []).length, d.rm.reduce((n, g) => n + g.docs.length, 0));
 });
 
 test("РП «ТИ»: документы качества акта с листами", async () => {
@@ -108,4 +108,12 @@ test("КЖ «ТИ»: шапка, номер по набору, графы спо
   const ip = await renderBundlePdf(ipB, "ip", "ti", TI);
   assert.equal(ip.name, `${AOV1}.П.pdf`);
   assert.match((await pdfPages(ip.pdf)).join(" "), new RegExp(`Протокол №${AOV1.replace(/\./g, "\\.")}\\.П`));
+});
+
+test("РМ «ТИ»: несколько документов одного материала — сначала документы, затем материал один раз", () => {
+  const d = (id: string, m: number[]) => ({ id, materialIds: m });
+  const g = rmGroups([d("п1", [1]), d("с1", [1]), d("п2", [2]), d("общий", [1, 2])], [{ materialId: 1 }, { materialId: 2 }]);
+  assert.deepEqual(g.map((x) => [x.docs.map((y) => y.id), x.mats.map((m) => m.materialId)]), [
+    [["п1", "с1"], [1]], [["п2"], [2]], [["общий"], [1, 2]],
+  ]);
 });

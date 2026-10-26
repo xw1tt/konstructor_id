@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const nodeExe = process.argv[2];
-const version = process.argv[3] ?? "0.21.1";
+const version = process.argv[3] ?? "0.21.2";
 if (!nodeExe || !existsSync(nodeExe)) {
   console.error("Укажите путь к node.exe для Windows (Node.js 22.13 или новее).");
   process.exit(1);

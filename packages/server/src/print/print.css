@@ -20,9 +20,12 @@ p { margin: 0; }
 .block { margin-top: 3pt; break-inside: avoid; }
 /* АОСР: вторая страница всегда начинается с п.1. */
 body.aosr .p1 { break-before: page; }
-.dates { display: grid; grid-template-columns: 30mm 45mm; gap: 1pt 4pt; align-items: end; margin-left: 12mm; }
-.inline { display: flex; gap: 4pt; align-items: flex-end; }
+.dates { display: grid; grid-template-columns: 30mm 45mm; gap: 1pt 4pt; align-items: baseline; margin-left: 12mm; }
+.inline { display: flex; gap: 4pt; align-items: baseline; }
 .inline .field { flex: 0 0 auto; min-width: 25mm; }
+/* АОСР: номер, дата акта, даты работ, доп. сведения и число экземпляров — посередине линии. */
+.numdate .val, .dates .val, .inline .val { text-align: center; }
+.inline .val { padding: 0 3mm; }
 .signs { margin-top: 8pt; }
 .sign { break-inside: avoid; margin-top: 2pt; }
 .sign-name { font-weight: bold; font-style: italic; border-bottom: 0.6pt solid #000; margin-top: 5pt; }

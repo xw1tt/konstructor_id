@@ -58,7 +58,7 @@ const appendixHead = (title: string, sub: string, number: string, d: TiData) =>
 
 export function tiRmHtml(d: TiData): string {
   const rows = d.rm.map((g) =>
-    `<tr class="ti-doc"><td></td><td class="l">${e(g.type)}</td><td class="c">${e(g.date)}</td><td class="c">${e(g.number)}</td></tr>` +
+    g.docs.map((x) => `<tr class="ti-doc"><td></td><td class="l">${e(x.type)}</td><td class="c">${e(x.date)}</td><td class="c">${e(x.number)}</td></tr>`).join("") +
     g.items.map((i) => `<tr class="row"><td class="c">${i.n}.</td><td class="l" colspan="3">${e(i.name)}</td></tr>`).join("")).join("");
   return page(`РМ ${d.rmNumber}`, `${TI_STYLE}${appendixHead("РЕЕСТР", "применённых материалов", d.rmNumber, d)}
     <table class="grid ti-t">

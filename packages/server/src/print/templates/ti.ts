@@ -18,7 +18,7 @@ table.grid.ti-t tr.ti-doc td { background: #d9d9d9; }
 .ti-signs { margin-top: 10pt; }
 .ti-sign { break-inside: avoid; margin-top: 6pt; }
 .ti-sign .lbl { font-weight: bold; }
-.ti-sign .name { font-style: italic; border-bottom: 0.6pt solid #000; width: 75%; min-height: 11pt; margin-top: 3pt; }
+.ti-sign .name { font-style: italic; border-bottom: 0.6pt solid #000; min-height: 11pt; margin-top: 3pt; }
 .ti-sign .cap { font-size: 6pt; }
 </style>`;
 

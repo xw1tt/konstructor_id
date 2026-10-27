@@ -72,9 +72,47 @@ export function mergeSpec(book: Book, items: RkcItem[]): { rows: Record<string, 
  *  если вставка не удалась (лист защищён, сбой Excel), прежняя спецификация остаётся целой. */
 export async function applySpec(store: TableStore, book: Book, items: RkcItem[]): Promise<SpecDiff> {
   const { rows, diff } = mergeSpec(book, items);
+  if (await store.isVirtual?.("Спецификация")) return applySpecInPlace(store, book, rows, diff);
   const old = (book.tables["Спецификация"] ?? []).map((r) => r.row);
   const data = await store.read("Спецификация");
   if (rows.length) await store.insert("Спецификация", data?.rows.length ?? 0, rows);
   if (old.length) await store.remove("Спецификация", old);
+  return diff;
+}
+
+/**
+ * План 31: спецификация — часть «Материалов». Позиции обновляются на месте по № п/п (строки материалов не удаляются),
+ * новые — новыми строками. Наименование материала, который уже стоит в актах, ВОР или документах, не меняется:
+ * новое наименование из РКЦ дописывается в примечание.
+ */
+async function applySpecInPlace(store: TableStore, book: Book, rows: Record<string, CellValue>[], diff: SpecDiff): Promise<SpecDiff> {
+  const old = book.tables["Спецификация"] ?? [];
+  const used = new Set<string>([
+    ...(book.tables["МатериалыАктов"] ?? []).map((r) => txt(r.v.material).toLowerCase()),
+    ...(book.tables["ВОР"] ?? []).map((r) => txt(r.v.material).toLowerCase()),
+    ...(book.tables["ДокументыКачества"] ?? []).flatMap((r) => cellText(r.v.materials).split(/;\s*/).map((m) => m.trim().toLowerCase())),
+  ]);
+  const taken = new Set<BookRow>();
+  const add: Record<string, CellValue>[] = [];
+  for (const rec of rows) {
+    const n = txt(rec[H("number")] ?? null);
+    const o = old.find((r) => !taken.has(r) && (n && !isNoNumber(n) ? txt(r.v.number) === n : isNoNumber(txt(r.v.number)) && txt(r.v.name) === txt(rec[H("name")] ?? null)));
+    if (!o) { add.push(rec); continue; }
+    taken.add(o);
+    const values: Record<string, CellValue> = {};
+    for (const k of ["section", "name", "unit", "quantity", "source", "note"]) {
+      const h = H(k);
+      if (!(h in rec)) continue;
+      const a = cellText(rec[h] ?? null).trim(), b = cellText(o.v[k] ?? null).trim();
+      if (k === "quantity" ? num(rec[h] ?? null) !== num(o.v[k] ?? null) : a !== b) values[h] = rec[h];
+    }
+    if (H("name") in values && used.has(txt(o.v.name).toLowerCase())) {
+      const note = [txt((values[H("note")] ?? o.v.note) ?? null), `в РКЦ: «${txt(values[H("name")])}»`].filter(Boolean).join("; ");
+      delete values[H("name")];
+      values[H("note")] = note;
+    }
+    if (Object.keys(values).length) await store.write("Спецификация", o.row, values);
+  }
+  if (add.length) await store.insert("Спецификация", 0, add);
   return diff;
 }

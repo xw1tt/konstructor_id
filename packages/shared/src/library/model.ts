@@ -18,9 +18,12 @@ export const libKindOf = (t: TableName): LibKind | null =>
   (Object.entries(LIB_TABLE) as [LibKind, TableName][]).find(([, n]) => n === t)?.[0] ?? null;
 
 /** Столбцы объекта (строка спецификации, порядок подписей) и файлы, кроме скана документа, в библиотеку не идут. */
-const SKIP: Partial<Record<LibKind, string[]>> = { org: ["logo"], rep: ["sortOrder"], material: ["rkc"], doc: ["file"] };
+// Материал (план 31): в строке «Материалов» ещё позиция РКЦ и группы «Док.N» — в библиотеку идёт только сам материал,
+// его документы — отдельными записями (из виртуальной «ДокументыКачества»).
+const SKIP: Partial<Record<LibKind, string[]>> = { org: ["logo"], rep: ["sortOrder"], doc: ["file"] };
+const ONLY: Partial<Record<LibKind, string[]>> = { material: ["name", "mark", "article", "manufacturer", "unit"] };
 export const libColumns = (k: LibKind) =>
-  TABLES[LIB_TABLE[k]].columns.filter((c) => c.type !== "formula" && !(SKIP[k] ?? []).includes(c.key));
+  TABLES[LIB_TABLE[k]].columns.filter((c) => c.type !== "formula" && !(SKIP[k] ?? []).includes(c.key) && (!ONLY[k] || ONLY[k]!.includes(c.key)));
 
 const Cell = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 export const LibScan = z.object({ sha256: z.string().regex(/^[0-9a-f]{64}$/), name: z.string(), mime: z.string() });

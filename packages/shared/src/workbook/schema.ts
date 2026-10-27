@@ -5,7 +5,7 @@ import type { CellValue } from "./values.ts";
 import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -46,6 +46,8 @@ export interface ColumnDef {
 
 export interface TableDef {
   name: TableName; sheet: SheetName; columns: ColumnDef[];
+  /** План 31: таблицы в Excel нет — строки выводятся из единой таблицы «Материалы» (workbook/virtual.ts). */
+  virtual?: true;
   /** Повтор значения ключа допустим (один человек в нескольких ролях): нет подсветки и ошибки повтора. */
   allowDuplicates?: boolean;
 }
@@ -79,6 +81,11 @@ export const YES_NO = ["да", "нет"] as const;
 /** Источник позиции спецификации; пометка позиции, пропавшей из нового РКЦ. */
 export const SPEC_SOURCES = ["РКЦ", "вручную"] as const;
 export const SPEC_MISSING = "нет в РКЦ";
+/** Группы столбцов документов качества в строке материала. */
+export const DOC_SLOTS = [1, 2, 3] as const;
+/** Ключи столбцов документа k в «Материалах» по ключам виртуальной таблицы «ДокументыКачества». */
+export const DOC_SLOT_KEYS = { type: "type", number: "number", issueDate: "date", validUntil: "valid", sheets: "sheets", registryName: "registry", file: "file" } as const;
+export const slotKey = (k: number, docKey: keyof typeof DOC_SLOT_KEYS) => `d${k}${DOC_SLOT_KEYS[docKey]}`;
 
 const OBJECT_FIELDS_RAW = [
   { key: "name", label: "Наименование объекта", type: "text" },
@@ -152,13 +159,30 @@ export const TABLES: Record<TableName, TableDef> = {
     c("sortOrder", "Порядок", "int", { default: 1 }),
     c("actText", "Текст для акта", "longtext", { width: 40 }),
   ], { allowDuplicates: true }),
+  // План 31: одна таблица на листе «Материалы» — материал, позиция спецификации (РКЦ) и до трёх документов качества.
+  // «Спецификация» и «ДокументыКачества» ниже — виртуальные: строятся из неё (workbook/virtual.ts).
   "Материалы": t("Материалы", "Материалы", [
     c("name", "Наименование", "text", { ...imp, isKey: true, width: 60 }),
     c("mark", "Марка", "text", { width: 30 }),
     c("article", "Артикул", "text"),
     c("manufacturer", "Завод-изготовитель", "text", { ...imp, width: 24 }),
     c("unit", "Ед. изм.", "text", imp),
-    c("rkc", "№ п/п РКЦ", "ref", { ref: "Спецификация", width: 14 }),
+    c("rkc", "№ п/п РКЦ", "text", { width: 12 }),
+    c("section", "Раздел", "text", { width: 24 }),
+    c("quantity", "Кол-во по проекту", "number"),
+    c("closed", "Закрыто", "formula", { service: true, formula: "=SUMIFS(МатериалыАктов[Учёт],МатериалыАктов[Материал],[@Наименование])" }),
+    c("rest", "Остаток", "formula", { service: true, formula: '=IF([@[Кол-во по проекту]]="","",[@[Кол-во по проекту]]-[@Закрыто])' }),
+    c("source", "Источник", "enum", { values: SPEC_SOURCES, width: 10 }),
+    c("note", "Примечание", "text", { width: 24 }),
+    ...DOC_SLOTS.flatMap((k) => [
+      c(`d${k}type`, `Док.${k}: вид`, "enum", { values: QUALITY_DOC_TYPES.map((d) => QUALITY_DOC_LABELS[d]), width: 20 }),
+      c(`d${k}number`, `Док.${k}: номер`, "text", { width: 22 }),
+      c(`d${k}date`, `Док.${k}: дата`, "date"),
+      c(`d${k}valid`, `Док.${k}: действует до`, "date"),
+      c(`d${k}sheets`, `Док.${k}: листов`, "int", { width: 9 }),
+      c(`d${k}registry`, `Док.${k}: наименование для реестра`, "text", { width: 26 }),
+      c(`d${k}file`, `Док.${k}: скан`, "file", { service: true, width: 18 }),
+    ]),
   ]),
   "ДокументыКачества": t("ДокументыКачества", "Материалы", [
     c("materials", "Материалы", "refs", { ...imp, ref: "Материалы", width: 60 }),
@@ -169,7 +193,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("sheets", "Листов", "int", imp),
     c("registryName", "Наименование для реестра", "text", { width: 40 }),
     c("file", "Скан", "file", { service: true }),
-  ]),
+  ], { virtual: true }),
   "Акты": t("Акты", "База актов", [
     c("baseNumber", "Номер акта", "text", { ...imp, isKey: true, width: 24 }),
     c("date", "Дата акта", "date", imp),
@@ -214,7 +238,7 @@ export const TABLES: Record<TableName, TableDef> = {
     }),
     c("counted", "Учёт", "formula", { service: true, formula: '=IF([@[Кол-во]]="",[@[Сумма ВОР]],[@[Кол-во]])' }),
   ]),
-  "Спецификация": t("Спецификация", "Спецификация", [
+  "Спецификация": t("Спецификация", "Материалы", [
     c("number", "№ п/п", "text", { ...imp, isKey: true, width: 14 }),
     c("section", "Раздел", "text", { width: 30 }),
     c("name", "Наименование", "longtext", { ...imp, width: 60 }),
@@ -224,7 +248,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("rest", "Остаток", "formula", { service: true, formula: "=[@[Кол-во по проекту]]-[@Закрыто]" }),
     c("source", "Источник", "enum", { values: SPEC_SOURCES, default: "вручную" }),
     c("note", "Примечание", "text", { width: 30 }),
-  ]),
+  ], { virtual: true }),
   "ВОР": t("ВОР", "ВОР", [
     c("act", "Акт", "ref", { ...imp, ref: "Акты", width: 24 }),
     c("group", "Этаж / участок", "text", { ...imp, width: 16 }),
@@ -428,9 +452,8 @@ export interface SheetDef { name: SheetName; tables: TableName[]; side?: true; p
 export const SHEETS: readonly SheetDef[] = [
   { name: "Реквизиты", tables: ["Объект", "Организации", "Шифры"] },
   { name: "Представители", tables: ["Представители"] },
-  { name: "Спецификация", tables: ["Спецификация"] },
-  // План 30: справочник материалов и документы качества — на одном листе рядом.
-  { name: "Материалы", tables: ["Материалы", "ДокументыКачества"], side: true },
+  // План 31: материалы, позиции спецификации и документы качества — одна таблица.
+  { name: "Материалы", tables: ["Материалы"] },
   { name: "База актов", tables: ["Акты"] },
   { name: "Исполнительные схемы", tables: ["Схемы"] },
   // Материалы акта выбираются в карточке акта в панели; лист — служебный.

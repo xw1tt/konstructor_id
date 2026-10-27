@@ -24,8 +24,17 @@ export async function writeBook(store: TableStore, rows: BookRecords, links: Boo
       }
       continue;
     }
-    const start = await store.insert(name, t.rows.length, recs);
     const l = links[name] ?? [];
+    // Виртуальная таблица (план 31): строки документов ложатся в строки своих материалов — индексы не подряд,
+    // поэтому по одной, ссылка — по индексу, который вернула вставка.
+    if (await store.isVirtual?.(name)) {
+      for (const [i, rec] of recs.entries()) {
+        const at = await store.insert(name, t.rows.length + i, [rec]);
+        if (l[i] && Object.keys(l[i]).length) await store.write(name, at, Object.fromEntries(Object.keys(l[i]).map((h) => [h, rec[h] ?? null])), l[i]);
+      }
+      continue;
+    }
+    const start = await store.insert(name, t.rows.length, recs);
     for (let i = 0; i < l.length; i++) {
       // Значение пишется вместе со ссылкой, чтобы в ячейке осталось имя файла.
       const values = Object.fromEntries(Object.keys(l[i]).map((h) => [h, recs[i][h] ?? null]));

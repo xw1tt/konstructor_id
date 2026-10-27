@@ -1,7 +1,5 @@
 // Печать акта из книги: сборка пакета, проверка, задание печати на сервере, окно предпросмотра.
-import { TABLES, sheetOfTable, type TableName } from "@idk/shared/workbook/schema";
-
-const SIDE_LABELS: Partial<Record<TableName, string>> = { "Материалы": "справочник", "ДокументыКачества": "документы качества" };
+import { TABLES, type TableName } from "@idk/shared/workbook/schema";
 import { ACT_DOC_DEFS, isActDocKind } from "@idk/shared/docs/defs";
 import type { PrintKind } from "@idk/shared/acts/schemas";
 import { buildBundle, type ActBundle, type Issue } from "@idk/shared/workbook/bundle";
@@ -22,12 +20,34 @@ export interface IssueLine { text: string; table: TableName; row: number | null;
 /** Ошибки проверки как строки «лист, строка N, «столбец»: сообщение»; offsets — строка листа первой строки данных. */
 export function issueLines(issues: Issue[], offsets: Partial<Record<TableName, number>>): IssueLine[] {
   return issues.map((i) => {
-    // На листе с таблицами рядом (план 30) — какая из них: «Материалы (документы качества)».
-    const sheet = sheetOfTable(i.table)?.side ? `${TABLES[i.table].sheet} (${SIDE_LABELS[i.table] ?? i.table})` : TABLES[i.table].sheet;
+    const sheet = TABLES[i.table].sheet;
     const off = offsets[i.table];
     const where = i.row !== null && off !== undefined ? `${sheet}, строка ${off + i.row}` : sheet;
     return { text: `${where}, «${i.column}»: ${i.message}`, table: i.table, row: i.row, column: i.column };
   });
+}
+
+/** Порт книги — то, что нужно строкам ошибок: ячейка Excel для виртуальной таблицы и номер строки листа. */
+interface IssuePort {
+  physical(name: TableName, row: number, header: string | null): Promise<{ table: TableName; row: number; column: string | null } | null>;
+  isVirtual(name: TableName): Promise<boolean>;
+  tableSheetOffset(table: TableName): Promise<number>;
+}
+
+/**
+ * Строки ошибок с номерами строк листа. Ошибка виртуальной таблицы (план 31: документ качества, позиция РКЦ)
+ * указывает на ячейку «Материалов» — строку материала и столбец «Док.N: …», куда и ведёт переход.
+ */
+export async function sheetIssueLines(port: IssuePort, issues: Issue[]): Promise<IssueLine[]> {
+  const mapped: Issue[] = [];
+  for (const i of issues) {
+    if (!(await port.isVirtual(i.table).catch(() => false))) { mapped.push(i); continue; }
+    const p = await port.physical(i.table, i.row ?? 0, i.column).catch(() => null);
+    mapped.push(p ? { ...i, table: p.table, row: i.row === null ? null : p.row, column: p.column ?? i.column } : { ...i, table: "Материалы" });
+  }
+  const offsets: Partial<Record<TableName, number>> = {};
+  for (const t of new Set(mapped.map((i) => i.table))) offsets[t] = await port.tableSheetOffset(t).catch(() => undefined as any);
+  return issueLines(mapped, offsets);
 }
 
 export const previewJobUrl = (id: string, doc: PrintKind, origin: string) =>

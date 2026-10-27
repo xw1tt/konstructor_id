@@ -11,6 +11,7 @@ import { ServerDownContext } from "../server.tsx";
 import { SECTIONS, sectionForSheet } from "./sections.ts";
 import { useBook, type BookState } from "./useBook.ts";
 import { SheetTools } from "./SheetTools.tsx";
+import { MergeNote } from "./CreateBook.tsx";
 import { TableTools } from "./TableTools.tsx";
 import { TopBar } from "./TopBar.tsx";
 import { NormativScreen } from "./NormativScreen.tsx";
@@ -42,6 +43,8 @@ export interface PanelSlots {
 }
 
 export function Panel({ port, slots = {} }: { port: ExcelPort; slots?: PanelSlots }) {
+  // Итог переноса книги до 0.27 (план 31) — пока пользователь не закроет.
+  const [, setMergeShown] = useState(0);
   const host = port.host();
   if (host !== "ok") {
     return (
@@ -178,6 +181,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
                 ))}
               </nav>
               {(book.missing.length > 0 || state.outdated) && slots.create?.(state, book.missing, flow)}
+              {port.lastMerge && <MergeNote merge={port.lastMerge} onClose={() => { port.lastMerge = null; setMergeShown((n) => n + 1); }} />}
               <main className="content">
                 {/* Мастер первого акта (план 17): в книге без актов и на листе «База актов». */}
                 {((book.tables["Акты"]?.length ?? 0) === 0 || selection?.sheet === "База актов") && !book.missing.includes("Акты") && (

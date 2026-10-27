@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import { TABLES, SHEETS, SCHEMA_VERSION, SPEC_SOURCES, SPEC_MISSING, TABLE_NAMES, keyColumn, column } from "@idk/shared/workbook/schema";
 import { missingColumns } from "../../addin/src/book/layout.ts";
 
-test("таблица «Спецификация», версия схемы 6", () => {
-  assert.ok(SCHEMA_VERSION >= 6);
+test("таблица «Спецификация» — виртуальная, из «Материалов» (план 31)", () => {
+  assert.ok(SCHEMA_VERSION >= 13);
+  assert.equal(TABLES["Спецификация"].virtual, true);
+  assert.equal(TABLES["Спецификация"].sheet, "Материалы");
   assert.deepEqual(TABLES["Спецификация"].columns.map((c) => c.header), [
     "№ п/п", "Раздел", "Наименование", "Ед. изм.", "Кол-во по проекту", "Закрыто", "Остаток", "Источник", "Примечание",
   ]);
@@ -22,13 +24,15 @@ test("таблица «Спецификация», версия схемы 6", (
   assert.deepEqual(column("Спецификация", "source").values, ["РКЦ", "вручную"]);
   assert.equal(column("Спецификация", "source").default, "вручную");
   assert.equal(SPEC_MISSING, "нет в РКЦ");
-  assert.ok(SHEETS.some((s) => s.name === "Спецификация" && s.tables.includes("Спецификация")));
+  assert.ok(!SHEETS.some((s) => s.name === "Спецификация" || s.tables.includes("Спецификация")));
+  assert.deepEqual(TABLES["Материалы"].columns.slice(5, 12).map((c) => c.header),
+    ["№ п/п РКЦ", "Раздел", "Кол-во по проекту", "Закрыто", "Остаток", "Источник", "Примечание"]);
 });
 
 test("№ п/п РКЦ в «Материалах» и формулы «Материалов в актах»", () => {
   const m = column("Материалы", "rkc");
   assert.equal(m.header, "№ п/п РКЦ");
-  assert.equal(m.ref, "Спецификация");
+  assert.equal(m.ref, undefined);
   assert.ok(!m.important);
   const cols = TABLES["МатериалыАктов"].columns;
   assert.deepEqual(cols.slice(-2).map((c) => c.key), ["rkc", "counted"]);
@@ -45,7 +49,7 @@ test("формулы без функций, которых нет в Excel 2019"
 
 test("обновление разметки v5 → v6 дописывает новые столбцы", () => {
   const v5Mat = ["Наименование", "Марка", "Артикул", "Завод-изготовитель", "Ед. изм."];
-  assert.deepEqual(missingColumns("Материалы", v5Mat).map((c) => c.header), ["№ п/п РКЦ"]);
+  assert.deepEqual(missingColumns("Материалы", v5Mat).map((c) => c.header).slice(0, 2), ["№ п/п РКЦ", "Раздел"]);
   const v5Am = ["Акт", "Материал", "№ поз. по УСР", "Кол-во", "Сумма ВОР"];
   assert.deepEqual(missingColumns("МатериалыАктов", v5Am).map((c) => c.header), ["№ п/п РКЦ", "Учёт"]);
 });

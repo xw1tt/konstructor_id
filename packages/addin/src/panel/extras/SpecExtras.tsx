@@ -14,7 +14,7 @@ import { diffText, positionLines, matchLine } from "../spec.ts";
 type Note = { text: string; error?: boolean } | null;
 interface Parsed { sheet: string; items: RkcItem[]; warnings: string[] }
 
-/** Раздел «Спецификация»: загрузка РКЦ и лист «Закрытие по актам». */
+/** Экран «Материалы»: загрузка РКЦ (позиции — в строки материалов, план 31) и лист «Закрытие по актам». */
 export function SpecExtras({ port, state }: { port: ExcelPort; state: BookState }) {
   const guard = useGuard();
   const [upload, setUpload] = useState<{ id: string; sheets: string[]; sheet: string } | null>(null);
@@ -78,8 +78,8 @@ export function SpecExtras({ port, state }: { port: ExcelPort; state: BookState 
   return (
     <div className="extras">
       <h3 className="tools-title">Спецификация проекта</h3>
-      <p className="muted">Позиции из расчёта коммерческой стоимости (РКЦ) или вручную. «Закрыто» считается по «Материалам в актах»
-        через «№ п/п РКЦ» материала.</p>
+      <p className="muted">Позиция РКЦ — столбцы «№ п/п РКЦ», «Раздел», «Кол-во по проекту» строки материала. Несколько материалов
+        одной позиции — один № п/п; «Закрыто» позиции — сумма по ним из «Материалов в актах» (в карточке материала).</p>
       <div className="row-actions">
         <label className="btn">
           {busy && !parsed ? "Загружаю…" : "Загрузить из РКЦ"}
@@ -105,7 +105,8 @@ export function SpecExtras({ port, state }: { port: ExcelPort; state: BookState 
           <p>Лист «{parsed.sheet}»: позиций {parsed.items.length}. {diffText(preview)}</p>
           {preview.changed.length > 0 && <p className="muted">Изменены: {preview.changed.map((c) => `${c.number} (${c.fields.join(", ")})`).join("; ")}</p>}
           {parsed.warnings.length > 0 && <ul className="list warn">{parsed.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
-          <p className="muted">Строки «вручную» и привязки материалов не меняются; пропавшие из РКЦ позиции останутся с пометкой.</p>
+          <p className="muted">Материалы не удаляются и не переименовываются (новое наименование из РКЦ — в «Примечании»); новые позиции —
+            новыми строками; пропавшие из РКЦ — с пометкой.</p>
           <div className="row-actions">
             <button className="btn btn-primary" disabled={busy} onClick={() => void apply()}>Применить</button>
             <button className="btn" onClick={() => setParsed(null)}>Отмена</button>

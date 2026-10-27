@@ -35,7 +35,7 @@ test("скрываются листы без нужных таблиц и без
   for (const s of ["ВОР", "Кабельный журнал", "Изоляция", "Протоколы и акты", "Замеры электрики", "Барабаны и трубы", "Замеры СКС и ВОЛС"])
     assert.ok(p.hidden.includes(s as any), s);
   for (const s of ["Реквизиты", "База актов", "Материалы", "Реестр ИД", "Исполнительные схемы"]) assert.ok(p.visible.includes(s as any), s);
-  for (const s of ["Спецификация", "ОЖР Раздел 3", "ОЖР Раздел 5"]) assert.ok(p.hidden.includes(s as any), s);
+  for (const s of ["ОЖР Раздел 3", "ОЖР Раздел 5"]) assert.ok(p.hidden.includes(s as any), s);
   // Только «РИМ» — без схем; строки-примеры новой книги лист не держат.
   const rimOnly = sheetPlan(tpl([{ kind: "builtin", doc: "rim", form: null }]), await readBook(new MemoryWorkbook({ "Схемы": [{ "Акт": "Пример: 1" }] } as any)), true);
   assert.ok(rimOnly.hidden.includes("Исполнительные схемы"));

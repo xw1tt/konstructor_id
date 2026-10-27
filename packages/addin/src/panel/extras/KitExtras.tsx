@@ -8,7 +8,7 @@ import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../templateContext.ts";
-import { issueLines, printAct, printForm, type IssueLine } from "../print.ts";
+import { sheetIssueLines, printAct, printForm, type IssueLine } from "../print.ts";
 import { templateButtons, type TemplateButton } from "../templatesApi.ts";
 import type { PrintKind } from "@idk/shared/acts/schemas";
 import { assembleKit, assembleCommonRegistry, kitIssueLines, kitRegistryCount, kitsWithRegistry, previewUrl } from "../kit.ts";
@@ -44,9 +44,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
   const shortage: { act: string | null; label: string; status: Status }[] = catalog ? kitShortage(tpl, catalog, state.book, kit) : [];
 
   const showIssues = async (issues: Issue[]) => {
-    const offsets: Partial<Record<TableName, number>> = {};
-    for (const t of new Set(issues.map((i) => i.table))) offsets[t] = await port.tableSheetOffset(t).catch(() => undefined as any);
-    setLines(issueLines(issues, offsets));
+    setLines(await sheetIssueLines(port, issues));
   };
 
   const fill = async () => {

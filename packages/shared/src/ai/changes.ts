@@ -1,6 +1,6 @@
 // План 19: правки книги, предложенные помощником, — проверка, описание «было → стало», применение и отмена.
 // Строки для модели и пользователя нумеруются с 1 (как строки таблицы), внутри — индекс строки данных с 0.
-import { TABLES, TABLE_NAMES, columnByHeader, type ColumnDef, type TableName } from "../workbook/schema.ts";
+import { TABLES, TABLE_NAMES, columnByHeader, column, type ColumnDef, type TableName } from "../workbook/schema.ts";
 import { cellText, isoToExcelSerial, parseDateCell, parseNumberCell, type CellValue } from "../workbook/values.ts";
 import type { Book } from "../workbook/records.ts";
 import type { TableStore } from "../workbook/store.ts";
@@ -124,8 +124,16 @@ export function describeChange(book: Book, c: BookChange): string[] {
 type UndoOp =
   | { kind: "write"; table: TableName; row: number; values: Record<string, CellValue> }
   | { kind: "reinsert"; table: TableName; at: number; values: Record<string, CellValue>; links: Record<string, string | null> }
+  /** План 31: добавленные строки виртуальной таблицы — по значениям (индексы документов не постоянны). */
+  | { kind: "removeMatch"; table: TableName; match: Record<string, CellValue>[] }
   | { kind: "remove"; table: TableName; rows: number[] };
 export interface Undo { ops: UndoOp[] }
+
+/** Ключ строки виртуальной таблицы для отмены: документ — вид и номер, позиция — № п/п. */
+function matchOf(table: TableName, r: Record<string, CellValue>): Record<string, CellValue> {
+  const keys = table === "Спецификация" ? ["number"] : ["type", "number"];
+  return Object.fromEntries(keys.map((k) => column(table, k).header).map((h) => [h, r[h] ?? null]));
+}
 
 /** Применяет правки: изменения ячеек → удаления (с конца) → добавления в конец таблицы. Возвращает отмену. */
 export async function applyChanges(store: TableStore, changes: BookChange[]): Promise<Undo> {
@@ -153,6 +161,11 @@ export async function applyChanges(store: TableStore, changes: BookChange[]): Pr
   for (const c of changes.filter((x): x is Extract<BookChange, { kind: "add" }> => x.kind === "add")) {
     const t = await store.read(c.table);
     if (!t) throw new Error(`В книге нет таблицы «${c.table}»`);
+    if (await store.isVirtual?.(c.table)) {
+      for (const r of c.rows) await store.insert(c.table, t.rows.length, [r]);
+      ops.push({ kind: "removeMatch", table: c.table, match: c.rows.map((r) => matchOf(c.table, r)) });
+      continue;
+    }
     const first = await store.insert(c.table, t.rows.length, c.rows);
     ops.push({ kind: "remove", table: c.table, rows: c.rows.map((_, i) => first + i) });
   }
@@ -163,6 +176,13 @@ export async function applyChanges(store: TableStore, changes: BookChange[]): Pr
 export async function undoChanges(store: TableStore, undo: Undo): Promise<void> {
   const ops = [...undo.ops].reverse();
   for (const op of ops.filter((o) => o.kind === "remove")) await store.remove(op.table, (op as { rows: number[] }).rows);
+  for (const op of ops.filter((o): o is Extract<UndoOp, { kind: "removeMatch" }> => o.kind === "removeMatch")) {
+    const t = await store.read(op.table);
+    if (!t) continue;
+    const eq = (a: CellValue | undefined, b: CellValue) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
+    const rows = t.rows.map((r, i) => (op.match.some((m) => Object.entries(m).every(([h, v]) => eq(r[t.headers.indexOf(h)], v))) ? i : -1)).filter((i) => i >= 0);
+    if (rows.length) await store.remove(op.table, rows);
+  }
   const re = ops.filter((o): o is Extract<UndoOp, { kind: "reinsert" }> => o.kind === "reinsert").sort((a, b) => a.at - b.at);
   for (const op of re) {
     const at = await store.insert(op.table, op.at, [op.values]);

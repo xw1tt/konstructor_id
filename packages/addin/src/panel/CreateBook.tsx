@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
 import { writeBook } from "@idk/shared/workbook/write";
 import { loadImportant } from "@idk/shared/workbook/important";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { ExcelPort, MergeReport } from "../book/excelPort.ts";
 import type { BookState } from "./useBook.ts";
 import type { CreateFlow } from "./Panel.tsx";
 import { exampleRows } from "@idk/shared/workbook/examples";
@@ -50,6 +50,8 @@ export function CreateBook({ port, state, missing, full, flow }: {
         <p>{missing.length ? <>В книге нет таблиц: {missing.join(", ")}. Книга прежней версии или таблица удалена — обновите разметку</>
           : <>Книга размечена прежней версией программы — обновите разметку</>}: программа добавит недостающие листы, таблицы,
           столбцы и значения списков, данные не изменятся.</p>
+        <p className="muted">Книга до версии 0.27: листы «Спецификация» и «Документы качества» сводятся в одну таблицу «Материалы» —
+          позиция РКЦ и до трёх документов качества в строке материала. Старые таблицы сохраняются на скрытом листе-архиве.</p>
         <button className="btn" disabled={step.kind === "busy"} onClick={() => void create()}>Обновить разметку</button>
         {error && <p className="error">{error}</p>}
       </div>
@@ -60,12 +62,29 @@ export function CreateBook({ port, state, missing, full, flow }: {
     <main className="content">
       <h2 className="app-title">Книга объекта</h2>
       <p>В этой книге ещё нет листов конструктора. Программа создаст листы «Реквизиты», «Представители», «Материалы»
-        (справочник и документы качества рядом), «База актов», «Исполнительные схемы», «ВОР», «Кабельный журнал», «Изоляция»,
+        (материал, позиция РКЦ и документы качества — в одной строке), «База актов», «Исполнительные схемы», «ВОР», «Кабельный журнал», «Изоляция»,
         «Комплекты», «Реестр ИД». В каждой таблице будет строка-пример, а при выделении ячейки — подсказка, что в неё вносить.</p>
       {step.kind === "idle" && <button className="btn btn-primary" onClick={() => void create()}>Создать книгу объекта</button>}
       {step.kind === "busy" && <p className="notice">{step.text}</p>}
       {step.kind === "done" && <p className="notice">{step.text}</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </main>
+  );
+}
+
+/** Итог переноса книги прежней версии (план 31): что сведено и что не поместилось. */
+export function MergeNote({ merge, onClose }: { merge: MergeReport; onClose: () => void }) {
+  return (
+    <div className="banner" role="status">
+      <p>Разметка обновлена: документы качества ({merge.docs}) и позиции спецификации ({merge.positions}) перенесены в таблицу «Материалы».
+        Прежние таблицы — на скрытом листе «{merge.backup}».</p>
+      {merge.problems.length > 0 && (
+        <>
+          <p className="warn">Не перенесено — внесите вручную (данные есть в архиве):</p>
+          <ul className="list warn">{merge.problems.map((p) => <li key={p}>{p}</li>)}</ul>
+        </>
+      )}
+      <button className="btn" onClick={onClose}>Понятно</button>
+    </div>
   );
 }

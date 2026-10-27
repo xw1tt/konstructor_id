@@ -44,7 +44,7 @@ test("ошибки проверки — понятные строки с ном�
     { table: "Акты", row: null, column: "Номер акта", message: "Акт «X» не найден на листе «База актов»" },
   ], { "ДокументыКачества": 5 });
   assert.deepEqual(lines.map((l) => l.text), [
-    "Материалы (документы качества), строка 8, «Дата»: Не заполнено",
+    "Материалы, строка 8, «Дата»: Не заполнено",
     "База актов, «Номер акта»: Акт «X» не найден на листе «База актов»",
   ]);
 });
@@ -59,4 +59,15 @@ test("несколько новых актов — номера по поряд�
   const list = newRowsDefaults("Акты", await readBook(aov1Book()), 3, "2026-10-16");
   assert.deepEqual(list.map((d) => d["Номер акта"]), ["К32.В.СТ.АОВ1.01.00.2", "К32.В.СТ.АОВ1.01.00.3", "К32.В.СТ.АОВ1.01.00.4"]);
   assert.equal(newRowsDefaults("Материалы", await readBook(aov1Book()), 2, "2026-10-16").length, 2);
+});
+
+test("ошибка документа качества (план 31) — на ячейку «Док.N» строки материала", async () => {
+  const { sheetIssueLines } = await import("@idk/addin/panel/print");
+  const port = {
+    isVirtual: async (t: string) => t === "ДокументыКачества",
+    physical: async (_t: string, row: number, header: string | null) => ({ table: "Материалы" as const, row: row + 2, column: header === "Дата" ? "Док.2: дата" : header }),
+    tableSheetOffset: async () => 5,
+  };
+  const lines = await sheetIssueLines(port as any, [{ table: "ДокументыКачества", row: 1, column: "Дата", message: "Не заполнено" }] as any);
+  assert.deepEqual(lines.map((l) => [l.text, l.table, l.row, l.column]), [["Материалы, строка 8, «Док.2: дата»: Не заполнено", "Материалы", 3, "Док.2: дата"]]);
 });

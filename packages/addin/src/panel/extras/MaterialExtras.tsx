@@ -1,8 +1,10 @@
-// Дополнение карточки материала (план 30): его документы качества — добавить прямо здесь (вид, номер, даты, листы,
-// скан), привязать общий сертификат, отвязать; таблица документов стоит рядом на том же листе «Материалы».
+// Дополнение карточки материала: его документы качества — добавить прямо здесь (вид, номер, даты, листы, скан),
+// привязать общий сертификат, отвязать. План 31: документ — группа столбцов «Док.1…3» строки материала; общий
+// сертификат — те же вид и номер в строках нескольких материалов.
 import { useState } from "react";
 import { cellText, isoToExcelSerial } from "@idk/shared/workbook/values";
 import { QUALITY_DOC_LABELS, QUALITY_DOC_TYPES } from "@idk/shared/roles";
+import { DOC_SLOTS } from "@idk/shared/workbook/schema";
 import { newQualityDoc, docMaterials } from "@idk/shared/acts/actMaterials";
 import type { ExcelPort } from "../../book/excelPort.ts";
 import type { BookState } from "../useBook.ts";
@@ -37,7 +39,7 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
     });
     if (await port.isFiltered("ДокументыКачества")) await port.clearFilters("ДокументыКачества");
     const t = await port.read("ДокументыКачества");
-    if (!t) throw new Error("Таблица «ДокументыКачества» не найдена — нажмите «Обновить разметку»");
+    if (!t) throw new Error("Таблица «Материалы» не найдена — нажмите «Обновить разметку»");
     const row = await port.insert("ДокументыКачества", t.rows.length, [values]);
     if (form.scan) {
       const f = await apiUpload(form.scan, form.scan.name);
@@ -46,33 +48,35 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
     setForm(null);
   });
 
-  /** Привязать документ (общий сертификат) к материалу или отвязать. Последний материал документа не отвязывается. */
+  /** Привязать документ (общий сертификат) к материалу или отвязать; отвязать от единственного материала — удалить. */
   const toggle = (row: number, on: boolean) => run(async () => {
     const r = (state.book!.tables["ДокументыКачества"] ?? []).find((x) => x.row === row);
     if (!r) return;
     const next = docMaterials(r.v.materials ?? null, name, on);
-    if (!next) throw new Error("Это единственный материал документа — удалите строку документа на листе, если он не нужен");
-    await port.write("ДокументыКачества", row, { "Материалы": next });
+    if (!next) await port.remove("ДокументыКачества", [row]);
+    else await port.write("ДокументыКачества", row, { "Материалы": next });
     setLink(false);
   });
+  const only = (d: (typeof docs)[number]) => docMaterials(d.v.materials ?? null, name, false) === "";
 
   const label = (r: (typeof docs)[number]) => `${cellText(r.v.type) || "—"} ${cellText(r.v.number)}`.trim();
   return (
     <div className="extras">
-      <h3 className="tools-title">Документы качества ({docs.length})</h3>
+      <h3 className="tools-title">Документы качества ({docs.length} из {DOC_SLOTS.length})</h3>
       <ul className="list">
         {docs.map((d) => (
           <li key={d.row} className="mat-doc">
             <button className="link" onClick={() => void port.selectCell("ДокументыКачества", d.row, "Номер")}>{label(d)}</button>
             {d.link["file"] ? <span className="muted"> · скан</span> : <span className="warn"> · нет скана</span>}
-            <button className="btn btn-small" disabled={busy} title="Убрать этот материал из документа" onClick={() => void toggle(d.row, false)}>Отвязать</button>
+            <button className="btn btn-small" disabled={busy} title={only(d) ? "Очистить столбцы документа в строке материала" : "Убрать этот материал из документа"}
+              onClick={() => void toggle(d.row, false)}>{only(d) ? "Удалить" : "Отвязать"}</button>
           </li>
         ))}
       </ul>
       {!form && (
         <div className="row-actions">
-          <button className="btn" disabled={busy} onClick={() => setForm(empty())}>Новый документ…</button>
-          <button className="btn" disabled={busy || !others.length} onClick={() => setLink(!link)} title="Общий сертификат на несколько материалов">Привязать имеющийся{link ? " ▴" : " ▾"}</button>
+          <button className="btn" disabled={busy || docs.length >= DOC_SLOTS.length} title={docs.length >= DOC_SLOTS.length ? `У материала уже ${DOC_SLOTS.length} документа` : undefined} onClick={() => setForm(empty())}>Новый документ…</button>
+          <button className="btn" disabled={busy || !others.length || docs.length >= DOC_SLOTS.length} onClick={() => setLink(!link)} title="Общий сертификат на несколько материалов">Привязать имеющийся{link ? " ▴" : " ▾"}</button>
         </div>
       )}
       {link && !form && (

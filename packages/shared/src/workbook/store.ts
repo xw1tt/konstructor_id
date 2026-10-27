@@ -19,6 +19,8 @@ export interface TableStore {
   /** Вставляет строки; возвращает индекс первой вставленной (в Excel пустая единственная строка таблицы занимается). */
   insert(name: TableName, at: number, rows: Record<string, CellValue>[]): Promise<number>;
   remove(name: TableName, rows: number[]): Promise<void>;
+  /** План 31: таблица выводится из «Материалов» (нет своей таблицы в Excel). */
+  isVirtual?(name: TableName): Promise<boolean>;
   setting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
   /** Отчётный лист (не умная таблица): создаётся или перезаписывается целиком. */

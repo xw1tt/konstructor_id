@@ -181,6 +181,7 @@ function sheetApi(wb: FakeWorkbook, s: FakeSheet): any {
       },
     },
     getRangeByIndexes: (r: number, c: number, nr: number, nc: number) => range(wb, s, r, c, nr, nc),
+    getRange: () => { const u = s.used(); return u ? range(wb, s, 0, 0, u.r2 + 1, u.c2 + 1) : range(wb, s, 0, 0, 1, 1); },
     getCell: (r: number, c: number) => range(wb, s, r, c, 1, 1),
     getUsedRangeOrNullObject: () => {
       const u = s.used();

@@ -92,7 +92,7 @@ export function CardArea({ port, state }: { port: ExcelPort; state: BookState })
       )}
       {message && <p className="muted" role="status">{message}</p>}
       {section?.id === "ojr" && <OjrExtras port={port} state={state} />}
-      {section?.id === "spec" && <SpecExtras port={port} state={state} />}
+      {s?.sheet === "Материалы" && <SpecExtras port={port} state={state} />}
       {s?.sheet === "Материалы" && <SpecMatchTool port={port} state={state} />}
       <RowCard port={port} state={state} onRename={(p) => setPending(p)} />
     </>
@@ -167,7 +167,9 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
         })}
       </div>
       {table === "Материалы" && <MaterialExtras port={port} state={state} name={cellText(valueOf(colOf("Материалы", "name").header))} />}
-      {table === "Спецификация" && <SpecPositionCard state={state} number={cellText(valueOf(colOf("Спецификация", "number").header))} />}
+      {table === "Материалы" && cellText(valueOf(colOf("Материалы", "rkc").header)) && (
+        <SpecPositionCard state={state} number={cellText(valueOf(colOf("Материалы", "rkc").header))} />
+      )}
       {table === "МатериалыАктов" && <SpecPositionCard state={state} material={cellText(valueOf(colOf("МатериалыАктов", "material").header))} />}
       {table === "Акты" && <ActExtras port={port} state={state} act={cellText(valueOf(colOf("Акты", "baseNumber").header))} />}
       {table === "КабельныйЖурнал" && <CableExtras port={port} state={state} act={cellText(valueOf(colOf("КабельныйЖурнал", "act").header))} />}

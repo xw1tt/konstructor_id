@@ -8,7 +8,7 @@ import type { BookState } from "../useBook.ts";
 import { actSummary } from "./summaries.ts";
 import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../templateContext.ts";
 import { templateButtons, type TemplateButton } from "../templatesApi.ts";
-import { issueLines, printAct, printForm, type IssueLine } from "../print.ts";
+import { sheetIssueLines, printAct, printForm, type IssueLine } from "../print.ts";
 import { IssueList } from "./IssueList.tsx";
 import { Completeness } from "./Completeness.tsx";
 import { ActMaterials } from "./ActMaterials.tsx";
@@ -47,10 +47,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
       issues = await guard(printAct(state.book!, act, state.important, b.doc as PrintKind, template, options), setError);
     }
     if (issues?.length) {
-      const tables = [...new Set(issues.map((i) => i.table))];
-      const offsets: Partial<Record<TableName, number>> = {};
-      for (const t of tables) offsets[t] = await port.tableSheetOffset(t).catch(() => undefined as any);
-      setLines(issueLines(issues, offsets));
+      setLines(await sheetIssueLines(port, issues));
     }
     setBusy(null);
   };

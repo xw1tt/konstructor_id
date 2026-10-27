@@ -493,4 +493,4 @@ export const columnByHeader = (t: TableName, header: string): ColumnDef | undefi
   TABLES[t].columns.find((c) => c.header === header);
 
 /** Лист таблицы по SHEETS. */
-export const sheetOfTable = (t: TableName): SheetDef => SHEETS.find((s) => s.tables.includes(t))!;
+export const sheetOfTable = (t: TableName): SheetDef | undefined => SHEETS.find((s) => s.tables.includes(t));

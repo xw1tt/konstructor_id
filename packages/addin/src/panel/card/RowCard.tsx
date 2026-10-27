@@ -141,7 +141,8 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
     state.refresh();
   };
 
-  const sheet = SHEETS.find((x) => x.tables.includes(table))!.name;
+  // Таблица без своего листа (план 31: старые «ДокументыКачества», «Спецификация» до «Обновить разметку») — лист из схемы.
+  const sheet = SHEETS.find((x) => x.tables.includes(table))?.name ?? TABLES[table].sheet;
   return (
     <section className="card" aria-label="Карточка строки">
       <h2 className="tools-title">Строка {rowIdx + 1} · {sheet}</h2>

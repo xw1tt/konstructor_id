@@ -15,7 +15,7 @@ import { AOV1 } from "./fixtures/aov1Book.ts";
 const rows = async (t = BUILTIN_TI) => registryRows(await readBook(new MemoryWorkbook(kitRecords())), "1", t).rows.map((r) => r.values);
 
 test("книга v10: столбцы КЖ в конце, вид реестра «РП» после «РИМ»", () => {
-  assert.equal(SCHEMA_VERSION, 11);
+  assert.equal(SCHEMA_VERSION, 12);
   assert.deepEqual(TABLES["КабельныйЖурнал"].columns.slice(-4).map((c) => [c.key, c.header, c.type]), [
     ["projectLength", "Длина по проекту, м", "number"], ["tray", "Лоток, м", "number"],
     ["smoothPipe", "Труба гладкая, м", "number"], ["corrugatedPipe", "Труба гофрированная, м", "number"],

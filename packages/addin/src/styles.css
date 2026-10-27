@@ -262,3 +262,14 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .blank-col { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
 .blank-col .setting-option { padding: 0; flex: 0 0 auto; }
 .blank-col input[type="text"], .blank-col input:not([type]) { flex: 1; min-width: 0; }
+
+/* План 30: материалы акта в карточке акта, документы в карточке материала. */
+.act-materials { margin: 6px 0; }
+.act-materials .setting { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
+.act-mat-list { max-height: 320px; overflow-y: auto; margin: 6px 0; }
+.act-mat-list li.on { background: var(--warn-bg, #f6f8fb); }
+.act-mat-qty { display: flex; gap: 6px; align-items: center; padding: 0 0 4px 24px; }
+.act-mat-qty input { width: 7em; min-width: 0; }
+.mat-doc { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mat-doc-form { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.mat-doc-form label { display: flex; gap: 6px; align-items: center; justify-content: space-between; }

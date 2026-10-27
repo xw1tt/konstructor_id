@@ -1,5 +1,7 @@
 // Печать акта из книги: сборка пакета, проверка, задание печати на сервере, окно предпросмотра.
-import { TABLES, type TableName } from "@idk/shared/workbook/schema";
+import { TABLES, sheetOfTable, type TableName } from "@idk/shared/workbook/schema";
+
+const SIDE_LABELS: Partial<Record<TableName, string>> = { "Материалы": "справочник", "ДокументыКачества": "документы качества" };
 import { ACT_DOC_DEFS, isActDocKind } from "@idk/shared/docs/defs";
 import type { PrintKind } from "@idk/shared/acts/schemas";
 import { buildBundle, type ActBundle, type Issue } from "@idk/shared/workbook/bundle";
@@ -20,7 +22,8 @@ export interface IssueLine { text: string; table: TableName; row: number | null;
 /** Ошибки проверки как строки «лист, строка N, «столбец»: сообщение»; offsets — строка листа первой строки данных. */
 export function issueLines(issues: Issue[], offsets: Partial<Record<TableName, number>>): IssueLine[] {
   return issues.map((i) => {
-    const sheet = TABLES[i.table].sheet;
+    // На листе с таблицами рядом (план 30) — какая из них: «Материалы (документы качества)».
+    const sheet = sheetOfTable(i.table)?.side ? `${TABLES[i.table].sheet} (${SIDE_LABELS[i.table] ?? i.table})` : TABLES[i.table].sheet;
     const off = offsets[i.table];
     const where = i.row !== null && off !== undefined ? `${sheet}, строка ${off + i.row}` : sheet;
     return { text: `${where}, «${i.column}»: ${i.message}`, table: i.table, row: i.row, column: i.column };

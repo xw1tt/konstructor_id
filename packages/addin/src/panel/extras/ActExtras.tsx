@@ -11,6 +11,7 @@ import { templateButtons, type TemplateButton } from "../templatesApi.ts";
 import { issueLines, printAct, printForm, type IssueLine } from "../print.ts";
 import { IssueList } from "./IssueList.tsx";
 import { Completeness } from "./Completeness.tsx";
+import { ActMaterials } from "./ActMaterials.tsx";
 import { unboundMaterials } from "@idk/shared/spec/closed";
 
 const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | "vor" }[] = [
@@ -64,6 +65,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
           </button>
         ))}
       </div>
+      <ActMaterials port={port} state={state} act={act} />
       {unbound.length > 0 && (
         <p className="warn" role="status">Не привязаны к спецификации: {unbound.join("; ")}. Укажите «№ п/п РКЦ» в «Материалах» — печать это не блокирует.</p>
       )}

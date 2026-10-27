@@ -5,7 +5,7 @@ import type { CellValue } from "./values.ts";
 import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -160,7 +160,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("unit", "Ед. изм.", "text", imp),
     c("rkc", "№ п/п РКЦ", "ref", { ref: "Спецификация", width: 14 }),
   ]),
-  "ДокументыКачества": t("ДокументыКачества", "Документы качества", [
+  "ДокументыКачества": t("ДокументыКачества", "Материалы", [
     c("materials", "Материалы", "refs", { ...imp, ref: "Материалы", width: 60 }),
     c("type", "Тип", "enum", { ...imp, values: QUALITY_DOC_TYPES.map((d) => QUALITY_DOC_LABELS[d]), width: 24 }),
     c("number", "Номер", "text", { ...imp, width: 30 }),
@@ -422,15 +422,19 @@ export const TABLES: Record<TableName, TableDef> = {
   ]),
 };
 
-export const SHEETS: readonly { name: SheetName; tables: TableName[] }[] = [
+/** Лист книги: таблицы; side — таблицы рядом (слева направо), а не одна под другой; panelOnly — лист ведётся из панели
+ *  (карточка акта) и при «Только нужных листах» скрыт. */
+export interface SheetDef { name: SheetName; tables: TableName[]; side?: true; panelOnly?: true }
+export const SHEETS: readonly SheetDef[] = [
   { name: "Реквизиты", tables: ["Объект", "Организации", "Шифры"] },
   { name: "Представители", tables: ["Представители"] },
   { name: "Спецификация", tables: ["Спецификация"] },
-  { name: "Материалы", tables: ["Материалы"] },
-  { name: "Документы качества", tables: ["ДокументыКачества"] },
+  // План 30: справочник материалов и документы качества — на одном листе рядом.
+  { name: "Материалы", tables: ["Материалы", "ДокументыКачества"], side: true },
   { name: "База актов", tables: ["Акты"] },
   { name: "Исполнительные схемы", tables: ["Схемы"] },
-  { name: "Материалы в актах", tables: ["МатериалыАктов"] },
+  // Материалы акта выбираются в карточке акта в панели; лист — служебный.
+  { name: "Материалы в актах", tables: ["МатериалыАктов"], panelOnly: true },
   { name: "ВОР", tables: ["ВОР"] },
   { name: "Кабельный журнал", tables: ["КабельныйЖурнал"] },
   { name: "Изоляция", tables: ["Электролаборатория", "СредстваИзмерений", "ИзмеренияМарок", "ДокументыКабелей"] },
@@ -464,3 +468,6 @@ export function column(t: TableName, key: string): ColumnDef {
 
 export const columnByHeader = (t: TableName, header: string): ColumnDef | undefined =>
   TABLES[t].columns.find((c) => c.header === header);
+
+/** Лист таблицы по SHEETS. */
+export const sheetOfTable = (t: TableName): SheetDef => SHEETS.find((s) => s.tables.includes(t))!;

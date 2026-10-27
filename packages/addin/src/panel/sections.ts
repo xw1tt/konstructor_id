@@ -8,7 +8,7 @@ export const SECTIONS: readonly { id: SectionId; label: string; sheets: SheetNam
   { id: "reps", label: "Представители", sheets: ["Представители"] },
   { id: "acts", label: "Акты", sheets: ["База актов", "Исполнительные схемы", "Материалы в актах", "ВОР"] },
   { id: "spec", label: "Спецификация", sheets: ["Спецификация"] },
-  { id: "materials", label: "Материалы", sheets: ["Материалы", "Документы качества"] },
+  { id: "materials", label: "Материалы", sheets: ["Материалы"] },
   { id: "schemes", label: "Схемы", sheets: ["Исполнительные схемы"] },
   { id: "cables", label: "Кабельный журнал", sheets: ["Кабельный журнал", "Изоляция"] },
   { id: "kits", label: "Комплекты", sheets: ["Комплекты", "Реестр ИД"] },

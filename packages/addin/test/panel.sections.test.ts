@@ -7,11 +7,11 @@ test("разделы панели", () => {
   assert.deepEqual(SECTIONS.map((s) => s.label), ["Реквизиты", "Представители", "Акты", "Спецификация", "Материалы", "Схемы", "Кабельный журнал", "Комплекты", "ОЖР"]);
   assert.equal(sectionForSheet("Спецификация"), "spec");
   assert.deepEqual(SECTIONS.find((s) => s.id === "acts")!.sheets, ["База актов", "Исполнительные схемы", "Материалы в актах", "ВОР"]);
-  assert.deepEqual(SECTIONS.find((s) => s.id === "materials")!.sheets, ["Материалы", "Документы качества"]);
+  assert.deepEqual(SECTIONS.find((s) => s.id === "materials")!.sheets, ["Материалы"]);
 });
 
 test("раздел по листу", () => {
-  assert.equal(sectionForSheet("Документы качества"), "materials");
+  assert.equal(sectionForSheet("Материалы"), "materials");
   assert.equal(sectionForSheet("ВОР"), "acts");
   assert.equal(sectionForSheet("Исполнительные схемы"), "schemes");
   assert.equal(sectionForSheet("Лист1"), null);

@@ -33,7 +33,8 @@ export function sheetPlan(template: UserTemplate, book: Book, enabled: boolean):
   const need = neededTables(template);
   const visible: SheetName[] = [], hidden: SheetName[] = [];
   for (const s of SHEETS) {
-    const keep = !enabled || s.name === "Реквизиты" || s.tables.some((t) => need.has(t) || (book.tables[t]?.length ?? 0) > 0);
+    // Служебный лист (материалы в актах — из карточки акта) при включённом режиме скрыт всегда.
+    const keep = !enabled || s.name === "Реквизиты" || (!s.panelOnly && s.tables.some((t) => need.has(t) || (book.tables[t]?.length ?? 0) > 0));
     (keep ? visible : hidden).push(s.name);
   }
   return { visible, hidden };

@@ -123,7 +123,7 @@ export function WizardScreen({ port, state, onClose }: { port: ExcelPort; state:
             <p className="error">Перед печатью исправьте в книге:</p>
             <ul className="issues">{done.issues.map((i, n) => <li key={n}>{i.table}{i.row !== null ? `, строка ${i.row + 1}` : ""}: «{i.column}» — {i.message}</li>)}</ul>
           </>
-        ) : <p className="notice">Строки записаны на листы «Реквизиты», «Представители», «Материалы», «База актов», «Материалы в актах». Дальше книга ведётся как обычно.</p>}
+        ) : <p className="notice">Строки записаны на листы «Реквизиты», «Представители», «Материалы» и «База актов»; материалы акта — в карточке акта. Дальше книга ведётся как обычно.</p>}
         <div className="row-actions">
           <button className="btn btn-primary" disabled={busy} onClick={() => void print()}>Печать АОСР</button>
           <button className="btn" onClick={onClose}>Готово</button>

@@ -1,7 +1,7 @@
 // Слой Office.js: книга объекта в Excel. Вся логика — в @idk/shared/workbook; здесь только чтение/запись,
 // разметка, выделение и события. Требуется ExcelApi 1.9.
 import {
-  TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, OBJECT_REQUIRED_LABELS, SCHEMA_VERSION, WORK_LIST, keyColumn, type TableName, type ColumnDef,
+  TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, OBJECT_REQUIRED_LABELS, SCHEMA_VERSION, WORK_LIST, keyColumn, sheetOfTable, type TableName, type ColumnDef,
 } from "@idk/shared/workbook/schema";
 import type { CellValue } from "@idk/shared/workbook/values";
 import type { Report, RowData, RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
@@ -9,14 +9,17 @@ import type { ImportantMap } from "@idk/shared/workbook/important";
 import { currentHost, type HostStatus } from "./host.ts";
 import { exampleColumn } from "@idk/shared/workbook/examples";
 import {
-  COLORS, LISTS_SHEET, applyValidation, colLetter, duplicateRule, exampleRule, importantRule, objectImportantRule, listName, promptFor,
+  COLORS, LISTS_SHEET, applyValidation, colLetter as colLetterAt, duplicateRule, exampleRule, importantRule, objectImportantRule, listName, promptFor,
   nextTableTop, textFormatted, visibleTableRows, missingColumns, missingObjectFields, negativeRule,
 } from "./layout.ts";
 
 /** Подписи над таблицами на листах с несколькими таблицами. */
 const TABLE_TITLES: Partial<Record<TableName, string>> = {
   "Шифры": "Шифры рабочей документации", "АктыКомплектов": "Акты комплектов",
+  "Материалы": "Материалы (справочник объекта)", "ДокументыКачества": "Документы качества (паспорта, сертификаты)",
 };
+/** Таблица на листе «рядом» (план 30): строки вставляются и удаляются только в её столбцах — соседняя не задевается. */
+const sideBySide = (name: TableName) => !!sheetOfTable(name)?.side;
 
 declare const Office: any;
 declare const Excel: any;
@@ -76,6 +79,9 @@ const saveSettings = () => new Promise<void>((resolve, reject) =>
 
 /** Столбец «ВидыРабот» на листе «Списки» — через один пустой после перечислений. */
 const workListColumn = () => TABLE_NAMES.reduce((n, t) => n + TABLES[t].columns.filter((c) => c.type === "enum").length, 0) + 1;
+
+/** Перенос таблицы на её новый лист: данные прежней таблицы и её временное имя. */
+interface Moved { name: TableName; temp: string; oldSheet: string; data: TableData; extra: boolean }
 
 export class ExcelPort implements TableStore {
   host(): HostStatus { return currentHost(); }
@@ -192,13 +198,15 @@ export class ExcelPort implements TableStore {
   private async addTableRows(ctx: any, t: any, index: number, values: unknown[][]): Promise<number> {
     const body = t.getDataBodyRange().load("rowIndex,rowCount,columnIndex,columnCount");
     const ws = t.worksheet;
+    t.load("name");
     await ctx.sync();
     const n = values.length, count = body.rowCount as number;
     const append = index >= count;
     // В конец: вставляем перед последней строкой (внутри таблицы), затем последнюю строку поднимаем на место.
     const at = append ? count - 1 : index;
     const rowsAt = (i: number, k = 1) => ws.getRangeByIndexes(body.rowIndex + i, body.columnIndex, k, body.columnCount);
-    ws.getRangeByIndexes(body.rowIndex + at, 0, n, 1).getEntireRow().insert("Down");
+    if (sideBySide(t.name as TableName)) rowsAt(at, n).insert("Down");
+    else ws.getRangeByIndexes(body.rowIndex + at, 0, n, 1).getEntireRow().insert("Down");
     await ctx.sync();
     let first = at;
     if (append) {
@@ -233,15 +241,17 @@ export class ExcelPort implements TableStore {
     await Excel.run(async (ctx: any) => {
       const t = ctx.workbook.tables.getItem(name);
       t.rows.load("count");
-      const body = t.getDataBodyRange().load("rowIndex");
+      const body = t.getDataBodyRange().load("rowIndex,columnIndex,columnCount");
       await ctx.sync();
       let count = t.rows.count as number;
+      const side = sideBySide(name);
       for (const r of [...new Set(rows)].filter((x) => x >= 0 && x < count).sort((a, b) => b - a)) {
         // Последнюю строку таблицы Excel удалить не даст — очищаем её (кроме формул).
         if (count === 1) await this.clearRow(ctx, name, t, r);
         else {
           // Целая строка листа: удаление строки таблицы сдвинуло бы только её столбцы (см. addTableRows).
-          t.worksheet.getRangeByIndexes(body.rowIndex + r, 0, 1, 1).getEntireRow().delete("Up");
+          if (side) t.worksheet.getRangeByIndexes(body.rowIndex + r, body.columnIndex, 1, body.columnCount).delete("Up");
+          else t.worksheet.getRangeByIndexes(body.rowIndex + r, 0, 1, 1).getEntireRow().delete("Up");
           count--;
         }
       }
@@ -485,6 +495,9 @@ export class ExcelPort implements TableStore {
    *  столбцы и поля «Объекта» и перекрашивает правила всех таблиц. Возвращает созданные таблицы. */
   async ensureBook(important: ImportantMap): Promise<TableName[]> {
     const created: TableName[] = [];
+    // План 30: таблица, которая теперь живёт на другом листе (документы качества → «Материалы»), переносится с данными.
+    const moves: Moved[] = [];
+    for (const name of TABLE_NAMES) { const m = await this.beginMove(name); if (m) moves.push(m); }
     await Excel.run(async (ctx: any) => {
       const sheets = ctx.workbook.worksheets;
       sheets.load("items/name");
@@ -503,19 +516,33 @@ export class ExcelPort implements TableStore {
             await this.upgradeTable(ctx, name, important[name] ?? []);
             continue;
           }
-          // Новая таблица — ниже занятой части листа, чтобы не наложиться на существующие (в т. ч. переименованные).
-          const used = ws.getUsedRangeOrNullObject(true).load("rowIndex,rowCount");
-          await ctx.sync();
-          const top = nextTableTop(used.isNullObject ? null : used.rowIndex + used.rowCount - 1);
+          // Новая таблица — ниже занятой части листа, чтобы не наложиться на существующие (в т. ч. переименованные);
+          // на листе «рядом» — справа от предыдущей таблицы листа, на той же строке заголовка.
           const def = TABLES[name];
+          let top: number, left = 0;
+          const prevName = sheet.side ? sheet.tables.slice(0, sheet.tables.indexOf(name)).reverse().find((x) => tableNames.has(x) || created.includes(x)) : undefined;
+          if (prevName) {
+            const pr = ctx.workbook.tables.getItem(prevName).getHeaderRowRange().load("rowIndex,columnIndex,columnCount");
+            await ctx.sync();
+            top = pr.rowIndex;
+            left = pr.columnIndex + pr.columnCount + 1;
+          } else {
+            const used = ws.getUsedRangeOrNullObject(true).load("rowIndex,rowCount");
+            await ctx.sync();
+            top = nextTableTop(used.isNullObject ? null : used.rowIndex + used.rowCount - 1);
+          }
           const bodyRows = name === "Объект" ? OBJECT_FIELDS.length : 1;
-          if (sheet.tables.length > 1) ws.getRangeByIndexes(top - 1, 0, 1, 1).values = [[TABLE_TITLES[name] ?? name]];
-          const t = ws.tables.add(ws.getRangeByIndexes(top, 0, 1 + bodyRows, def.columns.length), true);
+          if (sheet.tables.length > 1) {
+            const title = ws.getRangeByIndexes(top - 1, left, 1, 1);
+            title.values = [[TABLE_TITLES[name] ?? name]];
+            title.format.font.bold = true;
+          }
+          const t = ws.tables.add(ws.getRangeByIndexes(top, left, 1 + bodyRows, def.columns.length), true);
           t.name = name;
           t.style = "TableStyleLight9";
           const headers = def.columns.map((c) => c.header);
           t.getHeaderRowRange().values = [headers];
-          this.formatTable(t, def, important[name] ?? [], top + 2, bodyRows, headers);
+          this.formatTable(t, def, important[name] ?? [], top + 2, bodyRows, headers, left);
           if (name === "Объект") {
             t.getDataBodyRange().getColumn(0).values = OBJECT_FIELDS.map((f) => [f.label]);
             this.objectPrompts(t, OBJECT_FIELDS.map((f) => f.label), 0);
@@ -523,12 +550,75 @@ export class ExcelPort implements TableStore {
           await ctx.sync();
           created.push(name);
         }
-        if (fresh) ws.freezePanes.freezeRows(sheet.tables.length > 1 ? 0 : 4);
+        if (fresh) ws.freezePanes.freezeRows(sheet.tables.length > 1 && !sheet.side ? 0 : 4);
       }
       await ctx.sync();
     });
+    for (const m of moves) await this.finishMove(m);
     await this.setSetting(VERSION_SETTING, String(SCHEMA_VERSION));
     return created;
+  }
+
+  /**
+   * План 30: таблица стоит не на своём листе (книга прежней версии) — читаем данные и переименовываем её во временное
+   * имя; ensureBook создаёт таблицу на новом листе, finishMove переносит строки и ссылки на сканы и удаляет старую.
+   * Сбой посередине не теряет данных: старая таблица остаётся под временным именем.
+   */
+  private async beginMove(name: TableName): Promise<Moved | null> {
+    const target = sheetOfTable(name)?.name;
+    const where = await Excel.run(async (ctx: any) => {
+      const t = ctx.workbook.tables.getItemOrNullObject(name);
+      await ctx.sync();
+      if (t.isNullObject) return null;
+      t.worksheet.load("name");
+      await ctx.sync();
+      return t.worksheet.name as string;
+    });
+    if (!where || !target || where === target) return null;
+    const data = await this.read(name);
+    if (!data) return null;
+    const known = new Set(TABLES[name].columns.map((c) => c.header));
+    const extra = data.headers.some((h, i) => !known.has(h) && data.rows.some((r) => r[i] !== null && r[i] !== ""));
+    const temp = `${name}_перенос`;
+    await Excel.run(async (ctx: any) => {
+      ctx.workbook.tables.getItem(name).name = temp;
+      await ctx.sync();
+    });
+    return { name, temp, oldSheet: where, data, extra };
+  }
+
+  private async finishMove(m: Moved) {
+    const rows = m.data.rows.map((r) => Object.fromEntries(m.data.headers.map((h, i) => [h, r[i] ?? null])))
+      .filter((r) => Object.values(r).some((v) => v !== null && v !== ""));
+    if (rows.length) {
+      const first = await this.insert(m.name, 0, rows);
+      // Ссылки на сканы — по строкам, где они были.
+      let k = 0;
+      for (const [ri, r] of m.data.rows.entries()) {
+        if (!r.some((v) => v !== null && v !== "")) continue;
+        const links = Object.fromEntries(m.data.headers.map((h, i) => [h, m.data.links[ri]?.[i] ?? null]).filter(([, l]) => l));
+        if (Object.keys(links).length) await this.write(m.name, first + k, Object.fromEntries(Object.keys(links).map((h) => [h, rows[k][h] ?? null])), links);
+        k++;
+      }
+    }
+    const now = await this.read(m.name);
+    const moved = (now?.rows ?? []).filter((r) => r.some((v) => v !== null && v !== "")).length;
+    // Не всё перенеслось или в старой таблице были свои столбцы — старую оставляем (под временным именем).
+    if (moved !== rows.length || m.extra) return;
+    await Excel.run(async (ctx: any) => {
+      const old = ctx.workbook.tables.getItem(m.temp);
+      const range = old.getRange();
+      old.delete();
+      range.clear();
+      await ctx.sync();
+      // Старый лист без таблиц и данных — удаляем; что-то своё на нём осталось — лист не трогаем.
+      const ws = ctx.workbook.worksheets.getItem(m.oldSheet);
+      ws.tables.load("count");
+      const used = ws.getUsedRangeOrNullObject(true);
+      await ctx.sync();
+      if (ws.tables.count === 0 && used.isNullObject) ws.delete();
+      await ctx.sync();
+    });
   }
 
   /** Подсказки ячеек «Значение» строк «Объекта» начиная с first. */
@@ -546,7 +636,7 @@ export class ExcelPort implements TableStore {
     const def = TABLES[name];
     const t = ctx.workbook.tables.getItem(name);
     const head = t.getHeaderRowRange().load("values");
-    const body = t.getDataBodyRange().load(name === "Объект" ? "rowIndex,rowCount,values" : "rowIndex,rowCount");
+    const body = t.getDataBodyRange().load(name === "Объект" ? "rowIndex,rowCount,columnIndex,values" : "rowIndex,rowCount,columnIndex");
     await ctx.sync();
     const headers = (head.values[0] as unknown[]).map(String);
     const add = missingColumns(name, headers);
@@ -575,7 +665,7 @@ export class ExcelPort implements TableStore {
         this.objectPrompts(t, missing, first);
       }
     }
-    this.paint(t, def, important, body.rowIndex + 1, all);
+    this.paint(t, def, important, body.rowIndex + 1, all, body.columnIndex);
     await ctx.sync();
   }
   /** Виды работ из справочника шаблона → столбец листа «Списки» и имя «ВидыРабот» (источник списка «Вида работ»). */
@@ -640,7 +730,7 @@ export class ExcelPort implements TableStore {
     if (def.name !== "Объект" || col.key !== "value") applyValidation(body, col, def.name);
   }
 
-  private formatTable(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number, bodyRows: number, headers: string[]) {
+  private formatTable(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number, bodyRows: number, headers: string[], left = 0) {
     def.columns.forEach((col) => {
       const i = headers.indexOf(col.header);
       if (i >= 0) this.formatColumn(t, def, col, i, bodyRows);
@@ -650,16 +740,17 @@ export class ExcelPort implements TableStore {
     head.format.font.color = COLORS.headerText;
     head.format.wrapText = true;
     head.format.rowHeight = 42;
-    this.paint(t, def, important, firstRow, headers);
+    this.paint(t, def, important, firstRow, headers, left);
   }
 
   /** Цвета заголовков и правила «пусто в важном столбце» / «повтор ключа». headers — порядок столбцов в книге
-   *  (в книге прежней версии дописанные столбцы стоят в конце). */
-  private paint(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number, headers: string[]) {
+   *  (в книге прежней версии дописанные столбцы стоят в конце); left — столбец листа, с которого начинается таблица. */
+  private paint(t: any, def: (typeof TABLES)[TableName], important: string[], firstRow: number, headers: string[], left = 0) {
     const body = t.getDataBodyRange();
     body.conditionalFormats.clearAll();
-    // Формулы правил пишутся для первой ячейки диапазона (таблицы начинаются со столбца A); firstRow — с 1.
+    // Формулы правил пишутся для первой ячейки диапазона; столбцы — с поправкой на начало таблицы; firstRow — с 1.
     const last = headers.length - 1;
+    const colLetter = (i: number) => colLetterAt(left + i);
     const exIdx = headers.indexOf(exampleColumn(def.name).header);
     if (exIdx >= 0) {
       const ex = body.conditionalFormats.add("Custom");
@@ -699,10 +790,10 @@ export class ExcelPort implements TableStore {
       ctx.workbook.tables.load("items/name");
       await ctx.sync();
       const ours = (ctx.workbook.tables.items as any[]).filter((t) => isOurs(t.name))
-        .map((t) => ({ t, body: t.getDataBodyRange().load("rowIndex"), head: t.getHeaderRowRange().load("values") }));
+        .map((t) => ({ t, body: t.getDataBodyRange().load("rowIndex,columnIndex"), head: t.getHeaderRowRange().load("values") }));
       await ctx.sync();
       for (const { t, body, head } of ours)
-        this.paint(t, TABLES[t.name as TableName], map[t.name as TableName] ?? [], body.rowIndex + 1, (head.values[0] as unknown[]).map(String));
+        this.paint(t, TABLES[t.name as TableName], map[t.name as TableName] ?? [], body.rowIndex + 1, (head.values[0] as unknown[]).map(String), body.columnIndex);
       await ctx.sync();
     });
   }

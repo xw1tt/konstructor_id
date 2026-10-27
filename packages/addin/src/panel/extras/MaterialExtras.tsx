@@ -1,41 +1,108 @@
-// Дополнение карточки материала: его документы качества и добавление нового документа.
+// Дополнение карточки материала (план 30): его документы качества — добавить прямо здесь (вид, номер, даты, листы,
+// скан), привязать общий сертификат, отвязать; таблица документов стоит рядом на том же листе «Материалы».
 import { useState } from "react";
-import { cellText } from "@idk/shared/workbook/values";
+import { cellText, isoToExcelSerial } from "@idk/shared/workbook/values";
+import { QUALITY_DOC_LABELS, QUALITY_DOC_TYPES } from "@idk/shared/roles";
+import { newQualityDoc, docMaterials } from "@idk/shared/acts/actMaterials";
 import type { ExcelPort } from "../../book/excelPort.ts";
 import type { BookState } from "../useBook.ts";
 import { docsOfMaterial } from "./summaries.ts";
+import { apiUpload } from "../../api.ts";
+
+const LABELS = QUALITY_DOC_TYPES.map((t) => QUALITY_DOC_LABELS[t]);
+const empty = () => ({ type: LABELS[0], number: "", date: "", validUntil: "", sheets: "1", scan: null as File | null });
 
 export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: BookState; name: string }) {
   const [error, setError] = useState("");
+  const [form, setForm] = useState<ReturnType<typeof empty> | null>(null);
+  const [link, setLink] = useState(false);
+  const [busy, setBusy] = useState(false);
   if (!name || !state.book) return null;
   const docs = docsOfMaterial(state.book, name);
+  const others = (state.book.tables["ДокументыКачества"] ?? []).filter((r) => !docs.includes(r));
 
-  const add = async () => {
-    try {
-      const t = await port.read("ДокументыКачества");
-      if (!t) throw new Error("Таблица «ДокументыКачества» не найдена");
-      const emptyOnly = t.rows.length === 1 && t.rows[0].every((v) => cellText(v) === "");
-      const index = emptyOnly ? 0 : t.rows.length;
-      await port.insert("ДокументыКачества", index, [{ "Материалы": name }]);
-      await port.selectCell("ДокументыКачества", index, "Тип");
-    } catch (e) {
-      setError((e as Error).message);
-    }
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true); setError("");
+    try { await fn(); state.refresh(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
 
+  const create = () => run(async () => {
+    if (!form) return;
+    if (!form.number.trim()) throw new Error("Укажите номер документа");
+    const sheets = Number(form.sheets);
+    const values = newQualityDoc(name, {
+      type: form.type, number: form.number,
+      date: form.date ? isoToExcelSerial(form.date) : null, validUntil: form.validUntil ? isoToExcelSerial(form.validUntil) : null,
+      sheets: Number.isInteger(sheets) && sheets > 0 ? sheets : null,
+    });
+    if (await port.isFiltered("ДокументыКачества")) await port.clearFilters("ДокументыКачества");
+    const t = await port.read("ДокументыКачества");
+    if (!t) throw new Error("Таблица «ДокументыКачества» не найдена — нажмите «Обновить разметку»");
+    const row = await port.insert("ДокументыКачества", t.rows.length, [values]);
+    if (form.scan) {
+      const f = await apiUpload(form.scan, form.scan.name);
+      await port.write("ДокументыКачества", row, { "Скан": f.name }, { "Скан": `${location.origin}/api/files/${f.id}` });
+    }
+    setForm(null);
+  });
+
+  /** Привязать документ (общий сертификат) к материалу или отвязать. Последний материал документа не отвязывается. */
+  const toggle = (row: number, on: boolean) => run(async () => {
+    const r = (state.book!.tables["ДокументыКачества"] ?? []).find((x) => x.row === row);
+    if (!r) return;
+    const next = docMaterials(r.v.materials ?? null, name, on);
+    if (!next) throw new Error("Это единственный материал документа — удалите строку документа на листе, если он не нужен");
+    await port.write("ДокументыКачества", row, { "Материалы": next });
+    setLink(false);
+  });
+
+  const label = (r: (typeof docs)[number]) => `${cellText(r.v.type) || "—"} ${cellText(r.v.number)}`.trim();
   return (
     <div className="extras">
       <h3 className="tools-title">Документы качества ({docs.length})</h3>
       <ul className="list">
         {docs.map((d) => (
-          <li key={d.row}>
-            <button className="link" onClick={() => void port.selectCell("ДокументыКачества", d.row, "Номер")}>
-              {cellText(d.v.type) || "—"} {cellText(d.v.number)}
-            </button>
+          <li key={d.row} className="mat-doc">
+            <button className="link" onClick={() => void port.selectCell("ДокументыКачества", d.row, "Номер")}>{label(d)}</button>
+            {d.link["file"] ? <span className="muted"> · скан</span> : <span className="warn"> · нет скана</span>}
+            <button className="btn btn-small" disabled={busy} title="Убрать этот материал из документа" onClick={() => void toggle(d.row, false)}>Отвязать</button>
           </li>
         ))}
       </ul>
-      <div className="row-actions"><button className="btn" onClick={() => void add()}>Добавить документ</button></div>
+      {!form && (
+        <div className="row-actions">
+          <button className="btn" disabled={busy} onClick={() => setForm(empty())}>Новый документ…</button>
+          <button className="btn" disabled={busy || !others.length} onClick={() => setLink(!link)} title="Общий сертификат на несколько материалов">Привязать имеющийся{link ? " ▴" : " ▾"}</button>
+        </div>
+      )}
+      {link && !form && (
+        <ul className="list">
+          {others.map((d) => (
+            <li key={d.row}>
+              <button className="link" disabled={busy} onClick={() => void toggle(d.row, true)}>{label(d)}</button>
+              <span className="muted"> · {cellText(d.v.materials)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {form && (
+        <div className="setting mat-doc-form">
+          <label>Вид{" "}
+            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              {LABELS.map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </label>
+          <label>Номер <input value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} /></label>
+          <label>Дата <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
+          <label>Действует до <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} /></label>
+          <label>Листов <input type="number" min={1} style={{ width: "5em" }} value={form.sheets} onChange={(e) => setForm({ ...form, sheets: e.target.value })} /></label>
+          <label>Скан (PDF, JPG, PNG) <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setForm({ ...form, scan: e.target.files?.[0] ?? null })} /></label>
+          <div className="row-actions">
+            <button className="btn btn-primary" disabled={busy} onClick={() => void create()}>{busy ? "Добавляю…" : "Добавить"}</button>
+            <button className="btn" disabled={busy} onClick={() => setForm(null)}>Отмена</button>
+          </div>
+        </div>
+      )}
       {error && <p className="error" role="alert">{error}</p>}
     </div>
   );

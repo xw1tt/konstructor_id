@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const nodeExe = process.argv[2];
-const version = process.argv[3] ?? "0.27.5";
+const version = process.argv[3] ?? "0.28";
 if (!nodeExe || !existsSync(nodeExe)) {
   console.error("Укажите путь к node.exe для Windows (Node.js 22.13 или новее).");
   process.exit(1);
@@ -39,7 +39,7 @@ await build({
   entryPoints: [join(root, "packages", "server", "src", "main.ts")],
   outfile: join(payload, "app", "server.mjs"),
   bundle: true, platform: "node", format: "esm", target: "node22",
-  external: ["playwright-core"],
+  external: ["playwright-core", "pdfjs-dist"],
   banner: { js: 'import { createRequire as __cr } from "node:module"; const require = __cr(import.meta.url);' },
   logLevel: "warning",
 });
@@ -47,6 +47,12 @@ cpSync(join(root, "packages", "server", "src", "migrations"), join(payload, "app
 // print.css ищется как new URL("../print.css", server.mjs) — на уровень выше app/.
 cpSync(join(root, "packages", "server", "src", "print", "print.css"), join(payload, "print.css"));
 cpSync(realpathSync(join(root, "node_modules", "playwright-core")), join(payload, "app", "node_modules", "playwright-core"), { recursive: true });
+// pdf.js — текстовый слой сканов PDF (0.28): только сборка для Node, шрифты и cmaps.
+{
+  const src = realpathSync(join(root, "node_modules", "pdfjs-dist")), dst = join(payload, "app", "node_modules", "pdfjs-dist");
+  for (const f of ["package.json", "LICENSE", "legacy/build/pdf.mjs", "legacy/build/pdf.worker.mjs", "cmaps", "standard_fonts"])
+    cpSync(join(src, f), join(dst, f), { recursive: true });
+}
 
 // 3. Node.js для Windows и лицензии.
 mkdirSync(join(payload, "node"));

@@ -282,3 +282,9 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .ref-list button.link { display: block; width: 100%; text-align: left; padding: 4px 8px; white-space: normal; }
 .ref-list button.link:hover, .ref-list .ref-hi { background: #e8f0fb; }
 .field-missing { border-color: #c00 !important; }
+
+/* Проверка перед сдачей — предупреждения, не ошибки (0.28). */
+.issues-warn { background: #fff6e0; border-left-color: #d08a00; }
+.predelivery { margin-top: 8px; }
+.btn.disabled { opacity: .35; pointer-events: none; }
+.slot-fields { margin: 6px 0; } .slot-fields summary { cursor: pointer; color: var(--muted, #666); font-size: 12px; }

@@ -19,6 +19,8 @@ import { LibraryStore } from "./library/store.ts";
 import { aiRoutes } from "./routes/ai.ts";
 import { AiStore } from "./ai/store.ts";
 import { reportRoutes } from "./routes/report.ts";
+import { scanRoutes } from "./routes/scan.ts";
+import type { OcrRunner } from "./scan/read.ts";
 import type { Post } from "./ai/providers.ts";
 import { powershellRunner, type OfficeRunner } from "./forms/convert.ts";
 
@@ -38,6 +40,8 @@ export interface AppOptions {
   officeRunner?: OfficeRunner;
   /** Для тестов: подмена HTTP-запросов к нейросетям. */
   aiPost?: Post;
+  /** Для тестов: подмена распознавания текста сканов (по умолчанию — Windows OCR через PowerShell). */
+  ocrRunner?: OcrRunner;
   /** Папка копий отчётов «Сообщить о проблеме» (по умолчанию «Документы\Конструктор ИД — отчёты»). */
   reportsDir?: string;
 }
@@ -60,6 +64,7 @@ export function createApp(opts: AppOptions) {
   kitRoutes(api, opts.db, opts.dataDir, { templates, runner });
   const ai = new AiStore(opts.dataDir);
   aiRoutes(api, ai, { post: opts.aiPost });
+  scanRoutes(api, opts.db, opts.dataDir, ai, { ocr: opts.ocrRunner, post: opts.aiPost });
   reportRoutes(api, { dataDir: opts.dataDir, templates, ai, reportsDir: opts.reportsDir });
   libraryRoutes(api, new LibraryStore(opts.dataDir), opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {

@@ -3,7 +3,7 @@
 import { useContext, useEffect, useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
 import type { Issue } from "@idk/shared/workbook/bundle";
-import { fillRegistry } from "@idk/shared/kit/registry";
+import { fillRegistry, kitActs } from "@idk/shared/kit/registry";
 import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
@@ -13,6 +13,7 @@ import { templateButtons, type TemplateButton } from "../templatesApi.ts";
 import type { PrintKind } from "@idk/shared/acts/schemas";
 import { assembleKit, assembleCommonRegistry, kitIssueLines, kitRegistryCount, kitsWithRegistry, previewUrl } from "../kit.ts";
 import { IssueList } from "./IssueList.tsx";
+import { PreDelivery } from "./PreDelivery.tsx";
 import { kitShortage, type Status } from "@idk/shared/catalog/need";
 import { CatalogContext, shortageText, statusText } from "../catalogApi.ts";
 
@@ -180,6 +181,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
           </ul>
         </div>
       )}
+      <PreDelivery port={port} state={state} acts={kitActs(state.book!, kit).acts} what="комплект" />
       {busy === "build" && <p className="notice">Печатаю документы и склеиваю комплект — это может занять минуту.</p>}
       <IssueList port={port} lines={lines} title="Перед сборкой исправьте:" />
       {note && <p className={note.error ? "error" : "notice"} role="status">{note.text}</p>}

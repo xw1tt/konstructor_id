@@ -99,6 +99,9 @@ export function CardArea({ port, state }: { port: ExcelPort; state: BookState })
   );
 }
 
+/** Столбцы группы «Док.N» таблицы «Материалы» (план 31). */
+const isSlotColumn = (table: TableName, key: string) => table === "Материалы" && /^d\d/.test(key);
+
 function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState; onRename: (p: PendingRename) => void }) {
   const guard = useGuard();
   const catalog = useContext(CatalogContext);
@@ -143,30 +146,38 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
 
   // Таблица без своего листа (план 31: старые «ДокументыКачества», «Спецификация» до «Обновить разметку») — лист из схемы.
   const sheet = SHEETS.find((x) => x.tables.includes(table))?.name ?? TABLES[table].sheet;
+  const renderField = (c: ColumnDef) => {
+    const col = effectiveColumn(table, c, row, t.headers);
+    // В «Объекте» обязательны только поля шапки АОСР; договор и прочее можно не заполнять.
+    const important = (state.important[table] ?? []).includes(c.header)
+      && !(table === "Объект" && c.key === "value" && !isObjectFieldRequired(cellText(valueOf("Поле"))));
+    return (
+      <Field
+        key={c.header}
+        col={{ ...col, important }}
+        value={valueOf(c.header)}
+        link={links[t.headers.indexOf(c.header)] ?? null}
+        options={col.ref ? keysOf(state.book, col.ref) : col.listRange ? workOptions : []}
+        error={errors[c.header] ?? ""}
+        onCommit={(v) => void commit(col, v)}
+        onUpload={c.type === "file" ? (f) => void upload(c, f) : undefined}
+      />
+    );
+  };
   return (
     <section className="card" aria-label="Карточка строки">
       <h2 className="tools-title">Строка {rowIdx + 1} · {sheet}</h2>
       {isExampleRow(row, table, t.headers) && <p className="example-note" role="note">Это строка-пример: замените значения своими или удалите строку.</p>}
       <div className="form">
-        {TABLES[table].columns.map((c) => {
-          const col = effectiveColumn(table, c, row, t.headers);
-          // В «Объекте» обязательны только поля шапки АОСР; договор и прочее можно не заполнять.
-          const important = (state.important[table] ?? []).includes(c.header)
-            && !(table === "Объект" && c.key === "value" && !isObjectFieldRequired(cellText(valueOf("Поле"))));
-          return (
-            <Field
-              key={c.header}
-              col={{ ...col, important }}
-              value={valueOf(c.header)}
-              link={links[t.headers.indexOf(c.header)] ?? null}
-              options={col.ref ? keysOf(state.book, col.ref) : col.listRange ? workOptions : []}
-              error={errors[c.header] ?? ""}
-              onCommit={(v) => void commit(col, v)}
-              onUpload={c.type === "file" ? (f) => void upload(c, f) : undefined}
-            />
-          );
-        })}
+        {TABLES[table].columns.filter((c) => !isSlotColumn(table, c.key)).map((c) => renderField(c))}
       </div>
+      {table === "Материалы" && (
+        // Столбцы «Док.1…3» — свёрнуты: документы ведутся в блоке «Документы качества» ниже.
+        <details className="slot-fields">
+          <summary>Столбцы документов «Док.1–3» (правка вручную)</summary>
+          <div className="form">{TABLES[table].columns.filter((c) => isSlotColumn(table, c.key)).map((c) => renderField(c))}</div>
+        </details>
+      )}
       {table === "Материалы" && <MaterialExtras port={port} state={state} name={cellText(valueOf(colOf("Материалы", "name").header))} />}
       {table === "Материалы" && cellText(valueOf(colOf("Материалы", "rkc").header)) && (
         <SpecPositionCard state={state} number={cellText(valueOf(colOf("Материалы", "rkc").header))} />

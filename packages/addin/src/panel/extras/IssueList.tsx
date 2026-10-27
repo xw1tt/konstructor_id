@@ -2,10 +2,10 @@
 import type { ExcelPort } from "../../book/excelPort.ts";
 import type { IssueLine } from "../print.ts";
 
-export function IssueList({ port, lines, title }: { port: ExcelPort; lines: IssueLine[]; title: string }) {
+export function IssueList({ port, lines, title, tone }: { port: ExcelPort; lines: IssueLine[]; title: string; tone?: "warn" }) {
   if (!lines.length) return null;
   return (
-    <div className="issues" role="alert">
+    <div className={"issues" + (tone === "warn" ? " issues-warn" : "")} role={tone === "warn" ? "status" : "alert"}>
       <p>{title}</p>
       <ul className="list">
         {lines.map((l, i) => (

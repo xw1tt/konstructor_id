@@ -1,6 +1,7 @@
 // Дополнение карточки материала: его документы качества — добавить прямо здесь (вид, номер, даты, листы, скан),
 // привязать общий сертификат, отвязать. План 31: документ — группа столбцов «Док.1…3» строки материала; общий
-// сертификат — те же вид и номер в строках нескольких материалов.
+// сертификат — те же вид и номер в строках нескольких материалов. 0.28: «Документ по скану…» — скан распознаётся
+// (текст PDF или распознавание Windows, поля — нейросетью или по правилам) и заполняет форму для проверки.
 import { useState } from "react";
 import { cellText, isoToExcelSerial } from "@idk/shared/workbook/values";
 import { QUALITY_DOC_LABELS, QUALITY_DOC_TYPES } from "@idk/shared/roles";
@@ -9,16 +10,25 @@ import { newQualityDoc, docMaterials } from "@idk/shared/acts/actMaterials";
 import type { ExcelPort } from "../../book/excelPort.ts";
 import type { BookState } from "../useBook.ts";
 import { docsOfMaterial } from "./summaries.ts";
-import { apiUpload } from "../../api.ts";
+import { apiUpload, apiSend } from "../../api.ts";
+import type { DocFields } from "@idk/shared/scan/docText";
+
+interface Recognized { fields: DocFields; pages: number; method: "pdf-text" | "ocr"; via: "ai" | "rules"; provider: string; warnings: string[]; text: string }
 
 const LABELS = QUALITY_DOC_TYPES.map((t) => QUALITY_DOC_LABELS[t]);
-const empty = () => ({ type: LABELS[0], number: "", date: "", validUntil: "", sheets: "1", scan: null as File | null });
+const empty = () => ({
+  type: LABELS[0], number: "", date: "", validUntil: "", sheets: "1", scan: null as File | null,
+  /** Скан уже загружен при распознавании — второй раз не загружается. */
+  uploaded: null as { id: number; name: string } | null,
+  recog: null as Recognized | null,
+});
 
 export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: BookState; name: string }) {
   const [error, setError] = useState("");
   const [form, setForm] = useState<ReturnType<typeof empty> | null>(null);
   const [link, setLink] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [reading, setReading] = useState(false);
   if (!name || !state.book) return null;
   const docs = docsOfMaterial(state.book, name);
   const others = (state.book.tables["ДокументыКачества"] ?? []).filter((r) => !docs.includes(r));
@@ -41,12 +51,37 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
     const t = await port.read("ДокументыКачества");
     if (!t) throw new Error("Таблица «Материалы» не найдена — нажмите «Обновить разметку»");
     const row = await port.insert("ДокументыКачества", t.rows.length, [values]);
-    if (form.scan) {
-      const f = await apiUpload(form.scan, form.scan.name);
-      await port.write("ДокументыКачества", row, { "Скан": f.name }, { "Скан": `${location.origin}/api/files/${f.id}` });
-    }
+    const f = form.uploaded ?? (form.scan ? await apiUpload(form.scan, form.scan.name) : null);
+    if (f) await port.write("ДокументыКачества", row, { "Скан": f.name }, { "Скан": `${location.origin}/api/files/${f.id}` });
     setForm(null);
   });
+
+  /** Скан → загрузка → распознавание → поля формы (вид, номер, даты, листы). Поля, которых нет в скане, не трогаются. */
+  const recognize = async (file: File, base = form ?? empty()) => {
+    setError("");
+    setReading(true);
+    let next = { ...base, scan: file, uploaded: null as { id: number; name: string } | null, recog: null as Recognized | null };
+    setForm(next);
+    try {
+      const up = await apiUpload(file, file.name);
+      next = { ...next, uploaded: { id: up.id, name: up.name } };
+      setForm(next);
+      const r = await apiSend<Recognized>("POST", `/api/files/${up.id}/recognize`, { material: name });
+      const f = r.fields;
+      setForm({
+        ...next, recog: r,
+        type: f.type ?? next.type, number: f.number ?? next.number,
+        date: f.issueDate ?? next.date, validUntil: f.validUntil ?? next.validUntil,
+        sheets: r.pages ? String(r.pages) : next.sheets,
+      });
+    } catch (e) {
+      setError(`Скан не распознан: ${(e as Error).message}. Заполните поля вручную — скан будет приложен.`);
+    } finally {
+      setReading(false);
+    }
+  };
+  const matRow = (state.book.tables["Материалы"] ?? []).find((m) => cellText(m.v.name) === name);
+  const setManufacturer = (v: string) => run(async () => { if (matRow) await port.write("Материалы", matRow.row, { "Завод-изготовитель": v }); });
 
   /** Привязать документ (общий сертификат) к материалу или отвязать; отвязать от единственного материала — удалить. */
   const toggle = (row: number, on: boolean) => run(async () => {
@@ -75,6 +110,11 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
       </ul>
       {!form && (
         <div className="row-actions">
+          <label className={"btn" + (busy || docs.length >= DOC_SLOTS.length ? " disabled" : "")} title="Выберите PDF или фото паспорта/сертификата — программа прочитает вид, номер, даты и листы">
+            Документ по скану…
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png" hidden disabled={busy || docs.length >= DOC_SLOTS.length}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void recognize(f, empty()); }} />
+          </label>
           <button className="btn" disabled={busy || docs.length >= DOC_SLOTS.length} title={docs.length >= DOC_SLOTS.length ? `У материала уже ${DOC_SLOTS.length} документа` : undefined} onClick={() => setForm(empty())}>Новый документ…</button>
           <button className="btn" disabled={busy || !others.length || docs.length >= DOC_SLOTS.length} onClick={() => setLink(!link)} title="Общий сертификат на несколько материалов">Привязать имеющийся{link ? " ▴" : " ▾"}</button>
         </div>
@@ -91,6 +131,22 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
       )}
       {form && (
         <div className="setting mat-doc-form">
+          {reading && <p className="notice" role="status">Читаю скан{form.scan ? ` «${form.scan.name}»` : ""}… (распознавание страниц может занять до минуты)</p>}
+          {form.recog && (
+            <div className="notice" role="status">
+              Поля заполнены по скану ({form.recog.method === "pdf-text" ? "текст PDF" : "распознавание Windows"}
+              {form.recog.via === "ai" ? `, разбор — нейросеть «${form.recog.provider}»` : ", разбор по правилам"}) — <b>проверьте их</b> перед «Добавить».
+              {form.recog.warnings.map((w) => <span key={w} className="warn" style={{ display: "block" }}>{w}</span>)}
+              {form.recog.fields.manufacturer && matRow && cellText(matRow.v.manufacturer) !== form.recog.fields.manufacturer && (
+                <span style={{ display: "block" }}>Изготовитель по скану: {form.recog.fields.manufacturer}{" "}
+                  <button className="btn btn-small" disabled={busy} onClick={() => void setManufacturer(form.recog!.fields.manufacturer!)}>
+                    {cellText(matRow.v.manufacturer) ? "Заменить в материале" : "Записать в материал"}
+                  </button>
+                </span>
+              )}
+              <details><summary>Распознанный текст</summary><pre className="muted" style={{ whiteSpace: "pre-wrap", fontSize: 11, maxHeight: 200, overflow: "auto" }}>{form.recog.text}</pre></details>
+            </div>
+          )}
           <label>Вид{" "}
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
               {LABELS.map((l) => <option key={l} value={l}>{l}</option>)}
@@ -100,9 +156,14 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
           <label>Дата <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label>
           <label>Действует до <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} /></label>
           <label>Листов <input type="number" min={1} style={{ width: "5em" }} value={form.sheets} onChange={(e) => setForm({ ...form, sheets: e.target.value })} /></label>
-          <label>Скан (PDF, JPG, PNG) <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setForm({ ...form, scan: e.target.files?.[0] ?? null })} /></label>
+          <label>Скан (PDF, JPG, PNG) <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+            onChange={(e) => setForm({ ...form, scan: e.target.files?.[0] ?? null, uploaded: null, recog: null })} /></label>
+          {form.scan && !form.recog && !reading && (
+            <button className="btn btn-small" onClick={() => void recognize(form.scan!)}>Распознать скан и заполнить поля</button>
+          )}
+          {form.scan && <span className="muted"> {form.scan.name}</span>}
           <div className="row-actions">
-            <button className="btn btn-primary" disabled={busy} onClick={() => void create()}>{busy ? "Добавляю…" : "Добавить"}</button>
+            <button className="btn btn-primary" disabled={busy || reading} onClick={() => void create()}>{busy ? "Добавляю…" : "Добавить"}</button>
             <button className="btn" disabled={busy} onClick={() => setForm(null)}>Отмена</button>
           </div>
         </div>

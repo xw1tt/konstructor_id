@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { logError } from "../diag/log.ts";
 import { ZodError, type ZodType } from "zod";
 
 export class HttpError extends Error {
@@ -127,7 +128,7 @@ export class Router {
       if (res.headersSent) { res.destroy(); return true; }
       if (e instanceof HttpError) sendJson(res, e.status, { error: e.message });
       else {
-        console.error(e);
+        logError(`${req.method} ${req.url ?? ""}`, e);
         sendJson(res, 500, { error: "Внутренняя ошибка сервера: " + (e as Error).message });
       }
     }

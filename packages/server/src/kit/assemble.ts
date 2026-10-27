@@ -74,11 +74,11 @@ export interface KitDeps { db: Db; dataDir: string; templates?: TemplateStore; r
 
 /** PDF документа строки: своя форма шаблона или встроенная печать. */
 /** Пакет строки: протокол или акт плана 13 — из q.protos по номеру, иначе пакет акта. */
-const bundleOf = (q: KitRequest, row: KitRow) => (row.doc?.proto
+export const bundleOf = (q: KitRequest, row: KitRow) => (row.doc?.proto
   ? q.protos.find((p) => p.proto?.number === row.doc!.proto)
   : q.acts.find((a) => a.act.baseNumber === row.doc!.act));
 
-async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template: string): Promise<Buffer> {
+export async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template: string): Promise<Buffer> {
   const b = bundleOf(q, row)!;
   const f = row.doc!.form;
   if (f) {

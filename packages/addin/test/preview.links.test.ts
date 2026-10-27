@@ -9,5 +9,6 @@ test("предпросмотр: Excel документа печати, своя 
   assert.deepEqual(editableLink("/api/form-jobs/f1", "docx", "АОСР 1.pdf"), { href: "/api/form-jobs/f1/source", label: "Скачать Word", file: "АОСР 1.docx" });
   assert.deepEqual(editableLink("/api/kit-jobs/k1", null, "Реестр №1.pdf"), { href: "/api/kit-jobs/k1/xlsx", label: "Скачать Excel (архив)", file: "Реестр №1 (Excel).zip" });
   assert.equal(editableLink("/api/print-jobs/abc/vd", null)!.file, "");
+  assert.deepEqual(editableLink("/api/common-registry-jobs/c1", null, "Общий реестр ИД.pdf"), { href: "/api/common-registry-jobs/c1/xlsx", label: "Скачать Excel", file: "Общий реестр ИД.xlsx" });
   assert.equal(editableLink("/api/ojr-jobs/o1", null), null);
 });

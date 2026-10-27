@@ -15,10 +15,18 @@ test("нужные таблицы: СБД — с кабелями; без КЖ �
   assert.ok(sbd.has("КабельныйЖурнал") && sbd.has("ВОР") && sbd.has("Электролаборатория"));
   const only = neededTables(tpl([{ kind: "builtin", doc: "aosr", form: null }, { kind: "builtin", doc: "rim", form: null }]));
   assert.ok(!only.has("КабельныйЖурнал") && !only.has("ВОР") && !only.has("ОсмотрБарабанов"));
-  assert.ok(only.has("Спецификация") && only.has("ОЖР3"), "общие разделы ИД — всегда");
+  assert.ok(!only.has("Спецификация") && !only.has("ОЖР3"), "спецификация и ОЖР — не по шаблону (видны, только если заполнены)");
+  assert.ok(only.has("Схемы") && only.has("МатериалыАктов"), "АОСР — схемы и материалы в актах");
   const pkl = neededTables(tpl([{ kind: "builtin", doc: "pkl", form: null }]));
   assert.ok(pkl.has("ИспытанияКЛ") && pkl.has("Протоколы"));
   assert.ok(neededTables(BUILTIN_TI).has("ДокументыКачества"));
+});
+
+test("«Только нужные листы» включено по умолчанию", async () => {
+  const { neededSheetsOn } = await import("@idk/shared/workbook/sheets");
+  assert.equal(neededSheetsOn(null), true);
+  assert.equal(neededSheetsOn("1"), true);
+  assert.equal(neededSheetsOn("0"), false);
 });
 
 test("скрываются листы без нужных таблиц и без данных; «Реквизиты» и лист с данными — видны; выключено — всё видно", async () => {
@@ -26,7 +34,11 @@ test("скрываются листы без нужных таблиц и без
   const p = sheetPlan(t, await empty(), true);
   for (const s of ["ВОР", "Кабельный журнал", "Изоляция", "Протоколы и акты", "Замеры электрики", "Барабаны и трубы", "Замеры СКС и ВОЛС"])
     assert.ok(p.hidden.includes(s as any), s);
-  for (const s of ["Реквизиты", "База актов", "Материалы", "Реестр ИД", "Спецификация"]) assert.ok(p.visible.includes(s as any), s);
+  for (const s of ["Реквизиты", "База актов", "Материалы", "Реестр ИД", "Исполнительные схемы"]) assert.ok(p.visible.includes(s as any), s);
+  for (const s of ["Спецификация", "ОЖР Раздел 3", "ОЖР Раздел 5"]) assert.ok(p.hidden.includes(s as any), s);
+  // Только «РИМ» — без схем; строки-примеры новой книги лист не держат.
+  const rimOnly = sheetPlan(tpl([{ kind: "builtin", doc: "rim", form: null }]), await readBook(new MemoryWorkbook({ "Схемы": [{ "Акт": "Пример: 1" }] } as any)), true);
+  assert.ok(rimOnly.hidden.includes("Исполнительные схемы"));
   const withData = await readBook(new MemoryWorkbook({ "ВОР": [{ "Акт": "1", "Объём": 5 }] } as any));
   assert.ok(sheetPlan(t, withData, true).visible.includes("ВОР"), "лист с данными не скрывается");
   const off = sheetPlan(t, await empty(), false);

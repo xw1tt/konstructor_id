@@ -6,11 +6,15 @@ import type { Db } from "../db.ts";
 import { Router, Reply, HttpError } from "../http/router.ts";
 import { assembleKit, type KitDeps } from "../kit/assemble.ts";
 import { kitXlsxZip, kitZipName } from "../kit/xlsx.ts";
+import { commonRegistry, commonRegistryFiles, COMMON_NAME } from "../kit/common.ts";
+import { z } from "zod";
 import { attachment } from "./print.ts";
 
 /** Тело задания: пакеты нескольких актов — больше обычного предела 1 МБ. */
 export const KIT_JSON_LIMIT = 20 * 1024 * 1024;
 export const KIT_TTL_MS = 30 * 60_000;
+/** Общий реестр — задания всех комплектов объекта. */
+export const COMMON_JSON_LIMIT = 100 * 1024 * 1024;
 export const MAX_KITS = 5;
 
 export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDeps, "templates" | "runner"> = {}, now: () => number = Date.now) {
@@ -38,6 +42,34 @@ export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDep
     const { zip } = kitXlsxZip(j.q, forms);
     c.res.writeHead(200, { "content-type": "application/zip", "content-length": zip.length, "content-disposition": attachment(kitZipName(j.name)), "cache-control": "no-store" });
     c.res.end(zip);
+  });
+  // Общий реестр ИД: все комплекты объекта (задания сборки каждого комплекта) → PDF и Excel.
+  const common = new Map<string, { pdf: Buffer; xlsx: Buffer; at: number }>();
+  r.post("/api/common-registry-jobs", async (c) => {
+    const q = await c.body(z.object({ kits: z.array(KitRequest).min(1) }), COMMON_JSON_LIMIT);
+    const d = await commonRegistry(q.kits, { db, dataDir, ...forms });
+    const files = await commonRegistryFiles(d);
+    const id = randomUUID();
+    common.set(id, { ...files, at: now() });
+    while (common.size > MAX_KITS) common.delete(common.keys().next().value!);
+    return new Reply(201, { id, name: COMMON_NAME, kits: d.groups.length, docs: d.docs, sheets: d.sheets, warnings: d.warnings });
+  });
+  const getCommon = (id: string) => {
+    const j = common.get(id);
+    if (!j || now() - j.at > KIT_TTL_MS) { common.delete(id); throw new HttpError(404, "Общий реестр не найден или устарел — соберите его заново"); }
+    return j;
+  };
+  r.get("/api/common-registry-jobs/:job/xlsx", (c) => {
+    const j = getCommon(c.params.job);
+    c.res.writeHead(200, { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "content-length": j.xlsx.length,
+      "content-disposition": attachment(`${COMMON_NAME}.xlsx`), "cache-control": "no-store" });
+    c.res.end(j.xlsx);
+  });
+  r.get("/api/common-registry-jobs/:job", (c) => {
+    const j = getCommon(c.params.job);
+    c.res.writeHead(200, { "content-type": "application/pdf", "content-length": j.pdf.length, "cache-control": "no-store",
+      "content-disposition": `${c.query.get("download") ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(`${COMMON_NAME}.pdf`)}` });
+    c.res.end(j.pdf);
   });
   r.get("/api/kit-jobs/:job", (c) => {
     const j = get(c.params.job);

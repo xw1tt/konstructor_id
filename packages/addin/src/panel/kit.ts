@@ -60,3 +60,37 @@ export async function assembleKit(book: Book, kit: string, important: ImportantM
   if (!res.ok) throw new Error(data?.error ?? `Ошибка сервера (${res.status})`);
   return { kind: "ok", id: data.id, pages: data.pages, name: data.name };
 }
+
+/** Комплекты книги по порядку таблицы «Комплекты», у которых есть строки реестра. */
+export function kitsWithRegistry(book: Book): string[] {
+  const kits = (book.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean);
+  return [...new Set(kits)].filter((k) => kitRegistryCount(book, k) > 0);
+}
+
+export type CommonOutcome =
+  | { kind: "issues"; issues: Issue[] }
+  | { kind: "empty" }
+  | { kind: "ok"; id: string; kits: number; docs: number; sheets: number; warnings: string[] };
+
+/** Общий реестр ИД: задания всех комплектов с реестром → один реестр на сервере (PDF и Excel). */
+export async function assembleCommonRegistry(book: Book, important: ImportantMap, template: TemplateCode, options: PrintOptions,
+  tpl?: UserTemplate): Promise<CommonOutcome> {
+  const kits = kitsWithRegistry(book);
+  if (!kits.length) return { kind: "empty" };
+  const requests = [];
+  const issues: Issue[] = [];
+  for (const k of kits) {
+    const r = buildKitRequest(book, k, important, template, options, new Date(), tpl);
+    if (r.request) requests.push(r.request); else issues.push(...r.issues);
+  }
+  if (issues.length) return { kind: "issues", issues };
+  let res: Response;
+  try {
+    res = await fetch("/api/common-registry-jobs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kits: requests }) });
+  } catch {
+    throw new ServerUnavailableError();
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error ?? `Ошибка сервера (${res.status})`);
+  return { kind: "ok", id: data.id, kits: data.kits, docs: data.docs, sheets: data.sheets, warnings: data.warnings ?? [] };
+}

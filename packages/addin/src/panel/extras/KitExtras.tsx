@@ -11,7 +11,7 @@ import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../te
 import { issueLines, printAct, printForm, type IssueLine } from "../print.ts";
 import { templateButtons, type TemplateButton } from "../templatesApi.ts";
 import type { PrintKind } from "@idk/shared/acts/schemas";
-import { assembleKit, kitIssueLines, kitRegistryCount, previewUrl } from "../kit.ts";
+import { assembleKit, assembleCommonRegistry, kitIssueLines, kitRegistryCount, kitsWithRegistry, previewUrl } from "../kit.ts";
 import { IssueList } from "./IssueList.tsx";
 import { kitShortage, type Status } from "@idk/shared/catalog/need";
 import { CatalogContext, shortageText, statusText } from "../catalogApi.ts";
@@ -105,6 +105,26 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     setBusy(null);
   };
 
+  // Общий реестр ИД: все комплекты книги одним реестром (после подписания всей ИД).
+  const common = async () => {
+    setBusy("common");
+    setLines([]);
+    setNote(null);
+    const r = await guard(assembleCommonRegistry(state.book!, state.important, template, options, tpl), (m) => setNote({ text: m, error: true }));
+    if (r?.kind === "empty") setNote({ text: "Ни у одного комплекта нет строк в «Реестре ИД» — сначала «Заполнить из актов».", error: true });
+    if (r?.kind === "issues") await showIssues(r.issues);
+    if (r?.kind === "ok") {
+      setNote({
+        text: `Общий реестр: комплектов ${r.kits}, документов ${r.docs}, листов ${r.sheets}.` +
+          (r.warnings.length ? ` Листы не посчитаны (взяты из графы «Листов» или пусто): ${r.warnings.join("; ")}` : ""),
+        error: r.warnings.length > 0,
+      });
+      openPreview(previewUrl(`/api/common-registry-jobs/${r.id}`, location.origin));
+    }
+    setBusy(null);
+  };
+  const allKits = kitsWithRegistry(state.book);
+
   return (
     <div className="extras">
       <h3 className="tools-title">Комплект {kit}</h3>
@@ -118,6 +138,12 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
         </button>
         <button className="btn btn-primary" disabled={busy !== null} onClick={() => void build()}>
           {busy === "build" ? "Собираю…" : "Собрать комплект"}
+        </button>
+      </div>
+      <div className="row-actions">
+        <button className="btn" disabled={busy !== null || !allKits.length} onClick={() => void common()}
+          title="Все комплекты книги одним реестром: документы подряд по комплектам, сквозная нумерация, PDF и Excel">
+          {busy === "common" ? "Собираю общий реестр…" : `Общий реестр (комплектов: ${allKits.length})`}
         </button>
       </div>
       {kitButtons.length > 0 && (

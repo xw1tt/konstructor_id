@@ -1,4 +1,5 @@
 import { createServer } from "node:https";
+import { setLogFile } from "./diag/log.ts";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.ts";
@@ -25,6 +26,7 @@ try {
 } catch (e) {
   console.error("Не удалось сделать резервную копию:", (e as Error).message);
 }
+setLogFile(join(cfg.dataDir, "logs", "server.log"));
 const db = openDb(join(cfg.dataDir, "db.sqlite"));
 const tls = ensureCerts(cfg.dataDir);
 const server = createServer({ key: tls.key, cert: tls.cert }, createApp({ db, dataDir: cfg.dataDir, addinDir, allowedOrigins: defaultOrigins(cfg.port) }));

@@ -1,4 +1,7 @@
 // Экран «Настройки»: нейросети помощника (план 19), папка библиотеки компании (план 16). Выбор п.4 АОСР — в «Редакторе шаблонов».
+import { ReportProblem } from "./ReportProblem.tsx";
+import type { BookState } from "./useBook.ts";
+import type { AssistantSession } from "./assistant.ts";
 import { useEffect, useState } from "react";
 import { librarySettings, setLibraryDir } from "./libraryApi.ts";
 import { widthSupport, widthSupportText } from "./panelWidth.ts";
@@ -6,7 +9,7 @@ import { widthSupport, widthSupportText } from "./panelWidth.ts";
 declare const Office: unknown;
 import { AiSettings } from "./AiSettings.tsx";
 
-export function SettingsScreen() {
+export function SettingsScreen({ state = null, assistant = null }: { state?: BookState | null; assistant?: AssistantSession | null } = {}) {
   const [dir, setDir] = useState("");
   const [cur, setCur] = useState<{ dir: string; isDefault: boolean } | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -41,6 +44,7 @@ export function SettingsScreen() {
       <h3 className="tools-title">Панель</h3>
       <p className="muted">{widthSupportText(widthSupport(typeof Office !== "undefined" ? Office : undefined))}</p>
       <p className="muted">«Исполнительная схема» в п.4 АОСР настраивается в шаблоне: «Шаблоны ▾» → «Редактор шаблонов», рядом с документом АОСР.</p>
+      <ReportProblem state={state} assistant={assistant} />
     </main>
   );
 }

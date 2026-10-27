@@ -205,3 +205,33 @@ test("Excel комплекта: архив — по файлу .xlsx на каж
   assert.ok(names.every((n, i) => n.startsWith(String(i + 1).padStart(2, "0") + " ") && n.endsWith(".xlsx")), names.join(", "));
   assert.equal((await s.req("GET", "/api/kit-jobs/нет/xlsx")).status, 404);
 });
+
+test("общий реестр: комплекты подряд группами, сквозная нумерация, листы по документам, PDF и Excel; нет скана — предупреждение", async () => {
+  const s = await startTestServer();
+  const q1 = await request();
+  const q2 = structuredClone(q1);
+  q2.kit.number = "2";
+  q2.kit.volume = "2";
+  q2.rows[5].file = { name: "нет.pdf", link: null };
+  q2.rows[5].sheets = 3;
+  const r = await s.req("POST", "/api/common-registry-jobs", { kits: [q1, q2] });
+  assert.equal(r.status, 201, JSON.stringify(r.json).slice(0, 300));
+  assert.equal(r.json.kits, 2);
+  assert.equal(r.json.docs, q1.rows.length * 2);
+  assert.equal(r.json.warnings.length, 1);
+  assert.match(r.json.warnings[0], /Реестр №2, строка .*Файл не найден/);
+  const pdf = await pdfPages(new Uint8Array(await (await s.raw("GET", `/api/common-registry-jobs/${r.json.id}`)).arrayBuffer()));
+  const all = pdf.join(" ");
+  assert.match(all, /ОБЩИЙ РЕЕСТР ИСПОЛНИТЕЛЬНОЙ ДОКУМЕНТАЦИИ/);
+  assert.match(all, /Реестр №1\.[^ ]+ Том 1 Часть 1/);
+  assert.match(all, /Реестр №2\.[^ ]+ Том 2 Часть 1/);
+  assert.match(all, new RegExp(`Всего: комплектов 2, документов ${q1.rows.length * 2}`));
+  const x = await s.raw("GET", `/api/common-registry-jobs/${r.json.id}/xlsx`);
+  assert.match(decodeURIComponent(x.headers.get("content-disposition") ?? ""), /Общий реестр ИД\.xlsx/);
+  const { readXlsx } = await import("./helpers/xlsxRead.ts");
+  const sheet = readXlsx(new Uint8Array(await x.arrayBuffer())).sheets[0];
+  // Номера строк — сквозные: последняя строка второго комплекта — 2×N.
+  assert.ok(sheet.rows.some((row) => row.startsWith(`${q1.rows.length * 2} `)), "сквозная нумерация");
+  assert.ok(sheet.text.includes("Сдал:") && sheet.text.includes("Принял:"));
+  assert.equal((await s.req("GET", "/api/common-registry-jobs/нет")).status, 404);
+});

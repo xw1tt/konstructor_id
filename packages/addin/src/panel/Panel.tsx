@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SectionIcon } from "./icons.tsx";
 import { catalogKit, catalogApi, FormKit, templateKit } from "./kits.ts";
 import { FormAttach } from "./FormAttach.tsx";
-import { NEEDED_SHEETS_SETTING, sheetPlan } from "@idk/shared/workbook/sheets";
+import { NEEDED_SHEETS_SETTING, neededSheetsOn, sheetPlan } from "@idk/shared/workbook/sheets";
 import { loadTemplate, saveTemplate, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { TABLE_NAMES, type TableName } from "@idk/shared/workbook/schema";
 import type { ExcelPort } from "../book/excelPort.ts";
@@ -122,15 +122,17 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
     choose: async (id) => { chooseRef.current(id); },
   }, () => setListTick((n) => n + 1)));
   const [assistant] = useState(() => new AssistantSession({ store: port, chat: aiApi.chat, kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit, tplKit] }));
+  // «Только нужные листы» включено по умолчанию: листы — по документам шаблона книги.
   const [neededOn, setNeededOn] = useState(false);
-  useEffect(() => { void port.setting(NEEDED_SHEETS_SETTING).then((v) => setNeededOn(v === "1")).catch(() => undefined); }, [port]);
+  useEffect(() => { void port.setting(NEEDED_SHEETS_SETTING).then((v) => setNeededOn(neededSheetsOn(v))).catch(() => undefined); }, [port]);
   const applySheets = async (on: boolean) => {
     if (!state.book) return;
     const p = sheetPlan(resolved.template, state.book, on);
     await port.setSheetsVisible(p.visible, p.hidden);
   };
   const needed = { on: neededOn, set: async (v: boolean) => { await port.setSetting(NEEDED_SHEETS_SETTING, v ? "1" : "0"); setNeededOn(v); await applySheets(v); } };
-  const tplKey = `${resolved.template.id}:${resolved.template.docs.length}`;
+  // Пересчёт листов при смене шаблона или его документов.
+  const tplKey = `${resolved.template.id}:${resolved.template.docs.map((d) => (d.kind === "builtin" ? d.doc : d.code)).join(",")}`;
   useEffect(() => { if (neededOn && state.book) void applySheets(true).catch(() => undefined); }, [tplKey, neededOn, !!state.book]); // eslint-disable-line react-hooks/exhaustive-deps
   const flow: CreateFlow = { start: () => setCreating(true), finish: () => { setCreating(false); state.refresh(); } };
   const { book, selection } = state;
@@ -164,7 +166,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
             : screen === "fields" ? <FieldsScreen state={state} />
             : screen === "library" ? <LibraryScreen port={port} state={state} />
             : screen === "wizard" ? <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
-            : screen === "settings" ? <SettingsScreen /> : screen === "assistant" ? <AssistantScreen port={port} state={state} session={assistant} onSettings={() => setScreen("settings")} extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />} /> : screen === "normativ" ? (
+            : screen === "settings" ? <SettingsScreen state={state} assistant={assistant} /> : screen === "assistant" ? <AssistantScreen port={port} state={state} session={assistant} onSettings={() => setScreen("settings")} extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />} /> : screen === "normativ" ? (
             <NormativScreen port={port} />
           ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
             <>

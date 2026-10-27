@@ -57,3 +57,33 @@ test("строки протокола АОВ1", async () => {
   const noPurpose = protocolRows(c.rows.slice(0, 1), [{ ...c.marks[0], purpose: "" }]);
   assert.equal(noPurpose[0].line, "П2.Щ-АК2-17");
 });
+
+test("кабельные сборки: марка с «В протокол» — «нет» не попадает в протокол, номера подряд; журнал — со всеми", async () => {
+  const { aov1Records } = await import("./fixtures/aov1Book.ts");
+  const { MemoryWorkbook } = await import("@idk/shared/workbook/memory");
+  const r: any = aov1Records();
+  const ASM = "Кабельная сборка КС-1, 2 м";
+  r["КабельныйЖурнал"][1]["Кабель: марка, число жил, сечение"] = ASM;
+  r["КабельныйЖурнал"][3]["Кабель: марка, число жил, сечение"] = ASM;
+  r["ИзмеренияМарок"].push({ "Марка": ASM, "В протокол": "нет" });
+  const book = await readBook(new MemoryWorkbook(r));
+  const ip = buildCableBundle(book, AOV1, defaultImportant(), "ip");
+  assert.deepEqual(ip.issues, [], "у сборки не требуются напряжение и сопротивления");
+  const c = ip.bundle!.cables!;
+  const rows = protocolRows(c.rows, c.marks);
+  assert.equal(rows.length, 23);
+  assert.ok(rows.every((x) => x.mark !== ASM));
+  assert.deepEqual(rows.map((x) => x.n), rows.map((_, i) => i + 1));
+  const kj = buildCableBundle(book, AOV1, defaultImportant(), "kj").bundle!.cables!;
+  assert.equal(journalLines(kj.rows).filter((l) => l.kind === "cable" && l.row.cableMark === ASM).length, 2, "журнал показывает сборки");
+});
+
+test("все марки акта исключены из протокола — сообщение, а не пустой протокол", async () => {
+  const { aov1Records } = await import("./fixtures/aov1Book.ts");
+  const { MemoryWorkbook } = await import("@idk/shared/workbook/memory");
+  const r: any = aov1Records();
+  r["ИзмеренияМарок"][0]["В протокол"] = "нет";
+  const res = buildCableBundle(await readBook(new MemoryWorkbook(r)), AOV1, defaultImportant(), "ip");
+  assert.equal(res.bundle, null);
+  assert.match(res.issues.map((i) => i.message).join("\n"), /«В протокол» — «нет»: протокол изоляции пустой/);
+});

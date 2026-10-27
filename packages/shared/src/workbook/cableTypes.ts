@@ -15,6 +15,8 @@ export type CableRow = z.infer<typeof CableRow>;
 
 export const MarkMeasure = z.object({
   mark: str, purpose: str, voltage: optNum, allowed: optNum, values: z.array(z.string()).length(10),
+  /** «В протокол»: false — марка не измеряется (кабельные сборки), её линий нет в протоколе изоляции. */
+  inProtocol: z.boolean().default(true),
 });
 export type MarkMeasure = z.infer<typeof MarkMeasure>;
 

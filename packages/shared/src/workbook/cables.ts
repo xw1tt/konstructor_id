@@ -45,14 +45,18 @@ export function buildCableBundle(book: Book, actNumber: string, important: Impor
   let instrumentRows: BookRow[] = [];
   if (kind === "ip") {
     const used = new Map<string, BookRow>();
+    let measured = 0;
     for (const x of cables) {
       const mark = txt(x.r.v.cableMark);
       if (!mark) continue;
       const m = markRows.get(markKey(mark));
       if (!m) c.push("КабельныйЖурнал", x.r.row, column("КабельныйЖурнал", "cableMark").header, `Нет в таблице «ИзмеренияМарок»: ${mark}`);
-      else used.set(markKey(mark), m);
+      else if (notMeasured(m)) continue;
+      else { used.set(markKey(mark), m); measured++; }
     }
     for (const m of used.values()) c.checkRow("ИзмеренияМарок", m);
+    if (cables.length && !measured && !c.issues.length)
+      c.push("ИзмеренияМарок", null, column("ИзмеренияМарок", "inProtocol").header, "У всех марок акта «В протокол» — «нет»: протокол изоляции пустой");
     labRow = c.rows("Электролаборатория")[0];
     if (!labRow) c.push("Электролаборатория", null, "Организация и адрес", "Заполните таблицу «Электролаборатория»");
     else c.checkRow("Электролаборатория", labRow);
@@ -79,6 +83,7 @@ export function buildCableBundle(book: Book, actNumber: string, important: Impor
       voltage: num(r.v.voltage) ?? Number(column("ИзмеренияМарок", "voltage").default),
       allowed: num(r.v.allowed) ?? Number(column("ИзмеренияМарок", "allowed").default),
       values: MEASURE_KEYS.map((k) => txt(r.v[k])),
+      inProtocol: !notMeasured(r),
     })),
     doc: docRow && doc ? {
       journalCode: txt(docRow.v.journalCode), journalDate: doc.journalDate ?? null, protocolNumber: txt(docRow.v.protocolNumber),
@@ -101,6 +106,11 @@ export function buildCableBundle(book: Book, actNumber: string, important: Impor
   return { bundle: { ...base.bundle, cables: data }, issues: [] };
 }
 
+/** Марка не измеряется: «В протокол» — «нет». */
+const notMeasured = (r: BookRow) => txt(r.v.inProtocol).toLowerCase() === "нет";
+/** Кабельная сборка не подлежит измерению сопротивления изоляции — при сборе марок «В протокол» сразу «нет». */
+export const isAssembly = (mark: string) => /сборк/i.test(mark);
+
 /** Дописывает в «ИзмеренияМарок» марки кабельного журнала, которых там нет. Возвращает число добавленных. */
 export async function collectMarks(store: TableStore, book: Book): Promise<number> {
   const table = await store.read("ИзмеренияМарок");
@@ -113,6 +123,7 @@ export async function collectMarks(store: TableStore, book: Book): Promise<numbe
     known.add(markKey(mark));
     add.push({
       [column("ИзмеренияМарок", "mark").header]: mark,
+      [column("ИзмеренияМарок", "inProtocol").header]: isAssembly(mark) ? "нет" : "да",
       [column("ИзмеренияМарок", "voltage").header]: column("ИзмеренияМарок", "voltage").default as number,
       [column("ИзмеренияМарок", "allowed").header]: column("ИзмеренияМарок", "allowed").default as number,
     });

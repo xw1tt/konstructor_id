@@ -88,8 +88,9 @@ test("Собрать марки из журнала", async () => {
   assert.equal(await collectMarks(wb, await readBook(wb)), 1);
   const t = await wb.read("ИзмеренияМарок");
   assert.equal(t!.rows.length, 1);
-  assert.equal(t!.rows[0][2], 500);
-  assert.equal(t!.rows[0][3], 0.5);
+  assert.equal(t!.rows[0][t!.headers.indexOf("Напряжение мегаомметра, В")], 500);
+  assert.equal(t!.rows[0][t!.headers.indexOf("Допустимое сопротивление, МОм")], 0.5);
+  assert.equal(t!.rows[0][t!.headers.indexOf("В протокол")], "да");
   assert.equal(await collectMarks(wb, await readBook(wb)), 0);
 });
 
@@ -107,4 +108,18 @@ test("ревью: протокол не требует шифра и даты ж
   const b = await book((r) => { const d = r["ДокументыКабелей"][0]; d["Шифр журнала"] = null; d["Дата журнала"] = null; });
   assert.deepEqual(buildCableBundle(b, AOV1, defaultImportant(), "ip").issues, []);
   assert.equal(msgs(buildCableBundle(b, AOV1, defaultImportant(), "kj")).filter((m) => m === "Не заполнено").length, 2);
+});
+
+test("Собрать марки: кабельная сборка — сразу «В протокол» — «нет», кабель — «да»", async () => {
+  const r: any = aov1Records();
+  r["ИзмеренияМарок"] = [];
+  r["КабельныйЖурнал"][0]["Кабель: марка, число жил, сечение"] = "Кабельная сборка RJ45, 3 м";
+  const wb = new MemoryWorkbook(r);
+  assert.equal(await collectMarks(wb, await readBook(wb)), 2);
+  const t = await wb.read("ИзмеренияМарок");
+  const col = t!.headers.indexOf("В протокол");
+  const mark = t!.headers.indexOf("Марка");
+  const byMark = Object.fromEntries(t!.rows.map((x) => [x[mark], x[col]]));
+  assert.equal(byMark["Кабельная сборка RJ45, 3 м"], "нет");
+  assert.equal(Object.values(byMark).filter((v) => v === "да").length, 1);
 });

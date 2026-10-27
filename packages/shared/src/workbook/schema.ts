@@ -5,7 +5,7 @@ import type { CellValue } from "./values.ts";
 import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -270,6 +270,8 @@ export const TABLES: Record<TableName, TableDef> = {
   ]),
   "ИзмеренияМарок": t("ИзмеренияМарок", "Изоляция", [
     c("mark", "Марка", "text", { ...imp, isKey: true, width: 40 }),
+    // «нет» — марка не измеряется (кабельные сборки): её линии не попадают в протокол изоляции.
+    c("inProtocol", "В протокол", "enum", { values: YES_NO, default: "да", width: 11 }),
     c("purpose", "Назначение", "text", { width: 14 }),
     c("voltage", "Напряжение мегаомметра, В", "number", { ...imp, default: 500 }),
     c("allowed", "Допустимое сопротивление, МОм", "number", { ...imp, default: 0.5 }),

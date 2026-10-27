@@ -72,7 +72,8 @@ export interface ProtocolRow { n: number; line: string; mark: string; voltage: s
 /** Строки протокола: каждая линия журнала со значениями своей марки; пустые значения — «—». */
 export function protocolRows(rows: CableRow[], marks: MarkMeasure[]): ProtocolRow[] {
   const byMark = new Map(marks.map((m) => [markKey(m.mark), m]));
-  return rows.map((r, i) => {
+  // Марки с «В протокол» — «нет» (кабельные сборки) не измеряются: их линий в протоколе нет, номера — подряд.
+  return rows.filter((r) => byMark.get(markKey(r.cableMark))?.inProtocol !== false).map((r, i) => {
     const m = byMark.get(markKey(r.cableMark));
     const purpose = m?.purpose.trim() ?? "";
     return {

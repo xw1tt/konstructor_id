@@ -5,7 +5,8 @@ import { TABLES, SHEETS, keyColumn, column } from "@idk/shared/workbook/schema";
 test("лист «Изоляция» и его таблицы", () => {
   const iso = SHEETS.find((x) => x.name === "Изоляция")!;
   assert.deepEqual(iso.tables, ["Электролаборатория", "СредстваИзмерений", "ИзмеренияМарок", "ДокументыКабелей"]);
-  assert.deepEqual(TABLES["ИзмеренияМарок"].columns.map((c) => c.header).slice(4),
+  assert.deepEqual(TABLES["ИзмеренияМарок"].columns.map((c) => c.header).slice(0, 2), ["Марка", "В протокол"]);
+  assert.deepEqual(TABLES["ИзмеренияМарок"].columns.map((c) => c.header).slice(5),
     ["А-В", "В-С", "С-А", "A-N (PEN)", "B-N (PEN)", "C-N (PEN)", "A-PE", "B-PE", "C-PE", "N-PE"]);
   assert.deepEqual(TABLES["Электролаборатория"].columns.map((c) => c.header),
     ["Организация и адрес", "Свидетельство", "Руководитель электролаборатории", "Испытания провёл", "Скан"]);

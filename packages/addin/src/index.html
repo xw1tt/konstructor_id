@@ -8,7 +8,15 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="root"></div>
+  <!-- Видно, пока панель не запустилась: белая панель без этой надписи — страница не загрузилась (сервер не запущен). -->
+  <div id="root"><p class="banner" id="boot">Загрузка панели «Конструктор ИД»…</p></div>
+  <script>
+    // Ошибка запуска — текстом в панели, а не белым экраном.
+    window.addEventListener("error", function (e) {
+      var b = document.getElementById("boot");
+      if (b) b.textContent = "Панель не запустилась: " + (e.message || (e.target && e.target.src ? "не загружен " + e.target.src : "ошибка"));
+    }, true);
+  </script>
   <script src="main.js"></script>
 </body>
 </html>

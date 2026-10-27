@@ -51,9 +51,10 @@ test("документ качества из карточки материала
   assert.equal(docMaterials("Кабель", "Кабель", false), "");
 });
 
-test("лист «Материалы в актах» служебный: при «Только нужных листах» скрыт даже с данными", async () => {
+test("лист «Материалы в актах» виден всегда, в том числе в пустой книге при «Только нужных листах»", async () => {
   const book = await readBook(new MemoryWorkbook(aov1Records() as any));
-  assert.ok(sheetPlan(BUILTIN_SBD, book, true).hidden.includes("Материалы в актах"));
+  assert.ok(sheetPlan(BUILTIN_SBD, book, true).visible.includes("Материалы в актах"));
+  assert.ok(sheetPlan(BUILTIN_SBD, await readBook(new MemoryWorkbook({} as any)), true).visible.includes("Материалы в актах"));
   assert.ok(sheetPlan(BUILTIN_SBD, book, false).visible.includes("Материалы в актах"));
   assert.ok(sheetPlan(BUILTIN_SBD, book, true).visible.includes("Материалы"));
 });

@@ -12,7 +12,7 @@ export const neededSheetsOn = (v: string | null | undefined) => v !== "0";
 /** Нужны всегда (основа любой книги): реквизиты, участники, материалы и документы качества, акты, комплекты и реестр.
  *  Остальные листы — по документам шаблона; лист с данными (не примерами) виден всегда. */
 export const ALWAYS_TABLES: readonly TableName[] = [
-  "Объект", "Организации", "Шифры", "Представители", "Материалы", "ДокументыКачества", "Акты",
+  "Объект", "Организации", "Шифры", "Представители", "Материалы", "ДокументыКачества", "Акты", "МатериалыАктов",
   "Комплекты", "АктыКомплектов", "РеестрИД",
 ];
 
@@ -33,7 +33,6 @@ export function sheetPlan(template: UserTemplate, book: Book, enabled: boolean):
   const need = neededTables(template);
   const visible: SheetName[] = [], hidden: SheetName[] = [];
   for (const s of SHEETS) {
-    // Служебный лист (материалы в актах — из карточки акта) при включённом режиме скрыт всегда.
     const keep = !enabled || s.name === "Реквизиты" || (!s.panelOnly && s.tables.some((t) => need.has(t) || (book.tables[t]?.length ?? 0) > 0));
     (keep ? visible : hidden).push(s.name);
   }

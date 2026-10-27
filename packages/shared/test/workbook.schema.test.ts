@@ -26,7 +26,7 @@ test("листы и таблицы", () => {
   assert.deepEqual(SHEETS[0].tables, ["Объект", "Организации", "Шифры"]);
   const m = SHEETS.find((s) => s.name === "Материалы")!;
   assert.deepEqual(m.tables, ["Материалы"], "одна таблица: материал, РКЦ, документы");
-  assert.equal(SHEETS.find((s) => s.name === "Материалы в актах")!.panelOnly, true);
+  assert.equal(SHEETS.find((s) => s.name === "Материалы в актах")!.panelOnly, undefined, "лист виден всегда");
   for (const s of SHEETS) for (const t of s.tables) assert.equal(TABLES[t].sheet, s.name);
   for (const t of ["Спецификация", "ДокументыКачества"] as const) assert.equal(TABLES[t].virtual, true);
 });

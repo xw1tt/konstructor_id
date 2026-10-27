@@ -273,3 +273,12 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .mat-doc { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .mat-doc-form { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .mat-doc-form label { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+
+/* Поиск значения ссылки в карточке (0.27.5). */
+.ref-search { position: relative; }
+.ref-search input { width: 100%; }
+.ref-list { list-style: none; margin: 2px 0 0; padding: 2px 0; max-height: 260px; overflow-y: auto; border: 1px solid var(--line); border-radius: 3px; background: #fff; }
+.ref-list li { padding: 0; }
+.ref-list button.link { display: block; width: 100%; text-align: left; padding: 4px 8px; white-space: normal; }
+.ref-list button.link:hover, .ref-list .ref-hi { background: #e8f0fb; }
+.field-missing { border-color: #c00 !important; }

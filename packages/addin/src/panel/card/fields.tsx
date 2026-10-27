@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ColumnDef } from "@idk/shared/workbook/schema";
 import { cellText, parseDateCell, splitRefs, type CellValue } from "@idk/shared/workbook/values";
 import { fromCell } from "./editValue.ts";
+import { searchOptions } from "./search.ts";
 
 export interface FieldProps {
   col: ColumnDef;
@@ -63,16 +64,8 @@ function Input(p: FieldProps) {
           {col.values!.map((v) => <option key={v} value={v}>{v}</option>)}
         </select>
       );
-    case "ref": {
-      const cur = cellText(value);
-      return (
-        <select value={cur} onChange={(e) => p.onCommit(e.target.value)}>
-          <option value="">—</option>
-          {cur && !p.options.includes(cur) && <option value={cur}>{cur} (нет в списке)</option>}
-          {p.options.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      );
-    }
+    case "ref":
+      return <SearchRef value={cellText(value)} options={p.options} onCommit={p.onCommit} />;
     case "refs":
       return <MultiRef selected={splitRefs(value)} options={p.options} onCommit={p.onCommit} />;
     case "file":
@@ -115,6 +108,45 @@ function MultiRef({ selected, options, onCommit }: { selected: string[]; options
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** Выбор одного значения из другой таблицы с поиском: вводите часть наименования или марки — ниже список совпадений. */
+function SearchRef({ value, options, onCommit }: { value: string; options: string[]; onCommit: (v: string) => void }) {
+  const [q, setQ] = useState<string | null>(null);
+  const [hi, setHi] = useState(0);
+  const open = q !== null;
+  const shown = open ? searchOptions(options, q, 50) : [];
+  const pick = (v: string) => { setQ(null); if (v !== value) onCommit(v); };
+  const missing = !!value && !options.includes(value);
+  return (
+    <div className="ref-search">
+      <input type="search" value={open ? q : value} placeholder="Начните вводить для поиска"
+        className={missing ? "field-missing" : undefined} title={missing ? "Нет в списке" : undefined}
+        onFocus={() => { setQ(""); setHi(0); }}
+        onChange={(e) => { setQ(e.target.value); setHi(0); }}
+        onBlur={() => setQ(null)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, shown.length - 1)); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+          else if (e.key === "Enter") { e.preventDefault(); if (shown[hi]) pick(shown[hi]); (e.target as HTMLInputElement).blur(); }
+          else if (e.key === "Escape") { setQ(null); (e.target as HTMLInputElement).blur(); }
+        }} />
+      {missing && !open && <span className="error">«{value}» нет в списке</span>}
+      {open && (
+        <ul className="ref-list" role="listbox">
+          {value && <li><button type="button" className="link muted" onMouseDown={(e) => { e.preventDefault(); pick(""); }}>— очистить</button></li>}
+          {shown.map((o, i) => (
+            <li key={o}>
+              <button type="button" className={"link" + (i === hi ? " ref-hi" : "")} role="option" aria-selected={o === value}
+                onMouseDown={(e) => { e.preventDefault(); pick(o); }}>{o}</button>
+            </li>
+          ))}
+          {!shown.length && <li className="muted">Ничего не найдено</li>}
+          {shown.length === 50 && <li className="muted">Показаны первые 50 — уточните запрос</li>}
+        </ul>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import type { CellValue } from "./values.ts";
 import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 

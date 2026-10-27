@@ -229,6 +229,7 @@ export class ExcelPort implements TableStore {
    */
   private async addTableRows(ctx: any, t: any, index: number, values: unknown[][]): Promise<number> {
     const body = t.getDataBodyRange().load("rowIndex,rowCount,columnIndex,columnCount");
+    const head = t.getHeaderRowRange().load("values");
     const ws = t.worksheet;
     t.load("name");
     await ctx.sync();
@@ -241,13 +242,23 @@ export class ExcelPort implements TableStore {
     else ws.getRangeByIndexes(body.rowIndex + at, 0, n, 1).getEntireRow().insert("Down");
     await ctx.sync();
     let first = at;
+    // Вставленные строки листа Excel оформляет как строку выше — над первой строкой данных это заголовок (тёмная
+    // заливка, белый жирный шрифт): оформление новых строк — с прежней строки таблицы.
     if (append) {
       rowsAt(at).copyFrom(rowsAt(at + n), "All");
       first = count;
       const target = rowsAt(first, n);
       target.clear("Contents");
       target.clear("Hyperlinks");
+      for (let i = 0; i < n - 1; i++) rowsAt(first + i).copyFrom(rowsAt(at), "Formats");
+    } else {
+      for (let i = 0; i < n; i++) rowsAt(at + i).copyFrom(rowsAt(at + n), "Formats");
     }
+    // Формулы — в ячейки формата «Общий»: в текстовом формате Excel показывает формулу текстом.
+    const headers = (head.values[0] as unknown[]).map(String);
+    const def = isOurs(t.name) ? TABLES[t.name as TableName] : null;
+    const fcols = def ? headers.map((h, i) => (def.columns.find((c) => c.header === h)?.type === "formula" ? i : -1)).filter((i) => i >= 0) : [];
+    for (const i of fcols) ws.getRangeByIndexes(body.rowIndex + first, body.columnIndex + i, n, 1).numberFormat = values.map(() => ["General"]);
     rowsAt(first, n).values = values;
     await ctx.sync();
     return first;
@@ -538,6 +549,10 @@ export class ExcelPort implements TableStore {
     const created: TableName[] = [];
     // План 31: старые «Спецификация» и «ДокументыКачества» — в архив и прочь, их строки потом сводятся в «Материалы».
     const old = await this.takeOldTables();
+    // 0.27.4: в книгах 0.27–0.27.3 «Закрыто» и «Остаток» «Материалов» — формулы текстом, перенесённые строки — с
+    // оформлением заголовка. Чинится один раз: оформление тела таблицы — заново, формулы — в формат «Общий».
+    const was = Number(await this.setting(VERSION_SETTING));
+    const repair = was >= 13 && was < 14;
     await Excel.run(async (ctx: any) => {
       const sheets = ctx.workbook.worksheets;
       sheets.load("items/name");
@@ -554,7 +569,7 @@ export class ExcelPort implements TableStore {
         for (const name of sheet.tables) {
           if (TABLES[name].virtual) continue;
           if (tableNames.has(name)) {
-            await this.upgradeTable(ctx, name, important[name] ?? []);
+            await this.upgradeTable(ctx, name, important[name] ?? [], repair);
             continue;
           }
           // Новая таблица — ниже занятой части листа, чтобы не наложиться на существующие (в т. ч. переименованные);
@@ -686,7 +701,7 @@ export class ExcelPort implements TableStore {
   }
 
   /** Существующая таблица: недостающие столбцы — в конец, недостающие поля «Объекта» — строками; правила — заново. */
-  private async upgradeTable(ctx: any, name: TableName, important: string[]) {
+  private async upgradeTable(ctx: any, name: TableName, important: string[], repair = false) {
     const def = TABLES[name];
     const t = ctx.workbook.tables.getItem(name);
     const head = t.getHeaderRowRange().load("values");
@@ -698,6 +713,12 @@ export class ExcelPort implements TableStore {
     if (add.length) await ctx.sync();
     const all = [...headers, ...add.map((c) => c.header)];
     for (const col of add) this.formatColumn(t, def, col, all.indexOf(col.header), body.rowCount);
+    if (repair && name === "Материалы") {
+      // Значения не трогаются: снимается только прямое оформление тела, затем форматы столбцов — заново.
+      t.getDataBodyRange().clear("Formats");
+      for (const col of def.columns) if (!add.includes(col) && all.includes(col.header)) this.formatColumn(t, def, col, all.indexOf(col.header), body.rowCount);
+      t.getDataBodyRange().format.autofitRows();
+    }
     // Проверка данных и подсказки всех столбцов — заново: чинит списки, унаследованные дописанными столбцами в 0.8.
     for (const col of def.columns) {
       const i = all.indexOf(col.header);
@@ -779,7 +800,7 @@ export class ExcelPort implements TableStore {
     if (bodyRows > 0) {
       if (col.type === "date") body.numberFormat = fill("dd.mm.yyyy");
       if (textFormatted(col)) body.numberFormat = fill("@");
-      if (col.type === "formula" && col.formula) body.formulas = fill(col.formula);
+      if (col.type === "formula" && col.formula) { body.numberFormat = fill("General"); body.formulas = fill(col.formula); }
     }
     if (def.name !== "Объект" || col.key !== "value") applyValidation(body, col, def.name);
   }

@@ -113,3 +113,23 @@ test("книга 0.26: документы стояли справа от «Ма�
   assert.equal(wb.rowsOf("Материалы")[0]["Док.1: номер"], "П-9");
   assert.equal((await port.read("ДокументыКачества"))!.rows.length, 1);
 });
+
+test("0.27.4: «Закрыто» и «Остаток» — формулы в формате «Общий» (и у новых строк), книга 0.27 чинится «Обновить разметку»", async () => {
+  const wb = book025();
+  const port = new ExcelPort();
+  await port.ensureBook(defaultImportant());
+  const t = wb.table("Материалы")!;
+  const fmt = (h: string, r: number) => t.sheet.get(t.top + 1 + r, t.left + t.headers().indexOf(h)).fmt;
+  const n = wb.rowsOf("Материалы").length;
+  for (let r = 0; r < n; r++) for (const h of ["Закрыто", "Остаток"]) assert.equal(fmt(h, r), "General", `${h} ${r}`);
+  await port.insert("Материалы", n, [{ "Наименование": "Новый 1" }, { "Наименование": "Новый 2" }]);
+  assert.equal(fmt("Закрыто", n + 1), "General");
+  assert.match(String(wb.rowsOf("Материалы")[n + 1]["Закрыто"]), /^=SUMIFS/);
+  // Книга 0.27 (разметка 13) с текстовым форматом формул — «Обновить разметку» ставит «Общий».
+  const ci = t.left + t.headers().indexOf("Закрыто");
+  for (let r = 0; r < n + 2; r++) t.sheet.cells.set(`${t.top + 1 + r}:${ci}`, { ...t.sheet.get(t.top + 1 + r, ci), fmt: "@" });
+  wb.settings.set("idk.version", "13");
+  await port.ensureBook(defaultImportant());
+  for (let r = 0; r < n + 2; r++) assert.equal(fmt("Закрыто", r), "General");
+  assert.equal(wb.rowsOf("Материалы")[0]["Наименование"], "Кабель ВВГ", "данные не тронуты");
+});

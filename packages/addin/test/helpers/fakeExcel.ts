@@ -1,7 +1,7 @@
 // Небольшая модель Excel для тестов ExcelPort: листы-сетки, таблицы (позиция и размер), диапазоны со значениями
 // и ссылками, вставка/удаление со сдвигом ячеек и таблиц. Оформление, проверка данных и правила — без действия.
 
-type Cell = { v: unknown; link: string | null };
+type Cell = { v: unknown; link: string | null; fmt?: string };
 const BIG = 16384;
 
 /** Любые цепочки свойств и вызовов оформления — без действия. */
@@ -109,7 +109,12 @@ function range(wb: FakeWorkbook, s: FakeSheet, r: number, c: number, nr: number,
       const cur = s.get(r, c);
       s.put(r, c, { v: h.textToDisplay ?? cur.v, link: h.address });
     },
-    set numberFormat(_v: unknown) { /* формат */ },
+    set numberFormat(v: unknown[][]) {
+      for (let i = 0; i < Math.min(nr, 10000); i++) for (let j = 0; j < Math.min(nc, 500); j++) {
+        const f = String(v[i % v.length]?.[j % (v[0]?.length || 1)] ?? "");
+        s.cells.set(`${r + i}:${c + j}`, { ...s.get(r + i, c + j), fmt: f });
+      }
+    },
     format: noop(), dataValidation: noop(), conditionalFormats: noop(),
     load() { return self; },
     getCell: (i: number, j: number) => range(wb, s, r + i, c + j, 1, 1),
@@ -121,12 +126,14 @@ function range(wb: FakeWorkbook, s: FakeSheet, r: number, c: number, nr: number,
     clear: (what = "All") => {
       for (let i = 0; i < Math.min(nr, 10000); i++) for (let j = 0; j < Math.min(nc, 500); j++) {
         const cur = s.get(r + i, c + j);
+        if (what === "Formats") continue;
         if (what === "Hyperlinks") s.put(r + i, c + j, { ...cur, link: null });
         else if (what === "Contents") s.put(r + i, c + j, { ...cur, v: "" });
         else s.put(r + i, c + j, { v: "", link: null });
       }
     },
-    copyFrom: (src: any) => {
+    copyFrom: (src: any, type = "All") => {
+      if (type === "Formats") return;
       for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) s.put(r + i, c + j, { ...src.__sheet.get(src.rowIndex + i, src.columnIndex + j) });
     },
     select() { /* выделение */ },

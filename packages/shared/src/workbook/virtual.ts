@@ -34,21 +34,40 @@ export interface DocGroup { key: string; slots: Slot[] }
 export interface SpecGroup { number: string; rows: number[] }
 
 const slotFilled = (p: Phys, k: number) => !empty(p.v[M(slotKey(k, "type"))]) || !empty(p.v[M(slotKey(k, "number"))]);
-const docKey = (p: Phys, k: number) => {
-  const n = norm(p.v[M(slotKey(k, "number"))]);
-  return n ? `${norm(p.v[M(slotKey(k, "type"))])}|${n}` : `@${p.row}:${k}`;
-};
+/** Номер «без номера»: пусто, «б/н», «бн», «б.н.», «-», «нет» — такие документы не объединяются между собой. */
+export const isBlankNumber = (v: CellValue | undefined) =>
+  /^(|б\s*[/.\\]?\s*н\.?|без\s+номера|нет|[-–—]+)$/i.test(cellText(v ?? null).trim().replace(/^№\s*/, ""));
+/** Скан слота для сравнения: адрес ссылки или имя файла. */
+const scanOf = (p: Phys, k: number) => (p.link[M(slotKey(k, "file"))] ?? "") || norm(p.v[M(slotKey(k, "file"))]);
 
+/**
+ * Документы из слотов. Один документ на несколько материалов (общий сертификат) — слоты с одинаковыми видом и номером
+ * в разных строках и с одним сканом (или без скана у одного из них). Не объединяются: номер «б/н» и пустой, два слота
+ * одной строки, разные сканы (0.29.1: «Прочее б/н» и два паспорта «б/н» у одного материала — разные документы).
+ * «б/н» с одним и тем же сканом у разных материалов — один документ (скан один — документ один).
+ */
 export function docGroups(t: TableData): DocGroup[] {
   const out: DocGroup[] = [];
-  const byKey = new Map<string, DocGroup>();
+  const byKey = new Map<string, { g: DocGroup; rows: Set<number>; scan: string }[]>();
   // Строки-примеры новой книги — не данные: документов и позиций из них нет.
   for (const p of physRows(t)) for (const k of DOC_SLOTS) {
     if (p.example || !slotFilled(p, k)) continue;
-    const key = docKey(p, k);
-    const g = byKey.get(key) ?? (byKey.set(key, { key, slots: [] }).get(key)!);
-    if (!g.slots.length) out.push(g);
-    g.slots.push({ row: p.row, slot: k });
+    const num = p.v[M(slotKey(k, "number"))];
+    const scan = scanOf(p, k);
+    const blank = isBlankNumber(num);
+    // «б/н» без скана — отдельный документ; «б/н» с одним и тем же сканом у нескольких материалов — один документ.
+    if (blank && !scan) { out.push({ key: `@${p.row}:${k}`, slots: [{ row: p.row, slot: k }] }); continue; }
+    const key = blank ? `${norm(p.v[M(slotKey(k, "type"))])}|б/н|${scan}` : `${norm(p.v[M(slotKey(k, "type"))])}|${norm(num)}`;
+    const list = byKey.get(key) ?? (byKey.set(key, []).get(key)!);
+    let hit = list.find((x) => !x.rows.has(p.row) && (!x.scan || !scan || x.scan === scan));
+    if (!hit) {
+      hit = { g: { key: list.length ? `${key}#${list.length}` : key, slots: [] }, rows: new Set(), scan: "" };
+      list.push(hit);
+      out.push(hit.g);
+    }
+    hit.g.slots.push({ row: p.row, slot: k });
+    hit.rows.add(p.row);
+    if (!hit.scan) hit.scan = scan;
   }
   return out;
 }

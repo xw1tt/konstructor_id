@@ -3,6 +3,7 @@
 import { cellText, isoToExcelSerial, splitRefs } from "@idk/shared/workbook/values";
 import { newQualityDoc, docMaterials } from "@idk/shared/acts/actMaterials";
 import { flat } from "@idk/shared/scan/match";
+import { isBlankNumber } from "@idk/shared/workbook/virtual";
 import type { ExcelPort } from "../../book/excelPort.ts";
 
 export interface NewDoc {
@@ -23,8 +24,11 @@ export async function addQualityDoc(port: ExcelPort, d: NewDoc): Promise<string>
   const t = await port.read("ДокументыКачества");
   if (!t) throw new Error("Таблица «Материалы» не найдена — нажмите «Обновить разметку»");
   const h = (n: string) => t.headers.indexOf(n);
-  const same = t.rows.findIndex((r) => norm(cellText(r[h("Тип")] ?? null)) === norm(d.type) && numKey(cellText(r[h("Номер")] ?? null)) === numKey(d.number));
   const link = d.scan ? { "Скан": `${location.origin}/api/files/${d.scan.id}` } : null;
+  // «б/н» — один и тот же документ только при том же скане (иначе это разные паспорта без номера).
+  const blank = isBlankNumber(d.number);
+  const same = t.rows.findIndex((r, i) => norm(cellText(r[h("Тип")] ?? null)) === norm(d.type) && numKey(cellText(r[h("Номер")] ?? null)) === numKey(d.number)
+    && (!blank || (!!link && t.links[i]?.[h("Скан")] === link["Скан"])));
   if (same >= 0) {
     const before = cellText(t.rows[same][h("Материалы")] ?? null);
     let list = before;

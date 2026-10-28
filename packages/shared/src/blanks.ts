@@ -52,7 +52,7 @@ const ACT_BLANKS: BlankDef[] = [
     N("№", 6), col("type", "Наименование", 40, { align: "l", fixed: true }), col("date", "Дата документа", 14), col("number", "Номер документа", 32), col("sheets", "Лист", 8)] },
   { key: "kj:ti", label: "Кабельный журнал (ТИ)", blocks: [
     { key: "total", label: "Строка «Итого всего»", aliases: ["итого"] }, { key: "byMark", label: "Строки «в т.ч. <марка>»", aliases: ["в т.ч.", "по маркам"] },
-    { key: "reserve", label: "Строка «с учетом кф запаса»", aliases: ["запас", "коэффициент", "кф"] },
+    { key: "reserve", label: "Кф запаса в строках «в т.ч. <марка>»", aliases: ["запас", "коэффициент", "кф"] },
     { key: "signs", label: "Подписи «Сдал / Принял»", aliases: ["сдал", "принял", "подписи"] }], columns: [
     col("designation", "Обозначение кабеля, провода", 12, { fixed: true }), col("from", "Начало", 10, { group: "Трасса" }), col("to", "Конец", 10, { group: "Трасса" }),
     col("mark", "Марка", 22, { group: "Кабель" }), col("project", "Длина по проекту, м", 9, { group: "Кабель" }), col("fact", "Длина фактическая, м", 9, { group: "Кабель" }),

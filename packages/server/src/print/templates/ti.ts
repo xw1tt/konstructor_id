@@ -90,8 +90,11 @@ export function tiKjRows(j: TiJournal, view: BlankView): BodyRow[] {
   const label = view.shown("mark") ? "mark" : "designation";
   const tot = (cells: Record<string, string>): BodyRow => ({ cls: "tot", style: { b: true }, cells });
   if (view.shown("total")) rows.push(tot({ [label]: "Итого всего", tray: j.total.tray, smooth: j.total.smooth, corrugated: j.total.corrugated }));
-  if (view.shown("byMark")) for (const m of j.byMark) rows.push(tot({ [label]: `в т.ч. ${m.mark}`, project: m.project, fact: m.fact }));
-  if (view.shown("reserve")) rows.push(tot({ [label]: `с учетом кф запаса ${j.reserve.pct}%`, fact: j.reserve.fact, tray: j.reserve.tray, smooth: j.reserve.smooth, corrugated: j.reserve.corrugated }));
+  // 0.28.1: запас — в строке каждой марки (фактическая длина × кф, вверх до целого), а не отдельной строкой.
+  const withReserve = view.shown("reserve") && j.reserve.pct !== "0" && j.reserve.pct !== "";
+  if (view.shown("byMark")) for (const m of j.byMark) rows.push(tot(withReserve
+    ? { [label]: `в т.ч. ${m.mark} с учетом кф запаса ${j.reserve.pct}%`, project: m.project, fact: m.factReserve }
+    : { [label]: `в т.ч. ${m.mark}`, project: m.project, fact: m.fact }));
   return rows;
 }
 

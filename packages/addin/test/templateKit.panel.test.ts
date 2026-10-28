@@ -49,7 +49,7 @@ test("«Камчатка»: КЖ без способов прокладки и �
   assert.ok(tool, "get_blanks вернул бланк КЖ «ТИ»");
   assert.equal(s.pending.length, 1, "два вызова — одно предложение");
   assert.match(s.pending[0].lines.join("\n"), /без графы «Лоток»; без графы «Труба гладкая»; без графы «Труба гофрированная»/);
-  assert.match(s.pending[0].lines.join("\n"), /без «Строка «с учетом кф запаса»»/);
+  assert.match(s.pending[0].lines.join("\n"), /без «Кф запаса в строках «в т.ч. <марка>»»/);
   await s.apply([1]);
   const saved = (await api.list())[0];
   assert.deepEqual(saved.print.blanks["kj:ti"].hide, ["tray", "smooth", "corrugated", "reserve"]);

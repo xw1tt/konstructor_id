@@ -32,8 +32,8 @@ test("группы, итоги по способам, «в т.ч.» по мар�
   assert.deepEqual(j.lines.filter((l) => l.kind === "group").map((l) => l.kind === "group" && l.title), ["2 этаж, отм. +5.400", "3 этаж"]);
   assert.deepEqual(j.total, { tray: "10", smooth: "17", corrugated: "10" });
   assert.deepEqual(j.byMark, [
-    { mark: "КСПЭВПнг(А)-HF 2х2х0.97", project: "25", fact: "26" },
-    { mark: "UTP 4x2x0.52", project: "-", fact: "11" },
+    { mark: "КСПЭВПнг(А)-HF 2х2х0.97", project: "25", fact: "26", factReserve: "27" },
+    { mark: "UTP 4x2x0.52", project: "-", fact: "11", factReserve: "12" },
   ]);
   assert.deepEqual(j.reserve, { pct: "2", fact: "38", tray: "11", smooth: "18", corrugated: "11" }, "37 × 1,02 = 37,74 → 38");
 });

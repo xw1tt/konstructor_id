@@ -102,7 +102,8 @@ test("КЖ «ТИ»: шапка, номер по набору, графы спо
   const all = pages.join(" ");
   assert.match(all, /N-120/);
   assert.match(all, /Итого всего/);
-  assert.match(all, /с учетом кф запаса 2%/);
+  assert.match(all, /в т\.ч\. \S[^]*? с учетом кф запаса 2%/, "запас — в строке марки");
+  assert.doesNotMatch(all, /(^|\s)с учетом кф запаса 2%\s*\d+\s+\d+\s+\d+/, "отдельной строки запаса со способами нет");
   assert.match(all, /Принял:/);
   const ipB = buildCableBundle(await readBook(new MemoryWorkbook(recs)), AOV1, defaultImportant(), "ip", { set: "ti" }).bundle!;
   const ip = await renderBundlePdf(ipB, "ip", "ti", TI);

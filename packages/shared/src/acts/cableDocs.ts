@@ -97,8 +97,8 @@ export interface TiJournal {
   lines: TiJournalLine[];
   /** «Итого всего» по способам прокладки. */
   total: { tray: string; smooth: string; corrugated: string };
-  /** «в т.ч. <марка>»: длина по проекту («-», если не задана ни у одного кабеля) и фактическая. */
-  byMark: { mark: string; project: string; fact: string }[];
+  /** «в т.ч. <марка>»: длина по проекту («-», если не задана ни у одного кабеля), фактическая и фактическая с запасом. */
+  byMark: { mark: string; project: string; fact: string; factReserve: string }[];
   /** «с учетом кф запаса N%»: факт и способы × (1 + N/100), вверх до целого. */
   reserve: { pct: string; fact: string; tray: string; smooth: string; corrugated: string };
 }
@@ -138,7 +138,7 @@ export function tiJournal(rows: CableRow[], reservePct: number): TiJournal {
   return {
     lines,
     total: { tray: formatNumber(tray), smooth: formatNumber(smooth), corrugated: formatNumber(corr) },
-    byMark: [...marks.values()].map((m) => ({ mark: m.mark, project: m.project === null ? "-" : formatNumber(m.project), fact: formatNumber(m.fact) })),
+    byMark: [...marks.values()].map((m) => ({ mark: m.mark, project: m.project === null ? "-" : formatNumber(m.project), fact: formatNumber(m.fact), factReserve: up(m.fact) })),
     reserve: { pct: formatNumber(reservePct), fact: up(factAll), tray: up(tray), smooth: up(smooth), corrugated: up(corr) },
   };
 }

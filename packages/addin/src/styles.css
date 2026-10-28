@@ -288,3 +288,10 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .predelivery { margin-top: 8px; }
 .btn.disabled { opacity: .35; pointer-events: none; }
 .slot-fields { margin: 6px 0; } .slot-fields summary { cursor: pointer; color: var(--muted, #666); font-size: 12px; }
+
+/* 0.29: документы по сканам. */
+.scan-card { margin-top: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; }
+.scan-card.scan-done { opacity: .7; }
+.scan-head { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.scan-head .btn-link { margin-left: auto; }
+.scan-card .multi-list { max-height: 220px; overflow-y: auto; }

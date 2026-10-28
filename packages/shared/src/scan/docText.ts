@@ -115,3 +115,42 @@ export function mergeFields(ai: DocFields | null, rules: DocFields): DocFields {
 
 /** Текст пригоден (не пустой слой PDF из одних картинок). */
 export const hasText = (text: string) => (text.match(/[А-Яа-яЁёA-Za-z]/g) ?? []).length >= 60;
+
+// ---------- 0.29: документ и материалы по скану ----------
+
+export interface IdentifyMat { name: string; mark?: string; article?: string; manufacturer?: string }
+
+/** Запрос: реквизиты документа и номера материалов книги, к которым он относится. images — модель видит скан. */
+export function docIdentifyPrompt(text: string, mats: IdentifyMat[], hasImages: boolean): { system: string; user: string } {
+  const list = mats.slice(0, 400).map((m, i) => `${i + 1}. ${[m.name, m.mark, m.article, m.manufacturer].map((x) => (x ?? "").trim()).filter(Boolean).join(" | ")}`).join("\n");
+  return {
+    system: "Ты специалист ПТО. По документу качества строительного материала (паспорт, сертификат, декларация, письмо) определи его реквизиты и материалы объекта, к которым он относится. " +
+      (hasImages ? "Тебе даны изображения страниц документа — читай реквизиты с изображений; распознанный текст ниже может содержать ошибки. " : "Текст получен распознаванием (OCR) и может содержать ошибки: похожие буквы и цифры (О/0, З/3, l/1), латиница вместо кириллицы. ") +
+      `Ответь ТОЛЬКО объектом JSON без пояснений: {"type": одно из ${JSON.stringify(LABELS)} или null, "number": номер документа как в документе, с «№», или null, ` +
+      '"issueDate": дата документа (выдачи, регистрации, изготовления для паспорта) "ГГГГ-ММ-ДД" или null, "validUntil": срок действия "ГГГГ-ММ-ДД" или null, ' +
+      '"manufacturer": изготовитель кратко или null, "materials": [номера материалов из списка, к которым относится документ]}. ' +
+      "Материал подходит, если его марка, тип или наименование указаны в документе (сертификат на серию подходит всем сечениям этой серии). Не выдумывай: чего нет — null или пустой список.",
+    user: `Материалы объекта:\n${list || "(список пуст)"}\n\nРаспознанный текст документа:\n${text.slice(0, 10000)}`,
+  };
+}
+
+/** Ответ → поля и номера материалов (с 0, только из списка). */
+export function parseIdentifyAnswer(answer: string, count: number): { fields: DocFields; materials: number[] } | null {
+  const fields = parseDocFieldsAnswer(answer);
+  if (!fields) return null;
+  let materials: number[] = [];
+  try {
+    const o = JSON.parse(/\{[\s\S]*\}/.exec(answer)![0]);
+    if (Array.isArray(o.materials)) materials = [...new Set(o.materials.map(Number).filter((n: number) => Number.isInteger(n) && n >= 1 && n <= count).map((n: number) => n - 1))] as number[];
+  } catch { /* поля есть, материалов нет */ }
+  return { fields, materials };
+}
+
+/** Даты, которых не может быть: документ из будущего, срок действия раньше даты документа. */
+export function saneDates(f: DocFields, today: string): { fields: DocFields; warnings: string[] } {
+  const warnings: string[] = [];
+  const out = { ...f };
+  if (out.issueDate && out.issueDate > today) { warnings.push(`Дата документа ${out.issueDate.split("-").reverse().join(".")} позже сегодняшней — проверьте`); }
+  if (out.issueDate && out.validUntil && out.validUntil < out.issueDate) { warnings.push("Срок действия раньше даты документа — проверьте даты"); }
+  return { fields: out, warnings };
+}

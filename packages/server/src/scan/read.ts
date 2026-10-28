@@ -9,9 +9,17 @@ import { hasText } from "@idk/shared/scan/docText";
 import { HttpError } from "../http/router.ts";
 import { removeQuietly } from "../forms/convert.ts";
 
-export interface ScanText { text: string; pages: number; method: "pdf-text" | "ocr"; warnings: string[] }
-/** Распознавание файла (путь) — текст; ошибка — понятным сообщением. */
-export type OcrRunner = (path: string, kind: "pdf" | "image", maxPages: number) => Promise<{ text: string; lang: string }>;
+export interface ScanText {
+  text: string; pages: number; method: "pdf-text" | "ocr"; warnings: string[];
+  /** Страницы картинками (data:image/png;base64,…) — для нейросети, которая видит изображения (0.29). */
+  images: string[];
+}
+/** Распознавание файла (путь) — текст; renderDir — ещё и страницы PDF в PNG (p0.png…); ошибка — понятным сообщением. */
+export type OcrRunner = (path: string, kind: "pdf" | "image", maxPages: number, renderDir?: string) => Promise<{ text: string; lang: string }>;
+
+/** Сколько страниц отдавать нейросети картинками и предельный размер картинки. */
+export const VISION_PAGES = 2;
+const VISION_MAX_BYTES = 4.5 * 1024 * 1024;
 
 export const OCR_PAGES = 4;
 export const OCR_TIMEOUT_MS = 120_000;
@@ -63,7 +71,7 @@ export async function pdfText(buf: Buffer, maxPages = 6): Promise<{ text: string
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   let cMapUrl: string | undefined;
   try { cMapUrl = join(dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json")), "cmaps") + "/"; } catch { /* без cmaps */ }
-  const task = getDocument({ data: new Uint8Array(buf), useSystemFonts: true, cMapUrl, cMapPacked: true, isEvalSupported: false });
+  const task = getDocument({ data: new Uint8Array(buf), useSystemFonts: true, cMapUrl, cMapPacked: true });
   const doc = await task.promise;
   const out: string[] = [];
   for (let i = 1; i <= Math.min(doc.numPages, maxPages); i++) {
@@ -85,9 +93,19 @@ export async function pdfText(buf: Buffer, maxPages = 6): Promise<{ text: string
   return { text: out.join("\n\n"), pages };
 }
 
-export async function readScan(buf: Buffer, mime: string, ocr: OcrRunner): Promise<ScanText> {
+export async function readScan(buf: Buffer, mime: string, ocr: OcrRunner, opts: { images?: boolean } = {}): Promise<ScanText> {
   const warnings: string[] = [];
   const dir = mkdtempSync(join(tmpdir(), "idk-scan-"));
+  const pngs = () => {
+    const out: string[] = [];
+    for (let i = 0; i < VISION_PAGES; i++) {
+      const f = join(dir, `p${i}.png`);
+      if (!existsSync(f)) break;
+      const b = readFileSync(f);
+      if (b.length <= VISION_MAX_BYTES) out.push(`data:image/png;base64,${b.toString("base64")}`);
+    }
+    return out;
+  };
   try {
     if (mime === "application/pdf") {
       let pages = 1, text = "";
@@ -98,19 +116,20 @@ export async function readScan(buf: Buffer, mime: string, ocr: OcrRunner): Promi
         if (/Invalid PDF|InvalidPDF|bad XRef|corrupt/i.test(m)) throw new HttpError(400, "Не удалось прочитать PDF: файл повреждён");
         warnings.push(`Текстовый слой PDF не прочитан (${m.slice(0, 120)}) — страницы распознаются как изображения`);
       }
-      if (hasText(text)) return { text, pages, method: "pdf-text", warnings };
+      if (hasText(text)) return { text, pages, method: "pdf-text", warnings, images: [] };
       const path = join(dir, "scan.pdf");
       writeFileSync(path, buf);
-      const r = await ocr(path, "pdf", OCR_PAGES);
+      const r = await ocr(path, "pdf", OCR_PAGES, opts.images ? dir : undefined);
       if (pages > OCR_PAGES) warnings.push(`Распознаны первые ${OCR_PAGES} страницы из ${pages}`);
       if (r.lang && !r.lang.toLowerCase().startsWith("ru")) warnings.push(russianHint);
-      return { text: r.text, pages, method: "ocr", warnings };
+      return { text: r.text, pages, method: "ocr", warnings, images: opts.images ? pngs() : [] };
     }
     const path = join(dir, mime === "image/png" ? "scan.png" : "scan.jpg");
     writeFileSync(path, buf);
     const r = await ocr(path, "image", 1);
     if (r.lang && !r.lang.toLowerCase().startsWith("ru")) warnings.push(russianHint);
-    return { text: r.text, pages: 1, method: "ocr", warnings };
+    const images = opts.images && buf.length <= VISION_MAX_BYTES ? [`data:${mime};base64,${buf.toString("base64")}`] : [];
+    return { text: r.text, pages: 1, method: "ocr", warnings, images };
   } finally {
     removeQuietly(dir);
   }
@@ -120,7 +139,7 @@ const russianHint = "Распознавание русского текста в
   "Добавьте его: Параметры → Время и язык → Язык → Русский → Параметры → «Оптическое распознавание символов»";
 
 /** Скрипт PowerShell 5.1: WinRT OCR; страницы PDF — через Windows.Data.Pdf. Результат — UTF-8 в файл out. */
-export const OCR_SCRIPT = String.raw`param([string]$Path,[string]$Kind,[int]$Max,[string]$Out)
+export const OCR_SCRIPT = String.raw`param([string]$Path,[string]$Kind,[int]$Max,[string]$Out,[string]$Render='')
 $ErrorActionPreference='Stop'
 $NL=[string][char]10
 trap { [IO.File]::WriteAllText($Out+'.err',($_.Exception.Message+' @ '+$_.InvocationInfo.PositionMessage),(New-Object Text.UTF8Encoding $false)); exit 2 }
@@ -162,6 +181,12 @@ if($Kind -eq 'pdf'){
     $o=New-Object Windows.Data.Pdf.PdfPageRenderOptions
     $o.DestinationWidth=[uint32]2200
     AwaitAct ($p.RenderToStreamAsync($s,$o))
+    if($Render -ne '' -and $i -lt 2){
+      $s.Seek(0)
+      $rs=[System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($s)
+      $fs=[IO.File]::Create([IO.Path]::Combine($Render,'p'+$i+'.png'))
+      $rs.CopyTo($fs);$fs.Close()
+    }
     $parts+=ReadStream $s
   }
 }else{
@@ -173,7 +198,7 @@ $txt=($parts -join ($NL+$NL))
 `;
 
 export function windowsOcr(): OcrRunner {
-  return (path, kind, maxPages) => new Promise((resolve, reject) => {
+  return (path, kind, maxPages, renderDir) => new Promise((resolve, reject) => {
     if (process.platform !== "win32") {
       reject(new HttpError(501, "Распознавание сканов-картинок работает в Windows (встроенное распознавание текста). PDF с текстовым слоем читается везде"));
       return;
@@ -181,7 +206,7 @@ export function windowsOcr(): OcrRunner {
     const dir = dirname(path);
     const script = join(dir, "ocr.ps1"), out = join(dir, "ocr.txt");
     writeFileSync(script, "﻿" + OCR_SCRIPT);
-    execFile("powershell", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-Path", path, "-Kind", kind, "-Max", String(maxPages), "-Out", out],
+    execFile("powershell", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-Path", path, "-Kind", kind, "-Max", String(maxPages), "-Out", out, ...(renderDir ? ["-Render", renderDir] : [])],
       { timeout: OCR_TIMEOUT_MS, windowsHide: true }, (err, _stdout, stderr) => {
         if (!err && existsSync(out)) {
           const raw = readFileSync(out, "utf8");

@@ -73,7 +73,8 @@ export type ToolCall = z.infer<typeof ToolCall>;
 
 export const ChatMessage = z.discriminatedUnion("role", [
   z.object({ role: z.literal("system"), content: z.string() }),
-  z.object({ role: z.literal("user"), content: z.string() }),
+  /** images — страницы скана (data:image/png;base64,…) для моделей, которые видят изображения (0.29). */
+  z.object({ role: z.literal("user"), content: z.string(), images: z.array(z.string()).optional() }),
   z.object({ role: z.literal("assistant"), content: z.string().default(""), toolCalls: z.array(ToolCall).default([]) }),
   z.object({ role: z.literal("tool"), toolCallId: z.string(), name: z.string(), content: z.string() }),
 ]);

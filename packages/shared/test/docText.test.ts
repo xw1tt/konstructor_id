@@ -59,3 +59,14 @@ test("декларация: дата регистрации важнее нач�
   assert.equal(f.issueDate, "2024-02-01");
   assert.equal(f.validUntil, "2029-02-04");
 });
+
+test("0.29: запрос со списком материалов; ответ — поля и номера материалов из списка", async () => {
+  const { docIdentifyPrompt, parseIdentifyAnswer, saneDates } = await import("@idk/shared/scan/docText");
+  const q = docIdentifyPrompt("текст", [{ name: "Кабель ВВГ", mark: "ВВГнг 3х2,5" }, { name: "Труба" }], true);
+  assert.match(q.user, /1\. Кабель ВВГ \| ВВГнг 3х2,5\n2\. Труба/);
+  assert.match(q.system, /изображения страниц/);
+  const r = parseIdentifyAnswer('{"type":"Сертификат соответствия","number":"№1","issueDate":"2025-01-01","validUntil":"2030-01-01","manufacturer":null,"materials":[2, 2, 5, "1"]}', 2)!;
+  assert.deepEqual(r.materials, [1, 0], "дубли и номера вне списка отброшены");
+  assert.equal(r.fields.number, "№1");
+  assert.deepEqual(saneDates({ ...r.fields, issueDate: "2027-01-01", validUntil: "2026-01-01" }, "2026-10-28").warnings.length, 2);
+});

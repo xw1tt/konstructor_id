@@ -49,6 +49,10 @@ function toOpenAI(m: ChatMessage): unknown {
         ? { role: "assistant", content: m.content || null, tool_calls: m.toolCalls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: JSON.stringify(c.arguments) } })) }
         : { role: "assistant", content: m.content };
     case "tool": return { role: "tool", tool_call_id: m.toolCallId, content: m.content };
+    case "user":
+      return m.images?.length
+        ? { role: "user", content: [{ type: "text", text: m.content }, ...m.images.map((url) => ({ type: "image_url", image_url: { url } }))] }
+        : { role: "user", content: m.content };
     default: return { role: m.role, content: m.content };
   }
 }

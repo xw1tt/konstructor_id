@@ -60,3 +60,42 @@ test("OCR недоступен — понятная ошибка; язык ра�
   assert.equal(r2.status, 200);
   assert.ok(r2.json.warnings.some((w: string) => /русского текста/.test(w)));
 });
+
+const MATS = [
+  { name: "Кабель силовой ВВГнг(А)-LS 3х2,5", mark: "ВВГнг(А)-LS 3х2,5-0,66" },
+  { name: "Кабель силовой ВВГнг(А)-LS 5х4", mark: "ВВГнг(А)-LS 5х4-0,66" },
+  { name: "Труба гофрированная ПНД 20", article: "71920" },
+];
+
+test("0.29 без нейросети: документ по правилам, материалы — по совпадениям в тексте, уверенные отмечены", async () => {
+  const s = await startTestServer({ ocrRunner: async () => ({ text: "СЕРТИФИКАТ СООТВЕТСТВИЯ № RU C-RU.АБ12.В.00001/25\nПродукция: кабели силовые BBГнг(A)-LS 3x2,5-0,66\nСрок действия с 1О.О1.2025 по 09.01.2030", lang: "ru" }) });
+  const f = await upload(s, Buffer.from("ffd8ffe000104a464946", "hex"), "image/jpeg", "с.jpg");
+  const r = await s.req("POST", `/api/files/${f.id}/identify`, { materials: MATS, today: "2026-10-28" });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal(r.json.fields.type, "Сертификат соответствия");
+  assert.equal(r.json.fields.issueDate, "2025-01-10", "«1О.О1.2025» после OCR");
+  assert.equal(r.json.fields.validUntil, "2030-01-09");
+  assert.equal(r.json.materials[0].name, "Кабель силовой ВВГнг(А)-LS 3х2,5");
+  assert.equal(r.json.materials[0].checked, true);
+  assert.ok(!r.json.materials.some((m: any) => /Труба/.test(m.name)));
+});
+
+test("0.29 с нейросетью, видящей изображения: страница уходит картинкой, материалы — по ответу; не принимает картинки — повтор текстом", async () => {
+  const answer = '{"type":"Паспорт качества","number":"№П-7","issueDate":"2026-03-14","validUntil":null,"manufacturer":"ДКС","materials":[3]}';
+  const ai = await fakeAi({ "/v1/chat/completions": [
+    (x) => (Array.isArray(x.body.messages[1].content) ? { status: 400, json: { error: { message: "image input is not supported" } } } : { json: { choices: [{ message: { content: answer } }], usage: {} } }),
+  ] });
+  const s = await startTestServer({ ocrRunner: async () => ({ text: "ПАСПОРТ П-7 труба", lang: "ru" }) });
+  await s.req("PUT", "/api/ai/providers/new", { name: "Своя", kind: "openai", baseUrl: `${ai.url}/v1`, model: "m", key: "k" });
+  const f = await upload(s, Buffer.from("89504e470d0a1a0a0000000d4948445200000001000000010806000000", "hex"), "image/png", "п.png");
+  const r = await s.req("POST", `/api/files/${f.id}/identify`, { materials: MATS, today: "2026-10-28" });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal(ai.seen.length, 2);
+  assert.equal(ai.seen[0].body.messages[1].content[1].type, "image_url", "сначала — с картинкой");
+  assert.match(ai.seen[0].body.messages[1].content[1].image_url.url, /^data:image\/png;base64,/);
+  assert.equal(typeof ai.seen[1].body.messages[1].content, "string", "повтор — только текст");
+  assert.ok(r.json.warnings.some((w: string) => /не принимает изображения/.test(w)));
+  assert.equal(r.json.via, "ai");
+  assert.deepEqual(r.json.materials.filter((m: any) => m.checked).map((m: any) => m.name), ["Труба гофрированная ПНД 20"]);
+  assert.equal(r.json.fields.number, "№П-7");
+});

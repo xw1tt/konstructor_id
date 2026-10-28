@@ -3,17 +3,21 @@
 // сертификат — те же вид и номер в строках нескольких материалов. 0.28: «Документ по скану…» — скан распознаётся
 // (текст PDF или распознавание Windows, поля — нейросетью или по правилам) и заполняет форму для проверки.
 import { useState } from "react";
-import { cellText, isoToExcelSerial } from "@idk/shared/workbook/values";
+import { cellText } from "@idk/shared/workbook/values";
 import { QUALITY_DOC_LABELS, QUALITY_DOC_TYPES } from "@idk/shared/roles";
 import { DOC_SLOTS } from "@idk/shared/workbook/schema";
-import { newQualityDoc, docMaterials } from "@idk/shared/acts/actMaterials";
+import { docMaterials } from "@idk/shared/acts/actMaterials";
 import type { ExcelPort } from "../../book/excelPort.ts";
 import type { BookState } from "../useBook.ts";
 import { docsOfMaterial } from "./summaries.ts";
 import { apiUpload, apiSend } from "../../api.ts";
+import { addQualityDoc } from "./addDoc.ts";
 import type { DocFields } from "@idk/shared/scan/docText";
 
-interface Recognized { fields: DocFields; pages: number; method: "pdf-text" | "ocr"; via: "ai" | "rules"; provider: string; warnings: string[]; text: string }
+interface Recognized {
+  fields: DocFields; pages: number; method: "pdf-text" | "ocr"; via: "ai" | "rules"; provider: string; seen?: boolean; warnings: string[]; text: string;
+  materials?: { name: string; score: number; why: string[]; checked: boolean }[];
+}
 
 const LABELS = QUALITY_DOC_TYPES.map((t) => QUALITY_DOC_LABELS[t]);
 const empty = () => ({
@@ -21,6 +25,8 @@ const empty = () => ({
   /** Скан уже загружен при распознавании — второй раз не загружается. */
   uploaded: null as { id: number; name: string } | null,
   recog: null as Recognized | null,
+  /** 0.29: другие материалы, к которым по скану относится документ (отмеченные — добавить вместе). */
+  also: [] as string[],
 });
 
 export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: BookState; name: string }) {
@@ -40,19 +46,11 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
 
   const create = () => run(async () => {
     if (!form) return;
-    if (!form.number.trim()) throw new Error("Укажите номер документа");
-    const sheets = Number(form.sheets);
-    const values = newQualityDoc(name, {
-      type: form.type, number: form.number,
-      date: form.date ? isoToExcelSerial(form.date) : null, validUntil: form.validUntil ? isoToExcelSerial(form.validUntil) : null,
-      sheets: Number.isInteger(sheets) && sheets > 0 ? sheets : null,
-    });
-    if (await port.isFiltered("ДокументыКачества")) await port.clearFilters("ДокументыКачества");
-    const t = await port.read("ДокументыКачества");
-    if (!t) throw new Error("Таблица «Материалы» не найдена — нажмите «Обновить разметку»");
-    const row = await port.insert("ДокументыКачества", t.rows.length, [values]);
     const f = form.uploaded ?? (form.scan ? await apiUpload(form.scan, form.scan.name) : null);
-    if (f) await port.write("ДокументыКачества", row, { "Скан": f.name }, { "Скан": `${location.origin}/api/files/${f.id}` });
+    await addQualityDoc(port, {
+      type: form.type, number: form.number, date: form.date, valid: form.validUntil, sheets: form.sheets,
+      materials: [name, ...form.also], scan: f ? { id: f.id, name: f.name } : null,
+    });
     setForm(null);
   });
 
@@ -66,10 +64,13 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
       const up = await apiUpload(file, file.name);
       next = { ...next, uploaded: { id: up.id, name: up.name } };
       setForm(next);
-      const r = await apiSend<Recognized>("POST", `/api/files/${up.id}/recognize`, { material: name });
+      const mats = (state.book!.tables["Материалы"] ?? []).map((m) => ({ name: cellText(m.v.name), mark: cellText(m.v.mark), article: cellText(m.v.article), manufacturer: cellText(m.v.manufacturer) })).filter((m) => m.name);
+      const t = new Date();
+      const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+      const r = await apiSend<Recognized>("POST", `/api/files/${up.id}/identify`, { materials: mats, today });
       const f = r.fields;
       setForm({
-        ...next, recog: r,
+        ...next, recog: r, also: (r.materials ?? []).filter((m) => m.checked && m.name !== name).map((m) => m.name),
         type: f.type ?? next.type, number: f.number ?? next.number,
         date: f.issueDate ?? next.date, validUntil: f.validUntil ?? next.validUntil,
         sheets: r.pages ? String(r.pages) : next.sheets,
@@ -135,13 +136,24 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
           {form.recog && (
             <div className="notice" role="status">
               Поля заполнены по скану ({form.recog.method === "pdf-text" ? "текст PDF" : "распознавание Windows"}
-              {form.recog.via === "ai" ? `, разбор — нейросеть «${form.recog.provider}»` : ", разбор по правилам"}) — <b>проверьте их</b> перед «Добавить».
+              {form.recog.via === "ai" ? `, разбор — нейросеть «${form.recog.provider}»${form.recog.seen ? " (видела скан)" : ""}` : ", разбор по правилам"}) — <b>проверьте их</b> перед «Добавить».
               {form.recog.warnings.map((w) => <span key={w} className="warn" style={{ display: "block" }}>{w}</span>)}
               {form.recog.fields.manufacturer && matRow && cellText(matRow.v.manufacturer) !== form.recog.fields.manufacturer && (
                 <span style={{ display: "block" }}>Изготовитель по скану: {form.recog.fields.manufacturer}{" "}
                   <button className="btn btn-small" disabled={busy} onClick={() => void setManufacturer(form.recog!.fields.manufacturer!)}>
                     {cellText(matRow.v.manufacturer) ? "Заменить в материале" : "Записать в материал"}
                   </button>
+                </span>
+              )}
+              {(form.recog.materials ?? []).some((m) => m.name !== name) && (
+                <span style={{ display: "block" }}>Документ подходит и к другим материалам — отметьте, к каким добавить:
+                  {(form.recog.materials ?? []).filter((m) => m.name !== name).map((m) => (
+                    <label key={m.name} className="check" style={{ display: "block" }}>
+                      <input type="checkbox" checked={form.also.includes(m.name)}
+                        onChange={(e) => setForm({ ...form, also: e.target.checked ? [...form.also, m.name] : form.also.filter((x) => x !== m.name) })} />
+                      {" "}{m.name}<span className="muted"> — {m.why.join(", ")}</span>
+                    </label>
+                  ))}
                 </span>
               )}
               <details><summary>Распознанный текст</summary><pre className="muted" style={{ whiteSpace: "pre-wrap", fontSize: 11, maxHeight: 200, overflow: "auto" }}>{form.recog.text}</pre></details>

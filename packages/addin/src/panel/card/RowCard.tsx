@@ -16,6 +16,7 @@ import { Field } from "./fields.tsx";
 import { isExampleRow } from "@idk/shared/workbook/examples";
 import { toCellFor } from "./editValue.ts";
 import { MaterialExtras } from "../extras/MaterialExtras.tsx";
+import { ScanImport } from "../extras/ScanImport.tsx";
 import { ActExtras } from "../extras/ActExtras.tsx";
 import { CableExtras } from "../extras/CableExtras.tsx";
 import { KitExtras } from "../extras/KitExtras.tsx";
@@ -92,6 +93,7 @@ export function CardArea({ port, state }: { port: ExcelPort; state: BookState })
       )}
       {message && <p className="muted" role="status">{message}</p>}
       {section?.id === "ojr" && <OjrExtras port={port} state={state} />}
+      {s?.sheet === "Материалы" && <ScanImport port={port} state={state} />}
       {s?.sheet === "Материалы" && <SpecExtras port={port} state={state} />}
       {s?.sheet === "Материалы" && <SpecMatchTool port={port} state={state} />}
       <RowCard port={port} state={state} onRename={(p) => setPending(p)} />

@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const nodeExe = process.argv[2];
-const version = process.argv[3] ?? "0.28.2";
+const version = process.argv[3] ?? "0.28.3";
 if (!nodeExe || !existsSync(nodeExe)) {
   console.error("Укажите путь к node.exe для Windows (Node.js 22.13 или новее).");
   process.exit(1);
@@ -52,6 +52,23 @@ cpSync(realpathSync(join(root, "node_modules", "playwright-core")), join(payload
   const src = realpathSync(join(root, "node_modules", "pdfjs-dist")), dst = join(payload, "app", "node_modules", "pdfjs-dist");
   for (const f of ["package.json", "LICENSE", "legacy/build/pdf.mjs", "legacy/build/pdf.worker.mjs", "cmaps", "standard_fonts"])
     cpSync(join(src, f), join(dst, f), { recursive: true });
+}
+
+// Самопроверка: собранный сервер вне папки проекта (только свои node_modules) читает текст PDF — pdf.js загружается.
+{
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { PDFDocument, StandardFonts } = await import("pdf-lib");
+  const iso = mkdtempSync(join(tmpdir(), "idk-selftest-"));
+  cpSync(join(payload, "app"), join(iso, "app"), { recursive: true });
+  cpSync(join(payload, "print.css"), join(iso, "print.css"));
+  const doc = await PDFDocument.create();
+  doc.addPage().drawText("Certificate of conformity No 123 valid until 01.01.2030", { x: 40, y: 700, size: 12, font: await doc.embedFont(StandardFonts.Helvetica) });
+  writeFileSync(join(iso, "t.pdf"), await doc.save());
+  const out = execFileSync(process.execPath, [join(iso, "app", "server.mjs"), "--selftest-pdf", join(iso, "t.pdf")], { cwd: iso, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  rmSync(iso, { recursive: true, force: true });
+  if (!/pages=1 chars=[1-9]/.test(out)) throw new Error(`Самопроверка pdf.js не прошла: ${out}`);
+  console.log("Самопроверка pdf.js:", out.trim());
 }
 
 // 3. Node.js для Windows и лицензии.

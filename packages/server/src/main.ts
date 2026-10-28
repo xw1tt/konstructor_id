@@ -14,6 +14,16 @@ const cfg = loadConfig();
 // Установленная программа (установщик) задаёт папку панели явно; при запуске из исходников — packages/addin/dist.
 const addinDir = process.env.IDK_ADDIN_DIR || join(dirname(fileURLToPath(import.meta.url)), "..", "..", "addin", "dist");
 
+// «--selftest-pdf <файл>»: проверка сборки установщика — pdf.js загружается и читает текст (печатает число страниц).
+const st = process.argv.indexOf("--selftest-pdf");
+if (st >= 0) {
+  const { pdfText } = await import("./scan/read.ts");
+  const { readFileSync } = await import("node:fs");
+  const r = await pdfText(readFileSync(process.argv[st + 1]));
+  console.log(`pages=${r.pages} chars=${r.text.length}`);
+  process.exit(r.text.length ? 0 : 1);
+}
+
 // «--setup»: только подготовить сертификаты (для установщика) и выйти; печатает путь корневого сертификата.
 if (process.argv.includes("--setup")) {
   console.log(ensureCerts(cfg.dataDir).caCertPath);

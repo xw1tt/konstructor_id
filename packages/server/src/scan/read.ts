@@ -16,8 +16,50 @@ export type OcrRunner = (path: string, kind: "pdf" | "image", maxPages: number) 
 export const OCR_PAGES = 4;
 export const OCR_TIMEOUT_MS = 120_000;
 
+/**
+ * pdf.js в Node ждёт DOMMatrix и Path2D (из пакета @napi-rs/canvas, которого в установщике нет): без них сборка падает
+ * при загрузке. Тексту они не нужны — ставятся простые замены 2D-матрицы и пустого контура, если своих нет.
+ */
+function polyfillCanvasGlobals() {
+  const g = globalThis as any;
+  if (!g.DOMMatrix) {
+    g.DOMMatrix = class DOMMatrix {
+      a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+      constructor(init?: number[] | string) {
+        if (Array.isArray(init) && init.length >= 6) [this.a, this.b, this.c, this.d, this.e, this.f] = init;
+      }
+      get is2D() { return true; }
+      get isIdentity() { return this.a === 1 && this.b === 0 && this.c === 0 && this.d === 1 && this.e === 0 && this.f === 0; }
+      multiplySelf(m: any) {
+        const { a, b, c, d, e, f } = this;
+        this.a = a * m.a + c * m.b; this.b = b * m.a + d * m.b;
+        this.c = a * m.c + c * m.d; this.d = b * m.c + d * m.d;
+        this.e = a * m.e + c * m.f + e; this.f = b * m.e + d * m.f + f;
+        return this;
+      }
+      preMultiplySelf(m: any) { const t = new g.DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]).multiplySelf(this); Object.assign(this, { a: t.a, b: t.b, c: t.c, d: t.d, e: t.e, f: t.f }); return this; }
+      multiply(m: any) { return new g.DOMMatrix([this.a, this.b, this.c, this.d, this.e, this.f]).multiplySelf(m); }
+      translate(x = 0, y = 0) { return this.multiply({ a: 1, b: 0, c: 0, d: 1, e: x, f: y }); }
+      translateSelf(x = 0, y = 0) { return this.multiplySelf({ a: 1, b: 0, c: 0, d: 1, e: x, f: y }); }
+      scale(x = 1, y = x) { return this.multiply({ a: x, b: 0, c: 0, d: y, e: 0, f: 0 }); }
+      scaleSelf(x = 1, y = x) { return this.multiplySelf({ a: x, b: 0, c: 0, d: y, e: 0, f: 0 }); }
+      invertSelf() {
+        const { a, b, c, d, e, f } = this; const det = a * d - b * c;
+        if (!det) { Object.assign(this, { a: NaN, b: NaN, c: NaN, d: NaN, e: NaN, f: NaN }); return this; }
+        Object.assign(this, { a: d / det, b: -b / det, c: -c / det, d: a / det, e: (c * f - d * e) / det, f: (b * e - a * f) / det });
+        return this;
+      }
+      inverse() { return new g.DOMMatrix([this.a, this.b, this.c, this.d, this.e, this.f]).invertSelf(); }
+      transformPoint(p: { x?: number; y?: number } = {}) { const x = p.x ?? 0, y = p.y ?? 0; return { x: this.a * x + this.c * y + this.e, y: this.b * x + this.d * y + this.f, z: 0, w: 1 }; }
+    };
+  }
+  if (!g.Path2D) g.Path2D = class Path2D { addPath() {} moveTo() {} lineTo() {} bezierCurveTo() {} quadraticCurveTo() {} closePath() {} rect() {} };
+  if (!g.ImageData) g.ImageData = class ImageData { constructor(public data: unknown, public width: number, public height: number) {} };
+}
+
 /** Текстовый слой PDF (первые страницы) и число страниц. */
 export async function pdfText(buf: Buffer, maxPages = 6): Promise<{ text: string; pages: number }> {
+  polyfillCanvasGlobals();
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   let cMapUrl: string | undefined;
   try { cMapUrl = join(dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json")), "cmaps") + "/"; } catch { /* без cmaps */ }
@@ -49,7 +91,13 @@ export async function readScan(buf: Buffer, mime: string, ocr: OcrRunner): Promi
   try {
     if (mime === "application/pdf") {
       let pages = 1, text = "";
-      try { ({ text, pages } = await pdfText(buf)); } catch { throw new HttpError(400, "Не удалось прочитать PDF: файл повреждён или защищён"); }
+      try { ({ text, pages } = await pdfText(buf)); } catch (e) {
+        const m = (e as Error)?.message ?? "";
+        // Сбой самой программы чтения PDF — не «повреждённый файл»: попробовать распознать страницы как картинки.
+        if (/password|encrypt/i.test(m)) throw new HttpError(400, "PDF защищён паролем — снимите защиту и загрузите снова");
+        if (/Invalid PDF|InvalidPDF|bad XRef|corrupt/i.test(m)) throw new HttpError(400, "Не удалось прочитать PDF: файл повреждён");
+        warnings.push(`Текстовый слой PDF не прочитан (${m.slice(0, 120)}) — страницы распознаются как изображения`);
+      }
       if (hasText(text)) return { text, pages, method: "pdf-text", warnings };
       const path = join(dir, "scan.pdf");
       writeFileSync(path, buf);
@@ -75,9 +123,10 @@ const russianHint = "Распознавание русского текста в
 export const OCR_SCRIPT = String.raw`param([string]$Path,[string]$Kind,[int]$Max,[string]$Out)
 $ErrorActionPreference='Stop'
 $NL=[string][char]10
+trap { [IO.File]::WriteAllText($Out+'.err',($_.Exception.Message+' @ '+$_.InvocationInfo.PositionMessage),(New-Object Text.UTF8Encoding $false)); exit 2 }
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $ext=[System.WindowsRuntimeSystemExtensions].GetMethods()
-$asOp=($ext|?{$_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -like 'IAsyncOperation*'})[0]
+$asOp=($ext|?{$_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -match '^IAsyncOperation.1$'})[0]
 $asAct=($ext|?{$_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction'})[0]
 function Await($op,[Type]$t){$k=$asOp.MakeGenericMethod($t).Invoke($null,@($op));$k.Wait(-1)|Out-Null;$k.Result}
 function AwaitAct($op){$asAct.Invoke($null,@($op)).Wait(-1)|Out-Null}
@@ -140,10 +189,11 @@ export function windowsOcr(): OcrRunner {
           resolve({ lang: raw.slice(0, nl), text: raw.slice(nl + 1) });
           return;
         }
-        const msg = String(stderr || err?.message || "").trim();
+        const errFile = out + ".err";
+        const msg = (existsSync(errFile) ? readFileSync(errFile, "utf8") : String(stderr || err?.message || "")).trim();
         if (/NO_OCR/.test(msg)) reject(new HttpError(500, "В Windows нет ни одного языка распознавания текста. " + russianHint));
         else if (err && (err as any).killed) reject(new HttpError(504, "Распознавание заняло больше 2 минут — попробуйте файл с меньшим числом страниц"));
-        else reject(new HttpError(500, `Не удалось распознать скан средствами Windows: ${msg.split("\n")[0].slice(0, 300) || "неизвестная ошибка"}`));
+        else reject(new HttpError(500, `Не удалось распознать скан средствами Windows: ${msg.replace(/\s+/g, " ").slice(0, 400) || "неизвестная ошибка"}`));
       });
   });
 }

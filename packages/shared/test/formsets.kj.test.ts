@@ -58,3 +58,21 @@ test("новые столбцы книги попадают в строки па
   assert.equal(b.cables!.rows[0].tray, 3);
   assert.equal(b.cables!.rows[0].projectLength, 20);
 });
+
+test("0.28.2: знаков после запятой в итогах и строках марок — как разрядность в Excel; запас — вверх до этого знака", () => {
+  const rows = [
+    row({ group: "", tray: 1.234, smoothPipe: 2.5, corrugatedPipe: 0.25, projectLength: 10.05 }),
+    row({ group: "", tray: 2.2, smoothPipe: 0, corrugatedPipe: 1.3, projectLength: 5 }),
+  ];
+  const as = tiJournal(rows, 10);
+  assert.deepEqual(as.total, { tray: "3,434", smooth: "2,5", corrugated: "1,55" });
+  assert.equal(as.byMark[0].fact, "7,484");
+  assert.equal(as.byMark[0].factReserve, "9", "как раньше: 7,484 × 1,1 = 8,2324 → вверх до целого");
+  const d0 = tiJournal(rows, 10, 0);
+  assert.deepEqual(d0.total, { tray: "3", smooth: "3", corrugated: "2" });
+  assert.deepEqual([d0.byMark[0].project, d0.byMark[0].fact, d0.byMark[0].factReserve], ["15", "7", "9"]);
+  const d2 = tiJournal(rows, 10, 2);
+  assert.deepEqual(d2.total, { tray: "3,43", smooth: "2,50", corrugated: "1,55" });
+  assert.deepEqual([d2.byMark[0].project, d2.byMark[0].fact, d2.byMark[0].factReserve], ["15,05", "7,48", "8,24"]);
+  assert.equal(d2.lines.find((l) => l.kind === "cable" && l.tray === "1,234") !== undefined, true, "строки кабелей — как в книге");
+});

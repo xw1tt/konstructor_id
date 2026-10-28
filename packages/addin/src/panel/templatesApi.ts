@@ -62,6 +62,7 @@ export function withDocForm(t: UserTemplate, doc: FormDoc, set: FormSet | null):
 }
 /** Коэффициент запаса КЖ «ТИ», %. */
 export const withReserve = (t: UserTemplate, pct: number) => withPrint(t, { kjReserve: pct });
+export const withDecimals = (t: UserTemplate, d: number | null) => withPrint(t, { kjDecimals: d });
 
 /**
  * Изменение шаблона: свой — сохраняется на месте; встроенный («СБД», «ТИ») не меняется — создаётся копия

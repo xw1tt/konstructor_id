@@ -23,11 +23,12 @@ export const TEMPLATE_TOOLS: ToolDef[] = [
       rename: { type: "object", description: "Новые заголовки граф: {\"графа\": \"новый заголовок\"}; пустой — вернуть исходный", additionalProperties: { type: "string" } },
       reset: { type: "boolean", description: "Вернуть бланк к исходному виду" },
     }, ["doc"]) },
-  { name: "propose_print_settings", description: "Предложить изменить настройки печати шаблона (пользователь подтвердит): набор форм и нумерации (sbd — СБД, ti — ТИ), форму отдельного документа (vd, rim, kj, registry: sbd, ti или пусто — по набору), запас кабеля в КЖ «ТИ» (%), п.4 АОСР «Исполнительная схема» перед каждой схемой.",
+  { name: "propose_print_settings", description: "Предложить изменить настройки печати шаблона (пользователь подтвердит): набор форм и нумерации (sbd — СБД, ti — ТИ), форму отдельного документа (vd, rim, kj, registry: sbd, ti или пусто — по набору), запас кабеля в КЖ «ТИ» (%), знаков после запятой в итогах КЖ «ТИ», п.4 АОСР «Исполнительная схема» перед каждой схемой.",
     parameters: obj({
       formSet: { type: "string", enum: ["sbd", "ti"] },
       forms: { type: "object", description: "{\"kj\": \"ti\", \"vd\": \"\"}", additionalProperties: { type: "string" } },
       kjReserve: { type: "number", description: "Запас кабеля в КЖ «ТИ», %" },
+      kjDecimals: { type: "integer", description: "Знаков после запятой в итогах и строках «в т.ч. <марка>» КЖ «ТИ»: 0–3; -1 — как посчитано (запас — до целого)" },
       schemeEach: { type: "boolean", description: "П.4 АОСР: «Исполнительная схема» перед каждой схемой (иначе — только перед первой)" },
     }) },
 ];
@@ -59,7 +60,7 @@ export function getBlanks(t: UserTemplate, doc?: string): unknown {
   if (doc && !docs.length) return { error: `В шаблоне «${t.name}» нет документа «${doc}». Документы: ${t.docs.map(docLabel).join(", ")}` };
   return {
     template: t.name, note: editNote(t) || undefined,
-    print: { formSet: o.formSet, forms: o.forms, kjReserve: o.kjReserve, schemeEach: o.schemeEach },
+    print: { formSet: o.formSet, forms: o.forms, kjReserve: o.kjReserve, kjDecimals: o.kjDecimals, schemeEach: o.schemeEach },
     documents: docs.map((d) => {
       if (d.ownForm) return { doc: d.label, form: "своя форма из файла — меняется файлом (Шаблоны → «Скачать форму», правка в Word/Excel, «Загрузить форму»)" };
       const key = blankKeyFor(d.kind, o);
@@ -158,10 +159,17 @@ export function validatePrintProposal(t: UserTemplate, a: Record<string, unknown
     next.kjReserve = n;
     lines.push(`запас кабеля в КЖ «ТИ»: ${o.kjReserve}% → ${n}%`);
   }
+  if (a.kjDecimals !== undefined) {
+    const n = a.kjDecimals === null || a.kjDecimals === "" || Number(a.kjDecimals) === -1 ? null : Number(a.kjDecimals);
+    if (n !== null && (!Number.isInteger(n) || n < 0 || n > 3)) return { ok: false, error: "kjDecimals — целое от 0 до 3 или null" };
+    next.kjDecimals = n;
+    const txt = (v: number | null) => (v === null ? "как посчитано" : `${v} знак.`);
+    lines.push(`округление итогов КЖ «ТИ»: ${txt(o.kjDecimals)} → ${txt(n)}`);
+  }
   if (a.schemeEach !== undefined) {
     next.schemeEach = !!a.schemeEach;
     lines.push(`п.4 АОСР: «Исполнительная схема» ${next.schemeEach ? "перед каждой схемой" : "только перед первой схемой"}`);
   }
-  if (!lines.length) return { ok: false, error: "Укажите, что изменить: formSet, forms, kjReserve или schemeEach" };
+  if (!lines.length) return { ok: false, error: "Укажите, что изменить: formSet, forms, kjReserve, kjDecimals или schemeEach" };
   return change(t, next, [`Шаблон «${t.name}»: ${lines.join("; ")}`]);
 }

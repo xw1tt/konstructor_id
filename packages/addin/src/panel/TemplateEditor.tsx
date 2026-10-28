@@ -10,7 +10,7 @@ import { apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
 import type { BookState } from "./useBook.ts";
 import { UserTemplateContext } from "./templateContext.ts";
-import { createTemplate, deleteTemplate, saveTemplateDocs, uploadForm, importTemplate, applyChange, withFormSet, withDocForm, withReserve, withBlank } from "./templatesApi.ts";
+import { createTemplate, deleteTemplate, saveTemplateDocs, uploadForm, importTemplate, applyChange, withFormSet, withDocForm, withReserve, withDecimals, withBlank } from "./templatesApi.ts";
 import { BlankEditor } from "./BlankEditor.tsx";
 import { blankKeyFor } from "@idk/shared/blanks";
 import { bundleFor } from "./print.ts";
@@ -201,6 +201,17 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                   <label className="setting-option">Запас, %{" "}
                     <input type="number" min={0} max={100} step={0.5} style={{ width: "5em" }} defaultValue={t.print.kjReserve ?? 2} key={`${t.id}-res`}
                       onBlur={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v !== (t.print.kjReserve ?? 2)) void change((x) => withReserve(x, v)); }} />
+                  </label>
+                )}
+                {d.doc === "kj" && (t.print.forms?.kj ?? t.print.formSet) === "ti" && (
+                  <label className="setting-option" title="Итоги и строки «в т.ч. <марка>»; длины кабелей в строках — как в книге">Знаков после запятой в итогах{" "}
+                    <select value={t.print.kjDecimals ?? ""} onChange={(e) => void change((x) => withDecimals(x, e.target.value === "" ? null : Number(e.target.value)))}>
+                      <option value="">как посчитано (запас — до целого)</option>
+                      <option value="0">0 — целые</option>
+                      <option value="1">1 — 0,0</option>
+                      <option value="2">2 — 0,00</option>
+                      <option value="3">3 — 0,000</option>
+                    </select>
                   </label>
                 )}
               </div>

@@ -34,7 +34,7 @@ export const ACT_DOC_XLSX: Record<ActDocKind, Partial<Record<FormSet, RenderXlsx
     sbd: (b, _o, set) => kjSheet(cableDocData(b, "kj", set)),
     ti: (b, o, set) => tiKjSheet({
       header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date), number: docNumberFor(b.act.baseNumber, "kj", set),
-      journal: tiJournal(cables(b).rows, o.kjReserve ?? 2),
+      journal: tiJournal(cables(b).rows, o.kjReserve ?? 2, o.kjDecimals ?? null),
     }, view("kj:ti", o)).sheet,
   },
   ip: { sbd: (b, o, set) => ipSheet(cableDocData(b, "ip", set), view("ip:sbd", o)).sheet },

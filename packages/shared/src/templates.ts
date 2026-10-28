@@ -28,12 +28,14 @@ export const FORM_DOCS = ["vd", "rim", "kj", "registry"] as const;
 export type FormDoc = (typeof FORM_DOCS)[number];
 
 /** formSet — набор форм и нумерации; forms — форма документа вопреки набору; kjReserve — запас в КЖ «ТИ», %;
+ *  kjDecimals — знаков после запятой в итогах и строках марок КЖ «ТИ» (null — как посчитано, запас — до целого);
  *  blanks — настройки бланков: скрытые графы и блоки, свои заголовки граф (ключ — «вид:набор», у протоколов — вид). */
 export const PrintOptions = z.object({
   schemeEach: z.boolean().default(false),
   formSet: z.enum(FORM_SETS).default("sbd"),
   forms: z.object(Object.fromEntries(FORM_DOCS.map((d) => [d, z.enum(FORM_SETS).optional()])) as Record<FormDoc, z.ZodOptional<z.ZodEnum<["sbd", "ti"]>>>).default({}),
   kjReserve: z.number().min(0).max(100).default(2),
+  kjDecimals: z.number().int().min(0).max(3).nullable().default(null),
   blanks: z.record(BlankSettings).default({}),
 });
 export type PrintOptions = z.infer<typeof PrintOptions>;

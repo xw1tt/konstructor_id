@@ -110,7 +110,18 @@ const round3 = (x: number) => Math.round(x * 1000) / 1000;
 export const factLength = (r: CableRow): number | null =>
   [r.tray, r.smoothPipe, r.corrugatedPipe].some((x) => x !== null) ? round3(sum([r.tray, r.smoothPipe, r.corrugatedPipe])) : r.cableLength;
 
-export function tiJournal(rows: CableRow[], reservePct: number): TiJournal {
+/** Число с заданным числом знаков после запятой (как разрядность в Excel: по правилам округления, нули дописываются). */
+export function fixedNumber(x: number, decimals: number): string {
+  const k = 10 ** decimals;
+  const v = Math.sign(x) * Math.round(Math.abs(x) * k + 1e-9) / k;
+  return v.toFixed(decimals).replace(".", ",");
+}
+
+/**
+ * decimals — знаков после запятой в итогах и строках «в т.ч.» (строки кабелей — как в книге); null — как посчитано
+ * (до 3 знаков), длина с запасом — вверх до целого. С decimals длина с запасом — вверх до этого знака.
+ */
+export function tiJournal(rows: CableRow[], reservePct: number, decimals: number | null = null): TiJournal {
   const lines: TiJournalLine[] = [];
   let group = "";
   for (const r of rows) {
@@ -134,11 +145,14 @@ export function tiJournal(rows: CableRow[], reservePct: number): TiJournal {
     marks.set(k, m);
   }
   const factAll = round3([...marks.values()].reduce((a, m) => a + m.fact, 0));
-  const up = (x: number) => String(Math.ceil(round3(x * (1 + reservePct / 100))));
+  const d = decimals;
+  const k = 10 ** (d ?? 0);
+  const up = (x: number) => { const v = Math.ceil(round3(x * (1 + reservePct / 100) * k) - 1e-9) / k; return d === null ? String(v) : fixedNumber(v, d); };
+  const num = (x: number) => (d === null ? formatNumber(x) : fixedNumber(x, d));
   return {
     lines,
-    total: { tray: formatNumber(tray), smooth: formatNumber(smooth), corrugated: formatNumber(corr) },
-    byMark: [...marks.values()].map((m) => ({ mark: m.mark, project: m.project === null ? "-" : formatNumber(m.project), fact: formatNumber(m.fact), factReserve: up(m.fact) })),
+    total: { tray: num(tray), smooth: num(smooth), corrugated: num(corr) },
+    byMark: [...marks.values()].map((m) => ({ mark: m.mark, project: m.project === null ? "-" : num(m.project), fact: num(m.fact), factReserve: up(m.fact) })),
     reserve: { pct: formatNumber(reservePct), fact: up(factAll), tray: up(tray), smooth: up(smooth), corrugated: up(corr) },
   };
 }

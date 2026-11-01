@@ -4,3 +4,5 @@ dist/
 *.sqlite
 build/
 *.tsbuildinfo
+packages/acad/**/bin/
+packages/acad/**/obj/

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Проверка логики плагина без AutoCAD: разбор задания, раскладка ведомости и штампа, правка MTEXT. -->
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework><OutputType>Exe</OutputType><Nullable>disable</Nullable></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Layout.cs" />
+    <Compile Include="../SheetJob.cs" />
+  </ItemGroup>
+</Project>

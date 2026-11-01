@@ -5,6 +5,7 @@ import { Router, sendJson } from "./http/router.ts";
 import { serveStatic } from "./http/static.ts";
 import { fileRoutes } from "./routes/files.ts";
 import { printRoutes } from "./routes/print.ts";
+import { acadRoutes } from "./routes/acad.ts";
 import { normRoutes } from "./routes/norms.ts";
 import { kitRoutes } from "./routes/kit.ts";
 import { ojrRoutes } from "./routes/ojr.ts";
@@ -51,6 +52,7 @@ export const defaultOrigins = (port = 3443) => [`https://localhost:${port}`, `ht
 export function createApp(opts: AppOptions) {
   const api = new Router(opts.allowedOrigins ?? defaultOrigins());
   printRoutes(api);
+  acadRoutes(api, opts.dataDir);
   normRoutes(api, opts.db, { fetchImpl: opts.fetchImpl, sleep: opts.sleep });
   fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   ojrRoutes(api);

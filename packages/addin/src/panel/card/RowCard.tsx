@@ -21,6 +21,7 @@ import { ActExtras } from "../extras/ActExtras.tsx";
 import { CableExtras } from "../extras/CableExtras.tsx";
 import { KitExtras } from "../extras/KitExtras.tsx";
 import { OjrExtras } from "../extras/OjrExtras.tsx";
+import { SchemeExtras } from "../extras/SchemeExtras.tsx";
 import { SpecExtras, SpecPositionCard, SpecMatchTool } from "../extras/SpecExtras.tsx";
 import { kitOfRow } from "../kit.ts";
 import { CatalogContext, workListNames } from "../catalogApi.ts";
@@ -188,6 +189,12 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
       {table === "Акты" && <ActExtras port={port} state={state} act={cellText(valueOf(colOf("Акты", "baseNumber").header))} />}
       {table === "КабельныйЖурнал" && <CableExtras port={port} state={state} act={cellText(valueOf(colOf("КабельныйЖурнал", "act").header))} />}
       {table === "ИзмеренияМарок" && <CableExtras port={port} state={state} act="" />}
+      {table === "Схемы" && cellText(valueOf(colOf("Схемы", "kind").header)) !== "Прочее" && (
+        <SchemeExtras port={port} state={state} act={cellText(valueOf(colOf("Схемы", "act").header))} number={cellText(valueOf(colOf("Схемы", "number").header))} />
+      )}
+      {table === "ВедомостиСхем" && (
+        <SchemeExtras port={port} state={state} act={cellText(valueOf(colOf("ВедомостиСхем", "act").header))} number={cellText(valueOf(colOf("ВедомостиСхем", "scheme").header))} />
+      )}
       {(table === "Комплекты" || table === "АктыКомплектов" || table === "РеестрИД") && (
         <KitExtras port={port} state={state} kit={kitOfRow(table, t.headers, row)} />
       )}

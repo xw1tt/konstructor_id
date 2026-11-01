@@ -3,7 +3,7 @@
 Заполняет лист исполнительной схемы данными из книги: **ведомость объемов работ** (таблица) и **основную надпись**.
 Чертёж — подложку проекта и трассу — делает инженер, как и раньше.
 
-AutoCAD 2016–2024 (.NET Framework 4.6, сборка под R20.1). AutoCAD 2025+ (.NET 8) не поддерживается.
+Две сборки в одном bundle: AutoCAD 2016–2024 — `Contents/net46` (.NET Framework 4.6, API R20.1); AutoCAD 2025–2026 — `Contents/net8` (.NET 8, API R25.0). AutoCAD 2027 (.NET 10) — пока нет.
 
 ## Как работает
 
@@ -22,11 +22,11 @@ AutoCAD 2016–2024 (.NET Framework 4.6, сборка под R20.1). AutoCAD 202
 ## Установка
 
 Папку `IdkAcad.bundle` скопировать в `%APPDATA%\Autodesk\ApplicationPlugins\` и перезапустить AutoCAD.
-Разово, без установки: команда `NETLOAD` → `IdkAcad.bundle\Contents\IdkAcad.dll`.
+Разово, без установки: команда `NETLOAD` → `IdkAcad.bundle\Contents\net8\IdkAcad.dll` (AutoCAD 2025–2026) или `Contents\net46\IdkAcad.dll` (2016–2024).
 
 Сервер — `https://localhost:3443` (другой порт: переменная окружения `IDK_PORT`, другой адрес — `IDK_URL`).
 
 ## Сборка и проверка
 
-    dotnet build packages/acad -c Release        # IdkAcad.dll (net46, AutoCAD.NET 20.1.0)
+    dotnet build packages/acad -c Release        # bin/Release/net46 (AutoCAD.NET 20.1.0) и net8.0-windows (25.0.1)
     dotnet run --project packages/acad/test      # логика без AutoCAD: правка MTEXT, графы штампа, разбор задания

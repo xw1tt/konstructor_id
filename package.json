@@ -11,7 +11,8 @@
     "test": "tsx --test \"packages/*/test/**/*.test.ts\"",
     "build": "node packages/addin/build.mjs",
     "start": "tsx packages/server/src/main.ts",
-    "catalog:table": "tsx scripts/catalog-table.ts"
+    "catalog:table": "tsx scripts/catalog-table.ts",
+    "scheme:demo": "tsx scripts/scheme-demo.ts"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

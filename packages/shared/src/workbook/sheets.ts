@@ -1,5 +1,5 @@
 // План 17: только нужные листы — какие таблицы нужны документам шаблона книги и какие листы можно скрыть.
-import { SHEETS, type SheetName, type TableName } from "./schema.ts";
+import { SHEETS, ROUTE_TABLES, type SheetName, type TableName } from "./schema.ts";
 import type { Book } from "./records.ts";
 import type { UserTemplate } from "../forms/template.ts";
 import { ACT_DOC_DEFS, isActDocKind } from "../docs/defs.ts";
@@ -24,6 +24,8 @@ export function neededTables(template: UserTemplate): Set<TableName> {
     if (isActDocKind(d.doc)) for (const t of ACT_DOC_DEFS[d.doc].tables) out.add(t);
     else if (isProtoKind(d.doc)) { out.add(PROTO_DEFS[d.doc].table); out.add("Протоколы"); out.add("ПереченьОборудования"); }
   }
+  // Схемы трасс — приложение к актам, как и сканы «Исполнительных схем».
+  if (out.has("Схемы")) for (const t of ROUTE_TABLES) out.add(t);
   return out;
 }
 

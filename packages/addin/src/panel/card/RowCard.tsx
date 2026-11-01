@@ -2,7 +2,7 @@
 // с обновлением ссылок, дополнения разделов.
 import { useContext, useEffect, useState } from "react";
 import {
-  TABLES, OBJECT_FIELDS, SHEETS, isObjectFieldRequired, keyColumn, column as colOf, type ColumnDef, type TableName,
+  TABLES, OBJECT_FIELDS, SHEETS, ROUTE_TABLES, isObjectFieldRequired, keyColumn, column as colOf, type ColumnDef, type TableName,
 } from "@idk/shared/workbook/schema";
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
 import { findReferences, renameKey, type RefHit } from "@idk/shared/workbook/refs";
@@ -21,6 +21,7 @@ import { ActExtras } from "../extras/ActExtras.tsx";
 import { CableExtras } from "../extras/CableExtras.tsx";
 import { KitExtras } from "../extras/KitExtras.tsx";
 import { OjrExtras } from "../extras/OjrExtras.tsx";
+import { RouteExtras } from "../extras/RouteExtras.tsx";
 import { SpecExtras, SpecPositionCard, SpecMatchTool } from "../extras/SpecExtras.tsx";
 import { kitOfRow } from "../kit.ts";
 import { CatalogContext, workListNames } from "../catalogApi.ts";
@@ -188,6 +189,9 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
       {table === "Акты" && <ActExtras port={port} state={state} act={cellText(valueOf(colOf("Акты", "baseNumber").header))} />}
       {table === "КабельныйЖурнал" && <CableExtras port={port} state={state} act={cellText(valueOf(colOf("КабельныйЖурнал", "act").header))} />}
       {table === "ИзмеренияМарок" && <CableExtras port={port} state={state} act="" />}
+      {(ROUTE_TABLES as readonly TableName[]).includes(table) && (
+        <RouteExtras port={port} state={state} number={cellText(valueOf(table === "Трассы" ? colOf("Трассы", "number").header : colOf(table, "scheme").header))} />
+      )}
       {(table === "Комплекты" || table === "АктыКомплектов" || table === "РеестрИД") && (
         <KitExtras port={port} state={state} kit={kitOfRow(table, t.headers, row)} />
       )}

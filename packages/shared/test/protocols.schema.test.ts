@@ -8,7 +8,7 @@ const NEW_SHEETS = ["Протоколы и акты", "Замеры электр
 
 test("схема v9: новые листы в конце, прежние на месте", () => {
   assert.ok(SCHEMA_VERSION >= 9);
-  assert.deepEqual(SHEETS.slice(-4).map((s) => s.name), NEW_SHEETS);
+  assert.deepEqual(SHEETS.slice(-5, -1).map((s) => s.name), NEW_SHEETS);
   assert.equal(SHEETS[0].name, "Реквизиты");
   assert.deepEqual(SHEETS.find((s) => s.name === "Протоколы и акты")!.tables, ["Протоколы", "ПереченьОборудования"]);
   assert.deepEqual(SHEETS.find((s) => s.name === "Замеры электрики")!.tables,

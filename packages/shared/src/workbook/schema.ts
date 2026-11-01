@@ -3,9 +3,10 @@
 import { HELP, OBJECT_HELP } from "./help.ts";
 import type { CellValue } from "./values.ts";
 import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
+import { KIND_NAMES, SEGMENT_KINDS, FORMATS } from "../scheme/route.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -16,13 +17,14 @@ export type TableName =
   | "Комплекты" | "АктыКомплектов" | "РеестрИД" | "ОЖР3" | "ОЖР5" | "Спецификация"
   | "Протоколы" | "ПереченьОборудования" | "ИспытанияКЛ" | "ЗамерыАвтоматов" | "ЗамерыУЗО" | "ЗамерыФазаНуль"
   | "ЗамерыМеталлосвязи" | "ЗамерыЗаземления" | "ОсмотрБарабанов" | "ПрогревБарабанов" | "ТрубныеПроводки"
-  | "ЗамерыВолокон" | "ЗамерыСКС";
+  | "ЗамерыВолокон" | "ЗамерыСКС"
+  | "Трассы" | "ТрассыОси" | "ТрассыТочки" | "ТрассыУчастки";
 
 export type SheetName =
   | "Реквизиты" | "Представители" | "Материалы" | "Документы качества" | "База актов"
   | "Исполнительные схемы" | "Материалы в актах" | "ВОР" | "Кабельный журнал" | "Изоляция" | "Комплекты" | "Реестр ИД"
   | "ОЖР Раздел 3" | "ОЖР Раздел 5" | "Спецификация"
-  | "Протоколы и акты" | "Замеры электрики" | "Барабаны и трубы" | "Замеры СКС и ВОЛС";
+  | "Протоколы и акты" | "Замеры электрики" | "Барабаны и трубы" | "Замеры СКС и ВОЛС" | "Схемы трасс";
 
 export interface ColumnDef {
   key: string;
@@ -73,6 +75,11 @@ export function docTypeFromBook(label: string): QualityDocType | null {
 }
 
 export const SCHEME_KINDS = ["Схема", "Прочее"] as const;
+/** Исполнительные схемы кабельных трасс (лист «Схемы трасс»): форматы, ориентация, способы прокладки. */
+export const ROUTE_FORMATS = Object.keys(FORMATS) as (keyof typeof FORMATS)[];
+export const ROUTE_ORIENTATIONS = ["альбомная", "книжная"] as const;
+export const ROUTE_KIND_LABELS = SEGMENT_KINDS.map((k) => KIND_NAMES[k]);
+export const ROUTE_TABLES = ["Трассы", "ТрассыОси", "ТрассыТочки", "ТрассыУчастки"] as const satisfies readonly TableName[];
 
 /** Виды строк реестра ИД: документы, которые печатает конструктор (по акту), и сканы. */
 export const REGISTRY_KINDS = ["ВОР", "АОСР", "РИМ", "РП", "ВД", "Схема", "КЖ", "Протокол", "Поверка", "Лаборатория", "АВК", "Документ качества", "Свой документ", "Акт/протокол", "Прочее"] as const;
@@ -444,6 +451,42 @@ export const TABLES: Record<TableName, TableDef> = {
     c("wiremap", "Схема разводки", "text", imp), c("next", "Запас NEXT, дБ", "number"), c("il", "Запас затухания, дБ", "number"),
     c("rl", "Запас возвратных потерь, дБ", "number"), resultCol(),
   ]),
+  // Исполнительные схемы кабельных трасс: схема (штамп и лист), оси, точки трассы и участки между ними.
+  "Трассы": t("Трассы", "Схемы трасс", [
+    c("number", "Номер схемы", "text", { ...imp, isKey: true, width: 18 }),
+    c("act", "Акт", "ref", { ref: "Акты", width: 24 }),
+    c("name", "Наименование", "longtext", { ...imp, width: 50 }),
+    c("date", "Дата", "date"),
+    c("code", "Шифр в штампе", "text", { width: 26 }),
+    c("format", "Формат", "enum", { values: ROUTE_FORMATS, default: "A3", width: 9 }),
+    c("orientation", "Ориентация", "enum", { values: ROUTE_ORIENTATIONS, default: "альбомная", width: 12 }),
+    c("scale", "Масштаб 1:", "int", { width: 10 }),
+    c("notes", "Примечания", "longtext", { width: 50 }),
+  ]),
+  "ТрассыОси": t("ТрассыОси", "Схемы трасс", [
+    c("scheme", "Схема", "ref", { ...imp, ref: "Трассы", width: 18 }),
+    c("name", "Ось", "text", { ...imp, width: 8 }),
+    c("pos", "Координата, мм", "number", { ...imp, width: 16 }),
+  ]),
+  "ТрассыТочки": t("ТрассыТочки", "Схемы трасс", [
+    c("scheme", "Схема", "ref", { ...imp, ref: "Трассы", width: 18 }),
+    c("point", "Точка", "text", { ...imp, width: 10 }),
+    c("axisX", "Ось X", "text", { width: 8 }),
+    c("dx", "Смещение X, мм", "number", { width: 14 }),
+    c("axisY", "Ось Y", "text", { width: 8 }),
+    c("dy", "Смещение Y, мм", "number", { width: 14 }),
+    c("level", "Отметка, м", "number", { width: 11 }),
+    c("label", "Подпись", "text", { width: 20 }),
+  ]),
+  "ТрассыУчастки": t("ТрассыУчастки", "Схемы трасс", [
+    c("scheme", "Схема", "ref", { ...imp, ref: "Трассы", width: 18 }),
+    c("from", "Откуда", "text", { ...imp, width: 10 }),
+    c("to", "Куда", "text", { ...imp, width: 10 }),
+    c("kind", "Способ прокладки", "enum", { ...imp, values: ROUTE_KIND_LABELS, width: 22 }),
+    c("mark", "Марка", "text", { width: 18 }),
+    c("width", "Ширина / диаметр, мм", "number", { width: 12 }),
+    c("cables", "Кабели", "text", { width: 30 }),
+  ]),
 };
 
 /** Лист книги: таблицы; side — таблицы рядом (слева направо), а не одна под другой; panelOnly — лист ведётся из панели
@@ -469,6 +512,7 @@ export const SHEETS: readonly SheetDef[] = [
   { name: "Замеры электрики", tables: ["ИспытанияКЛ", "ЗамерыАвтоматов", "ЗамерыУЗО", "ЗамерыФазаНуль", "ЗамерыМеталлосвязи", "ЗамерыЗаземления"] },
   { name: "Барабаны и трубы", tables: ["ОсмотрБарабанов", "ПрогревБарабанов", "ТрубныеПроводки"] },
   { name: "Замеры СКС и ВОЛС", tables: ["ЗамерыВолокон", "ЗамерыСКС"] },
+  { name: "Схемы трасс", tables: [...ROUTE_TABLES] },
 ];
 
 export const TABLE_NAMES = Object.keys(TABLES) as TableName[];

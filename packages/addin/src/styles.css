@@ -295,3 +295,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .scan-head { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
 .scan-head .btn-link { margin-left: auto; }
 .scan-card .multi-list { max-height: 220px; overflow-y: auto; }
+
+/* Схема трассы: превью листа в ширину панели. */
+.route-preview { margin: 8px 0; border: 1px solid var(--line); background: #fff; }
+.route-preview svg { display: block; width: 100%; height: auto; }
+.route-totals { margin: 4px 0 8px; font-size: 12px; }

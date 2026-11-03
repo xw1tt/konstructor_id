@@ -46,3 +46,29 @@ test("0.29.2: установленная версия для «Настроек�
   assert.equal(typeof r.json.version, "string");
   assert.ok(r.json.version.length > 0);
 });
+
+test("0.29.3: отчёт сразу уходит в Телеграм (сообщение и архив); ошибка — архив остаётся, причина в ответе", async () => {
+  const { startTestServer } = await import("./helpers/server.ts");
+  const calls: { url: string; body: unknown }[] = [];
+  const ok: typeof fetch = async (url, init) => { calls.push({ url: String(url), body: init?.body }); return new Response(JSON.stringify({ ok: true }), { status: 200 }); };
+  const { tmpDir } = await import("./helpers/tmp.ts");
+  const s = await startTestServer({ telegram: { token: "123:abc", chatId: "42" }, fetchImpl: ok, reportsDir: tmpDir() });
+  const r = await s.req("POST", "/api/report", { description: "КЖ не печатается" });
+  assert.equal(r.status, 201, JSON.stringify(r.json));
+  assert.equal(r.json.sent, true);
+  assert.deepEqual(calls.map((c) => c.url), ["https://api.telegram.org/bot123:abc/sendMessage", "https://api.telegram.org/bot123:abc/sendDocument"]);
+  assert.match(String(calls[0].body), /КЖ не печатается/);
+  assert.equal(JSON.parse(String(calls[0].body)).chat_id, "42");
+  const form = calls[1].body as FormData;
+  assert.equal(form.get("chat_id"), "42");
+  assert.match((form.get("document") as File).name, /^Отчёт .*\.zip$/);
+  const bad: typeof fetch = async () => { throw new Error("connect ETIMEDOUT"); };
+  const s2 = await startTestServer({ telegram: { token: "1:x", chatId: "1" }, fetchImpl: bad, reportsDir: tmpDir() });
+  const r2 = await s2.req("POST", "/api/report", { description: "x" });
+  assert.equal(r2.status, 201);
+  assert.equal(r2.json.sent, false);
+  assert.match(r2.json.sendError, /нет связи с Телеграмом/);
+  assert.ok(r2.json.path);
+  const s3 = await startTestServer({ telegram: null, reportsDir: tmpDir() });
+  assert.equal((await s3.req("POST", "/api/report", { description: "x" })).json.sent, null, "бот не настроен — без отправки");
+});

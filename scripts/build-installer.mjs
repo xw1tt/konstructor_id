@@ -81,6 +81,11 @@ for (const f of ["start-server.vbs", "restart-server.vbs"]) {
   writeFileSync(p, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(readFileSync(p, "utf8").replace(/\r?\n/g, "\r\n"), "utf16le")]));
 }
 writeFileSync(join(payload, "VERSION"), version);
+// Бот Телеграма для «Сообщить о проблеме» (0.29.3): токен и чат — из переменных при сборке, в репозитории их нет.
+if (process.env.IDK_TG_TOKEN && process.env.IDK_TG_CHAT) {
+  writeFileSync(join(payload, "telegram.json"), JSON.stringify({ token: process.env.IDK_TG_TOKEN, chatId: process.env.IDK_TG_CHAT }));
+  console.log("Отчёты о проблемах: отправка в Телеграм включена");
+} else console.log("Отчёты о проблемах: бот Телеграма не задан (IDK_TG_TOKEN, IDK_TG_CHAT) — отправки не будет");
 
 // 4. Архив и установщик.
 const zip = join(root, "installer", "payload.zip");

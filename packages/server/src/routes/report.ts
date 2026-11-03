@@ -8,7 +8,8 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { Router, Reply, HttpError } from "../http/router.ts";
 import { writeZip } from "../zip/zip.ts";
-import { recentErrors, logFile } from "../diag/log.ts";
+import { recentErrors, logFile, logError } from "../diag/log.ts";
+import { telegramConfig, sendTelegram, type TgConfig } from "../diag/telegram.ts";
 import type { TemplateStore } from "../forms/store.ts";
 import type { AiStore } from "../ai/store.ts";
 import { attachment } from "./print.ts";
@@ -33,7 +34,10 @@ export function appVersion(): string {
 const stamp = (d: Date) => d.toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
 export const defaultReportsDir = () => join(homedir(), "Documents", "Конструктор ИД — отчёты");
 
-export function reportRoutes(r: Router, deps: { dataDir: string; templates: TemplateStore; ai: AiStore; reportsDir?: string; now?: () => Date }) {
+export function reportRoutes(r: Router, deps: {
+  dataDir: string; templates: TemplateStore; ai: AiStore; reportsDir?: string; now?: () => Date;
+  /** Для тестов: бот и запросы к Телеграму. */ telegram?: TgConfig | null; fetchImpl?: typeof fetch;
+}) {
   const made = new Map<string, { zip: Buffer; name: string }>();
   // Установленная версия — для «Настроек» (0.29.2).
   r.get("/api/version", () => ({ version: appVersion() }));
@@ -83,7 +87,14 @@ export function reportRoutes(r: Router, deps: { dataDir: string; templates: Temp
     const id = randomUUID();
     made.set(id, { zip, name });
     while (made.size > 5) made.delete(made.keys().next().value!);
-    return new Reply(201, { id, name, path, errors: errors.length });
+    // Сразу разработчику в Телеграм (если бот настроен в установщике); не вышло — архив остаётся у пользователя.
+    const tg = deps.telegram !== undefined ? deps.telegram : telegramConfig();
+    let sent: boolean | null = null, sendError = "";
+    if (tg) {
+      try { await sendTelegram(tg, text.replace(/\r\n/g, "\n"), { name, data: zip }, deps.fetchImpl); sent = true; }
+      catch (e) { sent = false; sendError = (e as Error).message; logError("report:telegram", e); }
+    }
+    return new Reply(201, { id, name, path, errors: errors.length, sent, sendError });
   });
   r.get("/api/report/:id", (c) => {
     const j = made.get(c.params.id);

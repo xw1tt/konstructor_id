@@ -42,6 +42,8 @@ export interface AppOptions {
   aiPost?: Post;
   /** Для тестов: подмена распознавания текста сканов (по умолчанию — Windows OCR через PowerShell). */
   ocrRunner?: OcrRunner;
+  /** Для тестов: бот Телеграма для отчётов (null — не отправлять; по умолчанию — telegram.json установщика). */
+  telegram?: import("./diag/telegram.ts").TgConfig | null;
   /** Папка копий отчётов «Сообщить о проблеме» (по умолчанию «Документы\Конструктор ИД — отчёты»). */
   reportsDir?: string;
 }
@@ -65,7 +67,7 @@ export function createApp(opts: AppOptions) {
   const ai = new AiStore(opts.dataDir);
   aiRoutes(api, ai, { post: opts.aiPost });
   scanRoutes(api, opts.db, opts.dataDir, ai, { ocr: opts.ocrRunner, post: opts.aiPost });
-  reportRoutes(api, { dataDir: opts.dataDir, templates, ai, reportsDir: opts.reportsDir });
+  reportRoutes(api, { dataDir: opts.dataDir, templates, ai, reportsDir: opts.reportsDir, telegram: opts.telegram, fetchImpl: opts.fetchImpl });
   libraryRoutes(api, new LibraryStore(opts.dataDir), opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {

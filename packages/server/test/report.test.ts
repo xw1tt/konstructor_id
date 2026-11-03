@@ -37,3 +37,12 @@ test("отчёт: архив (описание, панель, сервер, ош
   const r2 = await s.req("POST", "/api/report", { description: "" });
   assert.ok(!openZip(new Uint8Array(readFileSync(r2.json.path))).has("помощник.json"));
 });
+
+test("0.29.2: установленная версия для «Настроек»", async () => {
+  const { startTestServer } = await import("./helpers/server.ts");
+  const s = await startTestServer();
+  const r = await s.req("GET", "/api/version");
+  assert.equal(r.status, 200);
+  assert.equal(typeof r.json.version, "string");
+  assert.ok(r.json.version.length > 0);
+});

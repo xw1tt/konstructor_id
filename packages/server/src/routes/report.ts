@@ -35,6 +35,8 @@ export const defaultReportsDir = () => join(homedir(), "Documents", "Конст�
 
 export function reportRoutes(r: Router, deps: { dataDir: string; templates: TemplateStore; ai: AiStore; reportsDir?: string; now?: () => Date }) {
   const made = new Map<string, { zip: Buffer; name: string }>();
+  // Установленная версия — для «Настроек» (0.29.2).
+  r.get("/api/version", () => ({ version: appVersion() }));
   r.post("/api/report", async (c) => {
     const q = await c.body(ReportRequest, 5 * 1024 * 1024);
     const now = (deps.now ?? (() => new Date()))();

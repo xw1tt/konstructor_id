@@ -5,8 +5,30 @@ import type { AssistantSession } from "./assistant.ts";
 import { useEffect, useState } from "react";
 import { librarySettings, setLibraryDir } from "./libraryApi.ts";
 import { widthSupport, widthSupportText } from "./panelWidth.ts";
+import { apiGet } from "../api.ts";
 
 declare const Office: unknown;
+/** Версия панели (из манифеста при сборке); в тестах и при запуске без сборки — нет. */
+declare const __PANEL_VERSION__: string | undefined;
+const panelVersion = typeof __PANEL_VERSION__ === "string" ? __PANEL_VERSION__ : "";
+
+/** Установленная версия (сервер) и версия панели, которую показывает Excel: разные — Excel держит старую из кэша. */
+function VersionInfo() {
+  const [installed, setInstalled] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { void apiGet<{ version: string }>("/api/version").then((r) => setInstalled(r.version)).catch(() => setFailed(true)); }, []);
+  const stale = !!installed && !!panelVersion && installed !== "разработка" && installed !== panelVersion;
+  return (
+    <div className="version-info">
+      <p><b>Версия программы:</b> {installed ?? (failed ? "сервер не отвечает" : "…")}
+        {panelVersion && (stale || failed) && <span className="muted"> · панель {panelVersion}</span>}</p>
+      {stale && (
+        <p className="warn" role="status">Excel показывает панель прежней версии ({panelVersion}), а установлена {installed}. Закройте Excel полностью
+          и откройте снова. Если не поможет — закройте Excel и удалите содержимое папки <code>%LOCALAPPDATA%\Microsoft\Office\16.0\Wef</code> (кэш надстроек).</p>
+      )}
+    </div>
+  );
+}
 import { AiSettings } from "./AiSettings.tsx";
 
 export function SettingsScreen({ state = null, assistant = null }: { state?: BookState | null; assistant?: AssistantSession | null } = {}) {
@@ -30,6 +52,7 @@ export function SettingsScreen({ state = null, assistant = null }: { state?: Boo
   return (
     <main className="content settings">
       <h2 className="app-title">Настройки</h2>
+      <VersionInfo />
       <AiSettings />
       <h3 className="tools-title">Папка библиотеки компании</h3>
       <p className="muted">Чтобы у всех инженеров была одна библиотека, укажите общую сетевую папку, например

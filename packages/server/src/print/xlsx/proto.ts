@@ -11,6 +11,7 @@ import { xlsxBlankTable } from "../blankTable.ts";
 import { protoRowsOf } from "../templates/proto.ts";
 import { protoLandscape } from "../templates/proto.ts";
 import { ipHead, instruments } from "./sbd.ts";
+import { withNo } from "@idk/shared/acts/format";
 
 const S = 9.5;
 const C: CellStyle = { h: "center" };
@@ -39,7 +40,7 @@ export function protoSheet(b: ActBundle, view?: BlankView): Layout {
   const landscape = protoLandscape(p);
   const width = landscape ? 277 : 180;
   const n = landscape ? 55 : 36;
-  const L = new Layout(`${p.code} №${p.number}`, Array(n).fill(width / n), { landscape, margins: landscape ? [10, 10, 10, 10] : [10, 10, 10, 20] });
+  const L = new Layout(`${p.code} ${withNo(String(p.number ?? ""))}`, Array(n).fill(width / n), { landscape, margins: landscape ? [10, 10, 10, 10] : [10, 10, 10, 20] });
   const def = PROTO_DEFS[p.kind];
   view ??= blankView(p.kind);
   const sub = () => L.para(subtitle(p.name), { b: true, h: "center", size: S });
@@ -49,7 +50,7 @@ export function protoSheet(b: ActBundle, view?: BlankView): Layout {
     const section = b.sections.find((s) => s.id === b.act.sectionId);
     ipHead(L, lab.nameAddress, lab.certificate,
       `Заказчик: ${org(b.object.roles.developer)}. Объект: ${b.object.name}. Проектная документация: ${section?.code ?? ""}. Дата проведения измерений: ${dates(p)}`);
-    L.para(`Протокол №${p.number}`, { b: true, h: "center", size: 12 });
+    L.para(`Протокол ${withNo(String(p.number ?? ""))}`, { b: true, h: "center", size: 12 });
     sub();
     L.gap(4);
     const climate = def.climate === "temp"
@@ -73,7 +74,7 @@ export function protoSheet(b: ActBundle, view?: BlankView): Layout {
     signRow(L, "Испытания провел:", lab.tester);
     return L;
   }
-  L.para(`АКТ №${p.number}`, { b: true, h: "center", size: 12 });
+  L.para(`АКТ ${withNo(String(p.number ?? ""))}`, { b: true, h: "center", size: 12 });
   sub();
   L.gap(4);
   const half = Math.floor(L.cols / 2);
@@ -96,5 +97,5 @@ export function protoSheet(b: ActBundle, view?: BlankView): Layout {
 
 export function protoXlsx(b: ActBundle, view?: BlankView): { xlsx: Buffer; name: string } {
   const L = protoSheet(b, view);
-  return { xlsx: writeBook([L.sheet]), name: `${b.proto!.code} №${b.proto!.number}.xlsx`.replace(/[\\/:*?"<>|]/g, "_") };
+  return { xlsx: writeBook([L.sheet]), name: `${b.proto!.code} ${withNo(String(b.proto!.number ?? ""))}.xlsx`.replace(/[\\/:*?"<>|]/g, "_") };
 }

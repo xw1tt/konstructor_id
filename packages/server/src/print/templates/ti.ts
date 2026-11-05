@@ -4,6 +4,7 @@ import type { TiJournal } from "@idk/shared/acts/cableDocs";
 import { e, page } from "./common.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { htmlBlankTable, type BodyRow } from "../blankTable.ts";
+import { withNo } from "@idk/shared/acts/format";
 
 export const TI_STYLE = `<style>
 body.ti { font-size: 9pt; }
@@ -58,7 +59,7 @@ export function tiVdHtml(d: TiData, view: BlankView = blankView("vd:ti")): strin
 
 const appendixHead = (title: string, sub: string, number: string, d: TiData) =>
   `<div class="ti-title">${e(title)}</div><div class="ti-title" style="margin-top:0">${e(sub)}</div>
-   <div class="ti-title" style="margin-top:0">№${e(number)}</div>
+   <div class="ti-title" style="margin-top:0">${e(withNo(String(number ?? "")))}</div>
    <div class="ti-sub">к АОСР ${e(d.aosrNumber)} от ${e(d.actDate)}г.</div>`;
 
 export function tiRmHtml(d: TiData, view: BlankView = blankView("rim:ti")): string {
@@ -103,6 +104,6 @@ export function tiKjHtml(d: { header: TiHeader; number: string; journal: TiJourn
   const sign = (label: string) => `<div class="kj-sign"><div>${label}</div><div class="line"></div><div></div><div class="line"></div><div></div><div class="line"></div>
     <div></div><div></div><div></div><div class="cap">Подпись</div><div></div><div class="cap">Дата</div></div>`;
   return page(`КЖ ${d.number}`, `${TI_STYLE}${KJ_STYLE}${tiHeaderHtml(d.header)}
-    <div class="ti-title" style="font-size:12pt">Кабельный журнал №${e(d.number)}</div>
+    <div class="ti-title" style="font-size:12pt">Кабельный журнал ${e(withNo(String(d.number ?? "")))}</div>
     ${htmlBlankTable(view, tiKjRows(d.journal, view), { cls: "ti-kj", style: "margin-top:6pt" })}${view.shown("signs") ? `<div class="kj-signs">${sign("Сдал:")}${sign("Принял:")}</div>` : ""}`, "ti");
 }

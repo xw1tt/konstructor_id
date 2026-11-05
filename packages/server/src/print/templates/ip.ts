@@ -3,6 +3,7 @@ import type { IpData } from "../cableData.ts";
 import { e, page } from "./common.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { htmlBlankTable, type BodyRow } from "../blankTable.ts";
+import { withNo } from "@idk/shared/acts/format";
 
 const STYLE = `<style>
 @page { size: A4 landscape; margin: 10mm 10mm 10mm 10mm; }
@@ -33,7 +34,7 @@ export function ipHtml(d: IpData, view: BlankView = blankView("ip:sbd")): string
     <div class="ip-c"><div><b>${e(d.lab.nameAddress)}</b></div><div class="cap">(наименование организации, предприятия)</div><div>${e(d.lab.certificate)}</div></div>
     <div>Заказчик: ${e(d.customer)} Объект: ${e(d.object)}. Проектная документация: ${e(d.project)} Дата проведения измерений: ${e(d.dates)}</div>
   </div>
-  <div class="ip-title">Протокол №${e(d.number)}</div>
+  <div class="ip-title">Протокол ${e(withNo(String(d.number ?? "")))}</div>
   <div class="ip-c ip-b">проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин.</div>
   <div class="ip-c ip-b" style="margin-top:6pt">Климатические условия при проведении измерений</div>
   <div class="ip-c">Температура воздуха ${e(d.temperature)} °C Влажность воздуха ${e(d.humidity)} %</div>
@@ -55,5 +56,5 @@ export function ipHtml(d: IpData, view: BlankView = blankView("ip:sbd")): string
     <tbody>${si}</tbody>
   </table>` : ""}
   <div class="ip-signs"><div>Руководитель электролаборатории:</div><div>${e(d.lab.head)}</div><div>Испытания провел:</div><div>${e(d.lab.tester)}</div></div>`;
-  return page(`Протокол №${d.number}`, STYLE + body, "ip");
+  return page(`Протокол ${withNo(String(d.number ?? ""))}`, STYLE + body, "ip");
 }

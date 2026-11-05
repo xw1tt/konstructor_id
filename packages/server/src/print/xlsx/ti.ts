@@ -7,6 +7,7 @@ import { PORTRAIT } from "./aosr.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { xlsxBlankTable } from "../blankTable.ts";
 import { tiVdRows, tiRmRows, tiRpRows, tiKjRows } from "../templates/ti.ts";
+import { withNo } from "@idk/shared/acts/format";
 
 const S = 8.5;
 const C: CellStyle = { h: "center" };
@@ -54,7 +55,7 @@ export function tiVdSheet(d: TiData, view: BlankView = blankView("vd:ti")): Layo
 function appendixHead(L: Layout, t1: string, t2: string, number: string, d: TiData) {
   title(L, t1);
   title(L, t2);
-  title(L, `№${number}`);
+  title(L, `${withNo(String(number ?? ""))}`);
   L.para(`к АОСР ${d.aosrNumber} от ${d.actDate}г.`, { h: "center", size: 9 });
   L.gap(6);
 }
@@ -80,7 +81,7 @@ export function tiKjSheet(d: { header: TiHeader; number: string; journal: TiJour
   // Альбомный лист, поля 10/10/10/12 мм: 275 мм, сетка 55 столбцов по 5 мм.
   const L = new Layout(`КЖ ${d.number}`, Array(55).fill(5), { landscape: true, margins: [10, 10, 10, 12] });
   tiHead(L, d.header);
-  title(L, `Кабельный журнал №${d.number}`, 12);
+  title(L, `Кабельный журнал ${withNo(String(d.number ?? ""))}`, 12);
   L.gap(6);
   xlsxBlankTable(L, view, tiKjRows(d.journal, view), { size: 8 });
   // «Сдал:» / «Принял:» — надпись 20 мм, линия 70 мм, линия 40 мм («Подпись»), линия 30 мм («Дата»).

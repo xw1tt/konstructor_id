@@ -2,6 +2,7 @@
 import type { AosrData } from "../data.ts";
 import { AOSR_CAPS, CAP_ORG, CAP_REP } from "../templates/aosr.ts";
 import { Layout, colsFor } from "../../xlsx/layout.ts";
+import { withNo } from "@idk/shared/acts/format";
 
 export const PORTRAIT = { margins: [10, 10, 10, 20] as [number, number, number, number] };
 const W = 180, N = 36, COL = W / N;
@@ -23,7 +24,7 @@ export function aosrSheet(d: AosrData): Layout {
   L.gap(6);
   // Номер — 60 мм слева, дата — 45 мм справа; значения посередине линии.
   L.line([
-    { c1: 1, c2: 12, text: d.number ? `№${d.number}` : "", under: true, caption: AOSR_CAPS.number },
+    { c1: 1, c2: 12, text: d.number ? `${withNo(String(d.number ?? ""))}` : "", under: true, caption: AOSR_CAPS.number },
     { c1: 28, c2: N, text: d.date, under: true, caption: AOSR_CAPS.date },
   ]);
   for (const r of d.reps) block(`${r.label}:`, r.lines, CAP_REP);

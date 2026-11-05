@@ -2,6 +2,7 @@ import type { RimData } from "../data.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { e, page, signBlocks } from "./common.ts";
 import { htmlBlankTable, type BodyRow } from "../blankTable.ts";
+import { withNo } from "@idk/shared/acts/format";
 
 /** Строки РИМ: наименование группы документов одного материала — одна ячейка на все её строки. */
 export function rimRowsOf(d: RimData): BodyRow[] {
@@ -17,8 +18,8 @@ export function rimRowsOf(d: RimData): BodyRow[] {
 
 export function rimHtml(d: RimData, view: BlankView = blankView("rim:sbd")): string {
   return page(d.number, `
-    <div class="appx-head">Приложение №2<br>Приложение к акту освидетельствования скрытых работ №${e(d.aosrNumber)}</div>
-    <div class="doc-head">Реестр использованных материалов<br>№${e(d.number)}<br>Сопроводительные документы качества (паспорта, сертификаты, заключения и т.д.)</div>
+    <div class="appx-head">Приложение №2<br>Приложение к акту освидетельствования скрытых работ ${e(withNo(String(d.aosrNumber ?? "")))}</div>
+    <div class="doc-head">Реестр использованных материалов<br>${e(withNo(String(d.number ?? "")))}<br>Сопроводительные документы качества (паспорта, сертификаты, заключения и т.д.)</div>
     ${htmlBlankTable(view, rimRowsOf(d), { nums: true })}
     ${signBlocks(d.signs)}`, "rim");
 }

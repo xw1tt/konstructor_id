@@ -3,6 +3,7 @@
 import { cellText, parseDateCell, parseNumberCell, type CellValue } from "../workbook/values.ts";
 import type { Book } from "../workbook/records.ts";
 import type { Report } from "../workbook/store.ts";
+import { withNo } from "../acts/format.ts";
 
 export const CLOSED_SHEET = "Закрытие по актам";
 
@@ -82,7 +83,7 @@ export function closedReport(book: Book): Report {
     return { act: txt(a.v.baseNumber), date: d.ok ? d.value : null };
   });
   const head = ["№ п/п", "Наименование", "Ед. изм.", "По проекту", "Закрыто", "Остаток",
-    ...acts.map((a) => `Акт №${a.act}${a.date ? ` от ${dmy(a.date)}` : ""}`)];
+    ...acts.map((a) => `Акт ${withNo(String(a.act ?? ""))}${a.date ? ` от ${dmy(a.date)}` : ""}`)];
   const rows: CellValue[][] = [head];
   const bold = [0];
   const negative: [number, number][] = [];

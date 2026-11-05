@@ -1,5 +1,6 @@
 import type { AosrData } from "../data.ts";
 import { e, field, page, signBlocks } from "./common.ts";
+import { withNo } from "@idk/shared/acts/format";
 
 export const CAP_ORG =
   "(фамилия, имя, отчество (последнее - при наличии), адрес места жительства, ОГРНИП, ИНН индивидуального предпринимателя, полное и (или) сокращенное наименование, ОГРН, ИНН, адрес юридического лица в пределах его места нахождения, телефон или факс, полное и (или) сокращенное наименование, ОГРН, ИНН саморегулируемой организации, членом которой является указанное юридическое лицо или индивидуальный предприниматель (за исключением случаев, когда членство в саморегулируемых организациях в области строительства, реконструкции, капитального ремонта объектов капитального строительства не требуется))";
@@ -41,7 +42,7 @@ export function aosrHtml(d: AosrData): string {
     <div class="block"><p>Лицо, осуществляющее подготовку проектной документации:</p>${field(d.designer, CAP_ORG)}</div>
     <div class="title">АКТ</div>
     <div class="subtitle">освидетельствования скрытых работ</div>
-    <div class="numdate"><div>${field(d.number ? `№${d.number}` : "", AOSR_CAPS.number)}</div><div>${field(d.date, AOSR_CAPS.date)}</div></div>`;
+    <div class="numdate"><div>${field(d.number ? `${withNo(String(d.number ?? ""))}` : "", AOSR_CAPS.number)}</div><div>${field(d.date, AOSR_CAPS.date)}</div></div>`;
   const reps = d.reps.map((r) => `<div class="block"><p>${e(r.label)}:</p>${field(r.lines, CAP_REP)}</div>`).join("");
   const body = `
     <div class="block"><p>произвели осмотр работ, выполненных:</p>${field(d.performerOrg,

@@ -7,6 +7,7 @@ import { formatDateShort } from "@idk/shared/acts/format";
 import { e, page } from "./common.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { htmlBlankTable, type BodyRow } from "../blankTable.ts";
+import { withNo } from "@idk/shared/acts/format";
 
 const STYLE = (landscape: boolean) => `<style>
 @page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: 10mm 10mm 10mm ${landscape ? "10mm" : "20mm"}; }
@@ -51,7 +52,7 @@ function labHtml(b: ActBundle, p: ProtoData, view: BlankView): string {
     <div class="p-c"><div class="p-b">${e(lab.nameAddress)}</div><div class="cap">(наименование организации, предприятия)</div><div>${e(lab.certificate)}</div></div>
     <div>Заказчик: ${e(org(b.object.roles.developer))}. Объект: ${e(b.object.name)}. Проектная документация: ${e(section?.code ?? "")}. Дата проведения измерений: ${e(dates(p))}</div>
   </div>
-  <div class="p-title">Протокол №${e(p.number)}</div>
+  <div class="p-title">Протокол ${e(withNo(String(p.number ?? "")))}</div>
   <div class="p-sub">${e(subtitle(p.name))}</div>
   <p class="p-p">Климатические условия при проведении измерений: ${climate}</p>
   <p class="p-p">Цель измерений (испытаний): ${e(p.purpose)}</p>
@@ -78,7 +79,7 @@ function commissionHtml(b: ActBundle, p: ProtoData, view: BlankView): string {
   const signs = p.commission.map((m) =>
     `<div class="sign-row"><div>${e([m.position, m.org].filter(Boolean).join(" "))}</div><div class="line"></div><div>${e(m.name)}</div></div>`).join("");
   return `
-  <div class="p-title">АКТ №${e(p.number)}</div>
+  <div class="p-title">АКТ ${e(withNo(String(p.number ?? "")))}</div>
   <div class="p-sub">${e(subtitle(p.name))}</div>
   <div class="p-line"><span>${p.city ? `г. ${e(p.city)}` : ""}</span><span>${e(dates(p))}</span></div>
   <p class="p-p"><b>Объект:</b> ${e(b.object.name)}</p>
@@ -102,5 +103,5 @@ export function protoHtml(b: ActBundle, view?: BlankView): string {
   if (!p) throw new Error("В пакете нет данных протокола или акта");
   const v = view ?? blankView(p.kind);
   const body = p.signer === "lab" ? labHtml(b, p, v) : commissionHtml(b, p, v);
-  return page(`${p.code} №${p.number}`, STYLE(protoLandscape(p)) + body, "proto");
+  return page(`${p.code} ${withNo(String(p.number ?? ""))}`, STYLE(protoLandscape(p)) + body, "proto");
 }

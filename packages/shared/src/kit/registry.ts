@@ -40,7 +40,7 @@ const period = (from: CellValue, to: CellValue) => {
 export function labCertificateParts(text: string): { number: string; date: string } {
   const n = text.match(/№\s*([^\s,;]+)/)?.[1] ?? "";
   const d = text.match(/от\s+(\d{2}\.\d{2}\.\d{4})/)?.[1] ?? "";
-  return { number: n ? `№${n}` : "", date: d ? `от ${d} г.` : "" };
+  return { number: n ? `${withNo(String(n ?? ""))}` : "", date: d ? `от ${d} г.` : "" };
 }
 
 /** Строки книги одного комплекта и акты комплекта по порядку. */

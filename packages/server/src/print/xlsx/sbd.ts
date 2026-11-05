@@ -15,6 +15,7 @@ import { vorRowsOf } from "../templates/vor.ts";
 import { avkRowsOf } from "../templates/avk.ts";
 import { ipRowsOf } from "../templates/ip.ts";
 import { PORTRAIT } from "./aosr.ts";
+import { withNo } from "@idk/shared/acts/format";
 
 const W = 180;
 const c = (text: string | number, style?: CellStyle): TCell => ({ text, style });
@@ -32,8 +33,8 @@ const signs = (L: Layout, s: { label: string; names: string[] }[]) => { L.gap(6)
 
 export function rimSheet(d: RimData, view: BlankView = blankView("rim:sbd")): Layout {
   const L = new Layout(d.number || "РИМ", pctCols(W, view.columns.map((x) => x.width)), PORTRAIT);
-  appendixHead(L, ["Приложение №2", `Приложение к акту освидетельствования скрытых работ №${d.aosrNumber}`],
-    ["Реестр использованных материалов", `№${d.number}`, "Сопроводительные документы качества (паспорта, сертификаты, заключения и т.д.)"]);
+  appendixHead(L, ["Приложение №2", `Приложение к акту освидетельствования скрытых работ ${withNo(String(d.aosrNumber ?? ""))}`],
+    ["Реестр использованных материалов", `${withNo(String(d.number ?? ""))}`, "Сопроводительные документы качества (паспорта, сертификаты, заключения и т.д.)"]);
   xlsxBlankTable(L, view, rimRowsOf(d), { nums: true, size: 9.5 });
   signs(L, d.signs);
   return L;
@@ -41,8 +42,8 @@ export function rimSheet(d: RimData, view: BlankView = blankView("rim:sbd")): La
 
 export function vdSheet(d: VdData, view: BlankView = blankView("vd:sbd")): Layout {
   const L = new Layout(d.number || "ВД", pctCols(W, view.columns.map((x) => x.width)), PORTRAIT);
-  appendixHead(L, ["Приложение №1", `Приложение к акту освидетельствования скрытых работ №${d.aosrNumber}`],
-    ["Ведомость смонтированного оборудования, технических средств и материалов", `№${d.number}`]);
+  appendixHead(L, ["Приложение №1", `Приложение к акту освидетельствования скрытых работ ${withNo(String(d.aosrNumber ?? ""))}`],
+    ["Ведомость смонтированного оборудования, технических средств и материалов", `${withNo(String(d.number ?? ""))}`]);
   xlsxBlankTable(L, view, vdRowsOf(d), { nums: true, size: 9.5 });
   signs(L, d.signs);
   return L;
@@ -104,7 +105,7 @@ export function ipSheet(d: IpData, view: BlankView = blankView("ip:sbd")): Layou
   const L = new Layout(`Протокол ${d.number}`, pctCols(277, view.columns.map((x) => x.width)), { landscape: true, margins: [10, 10, 10, 10] });
   ipHead(L, d.lab.nameAddress, d.lab.certificate, `Заказчик: ${d.customer} Объект: ${d.object}. Проектная документация: ${d.project} Дата проведения измерений: ${d.dates}`);
   const S = 9;
-  L.para(`Протокол №${d.number}`, { b: true, h: "center", size: 11 });
+  L.para(`Протокол ${withNo(String(d.number ?? ""))}`, { b: true, h: "center", size: 11 });
   L.para("проверки сопротивления изоляции проводов, кабелей и обмоток электрических машин.", { b: true, h: "center", size: S });
   L.gap(4);
   L.para("Климатические условия при проведении измерений", { b: true, h: "center", size: S });

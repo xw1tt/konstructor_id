@@ -120,6 +120,9 @@ export function ojrRows(book: Book): OjrRows {
       ? `, приложения: ${DOC_NAMES["РИМ"]!.toLowerCase()} ${withNo(docNumber(n, "rim"))}, ${DOC_NAMES["ВД"]!.toLowerCase()} ${withNo(docNumber(n, "vd"))}`
       : "";
     add(date, `${DOC_NAMES["АОСР"]} ${withNo(docNumber(n, "aosr"))} ${txt(a.v.works)}${appx}`, roles.flatMap((r) => active(r, at).map(who)), n);
+    // 0.30.1: ведомость смонтированного оборудования — отдельной строкой (подписи — как в самой ВД).
+    if (hasMats) add(date, `${DOC_NAMES["ВД"]} ${withNo(docNumber(n, "vd"))}`,
+      (["developer_control", "builder", "builder_control", "performer"] as RoleCode[]).flatMap((r) => active(r, at).map(who)), n);
     for (const s of of("Схемы")) {
       const name = txt(s.v.kind) === "Прочее" ? `${txt(s.v.name)} ${withNo(txt(s.v.number))}` : `Исполнительная схема ${withNo(txt(s.v.number))} ${txt(s.v.name)}`;
       const sd = iso(s.v.date) ?? at;
@@ -136,7 +139,7 @@ export function ojrRows(book: Book): OjrRows {
       const jd = doc ? iso(doc.v.journalDate) : null;
       const code = doc ? txt(doc.v.journalCode) : "";
       const kjDate = jd ?? at;
-      add(kjDate, `${KJ_NAME}${code ? ` № ${code}` : ""}`,
+      add(kjDate, `${KJ_NAME}${code ? ` ${code.startsWith("№") ? code : `№ ${code}`}` : ""}`,
         [...active("performer", kjDate).reverse().map(who), ...active("developer_control", kjDate).map(who)], n);
       if (doc && txt(doc.v.protocolNumber)) {
         add(iso(doc.v.dateTo) ?? iso(doc.v.dateFrom) ?? kjDate,

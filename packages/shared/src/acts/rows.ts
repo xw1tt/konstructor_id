@@ -35,7 +35,7 @@ export function point3Lines(
 ): string[] {
   if (actMaterials.length > MATERIALS_INLINE_LIMIT) {
     return [
-      `Согласно реестру использованных материалов №${docNumberFor(base, "rim", set)} ведомости смонтированного оборудования, технических средств и материалов №${docNumberFor(base, "vd", set)}`,
+      `Согласно реестру использованных материалов ${withNo(String(docNumberFor(base, "rim", set) ?? ""))} ведомости смонтированного оборудования, технических средств и материалов ${withNo(String(docNumberFor(base, "vd", set) ?? ""))}`,
     ];
   }
   const mm = matMap(materials);

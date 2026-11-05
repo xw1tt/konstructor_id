@@ -1,12 +1,13 @@
 // Общий журнал работ (приказ Минстроя России от 02.12.2022 № 1026/пр): разделы 3 и 5 из актов книги.
 import { column, roleFromBook, type TableName } from "./workbook/schema.ts";
-import { cellText, isoToExcelSerial, joinRefs, parseDateCell, parseNumberCell, type CellValue } from "./workbook/values.ts";
+import { cellText, isoToExcelSerial, joinRefs, splitRefs, parseDateCell, parseNumberCell, type CellValue } from "./workbook/values.ts";
 import type { Book, BookRow } from "./workbook/records.ts";
 import type { TableStore } from "./workbook/store.ts";
 import type { Issue } from "./workbook/bundle.ts";
 import type { Representative } from "./schemas.ts";
 import type { RoleCode } from "./roles.ts";
 import { activeRepresentatives } from "./rules.ts";
+import { actRepresentatives } from "./acts/actSigners.ts";
 import { docNumber, formatDateShort, withNo } from "./acts/format.ts";
 import { avkDefaultNumber } from "./acts/rows.ts";
 import { AVK_NAME, KJ_NAME, PROTOCOL_NAME, DOC_NAMES } from "./kit/registry.ts";
@@ -56,7 +57,10 @@ export interface OjrRows {
 export function ojrRows(book: Book): OjrRows {
   const issues: Issue[] = [];
   const rows = (t: TableName) => book.tables[t] ?? [];
-  const all = reps(book);
+  const bookReps = reps(book);
+  // Представители текущего акта (0.30: выбранные в «Подписантах» акта заменяют подписантов роли по датам).
+  let all = bookReps;
+  const forAct = (a: BookRow) => { all = actRepresentatives(bookReps, splitRefs(a.v.signers ?? null), iso(a.v.date)); };
   const byName = (name: string, role?: RoleCode) =>
     all.find((r) => r.fullName === name && (!role || r.role === role)) ?? all.find((r) => r.fullName === name);
   const active = (role: RoleCode, date: string) => activeRepresentatives(all, role, date);
@@ -65,6 +69,7 @@ export function ojrRows(book: Book): OjrRows {
   // ---- Раздел 3: дата → работы актов и подписанты (по порядку актов).
   const days = new Map<string, { works: string[]; signers: string[]; acts: string[] }>();
   for (const a of acts) {
+    forAct(a);
     const n = txt(a.v.baseNumber);
     const from = iso(a.v.dateStart), to = iso(a.v.dateEnd);
     if (!from || !to) {
@@ -104,6 +109,7 @@ export function ojrRows(book: Book): OjrRows {
     docs.push({ date: date ?? "", seq: seq++, name: name.trim(), signers: uniq(signers), act });
   const lab = rows("Электролаборатория")[0];
   for (const a of acts) {
+    forAct(a);
     const n = txt(a.v.baseNumber);
     const date = iso(a.v.date);
     const of = (t: TableName) => rows(t).filter((r) => txt(r.v.act) === n);

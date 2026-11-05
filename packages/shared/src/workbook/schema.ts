@@ -5,7 +5,7 @@ import type { CellValue } from "./values.ts";
 import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -216,6 +216,8 @@ export const TABLES: Record<TableName, TableDef> = {
     c("avkDate", "АВК: дата", "date"),
     c("workKinds", "Вид работ", "refs", { listRange: WORK_LIST, width: 40 }),
     c("skipDocs", "Без документов", "text", { width: 24 }),
+    // 0.30: подписанты акта (ФИО через «; »); по роли с выбором подписывают только выбранные — см. acts/actSigners.ts.
+    c("signers", "Подписанты", "refs", { ref: "Представители", width: 40 }),
   ]),
   "Схемы": t("Схемы", "Исполнительные схемы", [
     c("act", "Акт", "ref", { ...imp, ref: "Акты", width: 24 }),

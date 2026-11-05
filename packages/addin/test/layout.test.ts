@@ -118,7 +118,7 @@ test("план 12: «Вид работ» — список из диапазон�
   assert.equal(strictList(kinds), false);
   assert.equal(listSource(column("Акты", "skipDocs"), "Акты"), null);
   const headers = TABLES["Акты"].columns.map((c) => c.header);
-  const v7 = headers.filter((h) => h !== "Вид работ" && h !== "Без документов");
-  assert.deepEqual(headers.slice(-2), ["Вид работ", "Без документов"]);
-  assert.deepEqual(missingColumns("Акты", v7).map((c) => c.header), ["Вид работ", "Без документов"]);
+  const v7 = headers.filter((h) => h !== "Вид работ" && h !== "Без документов" && h !== "Подписанты");
+  assert.deepEqual(headers.slice(-3), ["Вид работ", "Без документов", "Подписанты"]);
+  assert.deepEqual(missingColumns("Акты", v7).map((c) => c.header), ["Вид работ", "Без документов", "Подписанты"]);
 });

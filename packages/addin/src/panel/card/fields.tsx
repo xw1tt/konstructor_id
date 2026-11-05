@@ -97,7 +97,7 @@ function MultiRef({ selected, options, onCommit }: { selected: string[]; options
   const toggle = (o: string) => onCommit(selected.includes(o) ? selected.filter((s) => s !== o) : [...selected, o]);
   return (
     <div className="multi">
-      <input type="search" placeholder="Найти материал" value={q} onChange={(e) => setQ(e.target.value)} />
+      <input type="search" placeholder="Найти" value={q} onChange={(e) => setQ(e.target.value)} />
       <ul className="multi-list">
         {shown.map((o) => (
           <li key={o}>

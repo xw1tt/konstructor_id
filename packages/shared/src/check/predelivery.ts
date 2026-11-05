@@ -50,7 +50,21 @@ export function checkActs(book: Book, acts: readonly string[], today: string): W
     if (contract && start && start < contract) warn(act, "Акты", a.row, "Начало работ", `${A}: начало работ (${ru(start)}) раньше даты договора (${ru(contract)})`);
 
     // Подписанты: роль есть в книге, но ни у кого полномочия не действуют на дату акта — подписи не будет.
+    // 0.30: по ролям, где подписанты выбраны в акте, — проверка выбранных (не блокирует: выбор пользователя главнее).
+    const chosen = splitRefs(a.v.signers ?? null);
+    const chosenSet = new Set(chosen.map(norm));
+    const picked = reps.filter((r) => chosenSet.has(norm(cellText(r.v.fullName ?? null))));
+    const pickedRoles = new Set(picked.map((r) => roleOf(cellText(r.v.role ?? null))));
+    for (const name of chosen) if (!picked.some((r) => norm(cellText(r.v.fullName ?? null)) === norm(name)))
+      warn(act, "Акты", a.row, "Подписанты", `${A}: подписанта «${name}» нет в «Представителях» — его подпись не попадёт в документы`);
+    if (date) for (const name of new Set(picked.map((r) => cellText(r.v.fullName ?? null)))) {
+      const own = picked.filter((r) => cellText(r.v.fullName ?? null) === name);
+      const ok = own.some((r) => { const f = iso(r.v.validFrom), t = iso(r.v.validTo); return (!f || f <= date) && (!t || date <= t); });
+      if (!ok) warn(act, "Представители", own[0].row, "Действует по",
+        `${A} от ${ru(date)}: у выбранного подписанта ${name} полномочия по «Действует с/по» на эту дату не действуют — подпись будет, проверьте приказ`);
+    }
     if (date) for (const role of rolesInBook) {
+      if (pickedRoles.has(role)) continue;
       const of = reps.filter((r) => roleOf(cellText(r.v.role ?? null)) === role);
       const active = of.filter((r) => { const f = iso(r.v.validFrom), t = iso(r.v.validTo); return (!f || f <= date) && (!t || date <= t); });
       if (!active.length) warn(act, "Представители", of[0].row, "Действует по",

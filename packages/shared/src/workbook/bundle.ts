@@ -1,4 +1,5 @@
 // Пакет акта: всё, что нужно серверу для печати АОСР, РИМ, ВД, ВОР, собранное из книги, с проверкой.
+import { actRepresentatives } from "../acts/actSigners.ts";
 import { z } from "zod";
 import { ObjectInfo, Organization, Section, Representative, Material, QualityDoc } from "../schemas.ts";
 import { Act, ActMaterialInput, ActDocumentInput, VorLineInput } from "../acts/schemas.ts";
@@ -193,13 +194,13 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
     },
     organizations,
     sections: rows("Шифры").map((r) => ({ id: idOf(r), code: txt(r.v.code), name: txt(r.v.name), designerOrgId: orgId(r.v.designer) })),
-    representatives: rows("Представители")
+    representatives: actRepresentatives(rows("Представители")
       .filter((r) => roleFromBook(txt(r.v.role)) && find("Организации", txt(r.v.org)))
       .map((r) => ({
         id: idOf(r), role: roleFromBook(txt(r.v.role)) as RoleCode, position: txt(r.v.position), fullName: txt(r.v.fullName),
         orgId: orgId(r.v.org)!, authorityDoc: txt(r.v.authorityDoc), nrsNumber: txt(r.v.nrsNumber), nrsDate: date(r.v.nrsDate),
         validFrom: date(r.v.validFrom), validTo: date(r.v.validTo), sortOrder: Math.round(num(r.v.sortOrder) ?? 0), actText: txt(r.v.actText),
-      })),
+      })), splitRefs(actRow.v.signers ?? null), a.date as string | null),
     materials: rows("Материалы").map((r) => ({
       id: idOf(r), name: txt(r.v.name), mark: txt(r.v.mark), article: txt(r.v.article), manufacturer: txt(r.v.manufacturer), unit: txt(r.v.unit),
     })),

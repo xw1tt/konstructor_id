@@ -44,6 +44,7 @@ const (
 	mbIconWarn = 0x00000030
 	mbIconErr  = 0x00000010
 	mbIconQ    = 0x00000020
+	mbDefBtn2  = 0x00000100
 	idYes      = 6
 )
 
@@ -209,10 +210,22 @@ func install() {
 	_, err := os.Stat(filepath.Join(d.install, "app", "server.mjs"))
 	upgrade := err == nil
 	q := fmt.Sprintf("Установить «%s» %s?\n\nПрограмма будет установлена в\n%s\n\nДанные (сканы, справочник нормативов) остаются в\n%s", appName, version, d.install, d.data)
+	flags := uintptr(mbYesNo | mbIconQ)
 	if upgrade {
 		q = fmt.Sprintf("Обновить «%s» до версии %s?\n\nКниги Excel и данные не изменятся. Если Excel открыт — после обновления закройте его и откройте снова.", appName, version)
+		// Поверх более новой версии — предупреждение; по умолчанию кнопка «Нет».
+		if b, err := os.ReadFile(filepath.Join(d.install, "VERSION")); err == nil {
+			have := strings.TrimSpace(string(b))
+			switch c := compareVersions(version, have); {
+			case c < 0:
+				q = fmt.Sprintf("Внимание: установлена более новая версия «%s» — %s.\n\nЭтот установщик — старая версия %s. Если продолжить, программа вернётся к версии %s (книги и данные не изменятся).\n\nУстановить старую версию %s?", appName, have, version, version, version)
+				flags = mbYesNo | mbIconWarn | mbDefBtn2
+			case c == 0:
+				q = fmt.Sprintf("Версия %s «%s» уже установлена.\n\nПереустановить её?", version, appName)
+			}
+		}
 	}
-	if msg(q, mbYesNo|mbIconQ) != idYes {
+	if msg(q, flags) != idYes {
 		return
 	}
 
@@ -319,4 +332,25 @@ func main() {
 		}
 	}
 	install()
+}
+
+// compareVersions сравнивает версии вида 0.30.1: <0 — a старше b, 0 — равны, >0 — a новее.
+func compareVersions(a, b string) int {
+	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < len(pa) || i < len(pb); i++ {
+		var x, y int
+		if i < len(pa) {
+			fmt.Sscanf(pa[i], "%d", &x)
+		}
+		if i < len(pb) {
+			fmt.Sscanf(pb[i], "%d", &y)
+		}
+		if x != y {
+			if x < y {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
 }

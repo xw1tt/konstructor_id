@@ -34,19 +34,24 @@ var payload []byte
 var version = "dev"
 
 const (
-	appName    = "Конструктор ИД"
-	regUninst  = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KonstruktorID`
-	regRun     = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
-	regAddins  = `HKCU\Software\Microsoft\Office\16.0\WEF\Developer`
-	serverURL  = "https://localhost:3443/addin/index.html"
-	mbOK       = 0x00000000
-	mbYesNo    = 0x00000004
-	mbIconInfo = 0x00000040
-	mbIconWarn = 0x00000030
-	mbIconErr  = 0x00000010
-	mbIconQ    = 0x00000020
-	mbDefBtn2  = 0x00000100
-	idYes      = 6
+	appName   = "Конструктор ИД"
+	regUninst = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KonstruktorID`
+	regRun    = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+	// Каталог надстроек в общей папке — для корпоративного Office (LTSC 2019/2021/2024), который не подхватывает
+	// надстройки из WEF\Developer.
+	catalogID    = "{6C3E1D2A-4B7F-4E21-9A0D-1D5B7C2E9F41}"
+	regCatalog   = `HKCU\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\` + catalogID
+	catalogShare = "KonstruktorID"
+	regAddins    = `HKCU\Software\Microsoft\Office\16.0\WEF\Developer`
+	serverURL    = "https://localhost:3443/addin/index.html"
+	mbOK         = 0x00000000
+	mbYesNo      = 0x00000004
+	mbIconInfo   = 0x00000040
+	mbIconWarn   = 0x00000030
+	mbIconErr    = 0x00000010
+	mbIconQ      = 0x00000020
+	mbDefBtn2    = 0x00000100
+	idYes        = 6
 )
 
 var (
@@ -277,6 +282,8 @@ func install() {
 		fail("подключить надстройку к Excel", err)
 	}
 
+	catalogNote := catalog(d, manifest)
+
 	// Автозапуск сервера, ярлыки в меню «Пуск», запись в «Установке и удалении программ».
 	wscript := filepath.Join(os.Getenv("WINDIR"), "System32", "wscript.exe")
 	start := filepath.Join(d.install, "start-server.vbs")
@@ -311,7 +318,11 @@ func install() {
 		msg(fmt.Sprintf("Программа установлена, но сервер не ответил за 30 секунд.\n\nПерезагрузите компьютер или выберите в меню «Пуск» → «%s» → «Перезапустить сервер». Журнал сервера: %s%s", appName, filepath.Join(d.data, "server.log"), autostartWarn), mbOK|mbIconWarn)
 		return
 	}
-	msg(fmt.Sprintf("Готово! «%s» %s установлен.\n\n1. Закройте Excel, если он открыт, и откройте снова.\n2. На вкладке «Главная» нажмите кнопку «Конструктор ИД» — справа откроется панель.\n\nСервер запускается сам при входе в Windows.", appName, version)+autostartWarn, map[bool]uintptr{true: mbOK | mbIconInfo, false: mbOK | mbIconWarn}[autostartWarn == ""])
+	steps := "1. Закройте Excel, если он открыт, и откройте снова.\n2. На вкладке «Главная» нажмите кнопку «Конструктор ИД» — справа откроется панель."
+	if catalogNote != "" {
+		steps = catalogNote
+	}
+	msg(fmt.Sprintf("Готово! «%s» %s установлен.\n\n%s\n\nСервер запускается сам при входе в Windows.", appName, version, steps)+autostartWarn, map[bool]uintptr{true: mbOK | mbIconInfo, false: mbOK | mbIconWarn}[autostartWarn == ""])
 }
 
 func uninstall() {
@@ -322,6 +333,8 @@ func uninstall() {
 	stopServer(d)
 	manifest := filepath.Join(d.install, "addin", "manifest.xml")
 	_ = reg("delete", regAddins, "/v", manifest, "/f")
+	_ = reg("delete", regCatalog, "/f")
+	_ = hidden("net.exe", "share", catalogShare, "/delete", "/y").Run()
 	_ = reg("delete", regUninst, "/f")
 	_ = os.Remove(filepath.Join(d.startup, appName+".lnk"))
 	_ = reg("delete", regRun, "/v", appName, "/f")
@@ -365,4 +378,48 @@ func compareVersions(a, b string) int {
 		}
 	}
 	return 0
+}
+
+// volumeOffice — корпоративный Office (LTSC/2019/2021/2024 по лицензии на объём): он не подхватывает надстройки из
+// WEF\Developer, только из доверенного каталога в общей папке.
+func volumeOffice() bool {
+	out, err := hidden("reg.exe", "query", `HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration`, "/v", "ProductReleaseIds").Output()
+	if err != nil {
+		return false
+	}
+	ids := strings.ToLower(string(out))
+	return !strings.Contains(ids, "o365") && (strings.Contains(ids, "volume") || strings.Contains(ids, "2019") || strings.Contains(ids, "2021") || strings.Contains(ids, "2024"))
+}
+
+func shareExists() bool { return hidden("net.exe", "share", catalogShare).Run() == nil }
+
+// catalog — для корпоративного Office: манифест в папку данных, общий доступ к ней (один раз, с разрешением Windows)
+// и доверенный каталог Excel. Возвращает шаги для окна «Готово» ("" — каталог не нужен).
+func catalog(d dirs, manifest string) string {
+	if !volumeOffice() {
+		return ""
+	}
+	dir := filepath.Join(d.data, "catalog")
+	_ = os.MkdirAll(dir, 0o755)
+	if b, err := os.ReadFile(manifest); err == nil {
+		_ = os.WriteFile(filepath.Join(dir, "manifest.xml"), b, 0o644)
+	}
+	if !shareExists() {
+		msg("На этом компьютере корпоративный Office — надстройка подключается через общую папку.\n\nСейчас Windows попросит разрешение на изменения — нажмите «Да». Если попросит пароль администратора, а его у вас нет, нажмите «Нет»: установка продолжится, а общую папку откроет IT.", mbOK|mbIconInfo)
+		user := os.Getenv("USERNAME")
+		if dom := os.Getenv("USERDOMAIN"); dom != "" {
+			user = dom + `\` + user
+		}
+		args := fmt.Sprintf(`share %s="%s" /GRANT:"%s",READ`, catalogShare, dir, user)
+		_, _ = ps(fmt.Sprintf(`Start-Process -FilePath 'net.exe' -ArgumentList %s -Verb RunAs -WindowStyle Hidden -Wait`, psq(args)))
+	}
+	url := `\\` + os.Getenv("COMPUTERNAME") + `\` + catalogShare
+	_ = reg("add", regCatalog, "/v", "Id", "/t", "REG_SZ", "/d", catalogID, "/f")
+	_ = reg("add", regCatalog, "/v", "Url", "/t", "REG_SZ", "/d", url, "/f")
+	_ = reg("add", regCatalog, "/v", "Flags", "/t", "REG_DWORD", "/d", "1", "/f")
+	add := "1. Закройте Excel, если он открыт, и откройте снова.\n2. «Вставка» → «Мои надстройки» → вкладка «Общая папка» → «Конструктор ИД» → «Добавить» (только первый раз).\n3. На вкладке «Главная» появится кнопка «Конструктор ИД»."
+	if !shareExists() {
+		return add + fmt.Sprintf("\n\nВнимание: общая папка не создана (нет прав администратора). Попросите IT открыть общий доступ на чтение к папке\n%s\nпод именем «%s» для пользователя %s\\%s — после этого выполните шаги 1–3.", dir, catalogShare, os.Getenv("USERDOMAIN"), os.Getenv("USERNAME"))
+	}
+	return add
 }

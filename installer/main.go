@@ -36,6 +36,7 @@ var version = "dev"
 const (
 	appName    = "Конструктор ИД"
 	regUninst  = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KonstruktorID`
+	regRun     = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 	regAddins  = `HKCU\Software\Microsoft\Office\16.0\WEF\Developer`
 	serverURL  = "https://localhost:3443/addin/index.html"
 	mbOK       = 0x00000000
@@ -177,8 +178,12 @@ func certTrusted(thumb string) bool {
 }
 
 func shortcut(link, target, args, dir, desc string) error {
-	_, err := ps(fmt.Sprintf(`$s = (New-Object -ComObject WScript.Shell).CreateShortcut(%s); $s.TargetPath = %s; $s.Arguments = %s; $s.WorkingDirectory = %s; $s.Description = %s; $s.Save()`,
+	_ = os.MkdirAll(filepath.Dir(link), 0o755)
+	out, err := ps(fmt.Sprintf(`[Console]::OutputEncoding = [Text.Encoding]::UTF8; $ErrorActionPreference = 'Stop'; $s = (New-Object -ComObject WScript.Shell).CreateShortcut(%s); $s.TargetPath = %s; $s.Arguments = %s; $s.WorkingDirectory = %s; $s.Description = %s; $s.Save()`,
 		psq(link), psq(target), psq(args), psq(dir), psq(desc)))
+	if err != nil && out != "" {
+		return fmt.Errorf("%v: %s", err, out)
+	}
 	return err
 }
 
@@ -275,9 +280,15 @@ func install() {
 	// Автозапуск сервера, ярлыки в меню «Пуск», запись в «Установке и удалении программ».
 	wscript := filepath.Join(os.Getenv("WINDIR"), "System32", "wscript.exe")
 	start := filepath.Join(d.install, "start-server.vbs")
+	// Автозагрузка: ярлык в папке «Автозагрузка»; не вышло (папка перенесена, PowerShell или COM запрещены политикой,
+	// антивирус) — запись в HKCU\...\Run; не вышло и это — предупреждение, установка продолжается.
 	_ = os.Remove(filepath.Join(d.startup, appName+".lnk"))
+	_ = reg("delete", regRun, "/v", appName, "/f")
+	autostartWarn := ""
 	if err := shortcut(filepath.Join(d.startup, appName+".lnk"), wscript, `"`+start+`"`, d.install, "Запуск сервера Конструктора ИД"); err != nil {
-		fail("добавить сервер в автозагрузку", err)
+		if err2 := reg("add", regRun, "/v", appName, "/t", "REG_SZ", "/d", `"`+wscript+`" "`+start+`"`, "/f"); err2 != nil {
+			autostartWarn = fmt.Sprintf("\n\nНе удалось добавить сервер в автозагрузку (%v; %v). После перезагрузки компьютера запускайте его вручную: «Пуск» → «%s» → «Перезапустить сервер».", err, err2, appName)
+		}
 	}
 	_ = os.MkdirAll(d.menu, 0o755)
 	_ = shortcut(filepath.Join(d.menu, "Перезапустить сервер.lnk"), wscript, `"`+filepath.Join(d.install, "restart-server.vbs")+`"`, d.install, "Перезапуск сервера Конструктора ИД")
@@ -297,10 +308,10 @@ func install() {
 	// Запуск сервера сейчас.
 	_ = hidden(wscript, start).Start()
 	if !waitServer() {
-		msg(fmt.Sprintf("Программа установлена, но сервер не ответил за 30 секунд.\n\nПерезагрузите компьютер или выберите в меню «Пуск» → «%s» → «Перезапустить сервер». Журнал сервера: %s", appName, filepath.Join(d.data, "server.log")), mbOK|mbIconWarn)
+		msg(fmt.Sprintf("Программа установлена, но сервер не ответил за 30 секунд.\n\nПерезагрузите компьютер или выберите в меню «Пуск» → «%s» → «Перезапустить сервер». Журнал сервера: %s%s", appName, filepath.Join(d.data, "server.log"), autostartWarn), mbOK|mbIconWarn)
 		return
 	}
-	msg(fmt.Sprintf("Готово! «%s» %s установлен.\n\n1. Закройте Excel, если он открыт, и откройте снова.\n2. На вкладке «Главная» нажмите кнопку «Конструктор ИД» — справа откроется панель.\n\nСервер запускается сам при входе в Windows.", appName, version), mbOK|mbIconInfo)
+	msg(fmt.Sprintf("Готово! «%s» %s установлен.\n\n1. Закройте Excel, если он открыт, и откройте снова.\n2. На вкладке «Главная» нажмите кнопку «Конструктор ИД» — справа откроется панель.\n\nСервер запускается сам при входе в Windows.", appName, version)+autostartWarn, map[bool]uintptr{true: mbOK | mbIconInfo, false: mbOK | mbIconWarn}[autostartWarn == ""])
 }
 
 func uninstall() {
@@ -313,6 +324,7 @@ func uninstall() {
 	_ = reg("delete", regAddins, "/v", manifest, "/f")
 	_ = reg("delete", regUninst, "/f")
 	_ = os.Remove(filepath.Join(d.startup, appName+".lnk"))
+	_ = reg("delete", regRun, "/v", appName, "/f")
 	_ = os.RemoveAll(d.menu)
 	if thumb, err := thumbprint(filepath.Join(d.data, "tls", "ca.pem")); err == nil && certTrusted(thumb) {
 		if msg("Удалить и сертификат «Konstruktor ID Local CA»? Windows попросит подтвердить.", mbYesNo|mbIconQ) == idYes {

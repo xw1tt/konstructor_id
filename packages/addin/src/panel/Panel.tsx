@@ -165,7 +165,13 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
     ),
   );
   const [assistant] = useState(
-    () => new AssistantSession({ store: port, chat: aiApi.chat, kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit, tplKit] }),
+    () =>
+      new AssistantSession({
+        store: port,
+        chat: aiApi.chat,
+        chatStream: aiApi.chatStream,
+        kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit, tplKit],
+      }),
   );
   // «Только нужные листы» включено по умолчанию: листы — по документам шаблона книги.
   const [neededOn, setNeededOn] = useState(false);

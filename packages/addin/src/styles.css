@@ -927,6 +927,19 @@ a.btn {
   background: #f2f4f7;
   max-width: 95%;
 }
+.as-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.as-live::after {
+  content: "▍";
+  opacity: 0.6;
+}
+.as-cut {
+  color: var(--ink-soft);
+  font-style: italic;
+}
 .as-tool {
   color: var(--ink-soft);
   font-size: 11px;

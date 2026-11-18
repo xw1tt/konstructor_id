@@ -96,6 +96,24 @@ export interface Usage {
   prompt: number;
   completion: number;
 }
+/** 0.31: обработчики потокового ответа помощника. */
+export interface StreamHooks {
+  onToken(text: string): void;
+  onTool?(name: string): void;
+}
+
+/** 0.31: поток прерван — пользователем («Остановить») или обрывом связи; partial — что успело прийти. */
+export class StreamStopped extends Error {
+  constructor(
+    readonly partial: string,
+    readonly byUser: boolean,
+    message: string,
+  ) {
+    super(message);
+    this.name = "StreamStopped";
+  }
+}
+
 export interface ChatReply {
   message: AssistantMessage;
   usage: Usage;

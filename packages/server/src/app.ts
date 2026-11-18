@@ -22,6 +22,7 @@ import { reportRoutes } from "./routes/report.ts";
 import { scanRoutes } from "./routes/scan.ts";
 import type { OcrRunner } from "./scan/read.ts";
 import type { Post } from "./ai/providers.ts";
+import type { RetryDeps } from "./ai/retry.ts";
 import { powershellRunner, type OfficeRunner } from "./forms/convert.ts";
 
 export const DEFAULT_UPLOAD_LIMIT = 200 * 1024 * 1024;
@@ -40,6 +41,8 @@ export interface AppOptions {
   officeRunner?: OfficeRunner;
   /** Для тестов: подмена HTTP-запросов к нейросетям. */
   aiPost?: Post;
+  /** 0.31: параметры повторов запросов к нейросети (тесты — без пауз). */
+  aiRetry?: RetryDeps;
   /** Для тестов: подмена распознавания текста сканов (по умолчанию — Windows OCR через PowerShell). */
   ocrRunner?: OcrRunner;
   /** Для тестов: бот Телеграма для отчётов (null — не отправлять; по умолчанию — telegram.json установщика). */
@@ -65,7 +68,7 @@ export function createApp(opts: AppOptions) {
   formJobRoutes(api, templates, runner);
   kitRoutes(api, opts.db, opts.dataDir, { templates, runner });
   const ai = new AiStore(opts.dataDir);
-  aiRoutes(api, ai, { post: opts.aiPost });
+  aiRoutes(api, ai, { post: opts.aiPost, retry: opts.aiRetry });
   scanRoutes(api, opts.db, opts.dataDir, ai, { ocr: opts.ocrRunner, post: opts.aiPost });
   reportRoutes(api, { dataDir: opts.dataDir, templates, ai, reportsDir: opts.reportsDir, telegram: opts.telegram, fetchImpl: opts.fetchImpl });
   libraryRoutes(api, new LibraryStore(opts.dataDir), opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);

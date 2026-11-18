@@ -9,8 +9,18 @@ export interface Seen {
   body: any;
   raw: string;
 }
-export type Reply =
-  { status?: number; json: unknown; delayMs?: number; drop?: boolean; headers?: Record<string, string> } | ((s: Seen) => { status?: number; json: unknown });
+export interface ReplyObj {
+  status?: number;
+  json: unknown;
+  delayMs?: number;
+  drop?: boolean;
+  headers?: Record<string, string>;
+  /** 0.31: потоковый ответ — события «data: …» по очереди с паузой chunkMs; cut — оборвать после N событий. */
+  sse?: string[];
+  chunkMs?: number;
+  cut?: number;
+}
+export type Reply = ReplyObj | ((s: Seen) => { status?: number; json: unknown });
 
 export async function fakeAi(routes: Record<string, Reply[]>, tls?: { key: string; cert: string }) {
   const seen: Seen[] = [];
@@ -39,6 +49,21 @@ export async function fakeAi(routes: Record<string, Reply[]>, tls?: { key: strin
       // 0.31: обрыв соединения (ECONNRESET у клиента) и свои заголовки (Retry-After).
       if ("drop" in r && r.drop) {
         req.socket.destroy();
+        return;
+      }
+      const o = r as ReplyObj;
+      if (o.sse) {
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        for (let i = 0; i < o.sse.length; i++) {
+          if (o.cut !== undefined && i >= o.cut) {
+            req.socket.destroy();
+            return;
+          }
+          if (res.destroyed) return;
+          res.write(`data: ${o.sse[i]}\n\n`);
+          if (o.chunkMs) await new Promise<void>((x) => setTimeout(() => x(), o.chunkMs));
+        }
+        res.end();
         return;
       }
       res.writeHead(r.status ?? 200, { "content-type": "application/json", ...("headers" in r && r.headers ? r.headers : {}) });

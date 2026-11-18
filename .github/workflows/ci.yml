@@ -25,10 +25,11 @@ jobs:
           cache: npm
       - name: Зависимости
         run: npm ci
+      # Системные библиотеки Chromium в образе ubuntu-24.04 уже есть; --with-deps тянет пакеты с медленного зеркала.
       - name: Chromium для тестов печати
-        run: npx playwright-core install --with-deps chromium
+        run: npx playwright-core install chromium
       - name: Шрифты для печатных форм (Liberation — метрики Times New Roman/Arial)
-        run: sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core > /dev/null
+        run: dpkg -s fonts-liberation fonts-dejavu-core > /dev/null 2>&1 || sudo apt-get install -y -qq fonts-liberation fonts-dejavu-core > /dev/null
       - name: Типы (shared, server, addin)
         run: npm run typecheck
       - name: Линт

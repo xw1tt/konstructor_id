@@ -9,6 +9,18 @@ export interface PostOpts {
   timeoutMs?: number;
   caFile?: string;
   form?: boolean;
+  /** 0.31: потоковый ответ — успешный (2xx) ответ отдаётся кусками сюда, а не собирается в text/json. */
+  onChunk?: (text: string) => void;
+  /** 0.31: отмена запроса (пользователь нажал «Остановить» или закрыл соединение). */
+  signal?: AbortSignal;
+}
+
+/** 0.31: запрос отменён пользователем — не сетевая ошибка, не повторяется. */
+export class AbortedError extends Error {
+  constructor() {
+    super("запрос отменён");
+    this.name = "AbortError";
+  }
 }
 export interface PostResult {
   status: number;
@@ -41,7 +53,7 @@ export function post(url: string, body: unknown, opts: PostOpts = {}): Promise<P
   const payload = opts.form ? String(body) : JSON.stringify(body);
   const headers: Record<string, string> = {
     "content-type": opts.form ? "application/x-www-form-urlencoded" : "application/json",
-    accept: "application/json",
+    accept: opts.onChunk ? "text/event-stream" : "application/json",
     "content-length": String(Buffer.byteLength(payload)),
     ...opts.headers,
   };
@@ -54,10 +66,28 @@ export function post(url: string, body: unknown, opts: PostOpts = {}): Promise<P
     }
   }
   const req = u.protocol === "https:" ? httpsRequest : httpRequest;
+  if (opts.signal?.aborted) return Promise.reject(new AbortedError());
   return new Promise((resolve, reject) => {
     let started = false;
     const r = req(u, { method: "POST", headers, ...(ca ? { ca } : {}) }, (res) => {
       started = true;
+      const status = res.statusCode ?? 0;
+      if (opts.onChunk && status >= 200 && status < 300) {
+        // Поток: куски — сразу наружу (декодер не режет многобайтные буквы на границе кусков).
+        res.setEncoding("utf8");
+        let ended = false;
+        res.on("data", (c: string) => opts.onChunk!(c));
+        res.on("end", () => {
+          ended = true;
+          resolve({ status, json: null, text: "", headers: res.headers });
+        });
+        res.on("error", () => {});
+        res.on("close", () => {
+          if (ended) return;
+          reject(opts.signal?.aborted ? new AbortedError() : new NetError("связь прервалась посреди ответа", false, true, "ECONNRESET"));
+        });
+        return;
+      }
       const chunks: Buffer[] = [];
       res.on("data", (c: Buffer) => chunks.push(c));
       res.on("end", () => {
@@ -73,8 +103,9 @@ export function post(url: string, body: unknown, opts: PostOpts = {}): Promise<P
       res.on("error", (e: NodeJS.ErrnoException) => reject(new NetError(`связь прервалась (${e.code ?? e.message})`, false, true, String(e.code ?? ""))));
     });
     r.setTimeout(opts.timeoutMs ?? 120_000, () => r.destroy(new NetError("нейросеть не ответила вовремя", false, started, "TIMEOUT")));
+    opts.signal?.addEventListener("abort", () => r.destroy(new AbortedError()), { once: true });
     r.on("error", (e: NodeJS.ErrnoException) => {
-      if (e instanceof NetError) return reject(e);
+      if (e instanceof NetError || e instanceof AbortedError) return reject(e);
       const code = String(e.code ?? "");
       const cert = CERT_CODES.test(code) || CERT_CODES.test(e.message);
       reject(new NetError(cert ? `сертификат сервера не принят (${code || e.message})` : `нет связи (${code || e.message})`, cert, started, code));

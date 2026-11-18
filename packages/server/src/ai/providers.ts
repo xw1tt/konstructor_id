@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { resolveProvider, type AssistantMessage, type ChatMessage, type ChatRequest, type Provider, type ToolCall, type Usage } from "@idk/shared/ai/model";
 import { HttpError } from "../http/router.ts";
-import { NetError, post as defaultPost, type PostOpts, type PostResult } from "./http.ts";
+import { AbortedError, NetError, post as defaultPost, type PostOpts, type PostResult } from "./http.ts";
 import { postWithRetry, type Post, type RetryDeps } from "./retry.ts";
 
 export type { Post };
@@ -35,12 +35,15 @@ const fail = (p: Provider, r: PostResult): never => {
 export interface Transport {
   post: Post;
   retry?: RetryDeps;
+  /** 0.31: отмена (поток помощника). */
+  signal?: AbortSignal;
 }
 
 async function send(p: Provider, url: string, body: unknown, opts: PostOpts, t: Transport): Promise<PostResult> {
   try {
-    return await postWithRetry(t.post, url, body, { caFile: p.caFile || undefined, ...opts }, t.retry);
+    return await postWithRetry(t.post, url, body, { caFile: p.caFile || undefined, ...(t.signal ? { signal: t.signal } : {}), ...opts }, t.retry);
   } catch (e) {
+    if (e instanceof AbortedError) throw e;
     if (e instanceof NetError) {
       const hint = e.cert && p.kind === "gigachat" ? ". Укажите в подключении файл корневого сертификата Минцифры" : "";
       throw new HttpError(502, `${p.name}: ${e.message}${hint}`);
@@ -90,7 +93,7 @@ const hostOf = (u: string) => {
   }
 };
 
-async function chatOpenAI(p0: Provider, req: ChatRequest, t: Transport): Promise<ChatOut> {
+function openAIRequest(p0: Provider, req: ChatRequest) {
   const p = resolveProvider(p0);
   const headers: Record<string, string> = {};
   if (p.key) headers.authorization = `Bearer ${p.key}`;
@@ -102,6 +105,11 @@ async function chatOpenAI(p0: Provider, req: ChatRequest, t: Transport): Promise
     body.tools = req.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
     body.tool_choice = "auto";
   }
+  return { p, headers, body };
+}
+
+async function chatOpenAI(p0: Provider, req: ChatRequest, t: Transport): Promise<ChatOut> {
+  const { p, headers, body } = openAIRequest(p0, req);
   const r = await send(p, `${p.baseUrl}/chat/completions`, body, { headers }, t);
   if (r.status >= 400 || !r.json?.choices?.[0]) fail(p, r);
   const msg = r.json.choices[0].message ?? {};
@@ -195,4 +203,126 @@ export interface ChatDeps {
 export async function chat(p: Provider, req: ChatRequest, deps: ChatDeps = {}): Promise<ChatOut> {
   const t: Transport = { post: deps.post ?? defaultPost, retry: deps.retry };
   return p.kind === "gigachat" ? chatGiga(p, req, t, deps.now ?? Date.now) : chatOpenAI(p, req, t);
+}
+
+// ---------- Потоковый ответ (0.31) ----------
+
+export interface StreamHooks {
+  /** Очередной кусок текста ответа. */
+  onToken(text: string): void;
+  /** Модель вызывает инструмент (имя известно до аргументов). */
+  onTool?(name: string): void;
+  signal?: AbortSignal;
+}
+
+/** Прерванный поток: что успело прийти и оценка расхода. */
+export class StreamAborted extends Error {
+  constructor(
+    readonly partial: ChatOut,
+    readonly byUser: boolean,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/** Грубая оценка токенов, если провайдер не прислал расход (≈3 символа на токен для русского текста). */
+export const estimateTokens = (s: string) => Math.ceil(s.length / 3);
+
+/** Разбор Server-Sent Events провайдера: строки «data: …», пустая строка — конец события. */
+export function sseLines(onData: (data: string) => void) {
+  let buf = "";
+  return (chunk: string) => {
+    buf += chunk;
+    let i: number;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).replace(/\r$/, "");
+      buf = buf.slice(i + 1);
+      if (line.startsWith("data:")) onData(line.slice(5).trimStart());
+    }
+  };
+}
+
+async function streamOpenAI(p0: Provider, req: ChatRequest, t: Transport, hooks: StreamHooks): Promise<ChatOut> {
+  const { p, headers, body } = openAIRequest(p0, req);
+  let text = "";
+  let usage: Usage | null = null;
+  const calls: { id: string; name: string; args: string }[] = [];
+  const onData = sseLines((data) => {
+    if (data === "[DONE]") return;
+    let j: any;
+    try {
+      j = JSON.parse(data);
+    } catch {
+      return;
+    }
+    if (j.usage) usage = { prompt: Number(j.usage.prompt_tokens) || 0, completion: Number(j.usage.completion_tokens) || 0 };
+    const d = j.choices?.[0]?.delta ?? j.choices?.[0]?.message;
+    if (!d) return;
+    if (typeof d.content === "string" && d.content) {
+      text += d.content;
+      hooks.onToken(d.content);
+    }
+    for (const tc of d.tool_calls ?? []) {
+      const k = Number(tc.index ?? calls.length);
+      const c = (calls[k] ??= { id: "", name: "", args: "" });
+      if (tc.id) c.id = String(tc.id);
+      if (tc.function?.name) {
+        c.name += String(tc.function.name);
+        hooks.onTool?.(c.name);
+      }
+      if (tc.function?.arguments) c.args += String(tc.function.arguments);
+    }
+  });
+  const out = (): ChatOut => ({
+    message: {
+      role: "assistant",
+      content: text,
+      toolCalls: calls.filter(Boolean).map((c) => ({ id: c.id || randomUUID(), name: c.name, arguments: parseArgs(c.args) })),
+    },
+    usage: usage ?? { prompt: estimateTokens(JSON.stringify(body.messages)), completion: estimateTokens(text + calls.map((c) => c.args).join("")) },
+  });
+  let r: PostResult;
+  try {
+    r = await send(
+      p,
+      `${p.baseUrl}/chat/completions`,
+      { ...body, stream: true, stream_options: { include_usage: true } },
+      { headers, onChunk: onData, signal: hooks.signal },
+      t,
+    );
+  } catch (e) {
+    if (e instanceof AbortedError) throw new StreamAborted(out(), true, "ответ остановлен");
+    // Поток оборвался посреди ответа — полученное сохраняется.
+    if (text || calls.length) throw new StreamAborted(out(), false, `${p.name}: ${(e as Error).message}`);
+    throw e;
+  }
+  if (r.status >= 400) fail(p, r);
+  return out();
+}
+
+/**
+ * Ответ потоком: OpenAI-совместимые — по кускам; GigaChat — буферизованно (один кусок с полным текстом), интерфейс
+ * для панели тот же.
+ */
+export async function chatStream(p: Provider, req: ChatRequest, hooks: StreamHooks, deps: ChatDeps = {}): Promise<ChatOut> {
+  const t: Transport = { post: deps.post ?? defaultPost, retry: deps.retry, signal: hooks.signal };
+  if (p.kind === "gigachat") {
+    let out: ChatOut;
+    try {
+      out = await chatGiga(p, req, t, deps.now ?? Date.now);
+    } catch (e) {
+      if (e instanceof AbortedError)
+        throw new StreamAborted(
+          { message: { role: "assistant", content: "", toolCalls: [] }, usage: { prompt: estimateTokens(JSON.stringify(req.messages)), completion: 0 } },
+          true,
+          "ответ остановлен",
+        );
+      throw e;
+    }
+    for (const c of out.message.toolCalls) hooks.onTool?.(c.name);
+    if (out.message.content) hooks.onToken(out.message.content);
+    return out;
+  }
+  return streamOpenAI(p, req, t, hooks);
 }

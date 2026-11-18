@@ -43,7 +43,7 @@ export function AssistantScreen({
   useEffect(() => {
     const el = log.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [session.items.length, busy, session.pending.length]);
+  }, [session.items.length, busy, session.pending.length, session.items.at(-1)?.text.length]);
 
   const active = providers?.providers.find((p) => p.id === providers.active) ?? null;
   const masked = active ? resolveProvider({ ...active, key: "" } as Provider).maskNames : false;
@@ -147,11 +147,12 @@ export function AssistantScreen({
       )}
       <div className="as-log" aria-live="polite" ref={log}>
         {session.items.map((m, i) => (
-          <div key={i} className={`as-msg as-${m.kind}`}>
+          <div key={i} className={`as-msg as-${m.kind}${m.live ? " as-live" : ""}`}>
             {m.text}
+            {m.cut && <span className="as-cut">{m.cut === "stopped" ? " — остановлено" : " — ответ прерван"}</span>}
           </div>
         ))}
-        {busy && <div className="as-msg as-tool">Думаю…</div>}
+        {busy && !session.items.at(-1)?.live && <div className="as-msg as-tool">Думаю…</div>}
       </div>
       {session.pending.length > 0 && !busy && (
         <section className="as-card" aria-label="Предлагаемые изменения">
@@ -215,9 +216,16 @@ export function AssistantScreen({
             if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void send();
           }}
         />
-        <button className="btn btn-primary" disabled={busy || !text.trim() || !state.book} onClick={() => void send()}>
-          Отправить
-        </button>
+        <div className="as-buttons">
+          <button className="btn btn-primary" disabled={busy || !text.trim() || !state.book} onClick={() => void send()}>
+            Отправить
+          </button>
+          {session.generating && (
+            <button className="btn" onClick={() => session.stop()} title="Прервать ответ — полученная часть останется в чате">
+              Остановить
+            </button>
+          )}
+        </div>
       </div>
       {error && (
         <p className="error" role="alert">

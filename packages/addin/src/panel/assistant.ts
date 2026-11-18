@@ -1,5 +1,5 @@
 // План 19: сессия помощника — история разговора, предложения последнего ответа, применение и отмена.
-import type { ChatMessage, ChatReply, ToolCall, ToolDef } from "@idk/shared/ai/model";
+import { StreamStopped, type ChatMessage, type ChatReply, type StreamHooks, type ToolCall, type ToolDef } from "@idk/shared/ai/model";
 import { runTurn, toolLabel } from "@idk/shared/ai/agent";
 import { BOOK_TOOLS, execBookTool, type Proposal, type ToolContext } from "@idk/shared/ai/tools";
 import { applyChanges, undoChanges, type BookChange, type Undo } from "@idk/shared/ai/changes";
@@ -14,6 +14,10 @@ import type { UserTemplate } from "@idk/shared/forms/template";
 export interface ChatItem {
   kind: "user" | "assistant" | "tool" | "note" | "error";
   text: string;
+  /** 0.31: ответ ещё приходит потоком. */
+  live?: boolean;
+  /** 0.31: ответ остановлен пользователем или прерван обрывом связи. */
+  cut?: "stopped" | "interrupted";
 }
 
 /** Дополнительный набор инструментов (план 20: справочник, формы). exec → null, если вызов не его. */
@@ -35,6 +39,8 @@ export interface AskContext {
 
 export interface SessionDeps {
   chat(messages: ChatMessage[], tools: ToolDef[]): Promise<ChatReply>;
+  /** 0.31: потоковый ответ; нет — ответ целиком через chat. */
+  chatStream?(messages: ChatMessage[], tools: ToolDef[], hooks: StreamHooks, signal?: AbortSignal): Promise<ChatReply>;
   store: TableStore;
   kits?: ToolKit[];
 }
@@ -44,7 +50,18 @@ export class AssistantSession {
   items: ChatItem[] = [];
   pending: Proposal[] = [];
   applied: { ids: number[]; undo: Undo; extra: (() => Promise<void>)[] } | null = null;
+  /** 0.31: идёт генерация ответа — можно остановить. */
+  private abort: AbortController | null = null;
   constructor(private deps: SessionDeps) {}
+
+  get generating() {
+    return this.abort !== null;
+  }
+
+  /** 0.31: «Остановить» — прерывает генерацию; полученная часть остаётся в чате и в истории. */
+  stop() {
+    this.abort?.abort();
+  }
 
   reset() {
     this.history = [];
@@ -81,9 +98,36 @@ export class AssistantSession {
     };
     const kits = this.deps.kits ?? [];
     const tools = [...BOOK_TOOLS, ...kits.flatMap((k) => k.tools)];
+    const abort = new AbortController();
+    this.abort = abort;
+    // Ответ текущего обращения к модели, который приходит потоком (на каждом шаге — свой).
+    let live: ChatItem | null = null;
+    const stream = this.deps.chatStream;
+    const send = (m: ChatMessage[], t: ToolDef[]): Promise<ChatReply> => {
+      live = null;
+      if (!stream) return this.deps.chat(m, t);
+      return stream(
+        m,
+        t,
+        {
+          onToken: (s) => {
+            if (!live) {
+              live = { kind: "assistant", text: "", live: true };
+              this.items.push(live);
+            }
+            live.text += s;
+            onUpdate();
+          },
+        },
+        abort.signal,
+      ).then((r) => {
+        if (live) live.live = false;
+        return r;
+      });
+    };
     try {
       const r = await runTurn(this.history, tools, {
-        send: (m, t) => this.deps.chat(m, t),
+        send,
         exec: async (call) => {
           const own = execBookTool(ctx, call);
           if (own !== null) return own;
@@ -99,12 +143,30 @@ export class AssistantSession {
         },
       });
       this.history.push(...r.added);
-      this.items.push({ kind: r.stopped ? "error" : "assistant", text: r.text || (ctx.proposals.length ? "Предлагаю изменения ниже." : "…") });
+      const text = r.text || (ctx.proposals.length ? "Предлагаю изменения ниже." : "…");
+      // Последний ответ уже в чате (пришёл потоком) — заменяется итоговым текстом, а не дублируется.
+      const last = live as ChatItem | null;
+      if (last && !r.stopped && this.items.at(-1) === last) last.text = text;
+      else this.items.push({ kind: r.stopped ? "error" : "assistant", text });
       this.pending = ctx.proposals;
     } catch (e) {
-      // Вопрос остаётся в истории без ответа — следующая попытка его повторит.
-      this.history.pop();
-      this.items.push({ kind: "error", text: (e as Error).message });
+      const last = live as ChatItem | null;
+      if (e instanceof StreamStopped && e.partial) {
+        // Полученная часть остаётся в чате и в истории разговора (модель на следующем вопросе её видит).
+        const cut = e.byUser ? "stopped" : "interrupted";
+        if (last) Object.assign(last, { text: e.partial, live: false, cut });
+        else this.items.push({ kind: "assistant", text: e.partial, cut });
+        this.history.push({ role: "assistant", content: e.partial, toolCalls: [] });
+        if (!e.byUser) this.items.push({ kind: "note", text: e.message });
+      } else {
+        // Вопрос остаётся в истории без ответа — следующая попытка его повторит.
+        this.history.pop();
+        if (last) last.live = false;
+        if (e instanceof StreamStopped && e.byUser) this.items.push({ kind: "note", text: "Ответ остановлен." });
+        else this.items.push({ kind: "error", text: (e as Error).message });
+      }
+    } finally {
+      this.abort = null;
     }
     onUpdate();
   }

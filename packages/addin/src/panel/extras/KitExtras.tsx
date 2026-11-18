@@ -2,6 +2,7 @@
 // реестр из актов (0.32 — сверяется сам при сборке), переходы к строкам комплекта, сборка комплекта в один PDF.
 import { useContext, useEffect, useState } from "react";
 import type { Issue } from "@idk/shared/workbook/bundle";
+import { cellText } from "@idk/shared/workbook/values";
 import { kitActs, syncRegistry } from "@idk/shared/kit/registry";
 import { readBook, type Book } from "@idk/shared/workbook/records";
 import type { ExcelPort } from "../../book/excelPort.ts";
@@ -11,7 +12,7 @@ import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../te
 import { sheetIssueLines, printAct, printForm, type IssueLine } from "../print.ts";
 import { templateButtons, type TemplateButton } from "../templatesApi.ts";
 import type { PrintKind } from "@idk/shared/acts/schemas";
-import { assembleKit, assembleCommonRegistry, kitIssueLines, kitRegistryCount, kitsWithRegistry, previewUrl } from "../kit.ts";
+import { assembleKit, assembleCommonRegistry, kitIssueLines, kitRegistryCount, previewUrl } from "../kit.ts";
 import { IssueList } from "./IssueList.tsx";
 import { PreDelivery } from "./PreDelivery.tsx";
 import { kitShortage, type Status } from "@idk/shared/catalog/need";
@@ -35,6 +36,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
   const options = useContext(PrintOptionsContext);
   const catalog = useContext(CatalogContext);
   const [busy, setBusy] = useState<string | null>(null);
+  const [checked, setChecked] = useState(0);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);
   useEffect(() => {
@@ -104,6 +106,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
 
   const build = async () => {
     setBusy("build");
+    setChecked((n) => n + 1);
     setLines([]);
     setNote(null);
     let synced: Awaited<ReturnType<typeof sync>>;
@@ -133,7 +136,8 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     let book = state.book!;
     let updated = 0;
     try {
-      for (const k of kitsWithRegistry(book)) {
+      // Реестр собирается сам — сверяются все комплекты книги, в том числе ещё без строк реестра.
+      for (const k of new Set((book.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean))) {
         const x = await sync(k, book);
         if (x.text) updated++;
         book = x.book;
@@ -159,7 +163,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     }
     setBusy(null);
   };
-  const allKits = kitsWithRegistry(state.book);
+  const allKits = [...new Set((state.book.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean))];
 
   return (
     <div className="extras">
@@ -176,8 +180,13 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
         <button className="btn" disabled={busy !== null} onClick={() => void fill()} title="Реестр собирается из актов сам — при сборке комплекта">
           {busy === "fill" ? "Сверяю…" : "Обновить из актов"}
         </button>
-        <button className="btn btn-primary" disabled={busy !== null} onClick={() => void build()}>
-          {busy === "build" ? "Собираю…" : "Собрать комплект"}
+        <button
+          className="btn btn-primary"
+          disabled={busy !== null}
+          onClick={() => void build()}
+          title="Реестр сверяется с актами, проверка перед сдачей, документы актов и реестр — одним PDF"
+        >
+          {busy === "build" ? "Собираю…" : "Сдать: собрать комплект"}
         </button>
       </div>
       <div className="row-actions">
@@ -222,7 +231,7 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
           </ul>
         </div>
       )}
-      <PreDelivery port={port} state={state} acts={kitActs(state.book!, kit).acts} what="комплект" />
+      <PreDelivery port={port} state={state} acts={kitActs(state.book!, kit).acts} what="комплект" trigger={checked} />
       {busy === "build" && <p className="notice">Печатаю документы и склеиваю комплект — это может занять минуту.</p>}
       <IssueList port={port} lines={lines} title="Перед сборкой исправьте:" />
       {note && (

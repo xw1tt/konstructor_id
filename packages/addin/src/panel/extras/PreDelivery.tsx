@@ -12,20 +12,25 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-export function PreDelivery({ port, state, acts, what }: { port: ExcelPort; state: BookState; acts: string[]; what: string }) {
+/** trigger — 0.32: проверка запускается сама, когда число меняется (печать акта, сборка комплекта). */
+export function PreDelivery({ port, state, acts, what, trigger = 0 }: { port: ExcelPort; state: BookState; acts: string[]; what: string; trigger?: number }) {
   const [lines, setLines] = useState<IssueLine[] | null>(null);
   const [busy, setBusy] = useState(false);
   const key = acts.join("\n");
   useEffect(() => setLines(null), [key]);
-  if (!state.book || !acts.length) return null;
   const run = async () => {
+    if (!state.book || !acts.length) return;
     setBusy(true);
     try {
-      setLines(await sheetIssueLines(port, checkActs(state.book!, acts, today())));
+      setLines(await sheetIssueLines(port, checkActs(state.book, acts, today())));
     } finally {
       setBusy(false);
     }
   };
+  useEffect(() => {
+    if (trigger > 0) void run();
+  }, [trigger]);
+  if (!state.book || !acts.length) return null;
   return (
     <div className="predelivery">
       <div className="row-actions">

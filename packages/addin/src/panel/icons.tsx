@@ -119,3 +119,18 @@ export const SectionIcon = ({ id }: { id: SectionId }) => (
     {SECTION_PATHS[id]}
   </svg>
 );
+/** 0.32: «Печать и сдача» — принтер. */
+export const PrintIcon = () => (
+  <svg {...S} width={16} height={16}>
+    <path d="M7 9V3h10v6" />
+    <rect x="3" y="9" width="18" height="8" rx="2" />
+    <path d="M7 14h10v7H7z" />
+  </svg>
+);
+/** 0.32: «Книга» — лист таблицы. */
+export const BookIcon = () => (
+  <svg {...S} width={16} height={16}>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M4 9h16M4 15h16M10 3v18" />
+  </svg>
+);

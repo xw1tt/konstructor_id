@@ -1212,3 +1212,33 @@ a.btn {
   max-height: 220px;
   overflow-y: auto;
 }
+
+/* 0.32: меню «Ещё» справа, заголовок и разделитель. */
+.tb-drop-end {
+  margin-left: auto;
+}
+.tb-drop-end .tb-menu {
+  left: auto;
+  right: 0;
+}
+.tb-menu-head {
+  padding: 4px 8px 2px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tb-menu-sep {
+  border-top: 1px solid var(--line);
+  margin: 4px 0;
+}
+.delivery-kits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.delivery .setting {
+  margin-bottom: 14px;
+}

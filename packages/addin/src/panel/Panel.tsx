@@ -21,6 +21,7 @@ import { TemplateContext, PrintOptionsContext, UserTemplateContext, type Templat
 import { TemplateEditor } from "./TemplateEditor.tsx";
 import { FieldsScreen } from "./FieldsScreen.tsx";
 import { LibraryScreen } from "./LibraryScreen.tsx";
+import { DeliveryScreen } from "./DeliveryScreen.tsx";
 import { WizardScreen } from "./WizardScreen.tsx";
 import { AssistantSession } from "./assistant.ts";
 import { aiApi } from "./aiApi.ts";
@@ -257,6 +258,8 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
                     onSettings={() => setScreen("settings")}
                     extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />}
                   />
+                ) : screen === "delivery" ? (
+                  <DeliveryScreen port={port} state={state} />
                 ) : screen === "normativ" ? (
                   <NormativScreen port={port} />
                 ) : !book ? (

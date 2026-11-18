@@ -16,6 +16,8 @@ import { ActMaterials } from "./ActMaterials.tsx";
 import { ActSigners } from "./ActSigners.tsx";
 import { unboundMaterials } from "@idk/shared/spec/closed";
 import type { Issue } from "@idk/shared/workbook/bundle";
+import { addNextAct } from "@idk/shared/acts/nextAct";
+import { cellText } from "@idk/shared/workbook/values";
 
 const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | "vor" }[] = [
   { table: "Схемы", label: "Схемы", key: "schemes" },
@@ -32,12 +34,39 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
   const [made, setMade] = useState<{ id: string; name: string; warnings: string[] } | null>(null);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [error, setError] = useState("");
+  const [note, setNote] = useState("");
+  const [checked, setChecked] = useState(0);
   if (!act || !state.book) return null;
   const sum = actSummary(state.book, act);
   const unbound = unboundMaterials(state.book, act);
 
+  /** 0.32: следующий акт — копия последнего акта того же вида работ (номер +1, даты продолжаются, схемы и материалы). */
+  const next = async () => {
+    setBusy("next");
+    setError("");
+    setNote("");
+    try {
+      if (await port.isFiltered("Акты")) await port.clearFilters("Акты");
+      const row = (state.book!.tables["Акты"] ?? []).find((r) => cellText(r.v.baseNumber) === act)?.row;
+      if (row === undefined) throw new Error("Акт не найден в «Базе актов»");
+      const r = await addNextAct(port, row);
+      await port.selectCell("Акты", r.row, "Номер акта");
+      setNote(
+        `Добавлен акт ${r.number}` +
+          (r.schemes || r.materials ? ` (схем: ${r.schemes}, материалов: ${r.materials} — без количества)` : "") +
+          ". Проверьте «Работы (п.1)», даты и номера схем.",
+      );
+      state.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const print = async (b: TemplateButton) => {
     setBusy(b.key);
+    setChecked((n) => n + 1);
     setError("");
     setLines([]);
     setMade(null);
@@ -64,7 +93,20 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
             {l.label}: {sum[l.key]}
           </button>
         ))}
+        <button
+          className="btn"
+          disabled={busy !== null}
+          onClick={() => void next()}
+          title="Копия последнего акта этого вида работ: номер +1, работы — со следующего рабочего дня, схемы и материалы акта"
+        >
+          {busy === "next" ? "Добавляю…" : "+ Следующий акт"}
+        </button>
       </div>
+      {note && (
+        <p className="notice" role="status">
+          {note}
+        </p>
+      )}
       <ActMaterials port={port} state={state} act={act} />
       {unbound.length > 0 && (
         <p className="warn" role="status">
@@ -73,7 +115,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
       )}
       <ActSigners port={port} state={state} act={act} />
       <Completeness port={port} state={state} act={act} />
-      <PreDelivery port={port} state={state} acts={[act]} what="акт" />
+      <PreDelivery port={port} state={state} acts={[act]} what="акт" trigger={checked} />
       <h3 className="tools-title">Печать</h3>
       <div className="row-actions" aria-label="Печать документов">
         {templateButtons(tpl.template).map((b) => (

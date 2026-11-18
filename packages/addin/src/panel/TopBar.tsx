@@ -1,10 +1,10 @@
-// Верхняя строка панели: ⌂ (конструктор), «Норматив», «Библиотека», «Помощник», «Шаблоны ▾», «Настройки» — значок и
-// подпись; при узкой панели (< 400 px) — только значки с подсказкой (план 21).
-import { useEffect, useRef, useState } from "react";
+// Верхняя строка панели (0.32): «Книга», «Печать и сдача», «Помощник» и меню ⚙ — шаблон, редактор шаблонов, поля,
+// «Норматив», «Библиотека», «Настройки». При узкой панели (< 400 px) — только значки с подсказкой (план 21).
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { TemplateCode } from "@idk/shared/templates";
 import type { UserTemplate } from "@idk/shared/forms/template";
-import type { ScreenId } from "./screens.ts";
-import { ChevronIcon, GearIcon, GridIcon, HomeIcon, LibraryIcon, NormIcon, SparkIcon } from "./icons.tsx";
+import { MENU_SCREENS, type ScreenId } from "./screens.ts";
+import { BookIcon, ChevronIcon, GearIcon, PrintIcon, SparkIcon } from "./icons.tsx";
 
 export function TopBar({
   screen,
@@ -36,54 +36,47 @@ export function TopBar({
       document.removeEventListener("keydown", esc);
     };
   }, [open]);
+  const go = (s: ScreenId) => {
+    onScreen(s);
+    setOpen(false);
+  };
+  const tab = (id: ScreenId, label: string, icon: ReactNode, cls = "", title = label) => (
+    <button
+      className={`tb-btn${cls}${screen === id ? " tb-active" : ""}`}
+      aria-current={screen === id ? "page" : undefined}
+      title={title}
+      onClick={() => go(id)}
+    >
+      {icon}
+      <span className="tb-label">{label}</span>
+    </button>
+  );
+  const inMenu = MENU_SCREENS.some((m) => m.id === screen);
+  const current = templates.find((t) => t.id === template);
 
   return (
     <header className="topbar">
       <nav className="topbar-nav" aria-label="Экраны">
-        <button
-          className={`tb-btn tb-home${screen === "home" ? " tb-active" : ""}`}
-          aria-label="Конструктор ИД"
-          aria-current={screen === "home" ? "page" : undefined}
-          title="Конструктор ИД"
-          onClick={() => onScreen("home")}
-        >
-          <HomeIcon />
-        </button>
-        <button
-          className={`tb-btn${screen === "normativ" ? " tb-active" : ""}`}
-          aria-current={screen === "normativ" ? "page" : undefined}
-          title="Норматив"
-          onClick={() => onScreen("normativ")}
-        >
-          <NormIcon />
-          <span className="tb-label">Норматив</span>
-        </button>
-        <button
-          className={`tb-btn${screen === "library" ? " tb-active" : ""}`}
-          aria-current={screen === "library" ? "page" : undefined}
-          title="Библиотека компании"
-          onClick={() => onScreen("library")}
-        >
-          <LibraryIcon />
-          <span className="tb-label">Библиотека</span>
-        </button>
-        <button
-          className={`tb-btn tb-assistant${screen === "assistant" ? " tb-active" : ""}`}
-          aria-current={screen === "assistant" ? "page" : undefined}
-          title="Помощник"
-          onClick={() => onScreen("assistant")}
-        >
-          <SparkIcon />
-          <span className="tb-label">Помощник</span>
-        </button>
-        <div className="tb-drop" ref={box}>
-          <button className="tb-btn tb-templates" aria-haspopup="listbox" aria-expanded={open} title="Шаблоны" onClick={() => setOpen((v) => !v)}>
-            <GridIcon />
-            <span className="tb-label">Шаблоны</span>
+        {tab("home", "Книга", <BookIcon />, " tb-home", "Книга: листы, акты, карточки строк")}
+        {tab("delivery", "Печать и сдача", <PrintIcon />, "", "Комплекты, реестр, ОЖР, проверка перед сдачей")}
+        {tab("assistant", "Помощник", <SparkIcon />, " tb-assistant")}
+        <div className="tb-drop tb-drop-end" ref={box}>
+          <button
+            className={`tb-btn tb-settings${inMenu ? " tb-active" : ""}`}
+            aria-haspopup="menu"
+            aria-expanded={open}
+            title={`Ещё: шаблон${current ? ` «${current.name}»` : ""}, норматив, библиотека, настройки`}
+            onClick={() => setOpen((v) => !v)}
+          >
+            <GearIcon />
+            <span className="tb-label">Ещё</span>
             <ChevronIcon />
           </button>
           {open && (
-            <ul className="tb-menu" role="menu" aria-label="Шаблон и настройки печати">
+            <ul className="tb-menu" role="menu" aria-label="Шаблон, справочники и настройки">
+              <li className="tb-menu-head" role="presentation">
+                Шаблон
+              </li>
               {templates.map((t) => (
                 <li key={t.id} role="none">
                   <button
@@ -99,42 +92,18 @@ export function TopBar({
                   </button>
                 </li>
               ))}
-              <li role="none">
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    onScreen("templates");
-                    setOpen(false);
-                  }}
-                >
-                  <span className="tb-check" />
-                  Редактор шаблонов…
-                </button>
-              </li>
-              <li role="none">
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    onScreen("fields");
-                    setOpen(false);
-                  }}
-                >
-                  <span className="tb-check" />
-                  Поля для шаблона…
-                </button>
-              </li>
+              <li className="tb-menu-sep" role="separator" />
+              {MENU_SCREENS.map((m) => (
+                <li key={m.id} role="none">
+                  <button role="menuitem" aria-current={screen === m.id ? "page" : undefined} onClick={() => go(m.id)}>
+                    <span className="tb-check">{screen === m.id ? "•" : ""}</span>
+                    {m.label}
+                  </button>
+                </li>
+              ))}
             </ul>
           )}
         </div>
-        <button
-          className={`tb-btn tb-settings${screen === "settings" ? " tb-active" : ""}`}
-          aria-current={screen === "settings" ? "page" : undefined}
-          title="Настройки"
-          onClick={() => onScreen("settings")}
-        >
-          <GearIcon />
-          <span className="tb-label">Настройки</span>
-        </button>
       </nav>
     </header>
   );

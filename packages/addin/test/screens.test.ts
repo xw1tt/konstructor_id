@@ -2,22 +2,27 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readBook } from "@idk/shared/workbook/records";
 import { defaultImportant } from "@idk/shared/workbook/important";
-import { SCREENS } from "@idk/addin/panel/screens";
+import { MENU_SCREENS, SCREENS } from "@idk/addin/panel/screens";
 import { printAct } from "@idk/addin/panel/print";
 import { aov1Book, AOV1 } from "../../shared/test/fixtures/aov1Book.ts";
 
-test("экраны верхней строки", () => {
+test("0.32: экраны — в строке «Книга», «Печать и сдача», «Помощник»; остальное в меню «Ещё»", () => {
   assert.deepEqual(
     SCREENS.map((s) => [s.id, s.label]),
     [
-      ["home", "Конструктор ИД"],
+      ["home", "Книга"],
+      ["delivery", "Печать и сдача"],
+      ["assistant", "Помощник"],
       ["normativ", "Норматив"],
       ["library", "Библиотека"],
-      ["assistant", "Помощник"],
       ["settings", "Настройки"],
       ["templates", "Редактор шаблонов"],
       ["fields", "Поля для шаблона"],
     ],
+  );
+  assert.deepEqual(
+    MENU_SCREENS.map((s) => s.id),
+    ["templates", "fields", "normativ", "library", "settings"],
   );
 });
 

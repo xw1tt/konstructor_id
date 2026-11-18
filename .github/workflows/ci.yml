@@ -40,6 +40,12 @@ jobs:
         run: npm run build
       - name: Тесты
         run: npm test
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: installer/go.mod
+      - name: Тесты установщика (разбор реестра, версии)
+        working-directory: installer
+        run: go test ./...
 
   installer:
     name: Установщик

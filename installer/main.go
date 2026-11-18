@@ -1,3 +1,5 @@
+//go:build windows
+
 // Установщик «Конструктора ИД» для Windows: без прав администратора, в профиль пользователя.
 // Внутри (payload.zip): Node.js, сервер одним файлом, панель Excel, скрипты запуска.
 //
@@ -282,7 +284,14 @@ func install() {
 		fail("подключить надстройку к Excel", err)
 	}
 
-	catalogNote := catalog(d, manifest)
+	office := detectOffice()
+	wv := webView2()
+	report := []string{
+		fmt.Sprintf("Office: %s, версия %s, %s", orNone(office.ids), orNone(office.version), orNone(office.platform)),
+		"WebView2: " + orNone(wv),
+	}
+	catalogNote, catRep := catalog(d, manifest, office)
+	report = append(report, catRep...)
 
 	// Автозапуск сервера, ярлыки в меню «Пуск», запись в «Установке и удалении программ».
 	wscript := filepath.Join(os.Getenv("WINDIR"), "System32", "wscript.exe")
@@ -312,9 +321,20 @@ func install() {
 		_ = reg("add", regUninst, "/v", k, "/t", "REG_DWORD", "/d", "1", "/f")
 	}
 
+	report = append(report, "Сертификат: "+map[bool]string{true: "принят", false: "НЕ принят"}[certTrusted(thumb)])
+	if autostartWarn != "" {
+		report = append(report, "Автозагрузка: НЕ настроена"+strings.ReplaceAll(autostartWarn, "\n", " "))
+	}
+	if wv == "" && office.ids != "" {
+		autostartWarn += "\n\nНе найден Microsoft Edge WebView2 — без него панель в Office 2021/LTSC может не открыться. Установите «Microsoft Edge WebView2 Runtime» с сайта Microsoft (или попросите IT)."
+	}
+
 	// Запуск сервера сейчас.
 	_ = hidden(wscript, start).Start()
-	if !waitServer() {
+	ok := waitServer()
+	report = append(report, "Сервер: "+map[bool]string{true: "отвечает", false: "НЕ ответил за 30 с"}[ok])
+	writeInstallReport(d, report)
+	if !ok {
 		msg(fmt.Sprintf("Программа установлена, но сервер не ответил за 30 секунд.\n\nПерезагрузите компьютер или выберите в меню «Пуск» → «%s» → «Перезапустить сервер». Журнал сервера: %s%s", appName, filepath.Join(d.data, "server.log"), autostartWarn), mbOK|mbIconWarn)
 		return
 	}
@@ -359,53 +379,82 @@ func main() {
 	install()
 }
 
-// compareVersions сравнивает версии вида 0.30.1: <0 — a старше b, 0 — равны, >0 — a новее.
-func compareVersions(a, b string) int {
-	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
-	for i := 0; i < len(pa) || i < len(pb); i++ {
-		var x, y int
-		if i < len(pa) {
-			fmt.Sscanf(pa[i], "%d", &x)
-		}
-		if i < len(pb) {
-			fmt.Sscanf(pb[i], "%d", &y)
-		}
-		if x != y {
-			if x < y {
-				return -1
-			}
-			return 1
-		}
+// ---------- 0.32: сведения о компьютере ----------
+
+// officeInfo — Office «нажми и работай»: продукты, версия, разрядность (пусто — не найден).
+type officeInfo struct{ ids, version, platform string }
+
+func regValue(key, name string) string {
+	out, err := hidden("reg.exe", "query", key, "/v", name).Output()
+	if err != nil {
+		return ""
 	}
-	return 0
+	return parseRegValue(string(out), name)
 }
 
-// volumeOffice — корпоративный Office (LTSC/2019/2021/2024 по лицензии на объём): он не подхватывает надстройки из
-// WEF\Developer, только из доверенного каталога в общей папке.
-func volumeOffice() bool {
-	out, err := hidden("reg.exe", "query", `HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration`, "/v", "ProductReleaseIds").Output()
-	if err != nil {
-		return false
+func detectOffice() officeInfo {
+	k := `HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration`
+	return officeInfo{ids: regValue(k, "ProductReleaseIds"), version: regValue(k, "VersionToReport"), platform: regValue(k, "Platform")}
+}
+
+// volume — Office по лицензии на объём или бессрочный (LTSC/2019/2021/2024): надстройки из WEF\Developer он может не
+// показывать — подключение через доверенный каталог в общей папке (так рекомендует Microsoft для Windows).
+func (o officeInfo) volume() bool { return perpetualOffice(o.ids) }
+
+// webView2 — версия движка Edge WebView2 (в нём Office 2021+ показывает панель); "" — не установлен.
+func webView2() string {
+	const id = `{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`
+	for _, k := range []string{`HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\` + id, `HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\` + id, `HKCU\Software\Microsoft\EdgeUpdate\Clients\` + id} {
+		if v := regValue(k, "pv"); v != "" && v != "0.0.0.0" {
+			return v
+		}
 	}
-	ids := strings.ToLower(string(out))
-	return !strings.Contains(ids, "o365") && (strings.Contains(ids, "volume") || strings.Contains(ids, "2019") || strings.Contains(ids, "2021") || strings.Contains(ids, "2024"))
+	return ""
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "не найден"
+	}
+	return s
 }
 
 func shareExists() bool { return hidden("net.exe", "share", catalogShare).Run() == nil }
 
-// catalog — для корпоративного Office: манифест в папку данных, общий доступ к ней (один раз, с разрешением Windows)
-// и доверенный каталог Excel. Возвращает шаги для окна «Готово» ("" — каталог не нужен).
-func catalog(d dirs, manifest string) string {
-	if !volumeOffice() {
-		return ""
+// catalogKeys — доверенные каталоги Excel: подраздел → адрес.
+func catalogKeys() map[string]string {
+	out, err := hidden("reg.exe", "query", `HKCU\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs`, "/s").Output()
+	if err != nil {
+		return map[string]string{}
 	}
+	return parseCatalogs(string(out))
+}
+
+// catalogRegistered — каталог с этим адресом есть в настройках Excel.
+func catalogRegistered(url string) bool {
+	for _, u := range catalogKeys() {
+		if strings.EqualFold(strings.TrimRight(u, `\`), url) {
+			return true
+		}
+	}
+	return false
+}
+
+// catalog — для бессрочного Office: манифест в папку данных, общий доступ к ней (один раз, с разрешением Windows)
+// и доверенный каталог Excel (как его записывает сам Excel: Id, Url, Flags=1). Возвращает шаги для окна «Готово»
+// ("" — каталог не нужен) и строки отчёта.
+func catalog(d dirs, manifest string, o officeInfo) (string, []string) {
+	if !o.volume() {
+		return "", []string{"Подключение: реестр WEF\\Developer (Office по подписке)"}
+	}
+	rep := []string{"Подключение: доверенный каталог в общей папке (бессрочный Office)"}
 	dir := filepath.Join(d.data, "catalog")
 	_ = os.MkdirAll(dir, 0o755)
 	if b, err := os.ReadFile(manifest); err == nil {
 		_ = os.WriteFile(filepath.Join(dir, "manifest.xml"), b, 0o644)
 	}
 	if !shareExists() {
-		msg("На этом компьютере корпоративный Office — надстройка подключается через общую папку.\n\nСейчас Windows попросит разрешение на изменения — нажмите «Да». Если попросит пароль администратора, а его у вас нет, нажмите «Нет»: установка продолжится, а общую папку откроет IT.", mbOK|mbIconInfo)
+		msg("На этом компьютере бессрочный Office (LTSC/2021) — надстройка подключается через общую папку.\n\nСейчас Windows попросит разрешение на изменения — нажмите «Да». Если попросит пароль администратора, а его у вас нет, нажмите «Нет»: установка продолжится, а общую папку откроет IT.", mbOK|mbIconInfo)
 		user := os.Getenv("USERNAME")
 		if dom := os.Getenv("USERDOMAIN"); dom != "" {
 			user = dom + `\` + user
@@ -413,13 +462,37 @@ func catalog(d dirs, manifest string) string {
 		args := fmt.Sprintf(`share %s="%s" /GRANT:"%s",READ`, catalogShare, dir, user)
 		_, _ = ps(fmt.Sprintf(`Start-Process -FilePath 'net.exe' -ArgumentList %s -Verb RunAs -WindowStyle Hidden -Wait`, psq(args)))
 	}
+	share := shareExists()
+	rep = append(rep, fmt.Sprintf("Общая папка %s: %v (%s)", catalogShare, share, dir))
 	url := `\\` + os.Getenv("COMPUTERNAME") + `\` + catalogShare
-	_ = reg("add", regCatalog, "/v", "Id", "/t", "REG_SZ", "/d", catalogID, "/f")
-	_ = reg("add", regCatalog, "/v", "Url", "/t", "REG_SZ", "/d", url, "/f")
-	_ = reg("add", regCatalog, "/v", "Flags", "/t", "REG_DWORD", "/d", "1", "/f")
-	add := "1. Закройте Excel, если он открыт, и откройте снова.\n2. «Вставка» → «Мои надстройки» → вкладка «Общая папка» → «Конструктор ИД» → «Добавить» (только первый раз).\n3. На вкладке «Главная» появится кнопка «Конструктор ИД»."
-	if !shareExists() {
-		return add + fmt.Sprintf("\n\nВнимание: общая папка не создана (нет прав администратора). Попросите IT открыть общий доступ на чтение к папке\n%s\nпод именем «%s» для пользователя %s\\%s — после этого выполните шаги 1–3.", dir, catalogShare, os.Getenv("USERDOMAIN"), os.Getenv("USERNAME"))
+	if !catalogRegistered(url) {
+		_ = reg("add", regCatalog, "/v", "Id", "/t", "REG_SZ", "/d", catalogID, "/f")
+		_ = reg("add", regCatalog, "/v", "Url", "/t", "REG_SZ", "/d", url, "/f")
+		_ = reg("add", regCatalog, "/v", "Flags", "/t", "REG_DWORD", "/d", "1", "/f")
+		if !catalogRegistered(url) {
+			// Запасной путь — через PowerShell.
+			_, _ = ps(fmt.Sprintf(`$k = 'HKCU:\Software\Microsoft\Office\16.0\WEF\TrustedCatalogs\%s'; New-Item -Path $k -Force | Out-Null; New-ItemProperty -Path $k -Name Id -Value '%s' -PropertyType String -Force | Out-Null; New-ItemProperty -Path $k -Name Url -Value %s -PropertyType String -Force | Out-Null; New-ItemProperty -Path $k -Name Flags -Value 1 -PropertyType DWord -Force | Out-Null`, catalogID, catalogID, psq(url)))
+		}
 	}
-	return add
+	registered := catalogRegistered(url)
+	rep = append(rep, fmt.Sprintf("Каталог Excel %s: %v", url, registered))
+	add := "1. Закройте Excel, если он открыт, и откройте снова.\n2. «Вставка» → «Мои надстройки» → вкладка «Общая папка» → «Конструктор ИД» → «Добавить» (только первый раз).\n3. На вкладке «Главная» появится кнопка «Конструктор ИД»."
+	if !share {
+		return add + fmt.Sprintf("\n\nВнимание: общая папка не создана (нет прав администратора). Попросите IT открыть общий доступ на чтение к папке\n%s\nпод именем «%s» для пользователя %s\\%s — после этого выполните шаги 1–3.", dir, catalogShare, os.Getenv("USERDOMAIN"), os.Getenv("USERNAME")), rep
+	}
+	if !registered {
+		return add + fmt.Sprintf("\n\nВнимание: каталог не записался в настройки Excel. Добавьте его вручную: «Файл» → «Параметры» → «Центр управления безопасностью» → «Параметры центра…» → «Доверенные каталоги надстроек» → адрес %s → «Добавить каталог», галочка «Показать в меню» → «ОК».", url), rep
+	}
+	return add, rep
+}
+
+// writeInstallReport — отчёт о компьютере и установке: <данные>/install-report.txt (попадает в «Сообщить о проблеме»).
+func writeInstallReport(d dirs, lines []string) {
+	head := []string{
+		"Конструктор ИД " + version + " — установка " + time.Now().Format("02.01.2006 15:04"),
+		"Компьютер: " + os.Getenv("COMPUTERNAME") + ", пользователь: " + os.Getenv("USERDOMAIN") + `\` + os.Getenv("USERNAME"),
+		"Windows: " + regValue(`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion`, "ProductName") + " сборка " + regValue(`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion`, "CurrentBuild"),
+	}
+	_ = os.MkdirAll(d.data, 0o755)
+	_ = os.WriteFile(filepath.Join(d.data, "install-report.txt"), []byte(strings.Join(append(head, lines...), "\r\n")+"\r\n"), 0o644)
 }

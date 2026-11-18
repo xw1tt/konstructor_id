@@ -100,6 +100,14 @@ export function reportRoutes(
         /* нет доступа */
       }
     }
+    // 0.32: отчёт установщика о компьютере (Office, WebView2, каталог надстроек) — если есть.
+    let installReport = "";
+    try {
+      const ip = join(deps.dataDir, "install-report.txt");
+      if (existsSync(ip)) installReport = readFileSync(ip, "utf8").slice(0, 100_000);
+    } catch {
+      /* нет доступа */
+    }
     const name = `Отчёт ${stamp(now)}.zip`;
     const zip = writeZip([
       ["Отчёт.txt", text],
@@ -107,6 +115,7 @@ export function reportRoutes(
       ["сервер.json", JSON.stringify(server, null, 2)],
       ["ошибки.json", JSON.stringify(errors, null, 2)],
       ...(logTail ? [["server.log", logTail] as [string, string]] : []),
+      ...(installReport ? [["установка.txt", installReport] as [string, string]] : []),
       ...(q.assistant?.length ? [["помощник.json", JSON.stringify(q.assistant, null, 2)] as [string, string]] : []),
     ]);
     // Копия — в «Документы\Конструктор ИД — отчёты» (её проще найти и переслать); не вышло — только скачивание.

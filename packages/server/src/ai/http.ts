@@ -14,6 +14,10 @@ export interface PostResult {
   status: number;
   json: any;
   text: string;
+  /** 0.31: заголовки ответа (Retry-After при 429). */
+  headers?: Record<string, string | string[] | undefined>;
+  /** 0.31: сколько попыток понадобилось (postWithRetry; 1 — не пишется). */
+  attempts?: number;
 }
 
 /** Ошибка связи с API (нет сети, сертификат, таймаут) — не ответ провайдера. */
@@ -21,6 +25,10 @@ export class NetError extends Error {
   constructor(
     message: string,
     readonly cert = false,
+    /** 0.31: ответ провайдера уже начал приходить — повтор мог бы удвоить расход токенов. */
+    readonly started = false,
+    /** Код ошибки сети (ECONNRESET, ETIMEDOUT…) или "TIMEOUT". */
+    readonly code = "",
   ) {
     super(message);
   }
@@ -47,7 +55,9 @@ export function post(url: string, body: unknown, opts: PostOpts = {}): Promise<P
   }
   const req = u.protocol === "https:" ? httpsRequest : httpRequest;
   return new Promise((resolve, reject) => {
+    let started = false;
     const r = req(u, { method: "POST", headers, ...(ca ? { ca } : {}) }, (res) => {
+      started = true;
       const chunks: Buffer[] = [];
       res.on("data", (c: Buffer) => chunks.push(c));
       res.on("end", () => {
@@ -58,20 +68,16 @@ export function post(url: string, body: unknown, opts: PostOpts = {}): Promise<P
         } catch {
           /* не JSON */
         }
-        resolve({ status: res.statusCode ?? 0, json, text });
+        resolve({ status: res.statusCode ?? 0, json, text, headers: res.headers });
       });
-      res.on("error", (e) => reject(new NetError(e.message)));
+      res.on("error", (e: NodeJS.ErrnoException) => reject(new NetError(`связь прервалась (${e.code ?? e.message})`, false, true, String(e.code ?? ""))));
     });
-    r.setTimeout(opts.timeoutMs ?? 120_000, () => r.destroy(new NetError("Нейросеть не ответила вовремя")));
+    r.setTimeout(opts.timeoutMs ?? 120_000, () => r.destroy(new NetError("нейросеть не ответила вовремя", false, started, "TIMEOUT")));
     r.on("error", (e: NodeJS.ErrnoException) => {
       if (e instanceof NetError) return reject(e);
       const code = String(e.code ?? "");
-      reject(
-        new NetError(
-          CERT_CODES.test(code) || CERT_CODES.test(e.message) ? `сертификат сервера не принят (${code || e.message})` : `нет связи (${code || e.message})`,
-          CERT_CODES.test(code),
-        ),
-      );
+      const cert = CERT_CODES.test(code) || CERT_CODES.test(e.message);
+      reject(new NetError(cert ? `сертификат сервера не принят (${code || e.message})` : `нет связи (${code || e.message})`, cert, started, code));
     });
     r.end(payload);
   });

@@ -3,8 +3,9 @@ import { randomUUID } from "node:crypto";
 import { resolveProvider, type AssistantMessage, type ChatMessage, type ChatRequest, type Provider, type ToolCall, type Usage } from "@idk/shared/ai/model";
 import { HttpError } from "../http/router.ts";
 import { NetError, post as defaultPost, type PostOpts, type PostResult } from "./http.ts";
+import { postWithRetry, type Post, type RetryDeps } from "./retry.ts";
 
-export type Post = (url: string, body: unknown, opts?: PostOpts) => Promise<PostResult>;
+export type { Post };
 export interface ChatOut {
   message: AssistantMessage;
   usage: Usage;
@@ -26,12 +27,19 @@ export function yandexHint(p: Provider, msg: string): string {
 const fail = (p: Provider, r: PostResult): never => {
   const raw = r.json?.error?.message ?? r.json?.message ?? r.json?.error ?? r.text.slice(0, 300);
   const msg = raw ? (typeof raw === "string" ? raw : JSON.stringify(raw)) : "";
-  throw new HttpError(502, `${p.name}: ошибка ${r.status}${msg ? ` — ${msg}` : ""}${yandexHint(p, msg)}`);
+  const tries = r.attempts ? ` (попыток: ${r.attempts})` : "";
+  throw new HttpError(502, `${p.name}: ошибка ${r.status}${msg ? ` — ${msg}` : ""}${yandexHint(p, msg)}${tries}`);
 };
 
-async function send(p: Provider, url: string, body: unknown, opts: PostOpts, post: Post): Promise<PostResult> {
+/** Транспорт запросов к провайдеру: post + параметры повторов (0.31). */
+export interface Transport {
+  post: Post;
+  retry?: RetryDeps;
+}
+
+async function send(p: Provider, url: string, body: unknown, opts: PostOpts, t: Transport): Promise<PostResult> {
   try {
-    return await post(url, body, { caFile: p.caFile || undefined, ...opts });
+    return await postWithRetry(t.post, url, body, { caFile: p.caFile || undefined, ...opts }, t.retry);
   } catch (e) {
     if (e instanceof NetError) {
       const hint = e.cert && p.kind === "gigachat" ? ". Укажите в подключении файл корневого сертификата Минцифры" : "";
@@ -82,7 +90,7 @@ const hostOf = (u: string) => {
   }
 };
 
-async function chatOpenAI(p0: Provider, req: ChatRequest, post: Post): Promise<ChatOut> {
+async function chatOpenAI(p0: Provider, req: ChatRequest, t: Transport): Promise<ChatOut> {
   const p = resolveProvider(p0);
   const headers: Record<string, string> = {};
   if (p.key) headers.authorization = `Bearer ${p.key}`;
@@ -94,7 +102,7 @@ async function chatOpenAI(p0: Provider, req: ChatRequest, post: Post): Promise<C
     body.tools = req.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
     body.tool_choice = "auto";
   }
-  const r = await send(p, `${p.baseUrl}/chat/completions`, body, { headers }, post);
+  const r = await send(p, `${p.baseUrl}/chat/completions`, body, { headers }, t);
   if (r.status >= 400 || !r.json?.choices?.[0]) fail(p, r);
   const msg = r.json.choices[0].message ?? {};
   const toolCalls: ToolCall[] = (msg.tool_calls ?? []).map((c: any) => ({
@@ -114,7 +122,7 @@ const tokens = new Map<string, { token: string; until: number }>();
 /** Для тестов: сброс кеша токенов. */
 export const resetGigaTokens = () => tokens.clear();
 
-async function gigaToken(p: Provider, post: Post, now: () => number, fresh = false): Promise<string> {
+async function gigaToken(p: Provider, t: Transport, now: () => number, fresh = false): Promise<string> {
   const k = `${p.id}\n${p.key}\n${p.scope}`;
   const c = tokens.get(k);
   if (!fresh && c && c.until > now()) return c.token;
@@ -123,7 +131,7 @@ async function gigaToken(p: Provider, post: Post, now: () => number, fresh = fal
     p.authUrl,
     `scope=${encodeURIComponent(p.scope)}`,
     { form: true, headers: { authorization: `Basic ${p.key}`, rquid: randomUUID() } },
-    post,
+    t,
   );
   if (r.status >= 400 || !r.json?.access_token) fail(p, r);
   const exp = Number(r.json.expires_at) || now() + 30 * 60_000;
@@ -154,7 +162,7 @@ function toGiga(m: ChatMessage): unknown {
   }
 }
 
-async function chatGiga(p0: Provider, req: ChatRequest, post: Post, now: () => number): Promise<ChatOut> {
+async function chatGiga(p0: Provider, req: ChatRequest, t: Transport, now: () => number): Promise<ChatOut> {
   const p = resolveProvider(p0);
   const body: Record<string, unknown> = { model: p.model, messages: req.messages.map(toGiga), temperature: 0.2 };
   if (req.tools.length) {
@@ -162,7 +170,7 @@ async function chatGiga(p0: Provider, req: ChatRequest, post: Post, now: () => n
     body.function_call = "auto";
   }
   const call = async (fresh: boolean) =>
-    send(p, `${p.baseUrl}/chat/completions`, body, { headers: { authorization: `Bearer ${await gigaToken(p, post, now, fresh)}` } }, post);
+    send(p, `${p.baseUrl}/chat/completions`, body, { headers: { authorization: `Bearer ${await gigaToken(p, t, now, fresh)}` } }, t);
   let r = await call(false);
   if (r.status === 401) r = await call(true);
   if (r.status >= 400 || !r.json?.choices?.[0]) fail(p, r);
@@ -177,7 +185,14 @@ async function chatGiga(p0: Provider, req: ChatRequest, post: Post, now: () => n
   };
 }
 
-export async function chat(p: Provider, req: ChatRequest, deps: { post?: Post; now?: () => number } = {}): Promise<ChatOut> {
-  const post = deps.post ?? defaultPost;
-  return p.kind === "gigachat" ? chatGiga(p, req, post, deps.now ?? Date.now) : chatOpenAI(p, req, post);
+export interface ChatDeps {
+  post?: Post;
+  now?: () => number;
+  /** 0.31: параметры повторов (в тестах — без реальных пауз). */
+  retry?: RetryDeps;
+}
+
+export async function chat(p: Provider, req: ChatRequest, deps: ChatDeps = {}): Promise<ChatOut> {
+  const t: Transport = { post: deps.post ?? defaultPost, retry: deps.retry };
+  return p.kind === "gigachat" ? chatGiga(p, req, t, deps.now ?? Date.now) : chatOpenAI(p, req, t);
 }

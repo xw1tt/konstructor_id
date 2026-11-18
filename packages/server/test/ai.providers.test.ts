@@ -122,10 +122,14 @@ test("GigaChat: токен (Basic, RqUID, scope), кеш, 401 → новый т�
 
 test("ошибки: ответ провайдера с кодом, нет связи, сертификат (GigaChat — подсказка), таймаут", async () => {
   const ai = await fakeAi({ "/v1/chat/completions": [{ status: 429, json: { error: { message: "Rate limit" } } }] });
-  await assert.rejects(chat(prov({ kind: "openai", name: "Сервис", baseUrl: `${ai.url}/v1`, model: "m", key: "k" }), REQ), /Сервис: ошибка 429 — Rate limit/);
+  const fast = { retry: { sleep: async () => {}, log: () => {} } };
   await assert.rejects(
-    chat(prov({ kind: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m", key: "k" }), REQ),
-    (e: any) => e.status === 502 && /нет связи/.test(e.message),
+    chat(prov({ kind: "openai", name: "Сервис", baseUrl: `${ai.url}/v1`, model: "m", key: "k" }), REQ, fast),
+    /Сервис: ошибка 429 — Rate limit \(попыток: 2\)/,
+  );
+  await assert.rejects(
+    chat(prov({ kind: "openai", baseUrl: "http://127.0.0.1:1/v1", model: "m", key: "k" }), REQ, fast),
+    (e: any) => e.status === 502 && /нет связи.*\(попыток: 3\)/.test(e.message),
   );
   const ca = createCa();
   const leaf = createLeaf(ca);
@@ -138,7 +142,7 @@ test("ошибки: ответ провайдера с кодом, нет свя
     { key: leaf.keyPem, cert: leaf.certPem },
   );
   const g = prov({ kind: "gigachat", name: "Гига", baseUrl: `${sec.url}/api/v1`, authUrl: `${sec.url}/oauth`, key: "k" });
-  await assert.rejects(chat(g, REQ), /Гига: сертификат сервера не принят.*сертификата Минцифры/);
+  await assert.rejects(chat(g, REQ, fast), /Гига: сертификат сервера не принят.*сертификата Минцифры/);
   const caFile = join(tmpDir(), "russian_trusted_root_ca.cer");
   writeFileSync(caFile, ca.certPem);
   assert.equal((await chat({ ...g, caFile }, REQ)).message.content, "ок", "с файлом корневого сертификата — работает");

@@ -9,7 +9,8 @@ export interface Seen {
   body: any;
   raw: string;
 }
-export type Reply = { status?: number; json: unknown; delayMs?: number } | ((s: Seen) => { status?: number; json: unknown });
+export type Reply =
+  { status?: number; json: unknown; delayMs?: number; drop?: boolean; headers?: Record<string, string> } | ((s: Seen) => { status?: number; json: unknown });
 
 export async function fakeAi(routes: Record<string, Reply[]>, tls?: { key: string; cert: string }) {
   const seen: Seen[] = [];
@@ -35,7 +36,12 @@ export async function fakeAi(routes: Record<string, Reply[]>, tls?: { key: strin
       }
       const r = typeof r0 === "function" ? r0(s) : r0;
       if ("delayMs" in r && r.delayMs) await new Promise<void>((x) => setTimeout(() => x(), Number((r as { delayMs?: number }).delayMs)));
-      res.writeHead(r.status ?? 200, { "content-type": "application/json" });
+      // 0.31: обрыв соединения (ECONNRESET у клиента) и свои заголовки (Retry-After).
+      if ("drop" in r && r.drop) {
+        req.socket.destroy();
+        return;
+      }
+      res.writeHead(r.status ?? 200, { "content-type": "application/json", ...("headers" in r && r.headers ? r.headers : {}) });
       res.end(JSON.stringify(r.json));
     });
   };

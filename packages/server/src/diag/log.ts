@@ -41,5 +41,15 @@ export function logError(where: string, e: unknown) {
   }
 }
 
+/** 0.31: строка в server.log без записи в список ошибок (попытки запросов к нейросети и т. п.). */
+export function logLine(where: string, text: string) {
+  if (!file) return;
+  try {
+    appendFileSync(file, `${new Date().toISOString()} ${where} ${text}\n`);
+  } catch {
+    /* журнал — не главное */
+  }
+}
+
 export const recentErrors = () => [...ring];
 export const logFile = () => file;

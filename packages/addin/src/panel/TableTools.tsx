@@ -26,7 +26,7 @@ export function TableTools({ port, state }: { port: ExcelPort; state: BookState 
     }
   };
   const onSheet = tablesOnSheet(s.sheet);
-  const row = s.table === table.name && s.row !== null ? table.rows[s.row] ?? null : null;
+  const row = s.table === table.name && s.row !== null ? (table.rows[s.row] ?? null) : null;
   const cols = columnStatus(table.headers, state.important[table.name] ?? [], row);
 
   return (
@@ -35,9 +35,15 @@ export function TableTools({ port, state }: { port: ExcelPort; state: BookState 
         Функционал таблицы:{" "}
         {!s.table && onSheet.length > 1 ? (
           <select value={table.name} onChange={(e) => state.pickTable(e.target.value as TableName)} aria-label="Таблица">
-            {onSheet.map((t) => <option key={t} value={t}>{t}</option>)}
+            {onSheet.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
           </select>
-        ) : `«${table.name}»`}
+        ) : (
+          `«${table.name}»`
+        )}
       </h2>
       <div className="chips">
         {cols.map((c) => (
@@ -54,8 +60,12 @@ export function TableTools({ port, state }: { port: ExcelPort; state: BookState 
       </div>
       {libKind && (
         <div className="row-actions">
-          <button className="btn" disabled={lib.busy || !libRows.length} onClick={() => void toLibrary()}
-            title="Сохранить выделенные строки в библиотеку компании (документ — со сканом)">
+          <button
+            className="btn"
+            disabled={lib.busy || !libRows.length}
+            onClick={() => void toLibrary()}
+            title="Сохранить выделенные строки в библиотеку компании (документ — со сканом)"
+          >
             В библиотеку{libRows.length > 1 ? ` (${libRows.length})` : ""}
           </button>
           {lib.note && <span className="muted">{lib.note}</span>}

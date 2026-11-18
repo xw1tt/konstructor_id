@@ -1,9 +1,7 @@
 // Карточка текущей строки: все поля строки, запись в ячейку при выходе из поля, переименование ключей
 // с обновлением ссылок, дополнения разделов.
 import { useContext, useEffect, useState } from "react";
-import {
-  TABLES, OBJECT_FIELDS, SHEETS, isObjectFieldRequired, keyColumn, column as colOf, type ColumnDef, type TableName,
-} from "@idk/shared/workbook/schema";
+import { TABLES, OBJECT_FIELDS, SHEETS, isObjectFieldRequired, keyColumn, column as colOf, type ColumnDef, type TableName } from "@idk/shared/workbook/schema";
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
 import { findReferences, renameKey, type RefHit } from "@idk/shared/workbook/refs";
 import type { Book } from "@idk/shared/workbook/records";
@@ -26,7 +24,12 @@ import { kitOfRow } from "../kit.ts";
 import { CatalogContext, workListNames } from "../catalogApi.ts";
 import { UserTemplateContext } from "../templateContext.ts";
 
-interface PendingRename { table: TableName; from: string; to: string; hits: RefHit[] }
+interface PendingRename {
+  table: TableName;
+  from: string;
+  to: string;
+  hits: RefHit[];
+}
 
 /** Для таблицы «Объект» столбец «Значение» ведёт себя по типу поля (ссылка на организацию, дата). */
 function effectiveColumn(table: TableName, col: ColumnDef, row: CellValue[], headers: string[]): ColumnDef {
@@ -45,22 +48,26 @@ const keysOf = (book: Book | null, t: TableName) => {
   return [...new Set((book.tables[t] ?? []).map((r) => cellText(r.v[k.key])).filter(Boolean))];
 };
 
-const renameText = (hits: RefHit[]) =>
-  `Обновить ссылки: ${hits.length} строк на ${new Set(hits.map((h) => h.table)).size} листах?`;
+const renameText = (hits: RefHit[]) => `Обновить ссылки: ${hits.length} строк на ${new Set(hits.map((h) => h.table)).size} листах?`;
 
 export function CardArea({ port, state }: { port: ExcelPort; state: BookState }) {
   const [pending, setPending] = useState<PendingRename | null>(null);
   const [message, setMessage] = useState("");
 
   // Переименование ключа правкой ячейки на листе.
-  useEffect(() => state.onCellChange((e) => {
-    if (!e.table || e.multi || !state.book) return;
-    const key = keyColumn(e.table);
-    const from = cellText(e.before), to = cellText(e.after);
-    if (!key || e.column !== key.header || !from || !to || from === to) return;
-    const hits = findReferences(state.book, e.table, from);
-    if (hits.length) setPending({ table: e.table, from, to, hits });
-  }), [state.book]);
+  useEffect(
+    () =>
+      state.onCellChange((e) => {
+        if (!e.table || e.multi || !state.book) return;
+        const key = keyColumn(e.table);
+        const from = cellText(e.before),
+          to = cellText(e.after);
+        if (!key || e.column !== key.header || !from || !to || from === to) return;
+        const hits = findReferences(state.book, e.table, from);
+        if (hits.length) setPending({ table: e.table, from, to, hits });
+      }),
+    [state.book],
+  );
 
   const confirmRename = async () => {
     if (!pending || !state.book) return;
@@ -78,20 +85,32 @@ export function CardArea({ port, state }: { port: ExcelPort; state: BookState })
       {section && section.sheets.length > 1 && (
         <div className="subsheets" role="group" aria-label="Листы раздела">
           {section.sheets.map((sh) => (
-            <button key={sh} className={"chip" + (sh === s!.sheet ? " chip-active" : "")} onClick={() => void port.activateSheet(sh)}>{sh}</button>
+            <button key={sh} className={"chip" + (sh === s!.sheet ? " chip-active" : "")} onClick={() => void port.activateSheet(sh)}>
+              {sh}
+            </button>
           ))}
         </div>
       )}
       {pending && (
         <div className="confirm" role="alertdialog" aria-label="Обновление ссылок">
-          <p>«{pending.from}» → «{pending.to}». {renameText(pending.hits)}</p>
+          <p>
+            «{pending.from}» → «{pending.to}». {renameText(pending.hits)}
+          </p>
           <div className="row-actions">
-            <button className="btn btn-primary" onClick={() => void confirmRename()}>Обновить</button>
-            <button className="btn" onClick={() => setPending(null)}>Не обновлять</button>
+            <button className="btn btn-primary" onClick={() => void confirmRename()}>
+              Обновить
+            </button>
+            <button className="btn" onClick={() => setPending(null)}>
+              Не обновлять
+            </button>
           </div>
         </div>
       )}
-      {message && <p className="muted" role="status">{message}</p>}
+      {message && (
+        <p className="muted" role="status">
+          {message}
+        </p>
+      )}
       {section?.id === "ojr" && <OjrExtras port={port} state={state} />}
       {s?.sheet === "Материалы" && <ScanImport port={port} state={state} />}
       {s?.sheet === "Материалы" && <SpecExtras port={port} state={state} />}
@@ -126,7 +145,10 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
 
   const commit = async (col: ColumnDef, input: string | string[]) => {
     const parsed = toCellFor(table, col, input);
-    if (!parsed.ok) { setErrors((e) => ({ ...e, [col.header]: parsed.message })); return; }
+    if (!parsed.ok) {
+      setErrors((e) => ({ ...e, [col.header]: parsed.message }));
+      return;
+    }
     setErrors((e) => ({ ...e, [col.header]: "" }));
     const before = cellText(valueOf(col.header));
     await port.write(table, rowIdx, { [col.header]: parsed.value });
@@ -151,8 +173,8 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
   const renderField = (c: ColumnDef) => {
     const col = effectiveColumn(table, c, row, t.headers);
     // В «Объекте» обязательны только поля шапки АОСР; договор и прочее можно не заполнять.
-    const important = (state.important[table] ?? []).includes(c.header)
-      && !(table === "Объект" && c.key === "value" && !isObjectFieldRequired(cellText(valueOf("Поле"))));
+    const important =
+      (state.important[table] ?? []).includes(c.header) && !(table === "Объект" && c.key === "value" && !isObjectFieldRequired(cellText(valueOf("Поле"))));
     return (
       <Field
         key={c.header}
@@ -168,11 +190,15 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
   };
   return (
     <section className="card" aria-label="Карточка строки">
-      <h2 className="tools-title">Строка {rowIdx + 1} · {sheet}</h2>
-      {isExampleRow(row, table, t.headers) && <p className="example-note" role="note">Это строка-пример: замените значения своими или удалите строку.</p>}
-      <div className="form">
-        {TABLES[table].columns.filter((c) => !isSlotColumn(table, c.key)).map((c) => renderField(c))}
-      </div>
+      <h2 className="tools-title">
+        Строка {rowIdx + 1} · {sheet}
+      </h2>
+      {isExampleRow(row, table, t.headers) && (
+        <p className="example-note" role="note">
+          Это строка-пример: замените значения своими или удалите строку.
+        </p>
+      )}
+      <div className="form">{TABLES[table].columns.filter((c) => !isSlotColumn(table, c.key)).map((c) => renderField(c))}</div>
       {table === "Материалы" && (
         // Столбцы «Док.1…3» — свёрнуты: документы ведутся в блоке «Документы качества» ниже.
         <details className="slot-fields">

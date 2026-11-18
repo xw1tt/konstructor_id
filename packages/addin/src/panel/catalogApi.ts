@@ -11,7 +11,11 @@ import { cellText, joinRefs, splitRefs } from "@idk/shared/workbook/values";
 import { apiGet, apiSend } from "../api.ts";
 
 /** Ответ GET /api/catalog: итоговый справочник, коды дополнений пользователя и скрытые встроенные. */
-export interface CatalogState { catalog: Catalog; own: string[]; hidden: string[] }
+export interface CatalogState {
+  catalog: Catalog;
+  own: string[];
+  hidden: string[];
+}
 
 export const loadCatalog = () => apiGet<CatalogState>("/api/catalog");
 export const saveUserCatalog = (u: UserCatalog) => apiSend<UserCatalog>("PUT", "/api/catalog/user", u);

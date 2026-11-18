@@ -18,7 +18,12 @@ interface Props {
   needed?: { on: boolean; set(v: boolean): Promise<void> };
 }
 
-interface PendingDelete { rows: number[]; text: string; table: TableName | null; sheet: string }
+interface PendingDelete {
+  rows: number[];
+  text: string;
+  table: TableName | null;
+  sheet: string;
+}
 
 export function SheetTools({ port, state, onRowsAdded, needed }: Props) {
   const { selection: s, book } = state;
@@ -66,11 +71,12 @@ export function SheetTools({ port, state, onRowsAdded, needed }: Props) {
     }
   };
 
-  const add = (n: number) => run(async () => {
-    const first = await addRows(target(), inTable && s.row === null ? null : current, n);
-    if (inTable) await onRowsAdded?.(s.table!, first, n);
-    return first;
-  });
+  const add = (n: number) =>
+    run(async () => {
+      const first = await addRows(target(), inTable && s.row === null ? null : current, n);
+      if (inTable) await onRowsAdded?.(s.table!, first, n);
+      return first;
+    });
 
   const askDelete = () => {
     const rows = selected.length ? selected : current !== null ? [current] : [];
@@ -96,34 +102,88 @@ export function SheetTools({ port, state, onRowsAdded, needed }: Props) {
     <section className="tools" aria-label="Функционал листа">
       <h2 className="tools-title">Функционал листа: «{s.sheet}»</h2>
       <div className="row-actions">
-        <button className="btn" disabled={busy} onClick={() => void add(1)} title="Добавить строку под текущей">+1</button>
-        <button className="btn" disabled={busy} onClick={() => void add(10)} title="Добавить 10 строк под текущей">+10</button>
-        <button className="btn" disabled={busy || noRow} onClick={() => void run(() => duplicateRow(target(), current!))}>Дублировать</button>
-        <button className="btn btn-icon" disabled={busy || noRow} onClick={() => void run(() => moveRow(target(), current!, -1))} title="Переместить строку вверх" aria-label="Вверх">↑</button>
-        <button className="btn btn-icon" disabled={busy || noRow} onClick={() => void run(() => moveRow(target(), current!, 1))} title="Переместить строку вниз" aria-label="Вниз">↓</button>
-        <button className="btn btn-danger" disabled={busy || noRow} onClick={askDelete}>Удалить</button>
-        <button className="btn" disabled={!state.table} onClick={() => setImportantOpen((v) => !v)} aria-expanded={importantOpen}>Важные столбцы</button>
+        <button className="btn" disabled={busy} onClick={() => void add(1)} title="Добавить строку под текущей">
+          +1
+        </button>
+        <button className="btn" disabled={busy} onClick={() => void add(10)} title="Добавить 10 строк под текущей">
+          +10
+        </button>
+        <button className="btn" disabled={busy || noRow} onClick={() => void run(() => duplicateRow(target(), current!))}>
+          Дублировать
+        </button>
+        <button
+          className="btn btn-icon"
+          disabled={busy || noRow}
+          onClick={() => void run(() => moveRow(target(), current!, -1))}
+          title="Переместить строку вверх"
+          aria-label="Вверх"
+        >
+          ↑
+        </button>
+        <button
+          className="btn btn-icon"
+          disabled={busy || noRow}
+          onClick={() => void run(() => moveRow(target(), current!, 1))}
+          title="Переместить строку вниз"
+          aria-label="Вниз"
+        >
+          ↓
+        </button>
+        <button className="btn btn-danger" disabled={busy || noRow} onClick={askDelete}>
+          Удалить
+        </button>
+        <button className="btn" disabled={!state.table} onClick={() => setImportantOpen((v) => !v)} aria-expanded={importantOpen}>
+          Важные столбцы
+        </button>
       </div>
       {pending && (
         <div className="confirm" role="alertdialog" aria-label="Подтверждение удаления">
           <p>{pending.text}</p>
           <div className="row-actions">
-            <button className="btn btn-danger" onClick={() => { const p = pending; setPending(null); void run(async () => { await deleteRows(targetOf(p.table, p.sheet), p.rows); }, false); }}>Удалить</button>
-            <button className="btn" onClick={() => setPending(null)}>Отмена</button>
+            <button
+              className="btn btn-danger"
+              onClick={() => {
+                const p = pending;
+                setPending(null);
+                void run(async () => {
+                  await deleteRows(targetOf(p.table, p.sheet), p.rows);
+                }, false);
+              }}
+            >
+              Удалить
+            </button>
+            <button className="btn" onClick={() => setPending(null)}>
+              Отмена
+            </button>
           </div>
         </div>
       )}
-      {importantOpen && state.table && (
-        <ImportantDialog port={port} state={state} table={state.table.name} onClose={() => setImportantOpen(false)} />
-      )}
+      {importantOpen && state.table && <ImportantDialog port={port} state={state} table={state.table.name} onClose={() => setImportantOpen(false)} />}
       {needed && (
         <label className="setting-option" title="Скрыть листы, которые не нужны документам шаблона книги (лист с данными не скрывается)">
-          <input type="checkbox" checked={needed.on} disabled={busy}
-            onChange={(e) => void run(async () => { await needed.set(e.target.checked); }, false)} /> Только нужные листы
+          <input
+            type="checkbox"
+            checked={needed.on}
+            disabled={busy}
+            onChange={(e) =>
+              void run(async () => {
+                await needed.set(e.target.checked);
+              }, false)
+            }
+          />{" "}
+          Только нужные листы
         </label>
       )}
-      {note && <p className="muted" role="status">{note}</p>}
-      {error && <p className="error" role="alert">{error}</p>}
+      {note && (
+        <p className="muted" role="status">
+          {note}
+        </p>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </section>
   );
 }

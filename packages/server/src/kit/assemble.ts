@@ -15,7 +15,11 @@ import type { TemplateStore } from "../forms/store.ts";
 import { renderForm, type OfficeRunner } from "../forms/convert.ts";
 import { findDoc, docCode } from "../routes/formJobs.ts";
 
-export interface KitIssue { row: number | null; column: string; message: string }
+export interface KitIssue {
+  row: number | null;
+  column: string;
+  message: string;
+}
 export type KitResult = { ok: true; pdf: Buffer; name: string; pages: number } | { ok: false; issues: KitIssue[] };
 
 /** «л. 4» или «л. 5-6». */
@@ -27,8 +31,11 @@ export function kitFileName(k: KitRequest["kit"]): string {
 
 export function registryTitle(q: KitRequest): string {
   const k = q.kit;
-  return `РЕЕСТР ПЕРЕДАЧИ ИСПОЛНИТЕЛЬНОЙ ДОКУМЕНТАЦИИ №${k.number}.${k.code}` +
-    (k.volume ? ` Том №${k.volume}` : "") + (k.part ? `${k.volume ? "," : ""} Часть №${k.part}` : "");
+  return (
+    `РЕЕСТР ПЕРЕДАЧИ ИСПОЛНИТЕЛЬНОЙ ДОКУМЕНТАЦИИ №${k.number}.${k.code}` +
+    (k.volume ? ` Том №${k.volume}` : "") +
+    (k.part ? `${k.volume ? "," : ""} Часть №${k.part}` : "")
+  );
 }
 
 const full = (o: Organization | null) => (o ? orgFullForm(o) : "");
@@ -48,19 +55,28 @@ async function dataUri(ref: FileRef, ctx: ScanContext): Promise<string | { messa
 export function stampNumber(page: PDFPage, n: number, font: PDFFont) {
   const text = String(n);
   // В поле страницы, ниже рамки чертежа (5 мм от края): подложка — до 13 pt от нижнего края.
-  const size = 9, padX = 2, padY = 1.5, margin = 10, bottom = 1;
+  const size = 9,
+    padX = 2,
+    padY = 1.5,
+    margin = 10,
+    bottom = 1;
   const box = page.getCropBox();
   const rot = ((page.getRotation().angle % 360) + 360) % 360;
   const W = rot === 90 || rot === 270 ? box.height : box.width;
   const tw = font.widthOfTextAtSize(text, size);
   // Левый нижний угол подложки в видимых координатах.
-  const vx = W - margin - tw - padX * 2, vy = bottom;
+  const vx = W - margin - tw - padX * 2,
+    vy = bottom;
   const toPage = (dx: number, dy: number): [number, number] => {
     switch (rot) {
-      case 90: return [box.x + box.width - dy, box.y + dx];
-      case 180: return [box.x + box.width - dx, box.y + box.height - dy];
-      case 270: return [box.x + dy, box.y + box.height - dx];
-      default: return [box.x + dx, box.y + dy];
+      case 90:
+        return [box.x + box.width - dy, box.y + dx];
+      case 180:
+        return [box.x + box.width - dx, box.y + box.height - dy];
+      case 270:
+        return [box.x + dy, box.y + box.height - dx];
+      default:
+        return [box.x + dx, box.y + dy];
     }
   };
   const r = degrees(rot);
@@ -70,13 +86,17 @@ export function stampNumber(page: PDFPage, n: number, font: PDFFont) {
   page.drawText(text, { x: tx, y: ty, size, font, color: rgb(0, 0, 0), rotate: r });
 }
 
-export interface KitDeps { db: Db; dataDir: string; templates?: TemplateStore; runner?: OfficeRunner }
+export interface KitDeps {
+  db: Db;
+  dataDir: string;
+  templates?: TemplateStore;
+  runner?: OfficeRunner;
+}
 
 /** PDF документа строки: своя форма шаблона или встроенная печать. */
 /** Пакет строки: протокол или акт плана 13 — из q.protos по номеру, иначе пакет акта. */
-export const bundleOf = (q: KitRequest, row: KitRow) => (row.doc?.proto
-  ? q.protos.find((p) => p.proto?.number === row.doc!.proto)
-  : q.acts.find((a) => a.act.baseNumber === row.doc!.act));
+export const bundleOf = (q: KitRequest, row: KitRow) =>
+  row.doc?.proto ? q.protos.find((p) => p.proto?.number === row.doc!.proto) : q.acts.find((a) => a.act.baseNumber === row.doc!.act);
 
 export async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template: string): Promise<Buffer> {
   const b = bundleOf(q, row)!;
@@ -87,7 +107,8 @@ export async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template
     const d = findDoc(t.docs, f.doc);
     if (!d?.form) throw new Error(`У документа «${f.doc}» нет своей формы в шаблоне «${t.name}»`);
     const code = docCode(d);
-    return (await renderForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set: t.print.formSet }, deps.runner)).pdf;
+    return (await renderForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set: t.print.formSet }, deps.runner))
+      .pdf;
   }
   return (await renderBundlePdf(b, row.doc!.kind!, template, q.options)).pdf;
 }
@@ -139,8 +160,14 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
     const count = doc.getPageCount();
     docs.push(doc);
     lines.push({
-      n: i + 1, number: row.number, name: row.name, date: row.date, sheets: row.sheets ?? count, copies: row.copies,
-      code: row.code, pages: pageRange(next, count),
+      n: i + 1,
+      number: row.number,
+      name: row.name,
+      date: row.date,
+      sheets: row.sheets ?? count,
+      copies: row.copies,
+      code: row.code,
+      pages: pageRange(next, count),
     });
     next += count;
   }
@@ -157,25 +184,58 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
   ].filter((p) => p.value);
   const front: Buffer[] = [];
   if (k.cover) {
-    front.push(await htmlToPdf(coverHtml({
-      logos, objectName: q.object.name, developer: q.developer?.shortName ?? "", builder: q.contractor?.shortName ?? "",
-      contract: q.object.contractNumber, code: k.code,
-      sectionLine: [k.sectionName && `«${k.sectionName}»`, k.building].filter(Boolean).join(" "),
-      works: k.works, volume: k.volume, part: k.part, city: k.city, year: k.year,
-    })));
+    front.push(
+      await htmlToPdf(
+        coverHtml({
+          logos,
+          objectName: q.object.name,
+          developer: q.developer?.shortName ?? "",
+          builder: q.contractor?.shortName ?? "",
+          contract: q.object.contractNumber,
+          code: k.code,
+          sectionLine: [k.sectionName && `«${k.sectionName}»`, k.building].filter(Boolean).join(" "),
+          works: k.works,
+          volume: k.volume,
+          part: k.part,
+          city: k.city,
+          year: k.year,
+        }),
+      ),
+    );
   }
   if (k.spine) {
-    front.push(await htmlToPdf(spineHtml({
-      logos, objectName: q.object.name, building: k.building, builder: q.contractor?.shortName ?? "",
-      registry: `№${k.number}.${k.code}`, sectionName: k.sectionName, code: k.code, contract: q.object.contractNumber,
-      volume: k.volume, parts: Array.from({ length: k.parts }, (_, i) => String(i + 1)), year: k.year,
-    })));
+    front.push(
+      await htmlToPdf(
+        spineHtml({
+          logos,
+          objectName: q.object.name,
+          building: k.building,
+          builder: q.contractor?.shortName ?? "",
+          registry: `№${k.number}.${k.code}`,
+          sectionName: k.sectionName,
+          code: k.code,
+          contract: q.object.contractNumber,
+          volume: k.volume,
+          parts: Array.from({ length: k.parts }, (_, i) => String(i + 1)),
+          year: k.year,
+        }),
+      ),
+    );
   }
   if (formOf(q.options, "registry") === "ti") {
-    front.push(await htmlToPdf(tiRegistryHtml({
-      customer: q.developer?.shortName ?? "", contractor: q.contractor?.shortName ?? "", object: q.object.name,
-      code: k.code, sectionName: k.sectionName, number: k.number, rows: lines,
-    })));
+    front.push(
+      await htmlToPdf(
+        tiRegistryHtml({
+          customer: q.developer?.shortName ?? "",
+          contractor: q.contractor?.shortName ?? "",
+          object: q.object.name,
+          code: k.code,
+          sectionName: k.sectionName,
+          number: k.number,
+          rows: lines,
+        }),
+      ),
+    );
   } else {
     front.push(await htmlToPdf(registryHtml({ title: registryTitle(q), objectLine, parties, rows: lines }), { pageNumbers: true }));
   }

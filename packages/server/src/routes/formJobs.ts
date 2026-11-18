@@ -28,7 +28,10 @@ export function formJobRoutes(r: Router, store: TemplateStore, runner: OfficeRun
   const jobs = new Map<string, { pdf: Buffer; source: Buffer; name: string; type: "docx" | "xlsx"; at: number }>();
   const get = (id: string) => {
     const j = jobs.get(id);
-    if (!j || now() - j.at > FORM_TTL_MS) { jobs.delete(id); throw new HttpError(404, "Документ не найден или устарел — напечатайте его заново"); }
+    if (!j || now() - j.at > FORM_TTL_MS) {
+      jobs.delete(id);
+      throw new HttpError(404, "Документ не найден или устарел — напечатайте его заново");
+    }
     return j;
   };
   r.post("/api/form-jobs", async (c) => {
@@ -49,14 +52,22 @@ export function formJobRoutes(r: Router, store: TemplateStore, runner: OfficeRun
   });
   r.get("/api/form-jobs/:id", (c) => {
     const j = get(c.params.id);
-    c.res.writeHead(200, { "content-type": "application/pdf", "content-length": j.pdf.length, "cache-control": "no-store", "x-source-type": j.type,
-      "content-disposition": disposition(`${j.name}.pdf`, c.query.get("download") ? "attachment" : "inline") });
+    c.res.writeHead(200, {
+      "content-type": "application/pdf",
+      "content-length": j.pdf.length,
+      "cache-control": "no-store",
+      "x-source-type": j.type,
+      "content-disposition": disposition(`${j.name}.pdf`, c.query.get("download") ? "attachment" : "inline"),
+    });
     c.res.end(j.pdf);
   });
   r.get("/api/form-jobs/:id/source", (c) => {
     const j = get(c.params.id);
-    c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": j.source.length,
-      "content-disposition": disposition(`${j.name}.${j.type}`, "attachment") });
+    c.res.writeHead(200, {
+      "content-type": "application/octet-stream",
+      "content-length": j.source.length,
+      "content-disposition": disposition(`${j.name}.${j.type}`, "attachment"),
+    });
     c.res.end(j.source);
   });
   r.post("/api/form-fields", async (c) => {

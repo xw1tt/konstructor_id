@@ -39,25 +39,30 @@ test("значения новой строки других таблиц — у�
 });
 
 test("ошибки проверки — понятные строки с номером строки листа", () => {
-  const lines = issueLines([
-    { table: "ДокументыКачества", row: 3, column: "Дата", message: "Не заполнено" },
-    { table: "Акты", row: null, column: "Номер акта", message: "Акт «X» не найден на листе «База актов»" },
-  ], { "ДокументыКачества": 5 });
-  assert.deepEqual(lines.map((l) => l.text), [
-    "Материалы, строка 8, «Дата»: Не заполнено",
-    "База актов, «Номер акта»: Акт «X» не найден на листе «База актов»",
-  ]);
+  const lines = issueLines(
+    [
+      { table: "ДокументыКачества", row: 3, column: "Дата", message: "Не заполнено" },
+      { table: "Акты", row: null, column: "Номер акта", message: "Акт «X» не найден на листе «База актов»" },
+    ],
+    { ДокументыКачества: 5 },
+  );
+  assert.deepEqual(
+    lines.map((l) => l.text),
+    ["Материалы, строка 8, «Дата»: Не заполнено", "База актов, «Номер акта»: Акт «X» не найден на листе «База актов»"],
+  );
 });
 
 test("адрес предпросмотра задания печати", () => {
-  assert.equal(previewJobUrl("abc", "rim", "https://localhost:3443"),
-    "https://localhost:3443/addin/preview.html?src=%2Fapi%2Fprint-jobs%2Fabc%2Frim");
+  assert.equal(previewJobUrl("abc", "rim", "https://localhost:3443"), "https://localhost:3443/addin/preview.html?src=%2Fapi%2Fprint-jobs%2Fabc%2Frim");
 });
 
 test("несколько новых актов — номера по порядку", async () => {
   const { newRowsDefaults } = await import("@idk/addin/book/defaults");
   const list = newRowsDefaults("Акты", await readBook(aov1Book()), 3, "2026-10-16");
-  assert.deepEqual(list.map((d) => d["Номер акта"]), ["К32.В.СТ.АОВ1.01.00.2", "К32.В.СТ.АОВ1.01.00.3", "К32.В.СТ.АОВ1.01.00.4"]);
+  assert.deepEqual(
+    list.map((d) => d["Номер акта"]),
+    ["К32.В.СТ.АОВ1.01.00.2", "К32.В.СТ.АОВ1.01.00.3", "К32.В.СТ.АОВ1.01.00.4"],
+  );
   assert.equal(newRowsDefaults("Материалы", await readBook(aov1Book()), 2, "2026-10-16").length, 2);
 });
 
@@ -65,9 +70,16 @@ test("ошибка документа качества (план 31) — на я
   const { sheetIssueLines } = await import("@idk/addin/panel/print");
   const port = {
     isVirtual: async (t: string) => t === "ДокументыКачества",
-    physical: async (_t: string, row: number, header: string | null) => ({ table: "Материалы" as const, row: row + 2, column: header === "Дата" ? "Док.2: дата" : header }),
+    physical: async (_t: string, row: number, header: string | null) => ({
+      table: "Материалы" as const,
+      row: row + 2,
+      column: header === "Дата" ? "Док.2: дата" : header,
+    }),
     tableSheetOffset: async () => 5,
   };
   const lines = await sheetIssueLines(port as any, [{ table: "ДокументыКачества", row: 1, column: "Дата", message: "Не заполнено" }] as any);
-  assert.deepEqual(lines.map((l) => [l.text, l.table, l.row, l.column]), [["Материалы, строка 8, «Док.2: дата»: Не заполнено", "Материалы", 3, "Док.2: дата"]]);
+  assert.deepEqual(
+    lines.map((l) => [l.text, l.table, l.row, l.column]),
+    [["Материалы, строка 8, «Док.2: дата»: Не заполнено", "Материалы", 3, "Док.2: дата"]],
+  );
 });

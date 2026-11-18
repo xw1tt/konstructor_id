@@ -2,7 +2,11 @@
 import { SHEETS, type TableName } from "@idk/shared/workbook/schema";
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
 
-export interface ColumnStatus { header: string; important: boolean; empty: boolean }
+export interface ColumnStatus {
+  header: string;
+  important: boolean;
+  empty: boolean;
+}
 
 export function columnStatus(headers: string[], important: string[], row: CellValue[] | null): ColumnStatus[] {
   return headers.map((header, i) => ({

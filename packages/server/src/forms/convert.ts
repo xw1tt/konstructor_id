@@ -28,9 +28,11 @@ const ps = (s: string) => `'${s.replace(/'/g, "''")}'`;
  */
 export function officeScript(kind: "docx" | "xlsx", src: string, out: string): string {
   const proc = kind === "docx" ? "WINWORD" : "EXCEL";
-  return `$t0=Get-Date;$j=Start-Job -ScriptBlock {${exportScript(kind, src, out)}};` +
+  return (
+    `$t0=Get-Date;$j=Start-Job -ScriptBlock {${exportScript(kind, src, out)}};` +
     `if(Wait-Job $j -Timeout 55){Receive-Job $j -ErrorAction Stop}else{Stop-Job $j;` +
-    `Get-Process ${proc} -ErrorAction SilentlyContinue | Where-Object { $_.StartTime -gt $t0 } | Stop-Process -Force;exit 1}`;
+    `Get-Process ${proc} -ErrorAction SilentlyContinue | Where-Object { $_.StartTime -gt $t0 } | Stop-Process -Force;exit 1}`
+  );
 }
 
 function exportScript(kind: "docx" | "xlsx", src: string, out: string): string {
@@ -40,34 +42,61 @@ function exportScript(kind: "docx" | "xlsx", src: string, out: string): string {
 }
 
 export function powershellRunner(): OfficeRunner {
-  return (kind, src, out) => new Promise((resolve) => {
-    if (process.platform !== "win32") { resolve(false); return; }
-    execFile("powershell", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", officeScript(kind, src, out)],
-      { timeout: OFFICE_TIMEOUT_MS, windowsHide: true }, (err) => resolve(!err && existsSync(out)));
-  });
+  return (kind, src, out) =>
+    new Promise((resolve) => {
+      if (process.platform !== "win32") {
+        resolve(false);
+        return;
+      }
+      execFile(
+        "powershell",
+        ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", officeScript(kind, src, out)],
+        { timeout: OFFICE_TIMEOUT_MS, windowsHide: true },
+        (err) => resolve(!err && existsSync(out)),
+      );
+    });
 }
 
 /** Удаление временной папки без ошибки: файл может быть ещё открыт зависшим Office — PDF уже готов. */
 export function removeQuietly(dir: string) {
-  try { rmSync(dir, { recursive: true, force: true, maxRetries: 2 }); } catch { /* останется во временной папке Windows */ }
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 2 });
+  } catch {
+    /* останется во временной папке Windows */
+  }
 }
 
-export interface RenderedForm { pdf: Buffer; source: Buffer; warnings: string[]; via: "word" | "excel" | "html" }
+export interface RenderedForm {
+  pdf: Buffer;
+  source: Buffer;
+  warnings: string[];
+  via: "word" | "excel" | "html";
+}
 
 /** Заполненный файл своей формы (без перевода в PDF). */
-export function fillForm(b: ActBundle, form: FormRef & { buf: Buffer }, doc: { code?: string; set?: FormSet } | undefined): { buf: Buffer; warnings: string[] } {
+export function fillForm(
+  b: ActBundle,
+  form: FormRef & { buf: Buffer },
+  doc: { code?: string; set?: FormSet } | undefined,
+): { buf: Buffer; warnings: string[] } {
   const data = formData(b, doc);
   return form.type === "docx" ? fillDocx(form.buf, data) : fillXlsx(form.buf, data);
 }
 
-export async function renderForm(b: ActBundle, form: FormRef & { buf: Buffer }, doc: { code?: string; set?: FormSet } | undefined, runner: OfficeRunner): Promise<RenderedForm> {
+export async function renderForm(
+  b: ActBundle,
+  form: FormRef & { buf: Buffer },
+  doc: { code?: string; set?: FormSet } | undefined,
+  runner: OfficeRunner,
+): Promise<RenderedForm> {
   const filled = fillForm(b, form, doc);
   const warnings = [...filled.warnings];
   const dir = mkdtempSync(join(tmpdir(), "idk-form-"));
   try {
-    const src = join(dir, `form.${form.type}`), out = join(dir, "form.pdf");
+    const src = join(dir, `form.${form.type}`),
+      out = join(dir, "form.pdf");
     writeFileSync(src, filled.buf);
-    if (await runner(form.type, src, out).catch(() => false) && existsSync(out)) {
+    if ((await runner(form.type, src, out).catch(() => false)) && existsSync(out)) {
       return { pdf: readFileSync(out), source: filled.buf, warnings, via: form.type === "docx" ? "word" : "excel" };
     }
     warnings.push(form.type === "docx" ? "Word не найден — форма может отличаться от Word" : "Excel не найден — форма может отличаться от Excel");

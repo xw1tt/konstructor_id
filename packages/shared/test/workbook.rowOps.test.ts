@@ -5,7 +5,7 @@ import { tableRows } from "@idk/shared/workbook/store";
 import { addRows, duplicateRow, moveRow, deleteRows } from "@idk/shared/workbook/rowOps";
 
 const setup = () => {
-  const wb = new MemoryWorkbook({ "Материалы": ["A", "B", "C"].map((n) => ({ "Наименование": n })) });
+  const wb = new MemoryWorkbook({ Материалы: ["A", "B", "C"].map((n) => ({ Наименование: n })) });
   const t = tableRows(wb, "Материалы");
   const names = async () => (await wb.read("Материалы"))!.rows.map((r) => r[0]);
   return { wb, t, names };
@@ -37,11 +37,18 @@ test("moveRow: вверх, у края ничего, вниз", async () => {
 });
 
 test("moveRow не переносит формулу Сумма ВОР", async () => {
-  const wb = new MemoryWorkbook({ "МатериалыАктов": [
-    { "Акт": "1", "Материал": "А", "Кол-во": 1 }, { "Акт": "1", "Материал": "Б", "Кол-во": 2 }] });
+  const wb = new MemoryWorkbook({
+    МатериалыАктов: [
+      { Акт: "1", Материал: "А", "Кол-во": 1 },
+      { Акт: "1", Материал: "Б", "Кол-во": 2 },
+    ],
+  });
   await moveRow(tableRows(wb, "МатериалыАктов"), 1, -1);
   const rows = (await wb.read("МатериалыАктов"))!.rows;
-  assert.deepEqual(rows, [["1", "Б", null, 2, null, null, null], ["1", "А", null, 1, null, null, null]]);
+  assert.deepEqual(rows, [
+    ["1", "Б", null, 2, null, null, null],
+    ["1", "А", null, 1, null, null, null],
+  ]);
 });
 
 test("deleteRows удаляет выделенные, повторы игнорирует", async () => {

@@ -17,14 +17,22 @@ const cat: Catalog = {
     { code: "АЛ", name: "Акт осмотра лотков", clause344: 10, source: "", make: "form", scope: "act" },
     { code: "СЭЛ", name: "Свидетельство электролаборатории", clause344: 11, source: "", make: "scan", scope: "kit" },
   ],
-  sections: [{ code: "ЭМ", name: "Электромонтаж", works: [
-    { code: "КЛ", name: "Прокладка кабельных линий", docs: ["АОСР", "ПСИ", "ПИК", "СЭЛ"] },
-    { code: "ЛТ", name: "Монтаж кабельных лотков", docs: ["АОСР", "АЛ"] },
-  ] }],
+  sections: [
+    {
+      code: "ЭМ",
+      name: "Электромонтаж",
+      works: [
+        { code: "КЛ", name: "Прокладка кабельных линий", docs: ["АОСР", "ПСИ", "ПИК", "СЭЛ"] },
+        { code: "ЛТ", name: "Монтаж кабельных лотков", docs: ["АОСР", "АЛ"] },
+      ],
+    },
+  ],
 };
 
 const tpl: UT = UserTemplate.parse({
-  id: "t-00000000-0000-4000-8000-000000000000", name: "Т", print: {},
+  id: "t-00000000-0000-4000-8000-000000000000",
+  name: "Т",
+  print: {},
   docs: [
     { kind: "builtin", doc: "aosr", form: null, catalog: "АОСР", works: ["КЛ", "ЛТ"] },
     { kind: "builtin", doc: "ip", form: null, catalog: "ПСИ", works: ["КЛ"] },
@@ -36,12 +44,13 @@ const tpl: UT = UserTemplate.parse({
 
 const rows = (list: Record<string, CellValue>[]): BookRow[] => list.map((v, row) => ({ row, v, link: {} }));
 const book = (acts: Record<string, CellValue>[], registry: Record<string, CellValue>[] = [], kitActs: string[] = []): Book => ({
-  object: {}, missing: [],
+  object: {},
+  missing: [],
   tables: {
-    "Акты": rows(acts),
-    "РеестрИД": rows(registry),
-    "Комплекты": rows([{ number: "1" }]),
-    "АктыКомплектов": rows(kitActs.map((act) => ({ kit: "1", act }))),
+    Акты: rows(acts),
+    РеестрИД: rows(registry),
+    Комплекты: rows([{ number: "1" }]),
+    АктыКомплектов: rows(kitActs.map((act) => ({ kit: "1", act }))),
   },
 });
 const labels = (docs: UT["docs"]) => docs.map(docLabel);
@@ -80,9 +89,15 @@ test("неизвестный вид работ — в unknown, остаются 
 test("полнота акта: печать, скан есть / нет, своя форма без файла", () => {
   const acts = [{ baseNumber: "1", workKinds: "КЛ; ЛТ" }];
   const without = completeness(tpl, cat, book(acts), "1");
-  assert.deepEqual(without.map((s) => [s.label, s.status, s.number]), [
-    ["АОСР", "print", ""], ["Протокол", "print", ""], ["Протокол испытания кабеля", "noScan", "1.ПИК"], ["Акт осмотра лотков", "noForm", "1.АЛ"],
-  ]);
+  assert.deepEqual(
+    without.map((s) => [s.label, s.status, s.number]),
+    [
+      ["АОСР", "print", ""],
+      ["Протокол", "print", ""],
+      ["Протокол испытания кабеля", "noScan", "1.ПИК"],
+      ["Акт осмотра лотков", "noForm", "1.АЛ"],
+    ],
+  );
   const withScan = completeness(tpl, cat, book(acts, [{ kit: "1", number: "№1.ПИК", file: "пик.pdf" }]), "1");
   assert.equal(withScan[2].status, "scan");
   const emptyScan = completeness(tpl, cat, book(acts, [{ kit: "1", number: "1.ПИК", file: "" }]), "1");
@@ -90,7 +105,10 @@ test("полнота акта: печать, скан есть / нет, сво�
 });
 
 test("комплект: скан «на комплект» в нехватке один раз; найденный скан убирает его", () => {
-  const acts = [{ baseNumber: "1", workKinds: "КЛ" }, { baseNumber: "2", workKinds: "КЛ" }];
+  const acts = [
+    { baseNumber: "1", workKinds: "КЛ" },
+    { baseNumber: "2", workKinds: "КЛ" },
+  ];
   const b = book(acts, [], ["1", "2"]);
   assert.deepEqual(kitDocs(tpl, cat, b, ["1", "2"]).map(docLabel), ["Свидетельство электролаборатории"]);
   const short = kitShortage(tpl, cat, b, "1");

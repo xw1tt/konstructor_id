@@ -18,7 +18,7 @@ const txt = (v: CellValue | undefined) => (v === undefined ? "" : cellText(v));
 const verdict = (ok: boolean): Result => (ok ? OK : BAD);
 
 /** Кратность тока срабатывания по характеристике автомата (B/C/D, латиница или кириллица). */
-const CURVE: Record<string, number> = { B: 5, C: 10, D: 20, "В": 5, "С": 10 };
+const CURVE: Record<string, number> = { B: 5, C: 10, D: 20, В: 5, С: 10 };
 
 /** Верхняя граница нормы времени: последнее число в тексте («0,01–0,1», «≤5»). */
 function upperBound(text: string): number | null {
@@ -30,7 +30,9 @@ function upperBound(text: string): number | null {
 function values(def: ProtoDef, row: Row): Record<string, number | null> {
   switch (def.rule) {
     case "pfn": {
-      const z = num(row.zloop), rated = num(row.rated), k = CURVE[txt(row.curve).toUpperCase()];
+      const z = num(row.zloop),
+        rated = num(row.rated),
+        k = CURVE[txt(row.curve).toUpperCase()];
       return {
         ikz: num(row.ikz) ?? (z && z > 0 ? 230 / z : null),
         itrip: num(row.itrip) ?? (rated !== null && k ? rated * k : null),
@@ -59,11 +61,15 @@ export function resultOf(def: ProtoDef, row: Row): Result | null {
   const v = values(def, row);
   switch (def.rule) {
     case "pav": {
-      const fact = num(row.tripFact), max = upperBound(txt(row.tripNorm));
+      const fact = num(row.tripFact),
+        max = upperBound(txt(row.tripNorm));
       return fact === null || max === null ? null : verdict(fact <= max);
     }
     case "puzo": {
-      const r = num(row.diffRated), f = num(row.diffFact), t = num(row.timeFact), tn = num(row.timeNorm) ?? 300;
+      const r = num(row.diffRated),
+        f = num(row.diffFact),
+        t = num(row.timeFact),
+        tn = num(row.timeNorm) ?? 300;
       if (r === null || f === null) return null;
       return verdict(f >= r / 2 && f <= r && (t === null || t <= tn));
     }

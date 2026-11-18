@@ -8,10 +8,11 @@ import { buildBundle } from "@idk/shared/workbook/bundle";
 import { defaultImportant } from "@idk/shared/workbook/important";
 
 test("у каждого столбца и поля объекта есть подсказка ≤ 255 и пример", () => {
-  for (const t of TABLE_NAMES) for (const c of TABLES[t].columns) {
-    assert.ok(c.hint && c.hint.length <= 255, `${t}.${c.header}`);
-    if (c.type !== "formula" && c.type !== "file" && t !== "Объект") assert.notEqual(c.example, undefined, `${t}.${c.header}`);
-  }
+  for (const t of TABLE_NAMES)
+    for (const c of TABLES[t].columns) {
+      assert.ok(c.hint && c.hint.length <= 255, `${t}.${c.header}`);
+      if (c.type !== "formula" && c.type !== "file" && t !== "Объект") assert.notEqual(c.example, undefined, `${t}.${c.header}`);
+    }
   for (const f of OBJECT_FIELDS) assert.ok(f.hint && f.hint.length <= 255 && f.example !== undefined, f.label);
 });
 
@@ -34,8 +35,7 @@ test("пример-акт не печатается; без признака п�
   const ex = exampleRows();
   const act = String(ex["Акты"]![0]["Номер акта"]);
   assert.ok(act.startsWith(EXAMPLE_PREFIX));
-  assert.equal(buildBundle(await readBook(new MemoryWorkbook(ex)), act, defaultImportant()).issues[0].message,
-    `Акт «${act}» не найден на листе «База актов»`);
+  assert.equal(buildBundle(await readBook(new MemoryWorkbook(ex)), act, defaultImportant()).issues[0].message, `Акт «${act}» не найден на листе «База актов»`);
   const plain = JSON.parse(JSON.stringify(ex).replaceAll(EXAMPLE_PREFIX, ""));
   const r = buildBundle(await readBook(new MemoryWorkbook(plain)), act.replace(EXAMPLE_PREFIX, ""), defaultImportant());
   assert.deepEqual(r.issues, []);
@@ -46,19 +46,22 @@ test("изменение не-ключевой ячейки примера ос�
   const wb = new MemoryWorkbook(exampleRows());
   await wb.write("Материалы", 0, { "Завод-изготовитель": "ООО Кабельный завод" });
   assert.deepEqual((await readBook(wb)).tables["Материалы"], []);
-  await wb.write("Материалы", 0, { "Наименование": "Кабель ВВГнг(А)-LS 3х1,5" });
+  await wb.write("Материалы", 0, { Наименование: "Кабель ВВГнг(А)-LS 3х1,5" });
   assert.equal((await readBook(wb)).tables["Материалы"]!.length, 1);
 });
 
 test("листа «Нормативы» в схеме нет", () => {
-  assert.equal(SHEETS.some((s) => (s.name as string) === "Нормативы"), false);
+  assert.equal(
+    SHEETS.some((s) => (s.name as string) === "Нормативы"),
+    false,
+  );
   assert.equal((TABLE_NAMES as string[]).includes("Нормативы"), false);
 });
 
 test("примеры записываются в свежую книгу (пустая строка таблиц, подписи «Объекта») на свои места", async () => {
   const { OBJECT_FIELDS: F } = await import("@idk/shared/workbook/schema");
   const { writeBook } = await import("@idk/shared/workbook/write");
-  const wb = new MemoryWorkbook({ "Объект": F.map((f) => ({ "Поле": f.label })) }, { placeholder: true });
+  const wb = new MemoryWorkbook({ Объект: F.map((f) => ({ Поле: f.label })) }, { placeholder: true });
   await writeBook(wb, exampleRows(), {});
   const obj = await wb.read("Объект");
   assert.equal(obj!.rows.length, F.length);
@@ -79,13 +82,16 @@ test("ревью: замена ключа строки-примера делае
   const b = await readBook(wb);
   assert.equal(b.tables["Акты"]!.length, 1);
   const issues = buildBundle(b, "К32.ЭМ1.1", defaultImportant()).issues.map((i) => i.message);
-  assert.ok(issues.some((m) => m.startsWith("Нет в таблице") && m.includes("Пример:")), issues.join(" | "));
+  assert.ok(
+    issues.some((m) => m.startsWith("Нет в таблице") && m.includes("Пример:")),
+    issues.join(" | "),
+  );
 });
 
 test("ревью: в таблицах без ключа пример определяется по первой ссылке (акт)", async () => {
   const wb = new MemoryWorkbook(exampleRows());
   assert.equal(isExampleRow(["Пример: К1", "Схема"], "Схемы", ["Акт", "Вид"]), true);
   assert.equal(isExampleRow(["К1", "Схема", "Пример: x"], "Схемы", ["Акт", "Вид", "Номер"]), false);
-  await wb.write("Схемы", 0, { "Акт": "К1" });
+  await wb.write("Схемы", 0, { Акт: "К1" });
   assert.equal((await readBook(wb)).tables["Схемы"]!.length, 1);
 });

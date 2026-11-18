@@ -40,7 +40,10 @@ test("без Office — своими силами, с предупреждени
 
 test("через Office — PDF от Office, без предупреждения", async () => {
   const pdf = await makePdf(1, "OFFICE");
-  const word: OfficeRunner = async (_k, _src, out) => { writeFileSync(out, pdf); return true; };
+  const word: OfficeRunner = async (_k, _src, out) => {
+    writeFileSync(out, pdf);
+    return true;
+  };
   const res = await renderForm(await bundle(), form(), { code: "АГИ" }, word);
   assert.equal(res.via, "word");
   assert.deepEqual(res.warnings, []);
@@ -56,8 +59,16 @@ test("API: задание печати своей формы — PDF и запо
   const none: OfficeRunner = async () => false;
   const s = await startTestServer({ officeRunner: none });
   const { json: t } = await s.req("POST", "/api/templates", { name: "ПИК" });
-  const f = await (await s.raw("POST", `/api/templates/${t.id}/forms`, { body: form().buf as unknown as BodyInit, headers: { "x-file-name": "agi.docx" } })).json();
-  await s.req("PUT", `/api/templates/${t.id}`, { name: "ПИК", docs: [{ kind: "custom", code: "АГИ", name: "Акт гидр. испытаний", form: f }, { kind: "builtin", doc: "aosr" }] });
+  const f = await (
+    await s.raw("POST", `/api/templates/${t.id}/forms`, { body: form().buf as unknown as BodyInit, headers: { "x-file-name": "agi.docx" } })
+  ).json();
+  await s.req("PUT", `/api/templates/${t.id}`, {
+    name: "ПИК",
+    docs: [
+      { kind: "custom", code: "АГИ", name: "Акт гидр. испытаний", form: f },
+      { kind: "builtin", doc: "aosr" },
+    ],
+  });
   const job = await s.req("POST", "/api/form-jobs", { bundle: await bundle(), template: t.id, doc: "АГИ" });
   assert.equal(job.status, 201, JSON.stringify(job.json));
   assert.equal(job.json.via, "html");
@@ -65,7 +76,10 @@ test("API: задание печати своей формы — PDF и запо
   assert.equal(pdf.headers.get("content-type"), "application/pdf");
   await pdf.arrayBuffer();
   const src = await s.raw("GET", `/api/form-jobs/${job.json.id}/source`);
-  assert.match(decodeURIComponent(src.headers.get("content-disposition") ?? ""), new RegExp(`Акт гидр\\. испытаний ${AOV1.replace(/\./g, "\\.")}\\.АГИ\\.docx`));
+  assert.match(
+    decodeURIComponent(src.headers.get("content-disposition") ?? ""),
+    new RegExp(`Акт гидр\\. испытаний ${AOV1.replace(/\./g, "\\.")}\\.АГИ\\.docx`),
+  );
   assert.equal(docxText(Buffer.from(await src.arrayBuffer())), `Акт гидравлических испытаний № ${AOV1}.АГИ`);
   const noForm = await s.req("POST", "/api/form-jobs", { bundle: await bundle(), template: t.id, doc: "aosr" });
   assert.equal(noForm.status, 400);

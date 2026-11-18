@@ -28,17 +28,40 @@ test("«Из справочника» «ЭМ.ОСВ»: ПАВ, ПУЗО, ПФН 
   const t = addWork(empty, BUILTIN_CATALOG, "ЭМ.ОСВ");
   const pav = t.docs.find((d) => d.kind === "builtin" && d.doc === "pav");
   assert.ok(pav && pav.catalog === "ПАВ" && pav.works?.includes("ЭМ.ОСВ"));
-  const book = await readBook(protoBook((r) => { r["Акты"][0]["Вид работ"] = "ЭМ.ОСВ"; }));
+  const book = await readBook(
+    protoBook((r) => {
+      r["Акты"][0]["Вид работ"] = "ЭМ.ОСВ";
+    }),
+  );
   assert.ok(!actDocs(t, BUILTIN_CATALOG, book, AOV1).docs.map(docLabel).includes("ПАВ"), "документ на комплект — не в акте");
   assert.deepEqual(kitDocs(t, BUILTIN_CATALOG, book, [AOV1]).map(docLabel), ["ПАВ", "ПУЗО", "ПФН"]);
 });
 
 test("шаблон плана 12: свой «ПАВ» (скан) и «ПОКБ» с формой → встроенные, форма и виды работ сохранены", () => {
   const old = UserTemplate.parse({
-    id: "x", name: "Старый", docs: [
+    id: "x",
+    name: "Старый",
+    docs: [
       { kind: "builtin", doc: "aosr", form: null },
-      { kind: "custom", code: "ПАВ", name: "Протокол проверки действия автоматических выключателей", form: null, catalog: "ПАВ", works: ["ЭМ.ОСВ"], scope: "kit", scan: true },
-      { kind: "custom", code: "ПОКБ", name: "Протокол осмотра кабелей на барабанах", form: { file: "f1.docx", type: "docx", original: "ПОКБ.docx" }, catalog: "ПОКБ", works: ["ЭМ.КЛ"], scope: "act" },
+      {
+        kind: "custom",
+        code: "ПАВ",
+        name: "Протокол проверки действия автоматических выключателей",
+        form: null,
+        catalog: "ПАВ",
+        works: ["ЭМ.ОСВ"],
+        scope: "kit",
+        scan: true,
+      },
+      {
+        kind: "custom",
+        code: "ПОКБ",
+        name: "Протокол осмотра кабелей на барабанах",
+        form: { file: "f1.docx", type: "docx", original: "ПОКБ.docx" },
+        catalog: "ПОКБ",
+        works: ["ЭМ.КЛ"],
+        scope: "act",
+      },
       { kind: "custom", code: "АГИ", name: "Акт гидроиспытаний", form: { file: "f2.docx", type: "docx", original: "" } },
     ],
   });
@@ -56,12 +79,20 @@ test("шаблон плана 12: свой «ПАВ» (скан) и «ПОКБ»
 
 test("полнота: документ без шапки в «Протоколах» — «нет данных», с шапкой — печатается", async () => {
   const t = addWork(addWork(empty, BUILTIN_CATALOG, "ЭМ.КЛ"), BUILTIN_CATALOG, "ЭМ.ОСВ");
-  const book = await readBook(protoBook((r) => { r["Акты"][0]["Вид работ"] = "ЭМ.КЛ; ЭМ.ОСВ"; }));
+  const book = await readBook(
+    protoBook((r) => {
+      r["Акты"][0]["Вид работ"] = "ЭМ.КЛ; ЭМ.ОСВ";
+    }),
+  );
   const st = (code: string) => completeness(t, BUILTIN_CATALOG, book, AOV1).find((s) => docLabel(s.doc) === code)?.status;
   assert.equal(st("ПКЛ"), "print", "шапка ПКЛ-1 есть");
   assert.equal(st("ПОКБ"), "noData");
   assert.equal(st("АОСР"), "print");
   const short = kitShortage(t, BUILTIN_CATALOG, book, "1");
-  assert.deepEqual(short.filter((s) => s.act === null).map((s) => `${s.label}:${s.status}`), ["ПУЗО:noData", "ПФН:noData"], "ПАВ есть, ПУЗО и ПФН — нет, по одному разу");
+  assert.deepEqual(
+    short.filter((s) => s.act === null).map((s) => `${s.label}:${s.status}`),
+    ["ПУЗО:noData", "ПФН:noData"],
+    "ПАВ есть, ПУЗО и ПФН — нет, по одному разу",
+  );
   assert.ok(short.some((s) => s.act === AOV1 && s.label === "ПОКБ" && s.status === "noData"));
 });

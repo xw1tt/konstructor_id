@@ -52,7 +52,7 @@ const ROW_H = 7.1;
 export function fitFont(text: string, w: number, h: number, maxPt: number, minPt = 3): number {
   const len = Math.max(1, text.length);
   for (let pt = maxPt; pt > minPt; pt -= 0.25) {
-    const charW = pt * 0.3528 * 0.62;   // средняя ширина знака Arial (кириллица), с запасом
+    const charW = pt * 0.3528 * 0.62; // средняя ширина знака Arial (кириллица), с запасом
     const lineH = pt * 0.3528 * 1.18;
     const perLine = Math.max(1, Math.floor(w / charW));
     if (Math.ceil(len / perLine) * lineH <= h) return Math.round(pt * 100) / 100;
@@ -66,7 +66,7 @@ function fit(text: string, w: number, h: number, maxPt: number, align = "center"
   const justify = align === "right" ? "flex-end" : align === "left" ? "flex-start" : "center";
   return `<div class="fit" style="height:${h}mm;font-size:${pt}pt;text-align:${align};justify-content:${justify}">${e(text)}</div>`;
 }
-const colW = (i: number, span = 1) => COLS.slice(i, i + span).reduce((a, b) => a + b, 0) * INNER / 185 - 1.4;
+const colW = (i: number, span = 1) => (COLS.slice(i, i + span).reduce((a, b) => a + b, 0) * INNER) / 185 - 1.4;
 const cell = (text: string, i: number, span = 1, align = "center") =>
   `<td${span > 1 ? ` colspan="${span}"` : ""}>${fit(text, colW(i, span), ROW_H - 0.8, 7, align)}</td>`;
 
@@ -79,8 +79,10 @@ function line(l: JournalLine | undefined): string {
       : `<tr class="tot">${cell(l.label, 0, 4, "right")}${cell(l.mark, 4)}${cell(l.length, 5)}<td></td><td></td><td></td></tr>`;
   }
   const r = l.row;
-  return `<tr>${cell(r.designation, 0)}${cell(r.from, 1)}${cell(r.to, 2)}${cell(r.direction, 3)}${cell(r.cableMark, 4)}` +
-    `${cell(formatNumber(r.cableLength), 5)}${cell(r.pipeMark, 6)}${cell(formatNumber(r.pipeLength), 7)}${cell(r.note, 8)}</tr>`;
+  return (
+    `<tr>${cell(r.designation, 0)}${cell(r.from, 1)}${cell(r.to, 2)}${cell(r.direction, 3)}${cell(r.cableMark, 4)}` +
+    `${cell(formatNumber(r.cableLength), 5)}${cell(r.pipeMark, 6)}${cell(formatNumber(r.pipeLength), 7)}${cell(r.note, 8)}</tr>`
+  );
 }
 
 function stamp(d: KjData, no: number, total: number): string {
@@ -110,12 +112,16 @@ export function kjHtml(d: KjData): string {
     <tr><th rowspan="2">Кабель, жгут, труба</th><th colspan="2">Направление</th><th rowspan="2">Направление по планам расположения</th>
       <th colspan="2">Кабель, провод</th><th colspan="2">Труба</th><th rowspan="2">Примечание</th></tr>
     <tr><th>Откуда</th><th>Куда</th><th>Марка, число жил, сечение</th><th>Длина, м</th><th>Марка, диаметр</th><th>Длина, м</th></tr></thead>`;
-  const sheets = d.sheets.map((lines, i) => `<section class="sheet">
+  const sheets = d.sheets
+    .map(
+      (lines, i) => `<section class="sheet">
     <div class="side"><div><span>Взам. инв. №</span></div><div><span>Подп. и дата</span></div><div><span>Инв. № подл.</span></div></div>
     <div class="frame">
-      <table class="kj-t"><colgroup>${COLS.map((w) => `<col style="width:${(w / 185 * 100).toFixed(2)}%">`).join("")}</colgroup>${head}
+      <table class="kj-t"><colgroup>${COLS.map((w) => `<col style="width:${((w / 185) * 100).toFixed(2)}%">`).join("")}</colgroup>${head}
         <tbody>${Array.from({ length: JOURNAL_LINES_PER_SHEET }, (_, k) => line(lines[k])).join("")}</tbody></table>
       ${stamp(d, i + 1, d.sheets.length)}
-    </div></section>`).join("");
+    </div></section>`,
+    )
+    .join("");
   return page(`Кабельный журнал ${d.stamp.code}`, STYLE + sheets, "kj");
 }

@@ -62,8 +62,21 @@ test("свой раздел добавляется целиком", () => {
 test("mergeUserCatalog: добавляет отсутствующее, не перезаписывает существующее", () => {
   const a: UserCatalog = { docs: [pik], sections: [{ code: "ЭМ", name: "ЭМ", works: [{ code: "w1", name: "w1", docs: ["ПИК"] }] }], hidden: ["ВОР"] };
   const b: UserCatalog = {
-    docs: [{ ...pik, name: "Другое имя" }, { code: "СЭЛ", name: "Список электролаборатории", clause344: 9, source: "", make: "scan", scope: "kit" }],
-    sections: [{ code: "ЭМ", name: "x", works: [{ code: "w1", name: "не меняется", docs: [] }, { code: "w2", name: "w2", docs: ["СЭЛ"] }] }, { code: "НОВ", name: "Новый", works: [{ code: "нр", name: "нр", docs: ["АОСР"] }] }],
+    docs: [
+      { ...pik, name: "Другое имя" },
+      { code: "СЭЛ", name: "Список электролаборатории", clause344: 9, source: "", make: "scan", scope: "kit" },
+    ],
+    sections: [
+      {
+        code: "ЭМ",
+        name: "x",
+        works: [
+          { code: "w1", name: "не меняется", docs: [] },
+          { code: "w2", name: "w2", docs: ["СЭЛ"] },
+        ],
+      },
+      { code: "НОВ", name: "Новый", works: [{ code: "нр", name: "нр", docs: ["АОСР"] }] },
+    ],
     hidden: ["КЖ"],
   };
   const m = mergeUserCatalog(a, b);
@@ -86,7 +99,10 @@ test("referencedUserCatalog: документы шаблона без видов
     hidden: [],
   };
   const ref = referencedUserCatalog(user, [{ code: "ПИК" }, { code: "АОСР" }]);
-  assert.deepEqual(ref.docs.map((d) => d.code), ["ПИК"]);
+  assert.deepEqual(
+    ref.docs.map((d) => d.code),
+    ["ПИК"],
+  );
   assert.deepEqual(ref.sections, []);
 });
 
@@ -102,7 +118,13 @@ test("referencedUserCatalog: вид работ шаблона — со всем�
   // шаблон ссылается на w1: вывозится вид работ и оба его документа, даже если в шаблоне есть только ПИК
   const ref = referencedUserCatalog(user, [{ catalog: "АОСР", works: ["w1"] }, { code: "ПИК" }]);
   assert.deepEqual(ref.docs.map((d) => d.code).sort(), ["ПИК", "СЭЛ"].sort());
-  assert.deepEqual(ref.sections.map((s) => s.code), ["ЭМ"]);
-  assert.deepEqual(ref.sections[0].works.map((w) => w.code), ["w1"]);
+  assert.deepEqual(
+    ref.sections.map((s) => s.code),
+    ["ЭМ"],
+  );
+  assert.deepEqual(
+    ref.sections[0].works.map((w) => w.code),
+    ["w1"],
+  );
   assert.deepEqual(ref.hidden, []);
 });

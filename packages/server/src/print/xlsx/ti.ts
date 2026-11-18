@@ -16,10 +16,20 @@ const N = 36;
  *  Колонки идут строка в строку: пара «значение + подпись» слева и справа — в одних строках листа. */
 export function tiHead(L: Layout, h: TiHeader) {
   const third = Math.round(L.cols * 0.36);
-  const sides = [{ c1: 1, c2: third }, { c1: L.cols - third + 1, c2: L.cols }];
-  const left: [string, string][] = [[h.contractor, "(подрядная организация)"], [[h.sectionName, h.sectionCode].filter(Boolean).join("\n"), "(участок)"]];
-  const right: [string, string][] = [[h.city, "(город)"], [h.customer, "(заказчик)"], [h.object, "(объект)"],
-    [h.day ? `"${h.day}" ${h.month} ${h.year}г.` : "", "(дата)"]];
+  const sides = [
+    { c1: 1, c2: third },
+    { c1: L.cols - third + 1, c2: L.cols },
+  ];
+  const left: [string, string][] = [
+    [h.contractor, "(подрядная организация)"],
+    [[h.sectionName, h.sectionCode].filter(Boolean).join("\n"), "(участок)"],
+  ];
+  const right: [string, string][] = [
+    [h.city, "(город)"],
+    [h.customer, "(заказчик)"],
+    [h.object, "(объект)"],
+    [h.day ? `"${h.day}" ${h.month} ${h.year}г.` : "", "(дата)"],
+  ];
   const val: CellStyle = { b: true, size: 9, h: "center", shrink: true, border: { b: true } };
   for (let i = 0; i < Math.max(left.length, right.length); i++) {
     const items = [left[i], right[i]];
@@ -28,17 +38,24 @@ export function tiHead(L: Layout, h: TiHeader) {
     for (let r = 0; r < n; r++) {
       const row = L.next();
       L.sheet.height(row, lineHeight(9) + 0.5);
-      lines.forEach((ls, k) => { if (r < ls.length) L.sheet.merge(row, sides[k].c1, row, sides[k].c2, ls[r], val); });
+      lines.forEach((ls, k) => {
+        if (r < ls.length) L.sheet.merge(row, sides[k].c1, row, sides[k].c2, ls[r], val);
+      });
     }
     const cap = L.next();
     L.sheet.height(cap, lineHeight(6) + 2);
-    items.forEach((it, k) => { if (it) L.sheet.merge(cap, sides[k].c1, cap, sides[k].c2, it[1], { size: 6, h: "center", v: "top" }); });
+    items.forEach((it, k) => {
+      if (it) L.sheet.merge(cap, sides[k].c1, cap, sides[k].c2, it[1], { size: 6, h: "center", v: "top" });
+    });
   }
   L.gap(6);
 }
 
 const title = (L: Layout, t: string, size = 10.5) => L.para(t, { b: true, h: "center", size });
-const tiSigns = (L: Layout, d: TiData) => { L.gap(8); L.signs(d.signs, { labelBold: true, nameBold: false, capSize: 6, gap: 5 }); };
+const tiSigns = (L: Layout, d: TiData) => {
+  L.gap(8);
+  L.signs(d.signs, { labelBold: true, nameBold: false, capSize: 6, gap: 5 });
+};
 
 export function tiVdSheet(d: TiData, view: BlankView = blankView("vd:ti")): Layout {
   const L = new Layout(`ВД ${d.vdNumber}`, Array(N).fill(180 / N), PORTRAIT);
@@ -84,12 +101,18 @@ export function tiKjSheet(d: { header: TiHeader; number: string; journal: TiJour
   L.gap(6);
   xlsxBlankTable(L, view, tiKjRows(d.journal, view), { size: 8 });
   // «Сдал:» / «Принял:» — надпись 20 мм, линия 70 мм, линия 40 мм («Подпись»), линия 30 мм («Дата»).
-  if (view.shown("signs")) for (const label of ["Сдал:", "Принял:"]) {
-    L.gap(10);
-    L.line([
-      { c1: 1, c2: 4, text: label, style: { h: "left" } }, { c1: 5, c2: 18, text: "", under: true },
-      { c1: 21, c2: 28, text: "", under: true, caption: "Подпись" }, { c1: 31, c2: 36, text: "", under: true, caption: "Дата" },
-    ], 9);
-  }
+  if (view.shown("signs"))
+    for (const label of ["Сдал:", "Принял:"]) {
+      L.gap(10);
+      L.line(
+        [
+          { c1: 1, c2: 4, text: label, style: { h: "left" } },
+          { c1: 5, c2: 18, text: "", under: true },
+          { c1: 21, c2: 28, text: "", under: true, caption: "Подпись" },
+          { c1: 31, c2: 36, text: "", under: true, caption: "Дата" },
+        ],
+        9,
+      );
+    }
   return L;
 }

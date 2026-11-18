@@ -13,7 +13,9 @@ test("shutdown: по сигналу база закрывается (WAL сбр�
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   const proc = new EventEmitter() as EventEmitter & { exit: (c?: number) => void };
   let exitCode: number | undefined;
-  proc.exit = (c) => { exitCode = c; };
+  proc.exit = (c) => {
+    exitCode = c;
+  };
   installShutdown(db, server, proc);
   proc.emit("SIGINT");
   await new Promise((r) => setTimeout(r, 50));

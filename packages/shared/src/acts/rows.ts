@@ -12,8 +12,7 @@ export const SIGN_LABELS: Record<RoleCode, string> = {
   developer_control:
     "Представитель застройщика, технического заказчика, лица, ответственного за эксплуатацию здания, сооружения, или регионального оператора по вопросам строительного контроля",
   builder: "Представитель лица, осуществляющего строительство, реконструкцию, капитальный ремонт",
-  builder_control:
-    "Представитель лица, осуществляющего строительство, реконструкцию, капитальный ремонт, по вопросам строительного контроля",
+  builder_control: "Представитель лица, осуществляющего строительство, реконструкцию, капитальный ремонт, по вопросам строительного контроля",
   designer:
     "Представитель лица, осуществляющего подготовку проектной документации (в случае привлечения застройщиком лица, осуществляющего подготовку проектной документации, для проверки соответствия выполняемых работ проектной документации согласно части 2 статьи 53 Градостроительного кодекса РФ)",
   performer:
@@ -31,7 +30,11 @@ const docShort = (d: QualityDoc) =>
 
 /** П.3 АОСР. */
 export function point3Lines(
-  actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>, base: string, set: FormSet = "sbd",
+  actMaterials: ActMaterialInput[],
+  materials: Material[],
+  docsByMaterial: Map<number, QualityDoc[]>,
+  base: string,
+  set: FormSet = "sbd",
 ): string[] {
   if (actMaterials.length > MATERIALS_INLINE_LIMIT) {
     return [
@@ -41,8 +44,10 @@ export function point3Lines(
   const mm = matMap(materials);
   return [...actMaterials].sort(byOrder).map((am) => {
     const m = mm.get(am.materialId);
-    const docs = sortDocs(docsByMaterial.get(am.materialId) ?? []).map(docShort).join("; ");
-    return docs ? `${m?.name ?? ""} — ${docs}` : m?.name ?? "";
+    const docs = sortDocs(docsByMaterial.get(am.materialId) ?? [])
+      .map(docShort)
+      .join("; ");
+    return docs ? `${m?.name ?? ""} — ${docs}` : (m?.name ?? "");
   });
 }
 
@@ -56,8 +61,7 @@ export function point4Lines(docs: ActDocumentInput[], opts: { schemeEach?: boole
   const sorted = [...docs].sort(byOrder);
   return sorted.map((d, i) => {
     const last = i === sorted.length - 1;
-    if (d.kind !== "scheme")
-      return [d.name, withNo(d.number), d.date ? `от ${formatDateShort(d.date)}` : ""].filter(Boolean).join(" ");
+    if (d.kind !== "scheme") return [d.name, withNo(d.number), d.date ? `от ${formatDateShort(d.date)}` : ""].filter(Boolean).join(" ");
     const first = opts.schemeEach || i === 0 || sorted[i - 1].kind !== "scheme";
     const body = [withNo(d.number) && `${withNo(d.number)}.`, d.name].filter(Boolean).join(" ");
     return `${first ? "Исполнительная схема " : ""}${body}${last ? "" : ";"}`;
@@ -65,7 +69,11 @@ export function point4Lines(docs: ActDocumentInput[], opts: { schemeEach?: boole
 }
 
 export interface RimRow {
-  name: string; type: string; number: string; date: string; sheets: number;
+  name: string;
+  type: string;
+  number: string;
+  date: string;
+  sheets: number;
   /** Номер группы строк одного наименования (материала) по порядку. */
   group: number;
   /** Продолжение группы: наименование печатается только в первой строке. */
@@ -98,27 +106,27 @@ export function rimDocOrder(actMaterials: ActMaterialInput[], docsByMaterial: Ma
 /** Наименование документа качества в РИМ и реестре: «Наименование для реестра» или материалы акта через запятую. */
 export function rimDocName(d: QualityDoc, actMaterials: ActMaterialInput[], materials: Material[]): string {
   const mm = matMap(materials);
-  const names = [...actMaterials].sort(byOrder).filter((x) => d.materialIds.includes(x.materialId)).map((x) => mm.get(x.materialId)?.name ?? "");
+  const names = [...actMaterials]
+    .sort(byOrder)
+    .filter((x) => d.materialIds.includes(x.materialId))
+    .map((x) => mm.get(x.materialId)?.name ?? "");
   return d.registryName.trim() || names.join(", ");
 }
 
 /** Дата документа качества: «от … до …», «ДД.ММ.ГГГГ г.» или «б/д». */
 export const rimDocDate = (d: QualityDoc) =>
-  d.issueDate
-    ? d.validUntil ? `от ${formatDateShort(d.issueDate)} до ${formatDateShort(d.validUntil)}` : formatDateShort(d.issueDate)
-    : "б/д";
+  d.issueDate ? (d.validUntil ? `от ${formatDateShort(d.issueDate)} до ${formatDateShort(d.validUntil)}` : formatDateShort(d.issueDate)) : "б/д";
 
 /** Строки РИМ: один документ — одна строка (порядок — rimDocOrder). */
-export function rimRows(
-  actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>,
-): RimRow[] {
+export function rimRows(actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>): RimRow[] {
   const rows: RimRow[] = rimDocOrder(actMaterials, docsByMaterial).map((d) => ({
     name: rimDocName(d, actMaterials, materials),
     type: QUALITY_DOC_LABELS[d.type].toLowerCase(),
     number: withNo(d.number),
     date: rimDocDate(d),
     sheets: d.sheets,
-    group: 0, cont: false,
+    group: 0,
+    cont: false,
   }));
   // Подряд идущие строки одного наименования — группа: материал пишется один раз, документы — под ним.
   rows.forEach((r, i) => {
@@ -136,7 +144,14 @@ export function vorTotals(lines: VorLineInput[]): Map<number, number> {
   return t;
 }
 
-export interface VdRow { position: string; name: string; article: string; manufacturer: string; unit: string; quantity: string }
+export interface VdRow {
+  position: string;
+  name: string;
+  article: string;
+  manufacturer: string;
+  unit: string;
+  quantity: string;
+}
 
 export function vdRows(actMaterials: ActMaterialInput[], materials: Material[], vorLines: VorLineInput[]): VdRow[] {
   const mm = matMap(materials);
@@ -165,7 +180,7 @@ export function vorTotalTitle(groups: string[]): string {
 
 const vorLineName = (m: Material | undefined) => {
   const extra = [m?.article || m?.mark || "", m?.manufacturer ?? ""].filter(Boolean).join(", ");
-  return extra ? `${m?.name ?? ""} (${extra})` : m?.name ?? "";
+  return extra ? `${m?.name ?? ""} (${extra})` : (m?.name ?? "");
 };
 
 /**
@@ -198,7 +213,11 @@ export function vorRows(lines: VorLineInput[], materials: Material[], actMateria
   return rows;
 }
 
-export interface SignBlock { role: RoleCode; label: string; names: string[] }
+export interface SignBlock {
+  role: RoleCode;
+  label: string;
+  names: string[];
+}
 
 /** Блоки подписей: для роли без действующих представителей — одна пустая строка. */
 export function signers(reps: Representative[], roles: RoleCode[], date: string): SignBlock[] {
@@ -218,13 +237,29 @@ export function avkDefaultNumber(actNumber: string, sectionCode: string): string
 
 /** Документ качества строкой АВК: «паспорт качества: №3/405 от 09.05.2025 г.». */
 export const avkDocText = (d: QualityDoc) =>
-  [`${QUALITY_DOC_LABELS[d.type].toLowerCase()}:`, withNo(d.number),
-    d.issueDate ? `от ${formatDateShort(d.issueDate)}` : "", d.validUntil ? `до ${formatDateShort(d.validUntil)}` : ""].filter(Boolean).join(" ");
+  [
+    `${QUALITY_DOC_LABELS[d.type].toLowerCase()}:`,
+    withNo(d.number),
+    d.issueDate ? `от ${formatDateShort(d.issueDate)}` : "",
+    d.validUntil ? `до ${formatDateShort(d.validUntil)}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-export interface AvkRow { name: string; manufacturer: string; quantity: string; docs: string }
+export interface AvkRow {
+  name: string;
+  manufacturer: string;
+  quantity: string;
+  docs: string;
+}
 
 /** Строки АВК: материалы акта по порядку; количество — как в ВД, с единицей. */
-export function avkRows(actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>, vorLines: VorLineInput[]): AvkRow[] {
+export function avkRows(
+  actMaterials: ActMaterialInput[],
+  materials: Material[],
+  docsByMaterial: Map<number, QualityDoc[]>,
+  vorLines: VorLineInput[],
+): AvkRow[] {
   const mm = matMap(materials);
   const totals = vorTotals(vorLines);
   return [...actMaterials].sort(byOrder).map((am) => {
@@ -234,7 +269,9 @@ export function avkRows(actMaterials: ActMaterialInput[], materials: Material[],
       name: [m?.name ?? "", m?.article || m?.mark || ""].filter(Boolean).join(" "),
       manufacturer: m?.manufacturer ?? "",
       quantity: [q, m?.unit ?? ""].filter(Boolean).join(" "),
-      docs: sortDocs(docsByMaterial.get(am.materialId) ?? []).map(avkDocText).join(" "),
+      docs: sortDocs(docsByMaterial.get(am.materialId) ?? [])
+        .map(avkDocText)
+        .join(" "),
     };
   });
 }

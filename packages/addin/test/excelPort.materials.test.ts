@@ -27,17 +27,22 @@ test("документ качества и позиция РКЦ через по
   wb.addSheet("Лист1");
   const port = new ExcelPort();
   await port.ensureBook(defaultImportant());
-  await port.insert("Материалы", 0, [{ "Наименование": "Кабель" }, { "Наименование": "Труба" }]);
+  await port.insert("Материалы", 0, [{ Наименование: "Кабель" }, { Наименование: "Труба" }]);
   assert.equal(await port.isVirtual("ДокументыКачества"), true);
-  const i = await port.insert("ДокументыКачества", 0, [{ "Материалы": "Кабель; Труба", "Тип": "Сертификат соответствия", "Номер": "С-1", "Листов": 2 }]);
-  await port.write("ДокументыКачества", i, { "Скан": "с1.pdf" }, { "Скан": "https://localhost:3443/api/files/7" });
+  const i = await port.insert("ДокументыКачества", 0, [{ Материалы: "Кабель; Труба", Тип: "Сертификат соответствия", Номер: "С-1", Листов: 2 }]);
+  await port.write("ДокументыКачества", i, { Скан: "с1.pdf" }, { Скан: "https://localhost:3443/api/files/7" });
   const rows = wb.rowsOf("Материалы");
-  assert.deepEqual(rows.map((r) => [r["Наименование"], r["Док.1: вид"], r["Док.1: номер"], r["Док.1: скан"]]),
-    [["Кабель", "Сертификат соответствия", "С-1", "с1.pdf"], ["Труба", "Сертификат соответствия", "С-1", "с1.pdf"]]);
+  assert.deepEqual(
+    rows.map((r) => [r["Наименование"], r["Док.1: вид"], r["Док.1: номер"], r["Док.1: скан"]]),
+    [
+      ["Кабель", "Сертификат соответствия", "С-1", "с1.pdf"],
+      ["Труба", "Сертификат соответствия", "С-1", "с1.pdf"],
+    ],
+  );
   const d = (await port.read("ДокументыКачества"))!;
   assert.equal(d.rows.length, 1, "общий сертификат — один документ");
   assert.equal(d.links[0][d.headers.indexOf("Скан")], "https://localhost:3443/api/files/7");
-  await port.insert("Спецификация", 0, [{ "№ п/п": "1.1", "Наименование": "Лоток", "Ед. изм.": "м", "Кол-во по проекту": 10 }]);
+  await port.insert("Спецификация", 0, [{ "№ п/п": "1.1", Наименование: "Лоток", "Ед. изм.": "м", "Кол-во по проекту": 10 }]);
   assert.equal(wb.rowsOf("Материалы")[2]["№ п/п РКЦ"], "1.1");
   wb.active = "Лист1";
   await port.selectCell("ДокументыКачества", 0, "Номер");
@@ -52,10 +57,18 @@ function book025(extraDocs = 0): FakeWorkbook {
     ["1.1", "Кабели", "Кабель по РКЦ", "м", 500, "", "", "РКЦ", ""],
     ["2.1", "Прочее", "Без материала", "шт", 3, "", "", "вручную", ""],
   ]);
-  wb.addTable("Материалы", "Материалы", 3, 0, OLD_MAT, [["Кабель ВВГ", "", "", "Завод", "м", "1.1"], ["Труба ПНД", "", "", "", "м", ""]]);
+  wb.addTable("Материалы", "Материалы", 3, 0, OLD_MAT, [
+    ["Кабель ВВГ", "", "", "Завод", "м", "1.1"],
+    ["Труба ПНД", "", "", "", "м", ""],
+  ]);
   const dh = headers("ДокументыКачества");
-  const row = (m: string, n: string, scan = "") => dh.map((h) => (h === "Материалы" ? m : h === "Номер" ? n : h === "Тип" ? "Паспорт качества" : h === "Скан" ? scan : h === "Листов" ? 1 : ""));
-  const docs = [row("Кабель ВВГ", "П-1", "п1.pdf"), row("Кабель ВВГ; Труба ПНД", "С-7"), ...Array.from({ length: extraDocs }, (_, k) => row("Кабель ВВГ", `Д-${k}`))];
+  const row = (m: string, n: string, scan = "") =>
+    dh.map((h) => (h === "Материалы" ? m : h === "Номер" ? n : h === "Тип" ? "Паспорт качества" : h === "Скан" ? scan : h === "Листов" ? 1 : ""));
+  const docs = [
+    row("Кабель ВВГ", "П-1", "п1.pdf"),
+    row("Кабель ВВГ; Труба ПНД", "С-7"),
+    ...Array.from({ length: extraDocs }, (_, k) => row("Кабель ВВГ", `Д-${k}`)),
+  ];
   const t = wb.addTable("Документы качества", "ДокументыКачества", 3, 0, dh, docs);
   t.sheet.put(t.top + 1, dh.indexOf("Скан"), { v: "п1.pdf", link: "https://localhost:3443/api/files/5" });
   return wb;
@@ -69,19 +82,33 @@ test("книга 0.25: «Обновить разметку» сводит три
   for (const s of ["Спецификация", "Документы качества"]) assert.ok(wb.sheets.find((x) => x.name === s)!.deleted, s);
   const archive = wb.sheets.find((x) => x.name === "Архив до 0.27" && !x.deleted)!;
   assert.equal(archive.visibility, "Hidden");
-  assert.ok([...archive.cells.values()].some((c) => c.v === "П-1"), "в архиве — старые строки");
+  assert.ok(
+    [...archive.cells.values()].some((c) => c.v === "П-1"),
+    "в архиве — старые строки",
+  );
   const rows = wb.rowsOf("Материалы");
-  assert.deepEqual(rows.map((r) => [r["Наименование"], r["№ п/п РКЦ"], r["Кол-во по проекту"], r["Док.1: номер"], r["Док.2: номер"]]), [
-    ["Кабель ВВГ", "1.1", 500, "П-1", "С-7"],
-    ["Труба ПНД", "", "", "С-7", ""],
-    ["Без материала", "2.1", 3, "", ""],
-  ]);
+  assert.deepEqual(
+    rows.map((r) => [r["Наименование"], r["№ п/п РКЦ"], r["Кол-во по проекту"], r["Док.1: номер"], r["Док.2: номер"]]),
+    [
+      ["Кабель ВВГ", "1.1", 500, "П-1", "С-7"],
+      ["Труба ПНД", "", "", "С-7", ""],
+      ["Без материала", "2.1", 3, "", ""],
+    ],
+  );
   const t = (await port.read("Материалы"))!;
   assert.equal(t.links[0][t.headers.indexOf("Док.1: скан")], "https://localhost:3443/api/files/5");
-  assert.deepEqual(port.lastMerge && { ...port.lastMerge, problems: port.lastMerge.problems.length }, { docs: 2, positions: 2, problems: 0, backup: "Архив до 0.27" });
+  assert.deepEqual(port.lastMerge && { ...port.lastMerge, problems: port.lastMerge.problems.length }, {
+    docs: 2,
+    positions: 2,
+    problems: 0,
+    backup: "Архив до 0.27",
+  });
   // Виртуальные таблицы — как до переноса.
   assert.equal((await port.read("ДокументыКачества"))!.rows.length, 2);
-  assert.deepEqual((await port.read("Спецификация"))!.rows.map((r) => r[0]), ["1.1", "2.1"]);
+  assert.deepEqual(
+    (await port.read("Спецификация"))!.rows.map((r) => r[0]),
+    ["1.1", "2.1"],
+  );
   // Повторное «Обновить разметку» — ничего не дублирует.
   port.lastMerge = null;
   await port.ensureBook(defaultImportant());
@@ -102,8 +129,9 @@ test("книга 0.26: документы стояли справа от «Ма�
   const wb = installFakeExcel();
   wb.addTable("Материалы", "Материалы", 3, 0, OLD_MAT, [["Кабель ВВГ", "", "", "", "м", ""]]);
   const dh = headers("ДокументыКачества");
-  const t = wb.addTable("Материалы", "ДокументыКачества", 3, OLD_MAT.length + 1, dh,
-    [dh.map((h) => (h === "Материалы" ? "Кабель ВВГ" : h === "Номер" ? "П-9" : h === "Тип" ? "Паспорт качества" : ""))]);
+  const t = wb.addTable("Материалы", "ДокументыКачества", 3, OLD_MAT.length + 1, dh, [
+    dh.map((h) => (h === "Материалы" ? "Кабель ВВГ" : h === "Номер" ? "П-9" : h === "Тип" ? "Паспорт качества" : "")),
+  ]);
   t.sheet.put(2, OLD_MAT.length + 1, { v: "Документы качества (паспорта, сертификаты)", link: null });
   const port = new ExcelPort();
   await port.ensureBook(defaultImportant());
@@ -122,7 +150,7 @@ test("0.27.4: «Закрыто» и «Остаток» — формулы в ф�
   const fmt = (h: string, r: number) => t.sheet.get(t.top + 1 + r, t.left + t.headers().indexOf(h)).fmt;
   const n = wb.rowsOf("Материалы").length;
   for (let r = 0; r < n; r++) for (const h of ["Закрыто", "Остаток"]) assert.equal(fmt(h, r), "General", `${h} ${r}`);
-  await port.insert("Материалы", n, [{ "Наименование": "Новый 1" }, { "Наименование": "Новый 2" }]);
+  await port.insert("Материалы", n, [{ Наименование: "Новый 1" }, { Наименование: "Новый 2" }]);
   assert.equal(fmt("Закрыто", n + 1), "General");
   assert.match(String(wb.rowsOf("Материалы")[n + 1]["Закрыто"]), /^=SUMIFS/);
   // Книга 0.27 (разметка 13) с текстовым форматом формул — «Обновить разметку» ставит «Общий».

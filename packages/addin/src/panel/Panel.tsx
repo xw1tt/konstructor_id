@@ -32,7 +32,10 @@ import { CatalogContext, loadCatalog, workListNames } from "./catalogApi.ts";
 
 /** Создание книги идёт в несколько шагов; пока оно идёт, панель не переключается на разделы,
  *  хотя таблицы уже появились (иначе экран с предложением переноса пропал бы). */
-export interface CreateFlow { start(): void; finish(): void }
+export interface CreateFlow {
+  start(): void;
+  finish(): void;
+}
 
 export interface PanelSlots {
   /** Экран создания книги (нет ни одной таблицы программы) и восстановления разметки. */
@@ -76,7 +79,11 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const [creating, setCreating] = useState(false);
   const [screen, setScreen] = useState<ScreenId>("home");
   const [template, setTemplate] = useState<TemplateCode>(DEFAULT_TEMPLATE);
-  useEffect(() => { void loadTemplate(port).then(setTemplate).catch(() => undefined); }, [port]);
+  useEffect(() => {
+    void loadTemplate(port)
+      .then(setTemplate)
+      .catch(() => undefined);
+  }, [port]);
   const [list, setList] = useState<UserTemplate[]>([BUILTIN_SBD]);
   const [listTick, setListTick] = useState(0);
   const [loaded, setLoaded] = useState(false);
@@ -84,22 +91,44 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const load = () => listTemplates()
-      .then((l) => { if (alive) { setList(l); setLoaded(true); } })
-      .catch(() => { if (alive) { setLoaded(false); timer = setTimeout(load, 15_000); } });
+    const load = () =>
+      listTemplates()
+        .then((l) => {
+          if (alive) {
+            setList(l);
+            setLoaded(true);
+          }
+        })
+        .catch(() => {
+          if (alive) {
+            setLoaded(false);
+            timer = setTimeout(load, 15_000);
+          }
+        });
     void load();
-    return () => { alive = false; clearTimeout(timer); };
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [listTick]);
   // Справочник документов — с сервера, повтор каждые 15 с, пока сервер не ответит.
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const load = () => loadCatalog()
-      .then((r) => { if (alive) setCatalog(r.catalog); })
-      .catch(() => { if (alive) timer = setTimeout(load, 15_000); });
+    const load = () =>
+      loadCatalog()
+        .then((r) => {
+          if (alive) setCatalog(r.catalog);
+        })
+        .catch(() => {
+          if (alive) timer = setTimeout(load, 15_000);
+        });
     void load();
-    return () => { alive = false; clearTimeout(timer); };
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [listTick]);
   const resolved = resolveTemplate(list, template, loaded);
   const templates: TemplatesState = { ...resolved, list, reload: () => setListTick((n) => n + 1) };
@@ -121,24 +150,56 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   // Бланки и настройки печати шаблона: применение сохраняет шаблон (встроенный — копией, выбранной для книги).
   const chooseRef = useRef(chooseTemplate);
   chooseRef.current = chooseTemplate;
-  const [tplKit] = useState(() => templateKit({
-    list: listTemplates, save: saveTemplateDocs, create: createTemplate, remove: deleteTemplate,
-    choose: async (id) => { chooseRef.current(id); },
-  }, () => setListTick((n) => n + 1)));
-  const [assistant] = useState(() => new AssistantSession({ store: port, chat: aiApi.chat, kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit, tplKit] }));
+  const [tplKit] = useState(() =>
+    templateKit(
+      {
+        list: listTemplates,
+        save: saveTemplateDocs,
+        create: createTemplate,
+        remove: deleteTemplate,
+        choose: async (id) => {
+          chooseRef.current(id);
+        },
+      },
+      () => setListTick((n) => n + 1),
+    ),
+  );
+  const [assistant] = useState(
+    () => new AssistantSession({ store: port, chat: aiApi.chat, kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit, tplKit] }),
+  );
   // «Только нужные листы» включено по умолчанию: листы — по документам шаблона книги.
   const [neededOn, setNeededOn] = useState(false);
-  useEffect(() => { void port.setting(NEEDED_SHEETS_SETTING).then((v) => setNeededOn(neededSheetsOn(v))).catch(() => undefined); }, [port]);
+  useEffect(() => {
+    void port
+      .setting(NEEDED_SHEETS_SETTING)
+      .then((v) => setNeededOn(neededSheetsOn(v)))
+      .catch(() => undefined);
+  }, [port]);
   const applySheets = async (on: boolean) => {
     if (!state.book) return;
     const p = sheetPlan(resolved.template, state.book, on);
     await port.setSheetsVisible(p.visible, p.hidden);
   };
-  const needed = { on: neededOn, set: async (v: boolean) => { await port.setSetting(NEEDED_SHEETS_SETTING, v ? "1" : "0"); setNeededOn(v); await applySheets(v); } };
+  const needed = {
+    on: neededOn,
+    set: async (v: boolean) => {
+      await port.setSetting(NEEDED_SHEETS_SETTING, v ? "1" : "0");
+      setNeededOn(v);
+      await applySheets(v);
+    },
+  };
   // Пересчёт листов при смене шаблона или его документов.
   const tplKey = `${resolved.template.id}:${resolved.template.docs.map((d) => (d.kind === "builtin" ? d.doc : d.code)).join(",")}`;
-  useEffect(() => { if (neededOn && state.book) void applySheets(true).catch(() => undefined); }, [tplKey, neededOn, !!state.book]);
-  const flow: CreateFlow = { start: () => setCreating(true), finish: () => { setCreating(false); state.refresh(); } };
+  useEffect(() => {
+    if (neededOn && state.book) void applySheets(true).catch(() => undefined);
+  }, [tplKey, neededOn, !!state.book]);
+  const flow: CreateFlow = {
+    start: () => setCreating(true),
+    finish: () => {
+      setCreating(false);
+      state.refresh();
+    },
+  };
   const { book, selection } = state;
   const active = selection ? sectionForSheet(selection.sheet) : null;
   const allMissing = !!book && book.missing.length === TABLE_NAMES.length;
@@ -154,53 +215,100 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   return (
     <ServerDownContext.Provider value={() => setServerDown(true)}>
       <TemplateContext.Provider value={template}>
-      <UserTemplateContext.Provider value={templates}>
-      <PrintOptionsContext.Provider value={options}>
-      <CatalogContext.Provider value={catalog}>
-        <div className="app">
-          <TopBar screen={screen} onScreen={setScreen} template={template} templates={list} onTemplate={chooseTemplate} />
-          {serverDown && (
-            <div className="banner" role="alert">
-              <p>Сервер не запущен: листы работают, печать и сканы недоступны. Запустите «Конструктор ИД» на компьютере.</p>
-              <button className="btn" onClick={() => setServerDown(false)}>Скрыть</button>
-            </div>
-          )}
-          {state.error && <p className="error" role="alert">{state.error}</p>}
-          {screen === "templates" ? <TemplateEditor state={state} onChoose={chooseTemplate} />
-            : screen === "fields" ? <FieldsScreen state={state} />
-            : screen === "library" ? <LibraryScreen port={port} state={state} />
-            : screen === "wizard" ? <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
-            : screen === "settings" ? <SettingsScreen state={state} assistant={assistant} /> : screen === "assistant" ? <AssistantScreen port={port} state={state} session={assistant} onSettings={() => setScreen("settings")} extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />} /> : screen === "normativ" ? (
-            <NormativScreen port={port} />
-          ) : !book ? <p className="notice">Читаю книгу…</p> : allMissing || creating ? slots.create?.(state, book.missing, flow) : (
-            <>
-              <nav className="stamp" role="tablist" aria-label="Разделы">
-                {SECTIONS.map((s) => (
-                  <button key={s.id} role="tab" aria-selected={s.id === active} title={s.label} aria-label={s.label} onClick={() => void port.activateSheet(s.sheets[0])}>
-                    <SectionIcon id={s.id} /><span className="st-label">{s.label}</span>
-                  </button>
-                ))}
-              </nav>
-              {(book.missing.length > 0 || state.outdated) && slots.create?.(state, book.missing, flow)}
-              {port.lastMerge && <MergeNote merge={port.lastMerge} onClose={() => { port.lastMerge = null; setMergeShown((n) => n + 1); }} />}
-              <main className="content">
-                {/* Мастер первого акта (план 17): в книге без актов и на листе «База актов». */}
-                {((book.tables["Акты"]?.length ?? 0) === 0 || selection?.sheet === "База актов") && !book.missing.includes("Акты") && (
-                  <div className={(book.tables["Акты"]?.length ?? 0) === 0 ? "banner wiz-banner" : "row-actions"}>
-                    {(book.tables["Акты"]?.length ?? 0) === 0 && <p>В книге ещё нет актов. Мастер проведёт от объекта до печати АОСР за 5 шагов.</p>}
-                    <button className="btn btn-primary" onClick={() => setScreen("wizard")}>Мастер первого акта</button>
+        <UserTemplateContext.Provider value={templates}>
+          <PrintOptionsContext.Provider value={options}>
+            <CatalogContext.Provider value={catalog}>
+              <div className="app">
+                <TopBar screen={screen} onScreen={setScreen} template={template} templates={list} onTemplate={chooseTemplate} />
+                {serverDown && (
+                  <div className="banner" role="alert">
+                    <p>Сервер не запущен: листы работают, печать и сканы недоступны. Запустите «Конструктор ИД» на компьютере.</p>
+                    <button className="btn" onClick={() => setServerDown(false)}>
+                      Скрыть
+                    </button>
                   </div>
                 )}
-                <SheetTools port={port} state={state} needed={needed} onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))} />
-                <TableTools port={port} state={state} />
-                {slots.card?.(state)}
-              </main>
-            </>
-          )}
-        </div>
-      </CatalogContext.Provider>
-      </PrintOptionsContext.Provider>
-      </UserTemplateContext.Provider>
+                {state.error && (
+                  <p className="error" role="alert">
+                    {state.error}
+                  </p>
+                )}
+                {screen === "templates" ? (
+                  <TemplateEditor state={state} onChoose={chooseTemplate} />
+                ) : screen === "fields" ? (
+                  <FieldsScreen state={state} />
+                ) : screen === "library" ? (
+                  <LibraryScreen port={port} state={state} />
+                ) : screen === "wizard" ? (
+                  <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
+                ) : screen === "settings" ? (
+                  <SettingsScreen state={state} assistant={assistant} />
+                ) : screen === "assistant" ? (
+                  <AssistantScreen
+                    port={port}
+                    state={state}
+                    session={assistant}
+                    onSettings={() => setScreen("settings")}
+                    extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />}
+                  />
+                ) : screen === "normativ" ? (
+                  <NormativScreen port={port} />
+                ) : !book ? (
+                  <p className="notice">Читаю книгу…</p>
+                ) : allMissing || creating ? (
+                  slots.create?.(state, book.missing, flow)
+                ) : (
+                  <>
+                    <nav className="stamp" role="tablist" aria-label="Разделы">
+                      {SECTIONS.map((s) => (
+                        <button
+                          key={s.id}
+                          role="tab"
+                          aria-selected={s.id === active}
+                          title={s.label}
+                          aria-label={s.label}
+                          onClick={() => void port.activateSheet(s.sheets[0])}
+                        >
+                          <SectionIcon id={s.id} />
+                          <span className="st-label">{s.label}</span>
+                        </button>
+                      ))}
+                    </nav>
+                    {(book.missing.length > 0 || state.outdated) && slots.create?.(state, book.missing, flow)}
+                    {port.lastMerge && (
+                      <MergeNote
+                        merge={port.lastMerge}
+                        onClose={() => {
+                          port.lastMerge = null;
+                          setMergeShown((n) => n + 1);
+                        }}
+                      />
+                    )}
+                    <main className="content">
+                      {/* Мастер первого акта (план 17): в книге без актов и на листе «База актов». */}
+                      {((book.tables["Акты"]?.length ?? 0) === 0 || selection?.sheet === "База актов") && !book.missing.includes("Акты") && (
+                        <div className={(book.tables["Акты"]?.length ?? 0) === 0 ? "banner wiz-banner" : "row-actions"}>
+                          {(book.tables["Акты"]?.length ?? 0) === 0 && <p>В книге ещё нет актов. Мастер проведёт от объекта до печати АОСР за 5 шагов.</p>}
+                          <button className="btn btn-primary" onClick={() => setScreen("wizard")}>
+                            Мастер первого акта
+                          </button>
+                        </div>
+                      )}
+                      <SheetTools
+                        port={port}
+                        state={state}
+                        needed={needed}
+                        onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))}
+                      />
+                      <TableTools port={port} state={state} />
+                      {slots.card?.(state)}
+                    </main>
+                  </>
+                )}
+              </div>
+            </CatalogContext.Provider>
+          </PrintOptionsContext.Provider>
+        </UserTemplateContext.Provider>
       </TemplateContext.Provider>
     </ServerDownContext.Provider>
   );

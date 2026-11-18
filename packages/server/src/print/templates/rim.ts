@@ -10,16 +10,21 @@ export function rimRowsOf(d: RimData): BodyRow[] {
     const size = d.rows.slice(i + 1).findIndex((x) => !x.cont);
     const rowspan = size === -1 ? d.rows.length - i : size + 1;
     return {
-      group: r.group, cls: "row",
+      group: r.group,
+      cls: "row",
       cells: { n: i + 1, ...(r.cont ? {} : { name: { text: r.name, rowspan } }), type: r.type, number: r.number, date: r.date, sheets: r.sheets },
     };
   });
 }
 
 export function rimHtml(d: RimData, view: BlankView = blankView("rim:sbd")): string {
-  return page(d.number, `
+  return page(
+    d.number,
+    `
     <div class="appx-head">Приложение №2<br>Приложение к акту освидетельствования скрытых работ ${e(withNo(String(d.aosrNumber ?? "")))}</div>
     <div class="doc-head">Реестр использованных материалов<br>${e(withNo(String(d.number ?? "")))}<br>Сопроводительные документы качества (паспорта, сертификаты, заключения и т.д.)</div>
     ${htmlBlankTable(view, rimRowsOf(d), { nums: true })}
-    ${signBlocks(d.signs)}`, "rim");
+    ${signBlocks(d.signs)}`,
+    "rim",
+  );
 }

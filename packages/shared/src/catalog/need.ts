@@ -13,8 +13,7 @@ const norm = (s: string) => s.trim().toLowerCase();
 /** Номер документа реестра без «№» и пробелов — для сравнения. */
 const normNumber = (s: string) => s.replace(/^№\s*/, "").trim();
 
-const actRow = (book: Book, act: string): BookRow | undefined =>
-  (book.tables["Акты"] ?? []).find((r) => txt(r.v.baseNumber) === act);
+const actRow = (book: Book, act: string): BookRow | undefined => (book.tables["Акты"] ?? []).find((r) => txt(r.v.baseNumber) === act);
 
 /** Код документа шаблона: код справочника, код своего документа или подпись встроенного («АОСР»). */
 export function docCode(d: TemplateDoc): string {
@@ -41,8 +40,7 @@ export function actWorks(c: Catalog, book: Book, act: string): { works: string[]
 }
 
 /** Коды «Без документов» акта (сравнение без учёта регистра). */
-const skipped = (book: Book, act: string): Set<string> =>
-  new Set(splitRefs(actRow(book, act)?.v.skipDocs ?? null).map(norm));
+const skipped = (book: Book, act: string): Set<string> => new Set(splitRefs(actRow(book, act)?.v.skipDocs ?? null).map(norm));
 
 /** Нужен ли документ акту: без «Вида работ» — все; иначе — непривязанные и те, чьи виды работ пересекаются с актом. */
 function needed(d: TemplateDoc, listed: boolean, works: string[]): boolean {
@@ -75,15 +73,22 @@ export function kitDocs(t: UserTemplate, c: Catalog, book: Book, acts: string[])
  *  noData — у протокола или акта плана 13 нет строки в «Протоколах». */
 export type Status = "print" | "scan" | "noScan" | "noForm" | "noData";
 
-export interface DocState { doc: TemplateDoc; label: string; status: Status; number: string }
+export interface DocState {
+  doc: TemplateDoc;
+  label: string;
+  status: Status;
+  number: string;
+}
 
 /** Есть ли в «Реестре ИД» строка с этим номером (и комплектом/актом, если заданы) и непустым «Сканом». */
 function hasScan(book: Book, number: string, where: { kit?: string; act?: string | null }): boolean {
-  return (book.tables["РеестрИД"] ?? []).some((r) =>
-    normNumber(txt(r.v.number)) === normNumber(number)
-    && (where.kit === undefined || txt(r.v.kit) === where.kit)
-    && (where.act === undefined || (where.act === null ? !txt(r.v.act) : true))
-    && (txt(r.v.file) !== "" || !!r.link?.file));
+  return (book.tables["РеестрИД"] ?? []).some(
+    (r) =>
+      normNumber(txt(r.v.number)) === normNumber(number) &&
+      (where.kit === undefined || txt(r.v.kit) === where.kit) &&
+      (where.act === undefined || (where.act === null ? !txt(r.v.act) : true)) &&
+      (txt(r.v.file) !== "" || !!r.link?.file),
+  );
 }
 
 function stateOf(book: Book, d: TemplateDoc, number: string, where: { kit?: string; act?: string | null }): DocState {

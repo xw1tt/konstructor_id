@@ -19,8 +19,14 @@ test("без выбора — как было; выбранный по роли 
   const reps = [rep("builder", "Аксенов А.М."), rep("builder", "Петров П.П.", "2026-08-01"), rep("performer", "Королев Д.М.")];
   assert.deepEqual(actRepresentatives(reps, [], "2026-07-28"), reps);
   const r = actRepresentatives(reps, ["Петров П.П."], "2026-07-28");
-  assert.deepEqual(r.map((x) => x.fullName), ["Петров П.П.", "Королев Д.М."]);
-  assert.deepEqual(activeRepresentatives(r as any, "builder", "2026-07-28").map((x) => x.fullName), ["Петров П.П."]);
+  assert.deepEqual(
+    r.map((x) => x.fullName),
+    ["Петров П.П.", "Королев Д.М."],
+  );
+  assert.deepEqual(
+    activeRepresentatives(r as any, "builder", "2026-07-28").map((x) => x.fullName),
+    ["Петров П.П."],
+  );
   // Неизвестное ФИО ничего не меняет.
   assert.deepEqual(actRepresentatives(reps, ["Нет Такого"], "2026-07-28"), reps);
 });
@@ -35,13 +41,15 @@ test("одно ФИО в нескольких строках роли — одн
 
 const book = (patch: (r: any) => void) => {
   const r: any = aov1Records();
-  r["Представители"].push({ ...r["Представители"][2], "ФИО": "Заменов З.З.", "Действует с": d("2026-09-01") });
+  r["Представители"].push({ ...r["Представители"][2], ФИО: "Заменов З.З.", "Действует с": d("2026-09-01") });
   patch(r);
   return readBook(new MemoryWorkbook(r));
 };
 
 test("пакет акта: замена стройконтроля на акте попадает во все документы акта", async () => {
-  const b = await book((r) => { r["Акты"][0]["Подписанты"] = "Заменов З.З."; });
+  const b = await book((r) => {
+    r["Акты"][0]["Подписанты"] = "Заменов З.З.";
+  });
   const { bundle, issues } = buildBundle(b, AOV1, defaultImportant());
   assert.deepEqual(issues, []);
   const ctl = bundle!.representatives.filter((x) => x.role === "builder_control").map((x) => x.fullName);
@@ -50,22 +58,35 @@ test("пакет акта: замена стройконтроля на акте
 });
 
 test("неизвестный подписант — ошибка печати в ячейке акта", async () => {
-  const b = await book((r) => { r["Акты"][0]["Подписанты"] = "Нет Такого"; });
+  const b = await book((r) => {
+    r["Акты"][0]["Подписанты"] = "Нет Такого";
+  });
   const { issues } = buildBundle(b, AOV1, defaultImportant());
   assert.ok(issues.some((i) => i.table === "Акты" && i.column === "Подписанты"));
 });
 
 test("ОЖР: раздел 5 подписывают выбранные в акте", async () => {
-  const { s5 } = ojrRows(await book((r) => { r["Акты"][0]["Подписанты"] = "Заменов З.З."; }));
+  const { s5 } = ojrRows(
+    await book((r) => {
+      r["Акты"][0]["Подписанты"] = "Заменов З.З.";
+    }),
+  );
   const all = s5.map((x) => Object.values(x).join("\n")).join("\n");
   assert.ok(all.includes("Заменов З.З."));
   assert.ok(!all.includes("Филиппов М.И."));
 });
 
 test("проверка перед сдачей: выбранный без действующих полномочий — предупреждение, роль не «пустая»", async () => {
-  const b = await book((r) => { r["Акты"][0]["Подписанты"] = "Заменов З.З."; });
+  const b = await book((r) => {
+    r["Акты"][0]["Подписанты"] = "Заменов З.З.";
+  });
   const w = checkActs(b, [AOV1], "2026-10-01").map((x) => x.message);
-  assert.ok(w.some((m) => m.includes("Заменов З.З.") && m.includes("не действуют")), w.join("\n"));
-  const b2 = await book((r) => { r["Акты"][0]["Подписанты"] = "Кто-то"; });
+  assert.ok(
+    w.some((m) => m.includes("Заменов З.З.") && m.includes("не действуют")),
+    w.join("\n"),
+  );
+  const b2 = await book((r) => {
+    r["Акты"][0]["Подписанты"] = "Кто-то";
+  });
   assert.ok(checkActs(b2, [AOV1], "2026-10-01").some((x) => x.message.includes("«Кто-то» нет")));
 });

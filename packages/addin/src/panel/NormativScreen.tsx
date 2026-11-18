@@ -9,12 +9,17 @@ import { useGuard } from "../server.tsx";
 import { openPortal } from "./portal.ts";
 import { cellAppend, docsCount, latestOnly, normInsertText, normsQuery, refreshText, NORM_INSERT_KEY, type NormInsertMode } from "./normsApi.ts";
 
-export const TERMS = "Программа не хранит и не распространяет тексты нормативов. В справочнике — только сведения из открытых списков портала protect.gost.ru (обозначение, наименование, число страниц, статус). Документы открываются напрямую с портала; окно лишь показывает страницы, полученные порталом для вашей сессии.";
+export const TERMS =
+  "Программа не хранит и не распространяет тексты нормативов. В справочнике — только сведения из открытых списков портала protect.gost.ru (обозначение, наименование, число страниц, статус). Документы открываются напрямую с портала; окно лишь показывает страницы, полученные порталом для вашей сессии.";
 const EMPTY = "Справочник пуст — нажмите «Обновить базу». Понадобится доступ к интернету, обновление займёт несколько минут.";
 
 /** Режим «В ячейку» запоминается в браузере панели (у каждого пользователя свой). */
 function loadInsertMode(): NormInsertMode {
-  try { return localStorage.getItem(NORM_INSERT_KEY) === "full" ? "full" : "designation"; } catch { return "designation"; }
+  try {
+    return localStorage.getItem(NORM_INSERT_KEY) === "full" ? "full" : "designation";
+  } catch {
+    return "designation";
+  }
 }
 
 const lastUpdated = (u: NormSearchResult["updated"]) => {
@@ -42,28 +47,40 @@ export function NormativScreen({ port }: { port: ExcelPort }) {
   const [insertMode, setInsertMode] = useState<NormInsertMode>(loadInsertMode);
   const chooseInsert = (m: NormInsertMode) => {
     setInsertMode(m);
-    try { localStorage.setItem(NORM_INSERT_KEY, m); } catch { /* без памяти — только на этот сеанс */ }
+    try {
+      localStorage.setItem(NORM_INSERT_KEY, m);
+    } catch {
+      /* без памяти — только на этот сеанс */
+    }
   };
   const loading = useRef(false);
 
-  useEffect(() => { const t = setTimeout(() => setQuery(q), 250); return () => clearTimeout(t); }, [q]);
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(q), 250);
+    return () => clearTimeout(t);
+  }, [q]);
 
   const seq = useRef(latestOnly());
-  const load = useCallback(async (offset: number) => {
-    // Подгрузка при прокрутке — по одной; новый поиск или раздел всегда запрашиваются заново,
-    // а ответ на устаревший запрос отбрасывается.
-    if (offset > 0 && loading.current) return;
-    loading.current = true;
-    const r = await seq.current.run(guard(apiGet<NormSearchResult>(normsQuery({ section, q: query, offset })), setError));
-    loading.current = false;
-    if (!r) return;
-    setError("");
-    setData(r);
-    setItems((prev) => (offset === 0 ? r.items : [...prev, ...r.items]));
-    if (offset === 0) setSelected(null);
-  }, [guard, section, query]);
+  const load = useCallback(
+    async (offset: number) => {
+      // Подгрузка при прокрутке — по одной; новый поиск или раздел всегда запрашиваются заново,
+      // а ответ на устаревший запрос отбрасывается.
+      if (offset > 0 && loading.current) return;
+      loading.current = true;
+      const r = await seq.current.run(guard(apiGet<NormSearchResult>(normsQuery({ section, q: query, offset })), setError));
+      loading.current = false;
+      if (!r) return;
+      setError("");
+      setData(r);
+      setItems((prev) => (offset === 0 ? r.items : [...prev, ...r.items]));
+      if (offset === 0) setSelected(null);
+    },
+    [guard, section, query],
+  );
 
-  useEffect(() => { void load(0); }, [load]);
+  useEffect(() => {
+    void load(0);
+  }, [load]);
 
   // Ход обновления: опрос раз в секунду, пока сервер обходит портал.
   useEffect(() => {
@@ -77,7 +94,9 @@ export function NormativScreen({ port }: { port: ExcelPort }) {
     return () => clearInterval(t);
   }, [refresh?.running, guard, load]);
 
-  useEffect(() => { void guard(apiGet<RefreshState>("/api/norms/refresh"), () => undefined).then((s) => s && setRefresh(s)); }, [guard]);
+  useEffect(() => {
+    void guard(apiGet<RefreshState>("/api/norms/refresh"), () => undefined).then((s) => s && setRefresh(s));
+  }, [guard]);
 
   const startRefresh = async () => {
     setNote(null);
@@ -98,7 +117,10 @@ export function NormativScreen({ port }: { port: ExcelPort }) {
       const insert = normInsertText(item, insertMode);
       const r = await port.writeActiveCell((cur) => {
         const res = cellAppend(cur, item.designation, insert);
-        if ("error" in res) { message = res.error; return null; }
+        if ("error" in res) {
+          message = res.error;
+          return null;
+        }
         return res.value;
       });
       setNote(r.written ? { text: `Вписано: ${insert}` } : { text: message || "Ячейка не изменена", error: true });
@@ -118,40 +140,85 @@ export function NormativScreen({ port }: { port: ExcelPort }) {
 
   return (
     <main className="content norms">
-      <input className="search" type="search" placeholder="Поиск по обозначению и названию" value={q}
-        onChange={(e) => setQ(e.target.value)} aria-label="Поиск по справочнику" />
+      <input
+        className="search"
+        type="search"
+        placeholder="Поиск по обозначению и названию"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        aria-label="Поиск по справочнику"
+      />
       <div className="chips norm-chips" role="group" aria-label="Разделы">
         {NORM_SECTIONS.map((s) => (
-          <button key={s.code} className={`chip${section === s.code ? " chip-active" : ""}`} aria-pressed={section === s.code}
-            onClick={() => setSection((cur) => (cur === s.code ? null : s.code))}>
+          <button
+            key={s.code}
+            className={`chip${section === s.code ? " chip-active" : ""}`}
+            aria-pressed={section === s.code}
+            onClick={() => setSection((cur) => (cur === s.code ? null : s.code))}
+          >
             {s.label} <span className="chip-count">{data?.counts[s.code] ?? 0}</span>
           </button>
         ))}
       </div>
       <div className="row-actions norm-actions">
-        <button className="btn btn-small" disabled={!item} onClick={() => item && openPortal(item.url)}>Читать</button>
-        <button className="btn btn-small" disabled={!item} onClick={() => setCard((v) => !v)} aria-pressed={card}>Карточка</button>
-        <button className="btn btn-small" disabled={!item} onClick={() => void toCell()}>В ячейку</button>
-        <button className="btn btn-small" disabled={!!refresh?.running} onClick={() => void startRefresh()}>Обновить базу</button>
-        <button className="btn btn-small" disabled title="Скоро" aria-label="Настройки">⚙</button>
-        <button className="btn btn-small" onClick={() => setTerms((v) => !v)} aria-pressed={terms}>Условия</button>
+        <button className="btn btn-small" disabled={!item} onClick={() => item && openPortal(item.url)}>
+          Читать
+        </button>
+        <button className="btn btn-small" disabled={!item} onClick={() => setCard((v) => !v)} aria-pressed={card}>
+          Карточка
+        </button>
+        <button className="btn btn-small" disabled={!item} onClick={() => void toCell()}>
+          В ячейку
+        </button>
+        <button className="btn btn-small" disabled={!!refresh?.running} onClick={() => void startRefresh()}>
+          Обновить базу
+        </button>
+        <button className="btn btn-small" disabled title="Скоро" aria-label="Настройки">
+          ⚙
+        </button>
+        <button className="btn btn-small" onClick={() => setTerms((v) => !v)} aria-pressed={terms}>
+          Условия
+        </button>
       </div>
       <div className="chips norm-insert" role="radiogroup" aria-label="Что вставлять в ячейку">
         <span className="muted">Вставлять:</span>
-        {([["designation", "только обозначение"], ["full", "обозначение и наименование"]] as const).map(([m, label]) => (
-          <button key={m} className={`chip${insertMode === m ? " chip-active" : ""}`} role="radio" aria-checked={insertMode === m}
-            onClick={() => chooseInsert(m)}>{label}</button>
+        {(
+          [
+            ["designation", "только обозначение"],
+            ["full", "обозначение и наименование"],
+          ] as const
+        ).map(([m, label]) => (
+          <button
+            key={m}
+            className={`chip${insertMode === m ? " chip-active" : ""}`}
+            role="radio"
+            aria-checked={insertMode === m}
+            onClick={() => chooseInsert(m)}
+          >
+            {label}
+          </button>
         ))}
       </div>
       {terms && <p className="muted norm-terms">{TERMS}</p>}
       {refresh && refreshText(refresh) && (
-        <p className={refresh.error && !refresh.running ? "error" : "notice"} role="status">{refreshText(refresh)}</p>
+        <p className={refresh.error && !refresh.running ? "error" : "notice"} role="status">
+          {refreshText(refresh)}
+        </p>
       )}
-      {note && <p className={note.error ? "error" : "notice"} role="status">{note.text}</p>}
-      {error && <p className="error" role="alert">{error}</p>}
+      {note && (
+        <p className={note.error ? "error" : "notice"} role="status">
+          {note.text}
+        </p>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       {data && (
         <p className="muted norm-total">
-          {docsCount(data.total)}{updated ? `, обновлён ${formatDateShort(updated).replace(/ г\.$/, "")}` : ""}
+          {docsCount(data.total)}
+          {updated ? `, обновлён ${formatDateShort(updated).replace(/ г\.$/, "")}` : ""}
         </p>
       )}
       {card && item && (
@@ -162,10 +229,14 @@ export function NormativScreen({ port }: { port: ExcelPort }) {
             {NORM_SECTIONS.find((s) => s.code === item.section)?.label} · {item.status || "статус не указан"} · {item.pages} с.
           </p>
           <p className="muted norm-url">{item.url}</p>
-          <button className="btn btn-small" onClick={() => openPortal(item.url)}>Открыть на портале</button>
+          <button className="btn btn-small" onClick={() => openPortal(item.url)}>
+            Открыть на портале
+          </button>
         </section>
       )}
-      {empty ? <p className="notice">{EMPTY}</p> : (
+      {empty ? (
+        <p className="notice">{EMPTY}</p>
+      ) : (
         <ul className="list norm-list" onScroll={onScroll} aria-label="Нормативы">
           {items.map((i) => (
             <li key={i.id} className={`norm-row${i.id === selected ? " selected" : ""}`}>

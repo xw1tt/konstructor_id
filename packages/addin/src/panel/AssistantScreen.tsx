@@ -10,8 +10,16 @@ import type { AssistantSession } from "./assistant.ts";
 
 const today = () => new Date().toLocaleDateString("ru-RU");
 
-export function AssistantScreen({ state, session, onSettings, extra }: {
-  port: ExcelPort; state: BookState; session: AssistantSession; onSettings(): void;
+export function AssistantScreen({
+  state,
+  session,
+  onSettings,
+  extra,
+}: {
+  port: ExcelPort;
+  state: BookState;
+  session: AssistantSession;
+  onSettings(): void;
   /** План 20: вложение файла и прочее над полем ввода. */
   extra?: ReactNode;
 }) {
@@ -24,10 +32,18 @@ export function AssistantScreen({ state, session, onSettings, extra }: {
   const tpl = useContext(UserTemplateContext);
   const catalog = useContext(CatalogContext);
 
-  useEffect(() => { void aiApi.providers().then(setProviders).catch((e) => setError((e as Error).message)); }, []);
+  useEffect(() => {
+    void aiApi
+      .providers()
+      .then(setProviders)
+      .catch((e) => setError((e as Error).message));
+  }, []);
   // Прокрутка только окна сообщений и только при новом сообщении (план 21): раньше после каждой клавиши прокручивалась вся панель.
   const log = useRef<HTMLDivElement>(null);
-  useEffect(() => { const el = log.current; if (el) el.scrollTop = el.scrollHeight; }, [session.items.length, busy, session.pending.length]);
+  useEffect(() => {
+    const el = log.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [session.items.length, busy, session.pending.length]);
 
   const active = providers?.providers.find((p) => p.id === providers.active) ?? null;
   const masked = active ? resolveProvider({ ...active, key: "" } as Provider).maskNames : false;
@@ -35,19 +51,38 @@ export function AssistantScreen({ state, session, onSettings, extra }: {
   const send = async () => {
     const q = text.trim();
     if (!q || busy || !state.book) return;
-    setText(""); setBusy(true); setError("");
+    setText("");
+    setBusy(true);
+    setError("");
     const s = state.selection;
-    await session.ask(q, {
-      book: state.book, important: state.important, catalog, template: tpl.template, masked,
-      prompt: { today: today(), sheet: s?.sheet ?? null, table: s?.table ?? null, row: s?.row ?? null, act: state.lastAct },
-    }, rerender);
+    await session.ask(
+      q,
+      {
+        book: state.book,
+        important: state.important,
+        catalog,
+        template: tpl.template,
+        masked,
+        prompt: { today: today(), sheet: s?.sheet ?? null, table: s?.table ?? null, row: s?.row ?? null, act: state.lastAct },
+      },
+      rerender,
+    );
     setChecked(new Set(session.pending.map((p) => p.id)));
     setBusy(false);
   };
 
   const run = async (fn: () => Promise<unknown>) => {
-    setBusy(true); setError("");
-    try { await fn(); state.refresh(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); rerender(); }
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      state.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+      rerender();
+    }
   };
 
   if (providers && !providers.providers.length) {
@@ -55,7 +90,9 @@ export function AssistantScreen({ state, session, onSettings, extra }: {
       <main className="content">
         <h2 className="app-title">Помощник</h2>
         <p className="notice">Подключите нейросеть: YandexGPT, GigaChat, локальную модель или любую OpenAI-совместимую.</p>
-        <button className="btn btn-primary" onClick={onSettings}>Настройки → Нейросети</button>
+        <button className="btn btn-primary" onClick={onSettings}>
+          Настройки → Нейросети
+        </button>
       </main>
     );
   }
@@ -65,12 +102,34 @@ export function AssistantScreen({ state, session, onSettings, extra }: {
       <div className="as-head">
         <h2 className="app-title">Помощник</h2>
         {providers && (
-          <select aria-label="Нейросеть" value={providers.active ?? ""} onChange={(e) => void aiApi.setActive(e.target.value || null).then(setProviders).catch((x) => setError((x as Error).message))}>
+          <select
+            aria-label="Нейросеть"
+            value={providers.active ?? ""}
+            onChange={(e) =>
+              void aiApi
+                .setActive(e.target.value || null)
+                .then(setProviders)
+                .catch((x) => setError((x as Error).message))
+            }
+          >
             {!providers.active && <option value="">— нейросеть —</option>}
-            {providers.providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {providers.providers.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
           </select>
         )}
-        <button className="btn" disabled={busy || !session.items.length} onClick={() => { session.reset(); rerender(); }}>Новый разговор</button>
+        <button
+          className="btn"
+          disabled={busy || !session.items.length}
+          onClick={() => {
+            session.reset();
+            rerender();
+          }}
+        >
+          Новый разговор
+        </button>
       </div>
       {masked && <p className="muted">ФИО представителей в запросы не отправляются.</p>}
       {!session.items.length && (
@@ -87,7 +146,11 @@ export function AssistantScreen({ state, session, onSettings, extra }: {
         </div>
       )}
       <div className="as-log" aria-live="polite" ref={log}>
-        {session.items.map((m, i) => <div key={i} className={`as-msg as-${m.kind}`}>{m.text}</div>)}
+        {session.items.map((m, i) => (
+          <div key={i} className={`as-msg as-${m.kind}`}>
+            {m.text}
+          </div>
+        ))}
         {busy && <div className="as-msg as-tool">Думаю…</div>}
       </div>
       {session.pending.length > 0 && !busy && (
@@ -95,26 +158,72 @@ export function AssistantScreen({ state, session, onSettings, extra }: {
           <h3 className="tools-title">Предлагаемые изменения</h3>
           {session.pending.map((p) => (
             <label key={p.id} className="as-prop">
-              <input type="checkbox" checked={checked.has(p.id)} onChange={() => setChecked((c) => { const n = new Set(c); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n; })} />
-              <span><b>№{p.id}.</b> {p.lines.map((l, j) => <span key={j} className="as-line">{l}</span>)}</span>
+              <input
+                type="checkbox"
+                checked={checked.has(p.id)}
+                onChange={() =>
+                  setChecked((c) => {
+                    const n = new Set(c);
+                    if (n.has(p.id)) n.delete(p.id);
+                    else n.add(p.id);
+                    return n;
+                  })
+                }
+              />
+              <span>
+                <b>№{p.id}.</b>{" "}
+                {p.lines.map((l, j) => (
+                  <span key={j} className="as-line">
+                    {l}
+                  </span>
+                ))}
+              </span>
             </label>
           ))}
           <div className="row-actions">
-            <button className="btn btn-primary" disabled={!checked.size} onClick={() => void run(() => session.apply([...checked]))}>Применить ({checked.size})</button>
-            <button className="btn" onClick={() => { session.reject(); rerender(); }}>Отклонить</button>
+            <button className="btn btn-primary" disabled={!checked.size} onClick={() => void run(() => session.apply([...checked]))}>
+              Применить ({checked.size})
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                session.reject();
+                rerender();
+              }}
+            >
+              Отклонить
+            </button>
           </div>
         </section>
       )}
       {session.applied && !session.pending.length && !busy && (
-        <div className="row-actions"><button className="btn" onClick={() => void run(() => session.revert())}>Отменить применённое</button></div>
+        <div className="row-actions">
+          <button className="btn" onClick={() => void run(() => session.revert())}>
+            Отменить применённое
+          </button>
+        </div>
       )}
       {extra}
       <div className="as-input">
-        <textarea rows={3} placeholder="Задача для помощника (Ctrl+Enter — отправить)" value={text} disabled={busy}
-          onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void send(); }} />
-        <button className="btn btn-primary" disabled={busy || !text.trim() || !state.book} onClick={() => void send()}>Отправить</button>
+        <textarea
+          rows={3}
+          placeholder="Задача для помощника (Ctrl+Enter — отправить)"
+          value={text}
+          disabled={busy}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void send();
+          }}
+        />
+        <button className="btn btn-primary" disabled={busy || !text.trim() || !state.book} onClick={() => void send()}>
+          Отправить
+        </button>
       </div>
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </main>
   );
 }

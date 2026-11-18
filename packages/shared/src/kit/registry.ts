@@ -21,17 +21,24 @@ import { ACT_DOC_DEFS, AOSR_NAME, RIM_NAME, VD_NAME, VOR_NAME, KJ_NAME, PROTOCOL
 export { KJ_NAME, PROTOCOL_NAME, AVK_NAME, RP_NAME, TI_NAMES } from "../docs/defs.ts";
 export const LAB_NAME = "Свидетельство о регистрации электролаборатории";
 /** Наименования СБД по виду реестра (для ОЖР). */
-export const DOC_NAMES: Partial<Record<RegistryKind, string>> = { "ВОР": VOR_NAME, "АОСР": AOSR_NAME, "РИМ": RIM_NAME, "ВД": VD_NAME };
+export const DOC_NAMES: Partial<Record<RegistryKind, string>> = { ВОР: VOR_NAME, АОСР: AOSR_NAME, РИМ: RIM_NAME, ВД: VD_NAME };
 
 /** Строка реестра: значения по заголовкам таблицы «РеестрИД» и адрес прикреплённого скана. */
-export interface RegistryRecord { values: Record<string, CellValue>; link: string | null }
+export interface RegistryRecord {
+  values: Record<string, CellValue>;
+  link: string | null;
+}
 
 const H = (key: string) => column("РеестрИД", key).header;
 const txt = cellText;
-const iso = (v: CellValue) => { const p = parseDateCell(v); return p.ok ? p.value : null; };
+const iso = (v: CellValue) => {
+  const p = parseDateCell(v);
+  return p.ok ? p.value : null;
+};
 const short = (v: CellValue) => formatDateShort(iso(v));
 const period = (from: CellValue, to: CellValue) => {
-  const a = iso(from), b = iso(to);
+  const a = iso(from),
+    b = iso(to);
   if (a && b) return `от ${formatDateShort(a)} до ${formatDateShort(b)}`;
   return formatDateShort(a ?? b);
 };
@@ -47,24 +54,39 @@ export function labCertificateParts(text: string): { number: string; date: strin
 export function kitActs(book: Book, kit: string): { kitRow: BookRow | undefined; acts: string[] } {
   const rows = (t: TableName) => book.tables[t] ?? [];
   const kitRow = rows("Комплекты").find((r) => txt(r.v.number) === kit);
-  const acts = rows("АктыКомплектов").filter((r) => txt(r.v.kit) === kit).map((r) => txt(r.v.act)).filter(Boolean);
+  const acts = rows("АктыКомплектов")
+    .filter((r) => txt(r.v.kit) === kit)
+    .map((r) => txt(r.v.act))
+    .filter(Boolean);
   return { kitRow, acts: [...new Set(acts)] };
 }
 
 /** Документы качества книги в виде QualityDoc (id — строка таблицы + 1), материалы — по строкам «Материалов». */
 function qualityDocs(book: Book): { docs: QualityDoc[]; rowOf: Map<number, BookRow>; matId: (name: string) => number | null } {
   const mats = book.tables["Материалы"] ?? [];
-  const matId = (name: string) => { const r = mats.find((m) => txt(m.v.name) === name); return r ? r.row + 1 : null; };
+  const matId = (name: string) => {
+    const r = mats.find((m) => txt(m.v.name) === name);
+    return r ? r.row + 1 : null;
+  };
   const rowOf = new Map<number, BookRow>();
   const docs: QualityDoc[] = [];
   for (const r of book.tables["ДокументыКачества"] ?? []) {
     const type = docTypeFromBook(txt(r.v.type));
     if (!type) continue;
-    const ids = splitRefs(r.v.materials).map(matId).filter((x): x is number => x !== null);
+    const ids = splitRefs(r.v.materials)
+      .map(matId)
+      .filter((x): x is number => x !== null);
     const sheets = parseNumberCell(r.v.sheets);
     docs.push({
-      id: r.row + 1, type: type as QualityDocType, number: txt(r.v.number), issueDate: iso(r.v.issueDate), validUntil: iso(r.v.validUntil),
-      sheets: sheets.ok ? Math.max(0, Math.round(sheets.value ?? 0)) : 0, fileId: null, materialIds: ids, registryName: txt(r.v.registryName),
+      id: r.row + 1,
+      type: type as QualityDocType,
+      number: txt(r.v.number),
+      issueDate: iso(r.v.issueDate),
+      validUntil: iso(r.v.validUntil),
+      sheets: sheets.ok ? Math.max(0, Math.round(sheets.value ?? 0)) : 0,
+      fileId: null,
+      materialIds: ids,
+      registryName: txt(r.v.registryName),
     });
     rowOf.set(r.row + 1, r);
   }
@@ -104,7 +126,15 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
     if (measuring) return;
     measuring = true;
     for (const i of rows("СредстваИзмерений"))
-      add("Поверка", "", withNo(txt(i.v.certificate)), `Свидетельство о поверке: ${txt(i.v.name)} ${txt(i.v.type)}`, period(i.v.checkedOn, i.v.nextCheck), code, i);
+      add(
+        "Поверка",
+        "",
+        withNo(txt(i.v.certificate)),
+        `Свидетельство о поверке: ${txt(i.v.name)} ${txt(i.v.type)}`,
+        period(i.v.checkedOn, i.v.nextCheck),
+        code,
+        i,
+      );
     const lab = rows("Электролаборатория")[0];
     if (lab) {
       const p = labCertificateParts(txt(lab.v.certificate));
@@ -114,8 +144,16 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
   const add = (kind: RegistryKind, act: string, number: string, name: string, date: string, code: string, src?: BookRow, fileKey = "file") =>
     out.push({
       values: {
-        [H("kit")]: kit, [H("kind")]: kind, [H("act")]: act || null, [H("number")]: number, [H("name")]: name.trim(), [H("date")]: date,
-        [H("copies")]: 1, [H("code")]: code, [H("file")]: src ? txt(src.v[fileKey]) || null : null, [H("sheets")]: null,
+        [H("kit")]: kit,
+        [H("kind")]: kind,
+        [H("act")]: act || null,
+        [H("number")]: number,
+        [H("name")]: name.trim(),
+        [H("date")]: date,
+        [H("copies")]: 1,
+        [H("code")]: code,
+        [H("file")]: src ? txt(src.v[fileKey]) || null : null,
+        [H("sheets")]: null,
       },
       link: src?.link[fileKey] ?? null,
     });
@@ -186,8 +224,18 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
     for (const d of rimDocOrder(ams, byMat)) {
       if (seenDocs.has(d.id)) continue;
       seenDocs.add(d.id);
-      if (ti) add("Документ качества", n, d.number.replace(/^№\s*/, ""), QUALITY_DOC_LABELS[d.type], d.issueDate ? formatDateShort(d.issueDate) : "б/д", code, rowOf.get(d.id));
-      else add("Документ качества", n, withNo(d.number), `${QUALITY_DOC_LABELS[d.type]}: ${rimDocName(d, ams, materials)}`, rimDocDate(d), code, rowOf.get(d.id));
+      if (ti)
+        add(
+          "Документ качества",
+          n,
+          d.number.replace(/^№\s*/, ""),
+          QUALITY_DOC_LABELS[d.type],
+          d.issueDate ? formatDateShort(d.issueDate) : "б/д",
+          code,
+          rowOf.get(d.id),
+        );
+      else
+        add("Документ качества", n, withNo(d.number), `${QUALITY_DOC_LABELS[d.type]}: ${rimDocName(d, ams, materials)}`, rimDocDate(d), code, rowOf.get(d.id));
     }
   }
   // Документы «на комплект» (скан свидетельства и т. п.) — одна строка на комплект, номер — код документа.
@@ -216,7 +264,11 @@ export async function fillRegistry(store: TableStore, book: Book, kit: string, t
   const old = t.rows.map((r, i) => (txt(r[ki] ?? null) === kit ? i : -1)).filter((i) => i >= 0);
   const at = old.length ? old[0] : t.rows.length;
   if (old.length) await store.remove("РеестрИД", old);
-  const first = await store.insert("РеестрИД", at, rows.map((r) => r.values));
+  const first = await store.insert(
+    "РеестрИД",
+    at,
+    rows.map((r) => r.values),
+  );
   for (const [i, r] of rows.entries()) if (r.link) await store.write("РеестрИД", first + i, {}, { [H("file")]: r.link });
   return { count: rows.length, issues: [] };
 }

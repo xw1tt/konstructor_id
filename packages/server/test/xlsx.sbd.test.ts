@@ -26,7 +26,10 @@ test("РИМ: строки документов, наименование гру
   assert.equal(name, `${AOV1}.РИМ.xlsx`);
   const s = sheetOf(xlsx);
   has(s.text, `№${d.number}`);
-  for (const r of d.rows) { has(s.text, r.number); if (!r.cont) has(s.text, r.name); }
+  for (const r of d.rows) {
+    has(s.text, r.number);
+    if (!r.cont) has(s.text, r.name);
+  }
   // Группы из нескольких документов — объединение по строкам в столбце B.
   const groups = d.rows.filter((r, i) => !r.cont && d.rows[i + 1]?.cont).length;
   assert.equal(s.merges.filter((m) => /^B\d+:B\d+$/.test(m)).length, groups);
@@ -38,7 +41,10 @@ test("ВД: все строки материалов с позицией, арт
   const b = await bundle();
   const d = buildDocDataFromBundle(b, "vd");
   const s = sheetOf(renderActXlsx(b, "vd").xlsx);
-  for (const r of d.rows) { has(s.text, r.name); has(s.text, r.quantity); }
+  for (const r of d.rows) {
+    has(s.text, r.name);
+    has(s.text, r.quantity);
+  }
   const dataRows = s.rows.filter((r) => /^\d+ /.test(r)).length;
   assert.ok(dataRows >= d.rows.length);
 });
@@ -61,7 +67,10 @@ test("АВК: альбомный лист, строки таблицы, коми
   const s = sheetOf(renderActXlsx(b, "avk").xlsx);
   assert.match(s.xml, /orientation="landscape"/);
   has(s.text, `№ ${d.number}`);
-  for (const r of d.rows) { has(s.text, r.name); has(s.text, r.docs); }
+  for (const r of d.rows) {
+    has(s.text, r.name);
+    has(s.text, r.docs);
+  }
   has(s.text, d.customerRep);
 });
 
@@ -74,7 +83,10 @@ test("Протокол изоляции: шапка таблицы на 3 стр
   for (const r of d.rows) has(s.text, r.line);
   for (const i of d.instruments) has(s.text, i.serial);
   assert.match(x.workbook, /_xlnm.Print_Titles/);
-  assert.ok(s.merges.some((m) => /^F\d+:O\d+$/.test(m)), "«Сопротивление изоляции» над 10 графами");
+  assert.ok(
+    s.merges.some((m) => /^F\d+:O\d+$/.test(m)),
+    "«Сопротивление изоляции» над 10 графами",
+  );
 });
 
 test("Кабельный журнал: на каждом листе 30 строк, основная надпись с номером листа, разрывы между листами", async () => {

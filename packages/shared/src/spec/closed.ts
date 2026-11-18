@@ -8,8 +8,13 @@ import { withNo } from "../acts/format.ts";
 export const CLOSED_SHEET = "Закрытие по актам";
 
 export interface SpecPosition {
-  number: string; section: string; name: string; unit: string; quantity: number;
-  closed: number; rest: number;
+  number: string;
+  section: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  closed: number;
+  rest: number;
   byAct: { act: string; date: string | null; qty: number }[];
   materials: string[];
 }
@@ -17,7 +22,10 @@ export interface SpecPosition {
 export type { Report };
 
 const txt = (v: CellValue) => cellText(v).trim();
-const num = (v: CellValue): number | null => { const p = parseNumberCell(v); return p.ok ? p.value : null; };
+const num = (v: CellValue): number | null => {
+  const p = parseNumberCell(v);
+  return p.ok ? p.value : null;
+};
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
 /** Количество, которое идёт в учёт, по паре «акт|материал». */
@@ -52,8 +60,7 @@ export function specClosed(book: Book): SpecPosition[] {
   return spec.map((r) => {
     const number = txt(r.v.number);
     const materials = matsOf.get(number) ?? [];
-    const byAct = acts.map((a) => ({ ...a, qty: round(materials.reduce((s, m) => s + (q.get(`${a.act}|${m}`) ?? 0), 0)) }))
-      .filter((a) => a.qty !== 0);
+    const byAct = acts.map((a) => ({ ...a, qty: round(materials.reduce((s, m) => s + (q.get(`${a.act}|${m}`) ?? 0), 0)) })).filter((a) => a.qty !== 0);
     const quantity = num(r.v.quantity) ?? 0;
     const closed = round(byAct.reduce((s, a) => s + a.qty, 0));
     return { number, section: txt(r.v.section), name: txt(r.v.name), unit: txt(r.v.unit), quantity, closed, rest: round(quantity - closed), byAct, materials };
@@ -63,7 +70,7 @@ export function specClosed(book: Book): SpecPosition[] {
 export function positionOfMaterial(book: Book, material: string): SpecPosition | null {
   const m = (book.tables["Материалы"] ?? []).find((r) => txt(r.v.name) === material.trim());
   const n = m ? txt(m.v.rkc) : "";
-  return n ? specClosed(book).find((p) => p.number === n) ?? null : null;
+  return n ? (specClosed(book).find((p) => p.number === n) ?? null) : null;
 }
 
 /** Материалы акта без № п/п РКЦ или с номером, которого нет в спецификации. Пустая спецификация — проверки нет. */
@@ -71,7 +78,10 @@ export function unboundMaterials(book: Book, act: string): string[] {
   const spec = new Set((book.tables["Спецификация"] ?? []).map((r) => txt(r.v.number)));
   if (!spec.size) return [];
   const rkc = new Map((book.tables["Материалы"] ?? []).map((m) => [txt(m.v.name), txt(m.v.rkc)]));
-  const names = (book.tables["МатериалыАктов"] ?? []).filter((r) => txt(r.v.act) === act.trim()).map((r) => txt(r.v.material)).filter(Boolean);
+  const names = (book.tables["МатериалыАктов"] ?? [])
+    .filter((r) => txt(r.v.act) === act.trim())
+    .map((r) => txt(r.v.material))
+    .filter(Boolean);
   return [...new Set(names)].filter((n) => !spec.has(rkc.get(n) ?? ""));
 }
 
@@ -82,8 +92,15 @@ export function closedReport(book: Book): Report {
     const d = parseDateCell(a.v.date);
     return { act: txt(a.v.baseNumber), date: d.ok ? d.value : null };
   });
-  const head = ["№ п/п", "Наименование", "Ед. изм.", "По проекту", "Закрыто", "Остаток",
-    ...acts.map((a) => `Акт ${withNo(String(a.act ?? ""))}${a.date ? ` от ${dmy(a.date)}` : ""}`)];
+  const head = [
+    "№ п/п",
+    "Наименование",
+    "Ед. изм.",
+    "По проекту",
+    "Закрыто",
+    "Остаток",
+    ...acts.map((a) => `Акт ${withNo(String(a.act ?? ""))}${a.date ? ` от ${dmy(a.date)}` : ""}`),
+  ];
   const rows: CellValue[][] = [head];
   const bold = [0];
   const negative: [number, number][] = [];

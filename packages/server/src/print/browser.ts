@@ -11,9 +11,16 @@ async function launch(): Promise<Browser> {
   if (exe && !existsSync(exe)) throw new HttpError(503, NO_BROWSER);
   const b = exe
     ? await chromium.launch({ executablePath: exe })
-    : process.platform === "win32" ? await chromium.launch({ channel: "msedge" }) : await chromium.launch();
+    : process.platform === "win32"
+      ? await chromium.launch({ channel: "msedge" })
+      : await chromium.launch();
   // Edge могут закрыть (обновление, антивирус, сон) — тогда при следующей печати запускаем заново.
-  b.on("disconnected", () => { if (browser && current === b) { browser = null; current = null; } });
+  b.on("disconnected", () => {
+    if (browser && current === b) {
+      browser = null;
+      current = null;
+    }
+  });
   current = b;
   return b;
 }
@@ -42,7 +49,8 @@ export async function htmlToPdf(html: string, opts: PdfOptions = {}): Promise<Bu
   } catch (e) {
     if (e instanceof HttpError) throw e;
     // браузер закрыли между печатями — один перезапуск
-    browser = null; current = null;
+    browser = null;
+    current = null;
     try {
       page = await (await getBrowser()).newPage();
     } catch (e2) {

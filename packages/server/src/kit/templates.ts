@@ -2,20 +2,47 @@
 import { e, page } from "../print/templates/common.ts";
 
 export interface RegistryLine {
-  n: number; number: string; name: string; date: string; sheets: number; copies: number; code: string; pages: string;
+  n: number;
+  number: string;
+  name: string;
+  date: string;
+  sheets: number;
+  copies: number;
+  code: string;
+  pages: string;
 }
 export interface RegistryData {
-  title: string; objectLine: string;
+  title: string;
+  objectLine: string;
   parties: { label: string; value: string }[];
   rows: RegistryLine[];
 }
 export interface CoverData {
-  logos: string[]; objectName: string; developer: string; builder: string; contract: string;
-  code: string; sectionLine: string; works: string; volume: string; part: string; city: string; year: string;
+  logos: string[];
+  objectName: string;
+  developer: string;
+  builder: string;
+  contract: string;
+  code: string;
+  sectionLine: string;
+  works: string;
+  volume: string;
+  part: string;
+  city: string;
+  year: string;
 }
 export interface SpineData {
-  logos: string[]; objectName: string; building: string; builder: string; registry: string; sectionName: string;
-  code: string; contract: string; volume: string; parts: string[]; year: string;
+  logos: string[];
+  objectName: string;
+  building: string;
+  builder: string;
+  registry: string;
+  sectionName: string;
+  code: string;
+  contract: string;
+  volume: string;
+  parts: string[];
+  year: string;
 }
 
 const REGISTRY_STYLE = `<style>
@@ -35,17 +62,29 @@ table.grid.reg-t td.l { text-align: left; }
 </style>`;
 
 export function registryHtml(d: RegistryData): string {
-  const head = ["№ п/п", "Номер документа",
+  const head = [
+    "№ п/п",
+    "Номер документа",
     "Тип документа (акт, лабораторное заключение, исполнительная схема, сертификат) с указанием наименования работ, осей, отметок и т.д.",
-    "Дата составления документа или период", "Количество листов (включая приложения), шт.", "Количество экземпляров, шт.",
-    "Шифр чертежа с указанием листов", "Примечание (страницы)"];
-  const rows = d.rows.map((r) =>
-    `<tr class="row"><td class="c">${r.n}</td><td class="c">${e(r.number)}</td><td class="l">${e(r.name)}</td><td class="c">${e(r.date)}</td>` +
-    `<td class="c">${r.sheets}</td><td class="c">${r.copies}</td><td class="c">${e(r.code)}</td><td class="c">${e(r.pages)}</td></tr>`).join("");
+    "Дата составления документа или период",
+    "Количество листов (включая приложения), шт.",
+    "Количество экземпляров, шт.",
+    "Шифр чертежа с указанием листов",
+    "Примечание (страницы)",
+  ];
+  const rows = d.rows
+    .map(
+      (r) =>
+        `<tr class="row"><td class="c">${r.n}</td><td class="c">${e(r.number)}</td><td class="l">${e(r.name)}</td><td class="c">${e(r.date)}</td>` +
+        `<td class="c">${r.sheets}</td><td class="c">${r.copies}</td><td class="c">${e(r.code)}</td><td class="c">${e(r.pages)}</td></tr>`,
+    )
+    .join("");
   const sign = (label: string) =>
     `<div class="reg-sign"><div>${label}</div><div></div><div class="line"></div><div></div><div class="line"></div>` +
     `<div class="cap">(подпись)</div><div class="cap2">(дата)</div></div>`;
-  return page(d.title, `${REGISTRY_STYLE}
+  return page(
+    d.title,
+    `${REGISTRY_STYLE}
     <div class="reg-title">${e(d.title)}</div>
     <div class="reg-object">Объект: ${e(d.objectLine)}</div>
     <div class="reg-parties">${d.parties.map((p) => `<div>${e(p.label)}</div><div>${e(p.value)}</div>`).join("")}</div>
@@ -55,12 +94,20 @@ export function registryHtml(d: RegistryData): string {
       <tr class="nums">${head.map((_, i) => `<td>${i + 1}</td>`).join("")}</tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    ${sign("Сдал:")}${sign("Принял:")}`, "reg");
+    ${sign("Сдал:")}${sign("Принял:")}`,
+    "reg",
+  );
 }
 
 // План 14: реестр ИД в вёрстке набора «ТИ» (образец «Реестр №4/…Р»).
 export interface TiRegistryData {
-  customer: string; contractor: string; object: string; code: string; sectionName: string; number: string; rows: RegistryLine[];
+  customer: string;
+  contractor: string;
+  object: string;
+  code: string;
+  sectionName: string;
+  number: string;
+  rows: RegistryLine[];
 }
 
 const TI_REG_STYLE = `<style>
@@ -80,12 +127,20 @@ table.grid.tr-t td.l { text-align: left; }
 
 export function tiRegistryHtml(d: TiRegistryData): string {
   const title = `Реестр №${d.number}/${d.code}.Р`;
-  const rows = d.rows.map((r) =>
-    `<tr class="row"><td class="c">${r.n}</td><td class="l">${e(r.name)}</td><td class="c">${e(r.number)}</td><td class="c">${e(r.date)}</td>` +
-    `<td class="c">${r.sheets}</td><td class="c">${e(r.pages.replace(/^л\.\s*/, ""))}</td></tr>`).join("");
-  const sign = (label: string) => `<div class="tr-sign"><div>${label}</div><div class="line"></div><div></div><div class="line"></div><div></div><div class="line"></div>
+  const rows = d.rows
+    .map(
+      (r) =>
+        `<tr class="row"><td class="c">${r.n}</td><td class="l">${e(r.name)}</td><td class="c">${e(r.number)}</td><td class="c">${e(r.date)}</td>` +
+        `<td class="c">${r.sheets}</td><td class="c">${e(r.pages.replace(/^л\.\s*/, ""))}</td></tr>`,
+    )
+    .join("");
+  const sign = (
+    label: string,
+  ) => `<div class="tr-sign"><div>${label}</div><div class="line"></div><div></div><div class="line"></div><div></div><div class="line"></div>
     <div></div><div class="cap">(Ф.И.О.)</div><div></div><div class="cap">(подпись)</div><div></div><div class="cap">(дата)</div></div>`;
-  return page(title, `${TI_REG_STYLE}
+  return page(
+    title,
+    `${TI_REG_STYLE}
     <div class="tr-head">
       <div><div>Заказчик: ${e(d.customer)}</div><div style="margin-top:6pt">Подрядчик: ${e(d.contractor)}</div></div>
       <div><div class="tr-val">${e(d.object)}</div><div class="tr-cap">(объект)</div></div>
@@ -99,12 +154,13 @@ export function tiRegistryHtml(d: TiRegistryData): string {
       <thead><tr><th>№п/п</th><th>Наименование документа</th><th>№ документа</th><th>Дата документа</th><th>Кол-во листов</th><th>Страницы по списку</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    ${sign("Сдал:")}${sign("Принял:")}`, "tireg");
+    ${sign("Сдал:")}${sign("Принял:")}`,
+    "tireg",
+  );
 }
 
 const FRAME = "#2f5597";
-const logos = (list: string[], cls: string) =>
-  list.length ? `<div class="${cls}">${list.map((src) => `<img src="${e(src)}" alt="">`).join("")}</div>` : "";
+const logos = (list: string[], cls: string) => (list.length ? `<div class="${cls}">${list.map((src) => `<img src="${e(src)}" alt="">`).join("")}</div>` : "");
 
 const COVER_STYLE = `<style>
 @page { size: A4 portrait; margin: 8mm; }
@@ -124,7 +180,9 @@ body.cover { font-size: 12pt; }
 </style>`;
 
 export function coverHtml(d: CoverData): string {
-  return page("Титульный лист", `${COVER_STYLE}<div class="cv">
+  return page(
+    "Титульный лист",
+    `${COVER_STYLE}<div class="cv">
     ${logos(d.logos, "cv-logos")}
     <div class="cv-obj"><b>Объект:</b> ${e(d.objectName)}</div>
     ${d.developer ? `<div class="cv-party">Заказчик: ${e(d.developer)}</div>` : ""}
@@ -139,7 +197,9 @@ export function coverHtml(d: CoverData): string {
     </div>
     <div class="cv-vol">${d.volume ? `<div>Том № ${e(d.volume)}</div>` : ""}${d.part ? `<div>Часть №${e(d.part)}</div>` : ""}</div>
     <div class="cv-foot">${d.city ? `<div>г. ${e(d.city)}</div>` : ""}<div>${e(d.year)}</div></div>
-  </div>`, "cover");
+  </div>`,
+    "cover",
+  );
 }
 
 const SPINE_STYLE = `<style>
@@ -171,6 +231,12 @@ export function spineHtml(d: SpineData): string {
     <div class="sp-vol">${d.volume ? `Том № ${e(d.volume)}<br>` : ""}Часть № ${e(part)}<div class="sp-year">${e(d.year)} год</div></div>
   </div>`;
   const pages: string[] = [];
-  for (let i = 0; i < d.parts.length; i += 3) pages.push(`<div class="sp-page">${d.parts.slice(i, i + 3).map(strip).join("")}</div>`);
+  for (let i = 0; i < d.parts.length; i += 3)
+    pages.push(
+      `<div class="sp-page">${d.parts
+        .slice(i, i + 3)
+        .map(strip)
+        .join("")}</div>`,
+    );
   return page("Корешки", `${SPINE_STYLE}${pages.join("")}`, "spine");
 }

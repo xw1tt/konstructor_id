@@ -4,7 +4,8 @@ import { e, page } from "./common.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { htmlBlankTable, type BodyRow } from "../blankTable.ts";
 
-export const avkRowsOf = (d: AvkData): BodyRow[] => d.rows.map((r, i) => ({ cls: "row", cells: { n: i + 1, name: r.name, manufacturer: r.manufacturer, quantity: r.quantity, docs: r.docs } }));
+export const avkRowsOf = (d: AvkData): BodyRow[] =>
+  d.rows.map((r, i) => ({ cls: "row", cells: { n: i + 1, name: r.name, manufacturer: r.manufacturer, quantity: r.quantity, docs: r.docs } }));
 
 const STYLE = `<style>
 @page { size: A4 landscape; margin: 10mm 12mm 10mm 15mm; }
@@ -28,7 +29,9 @@ table.grid.avk-t td.l { text-align: left; }
 export function avkHtml(d: AvkData, view: BlankView = blankView("avk:sbd")): string {
   const sign = (label: string, who: string) =>
     `<div class="avk-sign"><div class="who">${e(label)}: ${e(who)}</div><div class="cap">Должность/ФИО/Подпись</div></div>`;
-  return page(`АВК ${d.number}`, `${STYLE}
+  return page(
+    `АВК ${d.number}`,
+    `${STYLE}
     <div class="avk-title">Акт входного контроля, технических средств и материалов № ${e(d.number)}</div>
     <div class="avk-row"><div>${d.city ? `Адрес : ${e(d.city)}` : ""}</div><div>Дата составления: ${e(d.date)}</div></div>
     <div class="avk-right">${d.customer ? `Заказчик: ${e(d.customer)}` : ""}</div>
@@ -39,5 +42,7 @@ export function avkHtml(d: AvkData, view: BlankView = blankView("avk:sbd")): str
     <div class="avk-text">Составили настоящий акт о том, что поступившие на строительный объект следующие технические средства и материалы для зоны ${e(d.sectionName)}
       прошедшие входной контроль соответствуют технической документации. Спецификации РД, Техническим решениям авторского надзора : <u>${e(d.sectionCode)}</u></div>
     ${htmlBlankTable(view, avkRowsOf(d), { cls: "avk-t" })}
-    ${sign("Представитель заказчика", d.customerRep)}${sign("Представитель монтажной организации", d.contractorRep)}`, "avk");
+    ${sign("Представитель заказчика", d.customerRep)}${sign("Представитель монтажной организации", d.contractorRep)}`,
+    "avk",
+  );
 }

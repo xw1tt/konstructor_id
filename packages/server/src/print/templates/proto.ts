@@ -43,10 +43,16 @@ function labHtml(b: ActBundle, p: ProtoData, view: BlankView): string {
   const org = (id: number | null | undefined) => b.organizations.find((o) => o.id === id)?.shortName ?? "";
   const section = b.sections.find((s) => s.id === b.act.sectionId);
   const lab = p.lab ?? { nameAddress: "", certificate: "", head: "", tester: "" };
-  const climate = def.climate === "temp"
-    ? `Температура воздуха ${e(p.temperature)} °C.`
-    : `Температура воздуха ${e(p.temperature)} °C, влажность воздуха ${e(p.humidity)} %, атмосферное давление ${e(p.pressure)} мм рт. ст.`;
-  const si = p.instruments.map((i) => `<tr><td>${e(i.name)}</td><td>${e(i.type)}</td><td>${e(i.range)}</td><td>${e(i.accuracy)}</td><td>${e(i.serial)}</td><td>${e(i.certificate)}</td><td>${e(plainDate(i.checkedOn))}</td><td>${e(plainDate(i.nextCheck))}</td><td>${e(i.authority)}</td></tr>`).join("");
+  const climate =
+    def.climate === "temp"
+      ? `Температура воздуха ${e(p.temperature)} °C.`
+      : `Температура воздуха ${e(p.temperature)} °C, влажность воздуха ${e(p.humidity)} %, атмосферное давление ${e(p.pressure)} мм рт. ст.`;
+  const si = p.instruments
+    .map(
+      (i) =>
+        `<tr><td>${e(i.name)}</td><td>${e(i.type)}</td><td>${e(i.range)}</td><td>${e(i.accuracy)}</td><td>${e(i.serial)}</td><td>${e(i.certificate)}</td><td>${e(plainDate(i.checkedOn))}</td><td>${e(plainDate(i.nextCheck))}</td><td>${e(i.authority)}</td></tr>`,
+    )
+    .join("");
   return `
   <div class="p-head">
     <div class="p-c"><div class="p-b">${e(lab.nameAddress)}</div><div class="cap">(наименование организации, предприятия)</div><div>${e(lab.certificate)}</div></div>
@@ -61,12 +67,16 @@ function labHtml(b: ActBundle, p: ProtoData, view: BlankView): string {
   <p class="p-b" style="margin:4pt 0">Результаты измерений:</p>
   ${table(p, view)}
   <div class="p-tail"><p class="p-p"><b>Заключение:</b> ${e(p.conclusion)}</p>${view.shown("instruments") ? `<p style="margin-top:6pt">Перечень используемых средств измерений.</p>` : ""}</div>
-  ${view.shown("instruments") ? `<table class="grid p-si">
+  ${
+    view.shown("instruments")
+      ? `<table class="grid p-si">
     <thead><tr><th rowspan="2">Наименование СИ</th><th rowspan="2">Тип применяемого СИ</th><th rowspan="2">Диапазон измерений</th><th rowspan="2">Точность измерений</th>
       <th rowspan="2">Заводской номер</th><th rowspan="2">№ свидетельства о поверке</th><th colspan="2">Дата поверки</th><th rowspan="2">Орган государственной метрологической службы, проводивший поверку</th></tr>
       <tr><th>последней</th><th>очередной</th></tr></thead>
     <tbody>${si}</tbody>
-  </table>` : ""}
+  </table>`
+      : ""
+  }
   <div class="p-signs">
     <div class="sign-row"><div>Руководитель электролаборатории:</div><div class="line"></div><div>${e(lab.head)}</div></div>
     <div class="sign-row"><div>Испытания провел:</div><div class="line"></div><div>${e(lab.tester)}</div></div>
@@ -76,8 +86,9 @@ function labHtml(b: ActBundle, p: ProtoData, view: BlankView): string {
 function commissionHtml(b: ActBundle, p: ProtoData, view: BlankView): string {
   const def = PROTO_DEFS[p.kind];
   const members = p.commission.map((m) => `<li>${e(m.role)}: ${e([m.position, m.org, m.name].filter(Boolean).join(" "))}</li>`).join("");
-  const signs = p.commission.map((m) =>
-    `<div class="sign-row"><div>${e([m.position, m.org].filter(Boolean).join(" "))}</div><div class="line"></div><div>${e(m.name)}</div></div>`).join("");
+  const signs = p.commission
+    .map((m) => `<div class="sign-row"><div>${e([m.position, m.org].filter(Boolean).join(" "))}</div><div class="line"></div><div>${e(m.name)}</div></div>`)
+    .join("");
   return `
   <div class="p-title">АКТ ${e(withNo(String(p.number ?? "")))}</div>
   <div class="p-sub">${e(subtitle(p.name))}</div>

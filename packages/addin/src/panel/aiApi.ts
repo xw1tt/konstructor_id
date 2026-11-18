@@ -2,7 +2,13 @@
 import type { ChatMessage, ChatReply, ProviderInput, ProviderPublic, ToolDef } from "@idk/shared/ai/model";
 import { apiGet, apiSend } from "../api.ts";
 
-export interface UsageTotal { provider: string; name: string; requests: number; prompt: number; completion: number }
+export interface UsageTotal {
+  provider: string;
+  name: string;
+  requests: number;
+  prompt: number;
+  completion: number;
+}
 
 export const aiApi = {
   providers: () => apiGet<{ active: string | null; providers: ProviderPublic[] }>("/api/ai/providers"),

@@ -14,9 +14,7 @@ export type CableDocKind = (typeof CABLE_DOC_KINDS)[number];
 /** Акт входного контроля материалов акта. */
 export const AVK_KIND = "avk" as const;
 /** Протоколы испытаний и акты приёмки (план 13): описания — protocols/defs.ts. */
-export const PROTO_KINDS = [
-  "pkl", "pav", "puzo", "pfn", "pms", "pzu", "pokb", "ppkb", "atp", "aii", "atg", "apnr", "aoma", "arps", "pzov", "ptsks",
-] as const;
+export const PROTO_KINDS = ["pkl", "pav", "puzo", "pfn", "pms", "pzu", "pokb", "ppkb", "atp", "aii", "atg", "apnr", "aoma", "arps", "pzov", "ptsks"] as const;
 export type ProtoKind = (typeof PROTO_KINDS)[number];
 /** Реестр приложений к АОСР — документы качества акта (план 14, набор «ТИ»). */
 export const RP_KIND = "rp" as const;

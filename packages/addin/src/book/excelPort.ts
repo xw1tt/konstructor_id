@@ -1,7 +1,17 @@
 // Слой Office.js: книга объекта в Excel. Вся логика — в @idk/shared/workbook; здесь только чтение/запись,
 // разметка, выделение и события. Требуется ExcelApi 1.9.
 import {
-  TABLES, SHEETS, TABLE_NAMES, OBJECT_FIELDS, OBJECT_REQUIRED_LABELS, SCHEMA_VERSION, WORK_LIST, keyColumn, sheetOfTable, type TableName, type ColumnDef,
+  TABLES,
+  SHEETS,
+  TABLE_NAMES,
+  OBJECT_FIELDS,
+  OBJECT_REQUIRED_LABELS,
+  SCHEMA_VERSION,
+  WORK_LIST,
+  keyColumn,
+  sheetOfTable,
+  type TableName,
+  type ColumnDef,
 } from "@idk/shared/workbook/schema";
 import type { CellValue } from "@idk/shared/workbook/values";
 import type { Report, RowData, RowsTarget, TableData, TableStore } from "@idk/shared/workbook/store";
@@ -11,13 +21,28 @@ import { exampleColumn } from "@idk/shared/workbook/examples";
 import { withVirtualTables, physicalHeader, type VirtualTable } from "@idk/shared/workbook/virtual";
 import { planMerge } from "@idk/shared/workbook/mergeOld";
 import {
-  COLORS, LISTS_SHEET, applyValidation, colLetter as colLetterAt, duplicateRule, exampleRule, importantRule, objectImportantRule, listName, promptFor,
-  nextTableTop, textFormatted, visibleTableRows, missingColumns, missingObjectFields, negativeRule,
+  COLORS,
+  LISTS_SHEET,
+  applyValidation,
+  colLetter as colLetterAt,
+  duplicateRule,
+  exampleRule,
+  importantRule,
+  objectImportantRule,
+  listName,
+  promptFor,
+  nextTableTop,
+  textFormatted,
+  visibleTableRows,
+  missingColumns,
+  missingObjectFields,
+  negativeRule,
 } from "./layout.ts";
 
 /** Подписи над таблицами на листах с несколькими таблицами. */
 const TABLE_TITLES: Partial<Record<TableName, string>> = {
-  "Шифры": "Шифры рабочей документации", "АктыКомплектов": "Акты комплектов",
+  Шифры: "Шифры рабочей документации",
+  АктыКомплектов: "Акты комплектов",
 };
 /** Таблица на листе «рядом» (план 30): строки вставляются и удаляются только в её столбцах — соседняя не задевается. */
 const sideBySide = (name: TableName) => !!sheetOfTable(name)?.side;
@@ -41,15 +66,24 @@ export interface Selection {
 }
 
 export interface ChangeEvent {
-  table: TableName | null; row: number | null; column: string | null;
-  before: CellValue; after: CellValue; multi: boolean;
+  table: TableName | null;
+  row: number | null;
+  column: string | null;
+  before: CellValue;
+  after: CellValue;
+  multi: boolean;
 }
 
 const isOurs = (name: string): name is TableName => (TABLE_NAMES as string[]).includes(name);
 const VERSION_SETTING = "idk.version";
 const LAST_RULE_ROW = 5000;
 
-interface Located { table: TableName | null; row: number | null; column: string | null; rows: number[] }
+interface Located {
+  table: TableName | null;
+  row: number | null;
+  column: string | null;
+  rows: number[];
+}
 
 /** Какой нашей таблице принадлежит ячейка листа (rowIndex/columnIndex с 0). */
 async function locate(ctx: any, ws: any, rowIndex: number, colIndex: number, rowCount = 1): Promise<Located> {
@@ -75,8 +109,10 @@ async function locate(ctx: any, ws: any, rowIndex: number, colIndex: number, row
 }
 
 const settings = () => Office.context.document.settings;
-const saveSettings = () => new Promise<void>((resolve, reject) =>
-  settings().saveAsync((r: any) => (r.status === "succeeded" ? resolve() : reject(new Error(r.error?.message ?? "Не удалось сохранить настройки")))));
+const saveSettings = () =>
+  new Promise<void>((resolve, reject) =>
+    settings().saveAsync((r: any) => (r.status === "succeeded" ? resolve() : reject(new Error(r.error?.message ?? "Не удалось сохранить настройки")))),
+  );
 
 /** Таблицы со своими столбцами в Excel (виртуальные — план 31 — строятся из «Материалов»). */
 const REAL_TABLES = TABLE_NAMES.filter((t) => !TABLES[t].virtual);
@@ -84,14 +120,27 @@ const REAL_TABLES = TABLE_NAMES.filter((t) => !TABLES[t].virtual);
 const workListColumn = () => REAL_TABLES.reduce((n, t) => n + TABLES[t].columns.filter((c) => c.type === "enum").length, 0) + 1;
 
 /** План 31: старые таблицы «Спецификация» и «ДокументыКачества», прочитанные перед сведением в «Материалы». */
-interface OldTables { spec: TableData | null; docs: TableData | null; sheets: string[] }
+interface OldTables {
+  spec: TableData | null;
+  docs: TableData | null;
+  sheets: string[];
+}
 /** Итог переноса книги прежней версии — для экрана «Обновить разметку». */
-export interface MergeReport { docs: number; positions: number; problems: string[]; backup: string }
+export interface MergeReport {
+  docs: number;
+  positions: number;
+  problems: string[];
+  backup: string;
+}
 const BACKUP_SHEET = "Архив до 0.27";
 
 export class ExcelPort implements TableStore {
-  host(): HostStatus { return currentHost(); }
-  isSupported(): boolean { return this.host() === "ok"; }
+  host(): HostStatus {
+    return currentHost();
+  }
+  isSupported(): boolean {
+    return this.host() === "ok";
+  }
 
   // ---------- TableStore ----------
   // План 31: «Спецификация» и «ДокументыКачества» — виртуальные (из «Материалов»); raw* работают с таблицами Excel.
@@ -110,16 +159,32 @@ export class ExcelPort implements TableStore {
   /** Итог последнего переноса книги прежней версии (план 31) или null. */
   lastMerge: MergeReport | null = null;
 
-  read(name: TableName) { return this.store.read(name); }
-  readMany(names: readonly TableName[]) { return this.store.readMany!(names); }
-  write(name: TableName, row: number, values: Record<string, CellValue>, links: Record<string, string | null> = {}) { return this.store.write(name, row, values, links); }
-  insert(name: TableName, at: number, rows: Record<string, CellValue>[]) { return this.store.insert(name, at, rows); }
-  remove(name: TableName, rows: number[]) { return this.store.remove(name, rows); }
-  isVirtual(name: TableName) { return this.store.isVirtual(name); }
+  read(name: TableName) {
+    return this.store.read(name);
+  }
+  readMany(names: readonly TableName[]) {
+    return this.store.readMany!(names);
+  }
+  write(name: TableName, row: number, values: Record<string, CellValue>, links: Record<string, string | null> = {}) {
+    return this.store.write(name, row, values, links);
+  }
+  insert(name: TableName, at: number, rows: Record<string, CellValue>[]) {
+    return this.store.insert(name, at, rows);
+  }
+  remove(name: TableName, rows: number[]) {
+    return this.store.remove(name, rows);
+  }
+  isVirtual(name: TableName) {
+    return this.store.isVirtual(name);
+  }
   /** Ячейка Excel для строки и столбца таблицы (у виртуальной — в «Материалах»). */
-  physical(name: TableName, row: number, header: string | null) { return this.store.physical(name, row, header); }
+  physical(name: TableName, row: number, header: string | null) {
+    return this.store.physical(name, row, header);
+  }
   /** Таблица Excel, в которой лежат строки таблицы name. */
-  private async excelTable(name: TableName): Promise<TableName> { return (await this.store.isVirtual(name)) ? "Материалы" : name; }
+  private async excelTable(name: TableName): Promise<TableName> {
+    return (await this.store.isVirtual(name)) ? "Материалы" : name;
+  }
 
   private async rawRead(name: TableName): Promise<TableData | null> {
     return Excel.run(async (ctx: any) => {
@@ -132,7 +197,10 @@ export class ExcelPort implements TableStore {
       const headers = (head.values[0] as unknown[]).map(String);
       const rows = (body.values as CellValue[][]).map((r) => r.map((v) => (v === "" ? null : v)));
       const links: (string | null)[][] = rows.map((r) => r.map(() => null));
-      const fileCols = TABLES[name].columns.filter((c) => c.type === "file").map((c) => headers.indexOf(c.header)).filter((i) => i >= 0);
+      const fileCols = TABLES[name].columns
+        .filter((c) => c.type === "file")
+        .map((c) => headers.indexOf(c.header))
+        .filter((i) => i >= 0);
       if (fileCols.length && rows.length) {
         const cells = rows.flatMap((_, ri) => fileCols.map((ci) => ({ ri, ci, cell: body.getCell(ri, ci).load("hyperlink") })));
         await ctx.sync();
@@ -148,10 +216,12 @@ export class ExcelPort implements TableStore {
       const all = ctx.workbook.tables.load("items/name");
       await ctx.sync();
       const present = new Set((all.items as any[]).map((t) => t.name as string));
-      const parts = names.filter((n) => present.has(n)).map((name) => {
-        const t = ctx.workbook.tables.getItem(name);
-        return { name, head: t.getHeaderRowRange().load("values"), body: t.getDataBodyRange().load("values,rowCount") };
-      });
+      const parts = names
+        .filter((n) => present.has(n))
+        .map((name) => {
+          const t = ctx.workbook.tables.getItem(name);
+          return { name, head: t.getHeaderRowRange().load("values"), body: t.getDataBodyRange().load("values,rowCount") };
+        });
       await ctx.sync();
       const out = new Map<TableName, TableData | null>(names.map((n) => [n, null]));
       const cells: { links: (string | null)[][]; ri: number; ci: number; cell: any }[] = [];
@@ -159,8 +229,12 @@ export class ExcelPort implements TableStore {
         const headers = (head.values[0] as unknown[]).map(String);
         const rows = (body.values as CellValue[][]).map((r) => r.map((v) => (v === "" ? null : v)));
         const links: (string | null)[][] = rows.map((r) => r.map(() => null));
-        const fileCols = TABLES[name].columns.filter((c) => c.type === "file").map((c) => headers.indexOf(c.header)).filter((i) => i >= 0);
-        if (rows.length) for (let ri = 0; ri < rows.length; ri++) for (const ci of fileCols) cells.push({ links, ri, ci, cell: body.getCell(ri, ci).load("hyperlink") });
+        const fileCols = TABLES[name].columns
+          .filter((c) => c.type === "file")
+          .map((c) => headers.indexOf(c.header))
+          .filter((i) => i >= 0);
+        if (rows.length)
+          for (let ri = 0; ri < rows.length; ri++) for (const ci of fileCols) cells.push({ links, ri, ci, cell: body.getCell(ri, ci).load("hyperlink") });
         out.set(name, { name, headers, rows, links });
       }
       if (cells.length) {
@@ -233,13 +307,17 @@ export class ExcelPort implements TableStore {
     const ws = t.worksheet;
     t.load("name");
     await ctx.sync();
-    const n = values.length, count = body.rowCount as number;
+    const n = values.length,
+      count = body.rowCount as number;
     const append = index >= count;
     // В конец: вставляем перед последней строкой (внутри таблицы), затем последнюю строку поднимаем на место.
     const at = append ? count - 1 : index;
     const rowsAt = (i: number, k = 1) => ws.getRangeByIndexes(body.rowIndex + i, body.columnIndex, k, body.columnCount);
     if (sideBySide(t.name as TableName)) rowsAt(at, n).insert("Down");
-    else ws.getRangeByIndexes(body.rowIndex + at, 0, n, 1).getEntireRow().insert("Down");
+    else
+      ws.getRangeByIndexes(body.rowIndex + at, 0, n, 1)
+        .getEntireRow()
+        .insert("Down");
     await ctx.sync();
     let first = at;
     // Вставленные строки листа Excel оформляет как строку выше — над первой строкой данных это заголовок (тёмная
@@ -296,7 +374,11 @@ export class ExcelPort implements TableStore {
         else {
           // Целая строка листа: удаление строки таблицы сдвинуло бы только её столбцы (см. addTableRows).
           if (side) t.worksheet.getRangeByIndexes(body.rowIndex + r, body.columnIndex, 1, body.columnCount).delete("Up");
-          else t.worksheet.getRangeByIndexes(body.rowIndex + r, 0, 1, 1).getEntireRow().delete("Up");
+          else
+            t.worksheet
+              .getRangeByIndexes(body.rowIndex + r, 0, 1, 1)
+              .getEntireRow()
+              .delete("Up");
           count--;
         }
       }
@@ -345,7 +427,9 @@ export class ExcelPort implements TableStore {
       head.format.wrapText = true;
       for (const r of report.bold) ws.getRangeByIndexes(r, 0, 1, width).format.font.bold = true;
       for (const [r, c] of report.negative) ws.getRangeByIndexes(r, c, 1, 1).format.fill.color = COLORS.duplicate;
-      report.widths.forEach((w, c) => { ws.getRangeByIndexes(0, c, 1, 1).format.columnWidth = w * 7; });
+      report.widths.forEach((w, c) => {
+        ws.getRangeByIndexes(0, c, 1, 1).format.columnWidth = w * 7;
+      });
       ws.getRangeByIndexes(1, 1, Math.max(1, values.length - 1), 1).format.wrapText = true;
       ws.freezePanes.freezeRows(1);
       ws.activate();
@@ -364,26 +448,30 @@ export class ExcelPort implements TableStore {
     };
     return {
       count: () => run(async (ctx, ws) => (await width(ctx, ws)).rows),
-      read: (row) => run(async (ctx, ws): Promise<RowData> => {
-        const { cols } = await width(ctx, ws);
-        const r = ws.getRangeByIndexes(row, 0, 1, cols).load("formulas");
-        await ctx.sync();
-        return { values: r.formulas[0] as CellValue[], links: [] };
-      }),
-      write: (row, d) => run(async (ctx, ws) => {
-        if (!d.values.length) return;
-        ws.getRangeByIndexes(row, 0, 1, d.values.length).formulas = [d.values.map((v) => v ?? "")];
-        await ctx.sync();
-      }),
-      insertBlank: (at, n) => run(async (ctx, ws) => {
-        ws.getRange(`${at + 1}:${at + n}`).insert("Down");
-        await ctx.sync();
-        return at;
-      }),
-      remove: (rows) => run(async (ctx, ws) => {
-        for (const r of [...new Set(rows)].sort((a, b) => b - a)) ws.getRange(`${r + 1}:${r + 1}`).delete("Up");
-        await ctx.sync();
-      }),
+      read: (row) =>
+        run(async (ctx, ws): Promise<RowData> => {
+          const { cols } = await width(ctx, ws);
+          const r = ws.getRangeByIndexes(row, 0, 1, cols).load("formulas");
+          await ctx.sync();
+          return { values: r.formulas[0] as CellValue[], links: [] };
+        }),
+      write: (row, d) =>
+        run(async (ctx, ws) => {
+          if (!d.values.length) return;
+          ws.getRangeByIndexes(row, 0, 1, d.values.length).formulas = [d.values.map((v) => v ?? "")];
+          await ctx.sync();
+        }),
+      insertBlank: (at, n) =>
+        run(async (ctx, ws) => {
+          ws.getRange(`${at + 1}:${at + n}`).insert("Down");
+          await ctx.sync();
+          return at;
+        }),
+      remove: (rows) =>
+        run(async (ctx, ws) => {
+          for (const r of [...new Set(rows)].sort((a, b) => b - a)) ws.getRange(`${r + 1}:${r + 1}`).delete("Up");
+          await ctx.sync();
+        }),
     };
   }
 
@@ -415,7 +503,8 @@ export class ExcelPort implements TableStore {
       visible.load("areas/items/rowIndex,areas/items/rowCount");
       await ctx.sync();
       const areas: { rowIndex: number; rowCount: number }[] = visible.isNullObject
-        ? [] : (visible.areas.items as any[]).map((a) => ({ rowIndex: a.rowIndex, rowCount: a.rowCount }));
+        ? []
+        : (visible.areas.items as any[]).map((a) => ({ rowIndex: a.rowIndex, rowCount: a.rowCount }));
       const sheetRows = areas.length ? visibleTableRows(areas, 0, 1_048_576) : [active.rowIndex];
       let rows: number[] = loc.row !== null ? [loc.row] : [];
       if (loc.table) {
@@ -425,8 +514,14 @@ export class ExcelPort implements TableStore {
         if (vis.length) rows = vis;
       }
       return {
-        sheet: ws.name, table: loc.table, row: loc.row, column: loc.column, rows,
-        sheetRow: active.rowIndex, sheetCol: active.columnIndex, sheetRows,
+        sheet: ws.name,
+        table: loc.table,
+        row: loc.row,
+        column: loc.column,
+        rows,
+        sheetRow: active.rowIndex,
+        sheetCol: active.columnIndex,
+        sheetRows,
       };
     });
   }
@@ -445,7 +540,9 @@ export class ExcelPort implements TableStore {
       await ctx.sync();
       const i = (head.values[0] as unknown[]).map(String).indexOf(header);
       if (i < 0) return;
-      t.getDataBodyRange().getCell(Math.min(Math.max(row ?? 0, 0), t.rows.count - 1), i).select();
+      t.getDataBodyRange()
+        .getCell(Math.min(Math.max(row ?? 0, 0), t.rows.count - 1), i)
+        .select();
       await ctx.sync();
     });
   }
@@ -486,7 +583,10 @@ export class ExcelPort implements TableStore {
   }
 
   async filterBy(table: TableName, header: string, value: string) {
-    if (await this.store.isVirtual(table)) { header = physicalHeader(table as VirtualTable, header); table = "Материалы"; }
+    if (await this.store.isVirtual(table)) {
+      header = physicalHeader(table as VirtualTable, header);
+      table = "Материалы";
+    }
     await Excel.run(async (ctx: any) => {
       const t = ctx.workbook.tables.getItem(table);
       t.worksheet.activate();
@@ -516,7 +616,12 @@ export class ExcelPort implements TableStore {
       activated = ctx.workbook.worksheets.onActivated.add(async () => cb());
       await ctx.sync();
     });
-    return () => Excel.run(handler.context, async (ctx: any) => { handler.remove(); activated.remove(); await ctx.sync(); });
+    return () =>
+      Excel.run(handler.context, async (ctx: any) => {
+        handler.remove();
+        activated.remove();
+        await ctx.sync();
+      });
   }
 
   async onChange(cb: (e: ChangeEvent) => void): Promise<() => Promise<void>> {
@@ -532,13 +637,19 @@ export class ExcelPort implements TableStore {
             await c2.sync();
             return locate(c2, ws, r.rowIndex, r.columnIndex);
           });
-        } catch { /* лист мог быть удалён */ }
+        } catch {
+          /* лист мог быть удалён */
+        }
         const norm = (v: unknown): CellValue => (v === undefined || v === "" ? null : (v as CellValue));
         cb({ ...loc, before: norm(e.details?.valueBefore), after: norm(e.details?.valueAfter), multi });
       });
       await ctx.sync();
     });
-    return () => Excel.run(handler.context, async (ctx: any) => { handler.remove(); await ctx.sync(); });
+    return () =>
+      Excel.run(handler.context, async (ctx: any) => {
+        handler.remove();
+        await ctx.sync();
+      });
   }
 
   // ---------- Разметка ----------
@@ -575,8 +686,14 @@ export class ExcelPort implements TableStore {
           // Новая таблица — ниже занятой части листа, чтобы не наложиться на существующие (в т. ч. переименованные);
           // на листе «рядом» — справа от предыдущей таблицы листа, на той же строке заголовка.
           const def = TABLES[name];
-          let top: number, left = 0;
-          const prevName = sheet.side ? sheet.tables.slice(0, sheet.tables.indexOf(name)).reverse().find((x) => tableNames.has(x) || created.includes(x)) : undefined;
+          let top: number,
+            left = 0;
+          const prevName = sheet.side
+            ? sheet.tables
+                .slice(0, sheet.tables.indexOf(name))
+                .reverse()
+                .find((x) => tableNames.has(x) || created.includes(x))
+            : undefined;
           if (prevName) {
             const pr = ctx.workbook.tables.getItem(prevName).getHeaderRowRange().load("rowIndex,columnIndex,columnCount");
             await ctx.sync();
@@ -601,7 +718,11 @@ export class ExcelPort implements TableStore {
           this.formatTable(t, def, important[name] ?? [], top + 2, bodyRows, headers, left);
           if (name === "Объект") {
             t.getDataBodyRange().getColumn(0).values = OBJECT_FIELDS.map((f) => [f.label]);
-            this.objectPrompts(t, OBJECT_FIELDS.map((f) => f.label), 0);
+            this.objectPrompts(
+              t,
+              OBJECT_FIELDS.map((f) => f.label),
+              0,
+            );
           }
           await ctx.sync();
           created.push(name);
@@ -638,7 +759,10 @@ export class ExcelPort implements TableStore {
         [],
       ];
       const width = Math.max(...[spec, docs].filter(Boolean).map((t) => t!.headers.length + 1));
-      const rows = [spec, docs].filter(Boolean).flatMap((t) => block(t!)).map((r) => Array.from({ length: width }, (_, i) => r[i] ?? ""));
+      const rows = [spec, docs]
+        .filter(Boolean)
+        .flatMap((t) => block(t!))
+        .map((r) => Array.from({ length: width }, (_, i) => r[i] ?? ""));
       const range = ws.getRangeByIndexes(0, 0, rows.length, width);
       range.numberFormat = rows.map((r) => r.map(() => "@"));
       range.values = rows.map((r) => r.map((v) => (typeof v === "number" ? v : String(v))));
@@ -669,9 +793,14 @@ export class ExcelPort implements TableStore {
     const plan = planMerge(mat, old.spec, old.docs);
     for (const u of plan.updates) await this.rawWrite("Материалы", u.row, u.values, u.links);
     if (plan.appended.length) {
-      const first = await this.rawInsert("Материалы", mat.rows.length, plan.appended.map((a) => a.values));
+      const first = await this.rawInsert(
+        "Материалы",
+        mat.rows.length,
+        plan.appended.map((a) => a.values),
+      );
       for (const [i, a] of plan.appended.entries())
-        if (Object.keys(a.links).length) await this.rawWrite("Материалы", first + i, Object.fromEntries(Object.keys(a.links).map((h) => [h, a.values[h] ?? null])), a.links);
+        if (Object.keys(a.links).length)
+          await this.rawWrite("Материалы", first + i, Object.fromEntries(Object.keys(a.links).map((h) => [h, a.values[h] ?? null])), a.links);
     }
     await Excel.run(async (ctx: any) => {
       for (const name of [...new Set(old.sheets)]) {
@@ -696,7 +825,10 @@ export class ExcelPort implements TableStore {
     labels.forEach((label, k) => {
       const f = OBJECT_FIELDS.find((x) => x.label === label);
       if (!f) return;
-      values.getCell(first + k, 0).dataValidation.prompt = { showPrompt: true, ...promptFor({ ...TABLES["Объект"].columns[1], header: f.label, hint: f.hint }) };
+      values.getCell(first + k, 0).dataValidation.prompt = {
+        showPrompt: true,
+        ...promptFor({ ...TABLES["Объект"].columns[1], header: f.label, hint: f.hint }),
+      };
     });
   }
 
@@ -736,7 +868,12 @@ export class ExcelPort implements TableStore {
       const labels = (body.values as unknown[][]).map((r) => String(r[fi] ?? ""));
       const missing = missingObjectFields(labels);
       if (missing.length && fi >= 0) {
-        const first = await this.addTableRows(ctx, t, body.rowCount, missing.map((l) => all.map((_, i) => (i === fi ? l : ""))));
+        const first = await this.addTableRows(
+          ctx,
+          t,
+          body.rowCount,
+          missing.map((l) => all.map((_, i) => (i === fi ? l : ""))),
+        );
         this.objectPrompts(t, missing, first);
       }
     }
@@ -800,7 +937,10 @@ export class ExcelPort implements TableStore {
     if (bodyRows > 0) {
       if (col.type === "date") body.numberFormat = fill("dd.mm.yyyy");
       if (textFormatted(col)) body.numberFormat = fill("@");
-      if (col.type === "formula" && col.formula) { body.numberFormat = fill("General"); body.formulas = fill(col.formula); }
+      if (col.type === "formula" && col.formula) {
+        body.numberFormat = fill("General");
+        body.formulas = fill(col.formula);
+      }
     }
     if (def.name !== "Объект" || col.key !== "value") applyValidation(body, col, def.name);
   }
@@ -841,9 +981,10 @@ export class ExcelPort implements TableStore {
       const range = t.columns.getItemAt(i).getDataBodyRange();
       if (important.includes(col.header) && col.type !== "formula") {
         const cf = range.conditionalFormats.add("Custom");
-        cf.custom.rule.formula = def.name === "Объект" && col.key === "value"
-          ? objectImportantRule(colLetter(headers.indexOf("Поле")), colLetter(i), firstRow, OBJECT_REQUIRED_LABELS)
-          : importantRule(colLetter(0), colLetter(last), colLetter(i), firstRow);
+        cf.custom.rule.formula =
+          def.name === "Объект" && col.key === "value"
+            ? objectImportantRule(colLetter(headers.indexOf("Поле")), colLetter(i), firstRow, OBJECT_REQUIRED_LABELS)
+            : importantRule(colLetter(0), colLetter(last), colLetter(i), firstRow);
         cf.custom.format.fill.color = COLORS.empty;
       }
       if (def.name === "Материалы" && col.key === "rest") {
@@ -864,11 +1005,19 @@ export class ExcelPort implements TableStore {
     await Excel.run(async (ctx: any) => {
       ctx.workbook.tables.load("items/name");
       await ctx.sync();
-      const ours = (ctx.workbook.tables.items as any[]).filter((t) => isOurs(t.name) && !TABLES[t.name as TableName].virtual)
+      const ours = (ctx.workbook.tables.items as any[])
+        .filter((t) => isOurs(t.name) && !TABLES[t.name as TableName].virtual)
         .map((t) => ({ t, body: t.getDataBodyRange().load("rowIndex,columnIndex"), head: t.getHeaderRowRange().load("values") }));
       await ctx.sync();
       for (const { t, body, head } of ours)
-        this.paint(t, TABLES[t.name as TableName], map[t.name as TableName] ?? [], body.rowIndex + 1, (head.values[0] as unknown[]).map(String), body.columnIndex);
+        this.paint(
+          t,
+          TABLES[t.name as TableName],
+          map[t.name as TableName] ?? [],
+          body.rowIndex + 1,
+          (head.values[0] as unknown[]).map(String),
+          body.columnIndex,
+        );
       await ctx.sync();
     });
   }

@@ -6,8 +6,14 @@ const txt = cellText;
 const same = (a: string, b: string) => a.trim().toUpperCase() === b.trim().toUpperCase();
 
 /** Акты комплекта по таблице «Акты комплектов» (без зависимости от реестра). */
-export const actsOfKit = (book: Book, kit: string): string[] =>
-  [...new Set((book.tables["АктыКомплектов"] ?? []).filter((r) => txt(r.v.kit) === kit).map((r) => txt(r.v.act)).filter(Boolean))];
+export const actsOfKit = (book: Book, kit: string): string[] => [
+  ...new Set(
+    (book.tables["АктыКомплектов"] ?? [])
+      .filter((r) => txt(r.v.kit) === kit)
+      .map((r) => txt(r.v.act))
+      .filter(Boolean),
+  ),
+];
 
 /**
  * Строка «Протоколы» документа с кодом code: для акта — по «Акту»; для комплекта — по «Комплекту», иначе по акту комплекта

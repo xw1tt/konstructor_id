@@ -4,7 +4,14 @@ import { cellText } from "../workbook/values.ts";
 import type { Book } from "../workbook/records.ts";
 import type { TableStore } from "../workbook/store.ts";
 
-export interface SpecMatch { materialRow: number; material: string; number: string; name: string; score: number; checked: boolean }
+export interface SpecMatch {
+  materialRow: number;
+  material: string;
+  number: string;
+  name: string;
+  score: number;
+  checked: boolean;
+}
 
 export const MATCH_MIN = 50;
 export const MATCH_CHECKED = 70;
@@ -13,12 +20,15 @@ export const MATCH_CHECKED = 70;
 const TWINS: Record<string, string> = { а: "a", е: "e", о: "o", р: "p", с: "c", х: "x", н: "h", к: "k", м: "m", т: "t", в: "b", у: "y" };
 
 export function normalizeName(s: string): string {
-  return s.toLowerCase().replace(/ё/g, "е")
+  return s
+    .toLowerCase()
+    .replace(/ё/g, "е")
     .replace(/(\d)\s*[хx×*]\s*(?=\d)/g, "$1x")
     .replace(/(\d),(?=\d)/g, "$1.")
     .replace(/[«»"'“”„]/g, "")
     .replace(/[аеорсхнкмтву]/g, (ch) => TWINS[ch])
-    .replace(/\s+/g, " ").trim();
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function tokens(s: string): Map<string, number> {
@@ -38,11 +48,12 @@ function score(mat: Map<string, number>, pos: Map<string, number>): number {
   let hit = 0;
   for (const [t, w] of mat) if (pos.has(t)) hit += w;
   if (!hit) return 0;
-  return Math.round(100 * (0.8 * hit / weight(mat) + 0.2 * hit / weight(pos)));
+  return Math.round(100 * ((0.8 * hit) / weight(mat) + (0.2 * hit) / weight(pos)));
 }
 
 export function matchSpec(book: Book): SpecMatch[] {
-  const spec = (book.tables["Спецификация"] ?? []).map((r) => ({ number: cellText(r.v.number).trim(), name: cellText(r.v.name), tok: tokens(cellText(r.v.name)) }))
+  const spec = (book.tables["Спецификация"] ?? [])
+    .map((r) => ({ number: cellText(r.v.number).trim(), name: cellText(r.v.name), tok: tokens(cellText(r.v.name)) }))
     .filter((p) => p.number);
   if (!spec.length) return [];
   const out: SpecMatch[] = [];
@@ -54,7 +65,8 @@ export function matchSpec(book: Book): SpecMatch[] {
     let best: SpecMatch | null = null;
     for (const p of spec) {
       const s = score(tok, p.tok);
-      if (s >= MATCH_MIN && (!best || s > best.score)) best = { materialRow: m.row, material, number: p.number, name: p.name, score: s, checked: s >= MATCH_CHECKED };
+      if (s >= MATCH_MIN && (!best || s > best.score))
+        best = { materialRow: m.row, material, number: p.number, name: p.name, score: s, checked: s >= MATCH_CHECKED };
     }
     if (best) out.push(best);
   }

@@ -1,7 +1,14 @@
 // Значение ячейки ↔ текст поля карточки.
 import type { ColumnDef, TableName } from "@idk/shared/workbook/schema";
 import {
-  cellText, parseDateCell, parseNumberCell, isoToExcelSerial, excelSerialToIso, joinRefs, type CellValue, type Parsed,
+  cellText,
+  parseDateCell,
+  parseNumberCell,
+  isoToExcelSerial,
+  excelSerialToIso,
+  joinRefs,
+  type CellValue,
+  type Parsed,
 } from "@idk/shared/workbook/values";
 
 const ruDate = (iso: string) => iso.split("-").reverse().join(".");
@@ -12,8 +19,7 @@ export function fromCell(col: ColumnDef, v: CellValue): string {
     const p = parseDateCell(v);
     return p.ok ? (p.value ? ruDate(p.value) : "") : cellText(v);
   }
-  if ((col.type === "number" || col.type === "int" || col.type === "formula") && typeof v === "number")
-    return String(v).replace(".", ",");
+  if ((col.type === "number" || col.type === "int" || col.type === "formula") && typeof v === "number") return String(v).replace(".", ",");
   return v === null ? "" : String(v);
 }
 
@@ -27,13 +33,15 @@ export function toCell(col: ColumnDef, input: string | string[]): Parsed<CellVal
       const p = parseDateCell(t);
       return p.ok ? { ok: true, value: p.value ? isoToExcelSerial(p.value) : null } : p;
     }
-    case "number": return parseNumberCell(t);
+    case "number":
+      return parseNumberCell(t);
     case "int": {
       const p = parseNumberCell(t);
       if (!p.ok) return p;
       return p.value !== null && !Number.isInteger(p.value) ? { ok: false, message: "Нужно целое число" } : p;
     }
-    default: return { ok: true, value: col.type === "longtext" ? input.replace(/^\s+|\s+$/g, "") : t };
+    default:
+      return { ok: true, value: col.type === "longtext" ? input.replace(/^\s+|\s+$/g, "") : t };
   }
 }
 

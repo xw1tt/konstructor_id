@@ -3,8 +3,13 @@ import { extname, join, normalize, sep } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 const TYPES: Record<string, string> = {
-  ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
-  ".xml": "application/xml; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon",
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".xml": "application/xml; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
   ".map": "application/json",
 };
 
@@ -27,6 +32,8 @@ export function serveStatic(prefix: string, dir: string, req: IncomingMessage, r
     return false;
   }
   res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream", "cache-control": "no-cache" });
-  createReadStream(file).on("error", () => res.destroy()).pipe(res);
+  createReadStream(file)
+    .on("error", () => res.destroy())
+    .pipe(res);
   return true;
 }

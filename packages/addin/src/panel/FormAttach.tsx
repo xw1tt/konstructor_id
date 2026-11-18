@@ -32,7 +32,10 @@ export function FormAttach({ kit, onChoose }: { kit: FormKit; onChoose(id: strin
       await saveTemplateDocs({ ...target, docs: target.docs.map((d, k) => (k === doc ? { ...d, form } : d)) });
       tpl.reload();
       if (target.id !== t.id) onChoose(target.id);
-      setMsg({ ok: true, text: `Форма сохранена для «${docLabel(target.docs[doc])}» в шаблоне «${target.name}»${target.id !== t.id ? " (копия выбрана для книги)" : ""}.` });
+      setMsg({
+        ok: true,
+        text: `Форма сохранена для «${docLabel(target.docs[doc])}» в шаблоне «${target.name}»${target.id !== t.id ? " (копия выбрана для книги)" : ""}.`,
+      });
       kit.attach(null);
       rerender();
     } catch (e) {
@@ -45,28 +48,57 @@ export function FormAttach({ kit, onChoose }: { kit: FormKit; onChoose(id: strin
       <div className="row-actions">
         <label className="btn" title="Заполненный документ заказчика (.docx или .xlsx) — помощник сделает из него форму с метками">
           Файл формы…
-          <input type="file" accept=".docx,.xlsx" hidden onChange={async (e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (!f) return;
-            kit.attach({ name: f.name, base64: await toBase64(f) });
-            setMsg(null);
-            rerender();
-          }} />
+          <input
+            type="file"
+            accept=".docx,.xlsx"
+            hidden
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              kit.attach({ name: f.name, base64: await toBase64(f) });
+              setMsg(null);
+              rerender();
+            }}
+          />
         </label>
-        {kit.file && <span className="muted">Приложен: {kit.file.name} <button className="btn btn-icon" aria-label="Убрать файл" onClick={() => { kit.attach(null); rerender(); }}>×</button></span>}
+        {kit.file && (
+          <span className="muted">
+            Приложен: {kit.file.name}{" "}
+            <button
+              className="btn btn-icon"
+              aria-label="Убрать файл"
+              onClick={() => {
+                kit.attach(null);
+                rerender();
+              }}
+            >
+              ×
+            </button>
+          </span>
+        )}
       </div>
       {r && (
         <div className="as-card">
-          <p>Форма «{r.name}» размечена.{r.missing.length ? ` Не найдено в документе: ${r.missing.join("; ")}.` : ""}</p>
+          <p>
+            Форма «{r.name}» размечена.{r.missing.length ? ` Не найдено в документе: ${r.missing.join("; ")}.` : ""}
+          </p>
           <div className="row-actions">
-            <a className="btn" href={`/api/templates/${t.id}/markup/${r.token}?choices=${encodeURIComponent(JSON.stringify(r.choices))}`} download>Скачать для проверки</a>
+            <a className="btn" href={`/api/templates/${t.id}/markup/${r.token}?choices=${encodeURIComponent(JSON.stringify(r.choices))}`} download>
+              Скачать для проверки
+            </a>
           </div>
           <div className="row-actions">
             <select aria-label="Документ шаблона" value={doc} onChange={(e) => setDoc(Number(e.target.value))}>
-              {t.docs.map((d, k) => <option key={k} value={k}>{docLabel(d)}</option>)}
+              {t.docs.map((d, k) => (
+                <option key={k} value={k}>
+                  {docLabel(d)}
+                </option>
+              ))}
             </select>
-            <button className="btn btn-primary" onClick={() => void save()}>Сохранить как форму</button>
+            <button className="btn btn-primary" onClick={() => void save()}>
+              Сохранить как форму
+            </button>
           </div>
         </div>
       )}

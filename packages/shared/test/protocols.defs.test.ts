@@ -7,11 +7,15 @@ import { PRINT_KINDS } from "../src/acts/schemas.ts";
 import { BUILTIN_DOC_LABELS } from "../src/forms/template.ts";
 
 const CODES = ["ПКЛ", "ПАВ", "ПУЗО", "ПФН", "ПМС", "ПЗУ", "ПОКБ", "ППКБ", "АТП", "АИИ", "АТГ", "АПНР", "АОМА", "АРПС", "ПЗОВ", "ПТСКС"];
-const OK = "соответствует", BAD = "не соответствует";
+const OK = "соответствует",
+  BAD = "не соответствует";
 
 test("16 видов печати: коды справочника, подписи, входят в PRINT_KINDS", () => {
   assert.equal(PROTO_KINDS.length, 16);
-  assert.deepEqual(PROTO_KINDS.map((k) => PROTO_DEFS[k].code), CODES);
+  assert.deepEqual(
+    PROTO_KINDS.map((k) => PROTO_DEFS[k].code),
+    CODES,
+  );
   for (const k of PROTO_KINDS) {
     assert.ok((PRINT_KINDS as readonly string[]).includes(k), k);
     assert.equal(BUILTIN_DOC_LABELS[k], PROTO_DEFS[k].code);

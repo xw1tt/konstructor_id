@@ -9,8 +9,8 @@ import { makeDocx, p, r, tr } from "./helpers/docx.ts";
 const data: FormData = {
   values: { "Акт.Номер": "1", "Акт.Дата": "05.06.2026 г.", "Объект.Заказчик": 'ООО "СБД" & <Ко>', "Акт.П.3": "строка 1\nстрока 2" },
   lists: {
-    "Материалы": [{ "Материал.Наименование": "Кабель" }, { "Материал.Наименование": "Лоток" }, { "Материал.Наименование": "Муфта" }],
-    "Схемы": [],
+    Материалы: [{ "Материал.Наименование": "Кабель" }, { "Материал.Наименование": "Лоток" }, { "Материал.Наименование": "Муфта" }],
+    Схемы: [],
   },
 };
 const xml = (buf: Buffer, part = "word/document.xml") => openZip(buf).get(part)!().toString("utf8");
@@ -53,7 +53,10 @@ test("колонтитул; неизвестная метка", () => {
 });
 
 test("не .docx — FormError", () => {
-  assert.throws(() => fillDocx(new TextEncoder().encode("%PDF-1.4"), data), (e: unknown) => e instanceof FormError && e.message === "Это не файл Word (.docx)");
+  assert.throws(
+    () => fillDocx(new TextEncoder().encode("%PDF-1.4"), data),
+    (e: unknown) => e instanceof FormError && e.message === "Это не файл Word (.docx)",
+  );
 });
 
 test("пустые абзацы <w:p/> не склеиваются со следующими", () => {

@@ -7,7 +7,18 @@ import { printAct } from "@idk/addin/panel/print";
 import { aov1Book, AOV1 } from "../../shared/test/fixtures/aov1Book.ts";
 
 test("экраны верхней строки", () => {
-  assert.deepEqual(SCREENS.map((s) => [s.id, s.label]), [["home", "Конструктор ИД"], ["normativ", "Норматив"], ["library", "Библиотека"], ["assistant", "Помощник"], ["settings", "Настройки"], ["templates", "Редактор шаблонов"], ["fields", "Поля для шаблона"]]);
+  assert.deepEqual(
+    SCREENS.map((s) => [s.id, s.label]),
+    [
+      ["home", "Конструктор ИД"],
+      ["normativ", "Норматив"],
+      ["library", "Библиотека"],
+      ["assistant", "Помощник"],
+      ["settings", "Настройки"],
+      ["templates", "Редактор шаблонов"],
+      ["fields", "Поля для шаблона"],
+    ],
+  );
 });
 
 test("печать передаёт шаблон в задание", async () => {

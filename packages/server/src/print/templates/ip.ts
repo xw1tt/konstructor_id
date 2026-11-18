@@ -23,12 +23,18 @@ table.grid.ip-si th, table.grid.ip-si td { font-size: 7.5pt; text-align: center;
 .ip-tail { break-inside: avoid; }
 </style>`;
 
-export const ipRowsOf = (d: IpData): BodyRow[] => d.rows.map((r) => ({
-  cells: { n: r.n, line: r.line, mark: r.mark, voltage: r.voltage, allowed: r.allowed, ...Object.fromEntries(r.values.map((v, i) => [`p${i}`, v])) },
-}));
+export const ipRowsOf = (d: IpData): BodyRow[] =>
+  d.rows.map((r) => ({
+    cells: { n: r.n, line: r.line, mark: r.mark, voltage: r.voltage, allowed: r.allowed, ...Object.fromEntries(r.values.map((v, i) => [`p${i}`, v])) },
+  }));
 
 export function ipHtml(d: IpData, view: BlankView = blankView("ip:sbd")): string {
-  const si = d.instruments.map((i) => `<tr><td>${e(i.name)}</td><td>${e(i.type)}</td><td>${e(i.range)}</td><td>${e(i.accuracy)}</td><td>${e(i.serial)}</td><td>${e(i.certificate)}</td><td>${e(i.checkedOn)}</td><td>${e(i.nextCheck)}</td><td>${e(i.authority)}</td></tr>`).join("");
+  const si = d.instruments
+    .map(
+      (i) =>
+        `<tr><td>${e(i.name)}</td><td>${e(i.type)}</td><td>${e(i.range)}</td><td>${e(i.accuracy)}</td><td>${e(i.serial)}</td><td>${e(i.certificate)}</td><td>${e(i.checkedOn)}</td><td>${e(i.nextCheck)}</td><td>${e(i.authority)}</td></tr>`,
+    )
+    .join("");
   const body = `
   <div class="ip-head">
     <div class="ip-c"><div><b>${e(d.lab.nameAddress)}</b></div><div class="cap">(наименование организации, предприятия)</div><div>${e(d.lab.certificate)}</div></div>
@@ -49,12 +55,16 @@ export function ipHtml(d: IpData, view: BlankView = blankView("ip:sbd")): string
     <p style="margin-top:4pt">Заключение на соответствие требованиям НТД: ${e(d.conclusion)}</p>
     ${view.shown("instruments") ? `<p style="margin-top:6pt">Перечень используемых средств измерений.</p>` : ""}
   </div>
-  ${view.shown("instruments") ? `<table class="grid ip-si">
+  ${
+    view.shown("instruments")
+      ? `<table class="grid ip-si">
     <thead><tr><th rowspan="2">Наименование СИ</th><th rowspan="2">Тип применяемого СИ</th><th rowspan="2">Диапазон измерений</th><th rowspan="2">Точность измерений</th>
       <th rowspan="2">Заводской номер</th><th rowspan="2">№ свидетельства о поверке</th><th colspan="2">Дата поверки</th><th rowspan="2">Орган государственной метрологической службы, проводивший поверку</th></tr>
       <tr><th>последней</th><th>очередной</th></tr></thead>
     <tbody>${si}</tbody>
-  </table>` : ""}
+  </table>`
+      : ""
+  }
   <div class="ip-signs"><div>Руководитель электролаборатории:</div><div>${e(d.lab.head)}</div><div>Испытания провел:</div><div>${e(d.lab.tester)}</div></div>`;
   return page(`Протокол ${withNo(String(d.number ?? ""))}`, STYLE + body, "ip");
 }

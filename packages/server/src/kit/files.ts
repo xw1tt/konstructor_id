@@ -9,10 +9,20 @@ import { getFile } from "../files/store.ts";
 
 export type ScanMime = "application/pdf" | "image/jpeg" | "image/png";
 export type Resolved = { ok: true; path: string; mime: ScanMime } | { ok: false; message: string };
-export interface ScanContext { db: Db; dataDir: string; scanFolder: string }
+export interface ScanContext {
+  db: Db;
+  dataDir: string;
+  scanFolder: string;
+}
 
 const MIME: Record<string, ScanMime> = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png" };
-const isFile = (p: string) => { try { return statSync(p).isFile(); } catch { return false; } };
+const isFile = (p: string) => {
+  try {
+    return statSync(p).isFile();
+  } catch {
+    return false;
+  }
+};
 
 /** Находит файл скана. Ссылка на файл сервера (/api/files/N) важнее имени. */
 export function resolveScan(ref: FileRef, ctx: ScanContext): Resolved {

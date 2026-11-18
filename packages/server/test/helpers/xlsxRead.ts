@@ -13,7 +13,12 @@ export interface ReadSheet {
   /** Тексты строк. */
   rows: string[];
 }
-const unesc = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+const unesc = (s: string) =>
+  s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&");
 const colNum = (s: string) => [...s].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
 
 export function readXlsx(buf: Uint8Array): { sheets: ReadSheet[]; workbook: string; styles: string } {
@@ -29,9 +34,20 @@ export function readXlsx(buf: Uint8Array): { sheets: ReadSheet[]; workbook: stri
       const r = Number(m[2]);
       (cells.get(r) ?? cells.set(r, new Map()).get(r)!).set(colNum(m[1]), unesc(t));
     }
-    const rows = [...cells.keys()].sort((a, b) => a - b).map((r) => [...cells.get(r)!.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v).join(" "));
+    const rows = [...cells.keys()]
+      .sort((a, b) => a - b)
+      .map((r) =>
+        [...cells.get(r)!.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([, v]) => v)
+          .join(" "),
+      );
     return {
-      name, cells, xml, rows, text: rows.join("\n"),
+      name,
+      cells,
+      xml,
+      rows,
+      text: rows.join("\n"),
       merges: [...xml.matchAll(/<mergeCell ref="([^"]+)"/g)].map((m) => m[1]),
       breaks: [...xml.matchAll(/<brk id="(\d+)"/g)].map((m) => Number(m[1])),
     };

@@ -44,7 +44,7 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
     "Акт.Номер РП": docNumberFor(act.baseNumber, "rp", set),
     "Акт.Дата": formatDateShort(act.date),
     "Акт.День": dd ?? "",
-    "Акт.Месяц": mm ? MONTHS_GEN.at(Number(mm) - 1) ?? "" : "",
+    "Акт.Месяц": mm ? (MONTHS_GEN.at(Number(mm) - 1) ?? "") : "",
     "Акт.Год": yy ?? "",
     "Акт.Дата прописью": aosr.date,
     "Акт.Работы": act.works,
@@ -75,7 +75,12 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
     v[`${g}.Организация`] = join((r) => org(r.orgId)?.shortName ?? "");
     v[`${g}.Приказ`] = join((r) => r.authorityDoc);
     v[`${g}.НРС`] = join((r) => r.nrsNumber);
-    v[`${g}.Подпись`] = join((r) => [r.position, r.fullName].map((s) => s.trim()).filter(Boolean).join(" "));
+    v[`${g}.Подпись`] = join((r) =>
+      [r.position, r.fullName]
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .join(" "),
+    );
     v[`${g}.Строка АОСР`] = join((r) => repLine(r, org(r.orgId)));
   }
   const docsOf = new Map(avk.rows.map((r, i) => [i, r.docs]));
@@ -84,21 +89,33 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
   return {
     values: { ...v, ...proto.values },
     lists: {
-      "Материалы": vd.rows.map((r, i) => {
+      Материалы: vd.rows.map((r, i) => {
         const am = b.actMaterials[i];
         const m = am ? mat(am.materialId) : undefined;
         return {
-          "Материал.№": String(i + 1), "Материал.Наименование": r.name, "Материал.Марка": m?.mark ?? "", "Материал.Артикул": r.article,
-          "Материал.Завод": r.manufacturer, "Материал.Ед.": r.unit, "Материал.Кол-во": r.quantity, "Материал.Документы": docsOf.get(i) ?? "",
+          "Материал.№": String(i + 1),
+          "Материал.Наименование": r.name,
+          "Материал.Марка": m?.mark ?? "",
+          "Материал.Артикул": r.article,
+          "Материал.Завод": r.manufacturer,
+          "Материал.Ед.": r.unit,
+          "Материал.Кол-во": r.quantity,
+          "Материал.Документы": docsOf.get(i) ?? "",
         };
       }),
-      "Схемы": b.documents.map((d, i) => ({
-        "Схема.№": String(i + 1), "Схема.Номер": d.number, "Схема.Наименование": d.name, "Схема.Дата": formatDateShort(d.date),
+      Схемы: b.documents.map((d, i) => ({
+        "Схема.№": String(i + 1),
+        "Схема.Номер": d.number,
+        "Схема.Наименование": d.name,
+        "Схема.Дата": formatDateShort(d.date),
         "Схема.Вид": d.kind === "scheme" ? "Исполнительная схема" : "Прочее",
       })),
-      "ВОР": b.vor.map((l, i) => ({
-        "ВОР.№": String(i + 1), "ВОР.Участок": l.group, "ВОР.Материал": mat(l.materialId)?.name ?? "",
-        "ВОР.Ед.": mat(l.materialId)?.unit ?? "", "ВОР.Объём": formatNumber(l.quantity),
+      ВОР: b.vor.map((l, i) => ({
+        "ВОР.№": String(i + 1),
+        "ВОР.Участок": l.group,
+        "ВОР.Материал": mat(l.materialId)?.name ?? "",
+        "ВОР.Ед.": mat(l.materialId)?.unit ?? "",
+        "ВОР.Объём": formatNumber(l.quantity),
       })),
       ...proto.lists,
     },

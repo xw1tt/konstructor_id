@@ -2,14 +2,24 @@
 import { appendFileSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 
-export interface LoggedError { at: string; where: string; message: string; stack: string }
+export interface LoggedError {
+  at: string;
+  where: string;
+  message: string;
+  stack: string;
+}
 const ring: LoggedError[] = [];
 const MAX = 200;
 let file: string | null = null;
 
 export function setLogFile(path: string | null) {
   file = path;
-  if (path) try { mkdirSync(dirname(path), { recursive: true }); } catch { /* журнал — не главное */ }
+  if (path)
+    try {
+      mkdirSync(dirname(path), { recursive: true });
+    } catch {
+      /* журнал — не главное */
+    }
 }
 
 export function logError(where: string, e: unknown) {
@@ -20,9 +30,15 @@ export function logError(where: string, e: unknown) {
   if (ring.length > MAX) ring.shift();
   if (!file) return;
   try {
-    try { if (statSync(file).size > 1024 * 1024) renameSync(file, `${file}.old`); } catch { /* файла ещё нет */ }
+    try {
+      if (statSync(file).size > 1024 * 1024) renameSync(file, `${file}.old`);
+    } catch {
+      /* файла ещё нет */
+    }
     appendFileSync(file, `${item.at} ${where}\n${item.stack || item.message}\n\n`);
-  } catch { /* диск недоступен — остаётся журнал в памяти */ }
+  } catch {
+    /* диск недоступен — остаётся журнал в памяти */
+  }
 }
 
 export const recentErrors = () => [...ring];

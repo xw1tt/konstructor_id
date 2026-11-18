@@ -12,24 +12,34 @@ import { aov1Records, AOV1 } from "./fixtures/aov1Book.ts";
 const row = (p: Partial<CableRow>) => CableRow.parse({ designation: "N-1", cableMark: "КСПЭВПнг(А)-HF 2х2х0.97", ...p });
 
 test("факт = сумма способов прокладки; частично заполнено — сумма заполненных; пусто — длина кабеля", () => {
-  const j = tiJournal([
-    row({ tray: 0, smoothPipe: 9, corrugatedPipe: 5, projectLength: 15 }),
-    row({ smoothPipe: 7, cableLength: 99 }),
-    row({ cableLength: 12 }),
-  ], 2);
+  const j = tiJournal(
+    [row({ tray: 0, smoothPipe: 9, corrugatedPipe: 5, projectLength: 15 }), row({ smoothPipe: 7, cableLength: 99 }), row({ cableLength: 12 })],
+    2,
+  );
   const cables = j.lines.filter((l) => l.kind === "cable");
-  assert.deepEqual(cables.map((c) => c.kind === "cable" && [c.project, c.fact, c.tray, c.smooth, c.corrugated]), [
-    ["15", "14", "0", "9", "5"], ["-", "7", "", "7", ""], ["-", "12", "", "", ""],
-  ]);
+  assert.deepEqual(
+    cables.map((c) => c.kind === "cable" && [c.project, c.fact, c.tray, c.smooth, c.corrugated]),
+    [
+      ["15", "14", "0", "9", "5"],
+      ["-", "7", "", "7", ""],
+      ["-", "12", "", "", ""],
+    ],
+  );
 });
 
 test("группы, итоги по способам, «в т.ч.» по маркам, запас N % вверх до целого", () => {
-  const j = tiJournal([
-    row({ group: "2 этаж, отм. +5.400", tray: 0, smoothPipe: 9, corrugatedPipe: 5, projectLength: 15 }),
-    row({ group: "2 этаж, отм. +5.400", smoothPipe: 7, corrugatedPipe: 5, projectLength: 10 }),
-    row({ group: "3 этаж", cableMark: "UTP 4x2x0.52", tray: 10, smoothPipe: 1 }),
-  ], 2);
-  assert.deepEqual(j.lines.filter((l) => l.kind === "group").map((l) => l.kind === "group" && l.title), ["2 этаж, отм. +5.400", "3 этаж"]);
+  const j = tiJournal(
+    [
+      row({ group: "2 этаж, отм. +5.400", tray: 0, smoothPipe: 9, corrugatedPipe: 5, projectLength: 15 }),
+      row({ group: "2 этаж, отм. +5.400", smoothPipe: 7, corrugatedPipe: 5, projectLength: 10 }),
+      row({ group: "3 этаж", cableMark: "UTP 4x2x0.52", tray: 10, smoothPipe: 1 }),
+    ],
+    2,
+  );
+  assert.deepEqual(
+    j.lines.filter((l) => l.kind === "group").map((l) => l.kind === "group" && l.title),
+    ["2 этаж, отм. +5.400", "3 этаж"],
+  );
   assert.deepEqual(j.total, { tray: "10", smooth: "17", corrugated: "10" });
   assert.deepEqual(j.byMark, [
     { mark: "КСПЭВПнг(А)-HF 2х2х0.97", project: "25", fact: "26", factReserve: "27" },

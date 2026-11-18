@@ -4,12 +4,35 @@ import { PROTO_DEFS } from "./defs.ts";
 import type { ProtoData } from "./types.ts";
 
 /** Поля группы «Документ», «Лаборатория» и списков «Строки» (поля — заголовки столбцов), «Комиссия», «Приборы». */
-export const PROTO_DOC_FIELDS = ["Код", "Наименование", "Номер", "Дата", "Окончание", "Период", "Предмет", "Температура", "Влажность",
-  "Давление", "Цель", "Нормативы", "Заключение", "Город"] as const;
+export const PROTO_DOC_FIELDS = [
+  "Код",
+  "Наименование",
+  "Номер",
+  "Дата",
+  "Окончание",
+  "Период",
+  "Предмет",
+  "Температура",
+  "Влажность",
+  "Давление",
+  "Цель",
+  "Нормативы",
+  "Заключение",
+  "Город",
+] as const;
 export const PROTO_LAB_FIELDS = ["Наименование", "Свидетельство", "Руководитель", "Испытатель"] as const;
 export const PROTO_MEMBER_FIELDS = ["Роль", "Должность", "Организация", "ФИО"] as const;
-export const PROTO_INSTRUMENT_FIELDS = ["Наименование", "Тип", "Диапазон", "Точность", "Заводской №", "Свидетельство", "Поверка",
-  "Очередная поверка", "Орган поверки"] as const;
+export const PROTO_INSTRUMENT_FIELDS = [
+  "Наименование",
+  "Тип",
+  "Диапазон",
+  "Точность",
+  "Заводской №",
+  "Свидетельство",
+  "Поверка",
+  "Очередная поверка",
+  "Орган поверки",
+] as const;
 
 const period = (p: ProtoData) => [formatDateShort(p.dateFrom), formatDateShort(p.dateTo)].filter(Boolean).join(" - ");
 
@@ -17,12 +40,26 @@ export function protoFormData(p: ProtoData): { values: Record<string, string>; l
   const cols = PROTO_DEFS[p.kind].columns;
   const lab = p.lab ?? { nameAddress: "", certificate: "", head: "", tester: "" };
   const doc: Record<(typeof PROTO_DOC_FIELDS)[number], string> = {
-    "Код": p.code, "Наименование": p.name, "Номер": p.number, "Дата": formatDateShort(p.dateFrom), "Окончание": formatDateShort(p.dateTo),
-    "Период": period(p), "Предмет": p.subject, "Температура": p.temperature, "Влажность": p.humidity, "Давление": p.pressure,
-    "Цель": p.purpose, "Нормативы": p.normative, "Заключение": p.conclusion, "Город": p.city,
+    Код: p.code,
+    Наименование: p.name,
+    Номер: p.number,
+    Дата: formatDateShort(p.dateFrom),
+    Окончание: formatDateShort(p.dateTo),
+    Период: period(p),
+    Предмет: p.subject,
+    Температура: p.temperature,
+    Влажность: p.humidity,
+    Давление: p.pressure,
+    Цель: p.purpose,
+    Нормативы: p.normative,
+    Заключение: p.conclusion,
+    Город: p.city,
   };
   const labV: Record<(typeof PROTO_LAB_FIELDS)[number], string> = {
-    "Наименование": lab.nameAddress, "Свидетельство": lab.certificate, "Руководитель": lab.head, "Испытатель": lab.tester,
+    Наименование: lab.nameAddress,
+    Свидетельство: lab.certificate,
+    Руководитель: lab.head,
+    Испытатель: lab.tester,
   };
   return {
     values: {
@@ -30,12 +67,18 @@ export function protoFormData(p: ProtoData): { values: Record<string, string>; l
       ...Object.fromEntries(Object.entries(labV).map(([k, v]) => [`Лаборатория.${k}`, v])),
     },
     lists: {
-      "Строки": p.rows.map((r, i) => ({ "Строка.№": String(i + 1), ...Object.fromEntries(cols.map((c) => [`Строка.${c.header}`, r[c.key] ?? ""])) })),
-      "Комиссия": p.commission.map((m) => ({ "Член.Роль": m.role, "Член.Должность": m.position, "Член.Организация": m.org, "Член.ФИО": m.name })),
-      "Приборы": p.instruments.map((i) => ({
-        "Прибор.Наименование": i.name, "Прибор.Тип": i.type, "Прибор.Диапазон": i.range, "Прибор.Точность": i.accuracy,
-        "Прибор.Заводской №": i.serial, "Прибор.Свидетельство": i.certificate, "Прибор.Поверка": formatDateShort(i.checkedOn),
-        "Прибор.Очередная поверка": formatDateShort(i.nextCheck), "Прибор.Орган поверки": i.authority,
+      Строки: p.rows.map((r, i) => ({ "Строка.№": String(i + 1), ...Object.fromEntries(cols.map((c) => [`Строка.${c.header}`, r[c.key] ?? ""])) })),
+      Комиссия: p.commission.map((m) => ({ "Член.Роль": m.role, "Член.Должность": m.position, "Член.Организация": m.org, "Член.ФИО": m.name })),
+      Приборы: p.instruments.map((i) => ({
+        "Прибор.Наименование": i.name,
+        "Прибор.Тип": i.type,
+        "Прибор.Диапазон": i.range,
+        "Прибор.Точность": i.accuracy,
+        "Прибор.Заводской №": i.serial,
+        "Прибор.Свидетельство": i.certificate,
+        "Прибор.Поверка": formatDateShort(i.checkedOn),
+        "Прибор.Очередная поверка": formatDateShort(i.nextCheck),
+        "Прибор.Орган поверки": i.authority,
       })),
     },
   };
@@ -48,6 +91,6 @@ export function emptyProtoFormData(): { values: Record<string, string>; lists: R
       ...Object.fromEntries(PROTO_DOC_FIELDS.map((k) => [`Документ.${k}`, ""])),
       ...Object.fromEntries(PROTO_LAB_FIELDS.map((k) => [`Лаборатория.${k}`, ""])),
     },
-    lists: { "Строки": [], "Комиссия": [], "Приборы": [] },
+    lists: { Строки: [], Комиссия: [], Приборы: [] },
   };
 }

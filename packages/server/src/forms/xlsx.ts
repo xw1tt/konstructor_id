@@ -34,35 +34,43 @@ function rowMapper(repeats: [number, number][]) {
 }
 
 /** Сдвиг номеров строк в ссылке вида A6, $A$6, A6:C6, 'Лист'!$A$1:$C$6. */
-const shiftRefs = (ref: string, map: (r: number) => number) =>
-  ref.replace(/(\$?[A-Z]{1,3}\$?)(\d+)/g, (_, col, row) => `${col}${map(Number(row))}`);
+const shiftRefs = (ref: string, map: (r: number) => number) => ref.replace(/(\$?[A-Z]{1,3}\$?)(\d+)/g, (_, col, row) => `${col}${map(Number(row))}`);
 
-interface Shift { map: (r: number) => number; end: (r: number) => number }
+interface Shift {
+  map: (r: number) => number;
+  end: (r: number) => number;
+}
 
 /**
  * Сдвиг ссылок формулы своего листа: ячейка → новая строка; у диапазона конец, попавший на строку-повтор, растягивается
  * на все её копии (SUM(B2:B2) → SUM(B2:B4)). Ссылки на другие листы (Лист!A1), имена функций (LOG10) не трогаются.
  */
 function shiftFormula(f: string, s: Shift, here?: { from: number; to: number }): string {
-  return f.replace(/(\$?[A-Z]{1,3}\$?)(\d+)(?::(\$?[A-Z]{1,3}\$?)(\d+))?/g, (m, c1: string, r1: string, c2: string | undefined, r2: string | undefined, at: number, all: string) => {
-    const prev = all[at - 1] ?? "", next = all[at + m.length] ?? "";
-    if (/[A-Za-zА-Яа-я0-9_.!'"]/.test(prev) || /[A-Za-z0-9_(]/.test(next)) return m;
-    const one = (r: number, end = false) => (here && r === here.from ? here.to : end ? s.end(r) : s.map(r));
-    return c2 ? `${c1}${one(Number(r1))}:${c2}${one(Number(r2), true)}` : `${c1}${one(Number(r1))}`;
-  });
+  return f.replace(
+    /(\$?[A-Z]{1,3}\$?)(\d+)(?::(\$?[A-Z]{1,3}\$?)(\d+))?/g,
+    (m, c1: string, r1: string, c2: string | undefined, r2: string | undefined, at: number, all: string) => {
+      const prev = all[at - 1] ?? "",
+        next = all[at + m.length] ?? "";
+      if (/[A-Za-zА-Яа-я0-9_.!'"]/.test(prev) || /[A-Za-z0-9_(]/.test(next)) return m;
+      const one = (r: number, end = false) => (here && r === here.from ? here.to : end ? s.end(r) : s.map(r));
+      return c2 ? `${c1}${one(Number(r1))}:${c2}${one(Number(r2), true)}` : `${c1}${one(Number(r1))}`;
+    },
+  );
 }
 
 export function fillXlsx(buf: Uint8Array, data: FormData): { buf: Buffer; warnings: string[] } {
   const files = openXlsx(buf);
   const warnings = new Set<string>();
   const shared = [...(files.get("xl/sharedStrings.xml")?.().toString("utf8") ?? "").matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => texts(m[1]));
-  const lookup = (item?: Record<string, string>) => (label: string): string => {
-    if (label.startsWith("#") || label.startsWith("/")) return "";
-    if (item && label in item) return item[label];
-    if (label in data.values) return data.values[label];
-    warnings.add(`Нет поля «${label}»`);
-    return `[нет поля: ${label}]`;
-  };
+  const lookup =
+    (item?: Record<string, string>) =>
+    (label: string): string => {
+      if (label.startsWith("#") || label.startsWith("/")) return "";
+      if (item && label in item) return item[label];
+      if (label in data.values) return data.values[label];
+      warnings.add(`Нет поля «${label}»`);
+      return `[нет поля: ${label}]`;
+    };
   const cellText = (head: string, body: string) => {
     const t = attr(head, "t");
     if (t === "s") return shared[Number(body.match(/<v>([\s\S]*?)<\/v>/)?.[1])] ?? "";
@@ -82,7 +90,11 @@ export function fillXlsx(buf: Uint8Array, data: FormData): { buf: Buffer; warnin
     const plan = rows.map((m) => {
       const r = Number(attr(m[1], "r"));
       const body = m[2] ?? "";
-      const listName = [...body.matchAll(CELL)].map((c) => cellText(c[1], c[2] ?? "") ?? "").join("").match(/\{#([^{}]+)\}/)?.[1]?.trim();
+      const listName = [...body.matchAll(CELL)]
+        .map((c) => cellText(c[1], c[2] ?? "") ?? "")
+        .join("")
+        .match(/\{#([^{}]+)\}/)?.[1]
+        ?.trim();
       let items: (Record<string, string> | undefined)[] = [undefined];
       if (listName) {
         const list = data.lists[listName];
@@ -95,56 +107,76 @@ export function fillXlsx(buf: Uint8Array, data: FormData): { buf: Buffer; warnin
     const map = rowMapper(repeats);
     const shift: Shift = { map, end: (r) => map(r) + (repeats.find(([x]) => x === r)?.[1] ?? 1) - 1 };
     sheetMaps.set(name, map);
-    const fixF = (cell: string, here?: { from: number; to: number }, copy = false) => cell
-      .replace(/<f\b[^>]*\bt="shared"[^>]*\/>|<f\b[^>]*\bt="shared"[^>]*>[\s\S]*?<\/f>/g, (f) => (copy ? "" : f))
-      .replace(/(<f\b[^>]*>)([\s\S]*?)(<\/f>)/g, (_, a: string, body: string, b: string) => a + xmlEscape(shiftFormula(xmlUnescape(body), shift, here)) + b);
-    let res = "", last = 0;
+    const fixF = (cell: string, here?: { from: number; to: number }, copy = false) =>
+      cell
+        .replace(/<f\b[^>]*\bt="shared"[^>]*\/>|<f\b[^>]*\bt="shared"[^>]*>[\s\S]*?<\/f>/g, (f) => (copy ? "" : f))
+        .replace(/(<f\b[^>]*>)([\s\S]*?)(<\/f>)/g, (_, a: string, body: string, b: string) => a + xmlEscape(shiftFormula(xmlUnescape(body), shift, here)) + b);
+    let res = "",
+      last = 0;
     for (const { m, r, items } of plan) {
       res += xml.slice(last, m.index!);
       last = m.index! + m[0].length;
       const start = map(r);
-      res += items.map((item, k) => {
-        const nr = start + k;
-        const head = setAttr(m[1], "r", String(nr));
-        if (m[2] === undefined) return `<row${head}/>`;
-        const cells = m[2].replace(CELL, (c, ch: string, cb: string | undefined) => {
-          const ref = attr(ch, "r");
-          let h = ref ? setAttr(ch, "r", ref.replace(/\d+$/, String(nr))) : ch;
-          const text = cellText(ch, cb ?? "");
-          if (text === null || !text.includes("{")) return cb === undefined ? `<c${h}/>` : fixF(`<c${h}>${cb}</c>`, items[0] === undefined ? undefined : { from: r, to: nr }, k > 0);
-          const value = text.replace(LABEL, (_, l: string) => lookup(item)(l.trim()));
-          const clean = value.replace(/\{[#/][^{}]*\}/g, "");
-          h = h.replace(/\st="[^"]*"/, "");
-          // Ячейка — ровно одна метка (маркеры повтора не в счёт) с числовым значением → число.
-          const single = text.replace(/\{[#/][^{}]*\}/g, "").trim().match(/^\{([^{}]+)\}$/);
-          if (single && NUMERIC_FIELDS.has(single[1].trim()) && NUMERIC.test(clean.trim())) return `<c${h}><v>${clean.trim().replace(",", ".")}</v></c>`;
-          return `<c${h} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(clean)}</t></is></c>`;
-        });
-        return `<row${head}>${cells}</row>`;
-      }).join("");
+      res += items
+        .map((item, k) => {
+          const nr = start + k;
+          const head = setAttr(m[1], "r", String(nr));
+          if (m[2] === undefined) return `<row${head}/>`;
+          const cells = m[2].replace(CELL, (c, ch: string, cb: string | undefined) => {
+            const ref = attr(ch, "r");
+            let h = ref ? setAttr(ch, "r", ref.replace(/\d+$/, String(nr))) : ch;
+            const text = cellText(ch, cb ?? "");
+            if (text === null || !text.includes("{"))
+              return cb === undefined ? `<c${h}/>` : fixF(`<c${h}>${cb}</c>`, items[0] === undefined ? undefined : { from: r, to: nr }, k > 0);
+            const value = text.replace(LABEL, (_, l: string) => lookup(item)(l.trim()));
+            const clean = value.replace(/\{[#/][^{}]*\}/g, "");
+            h = h.replace(/\st="[^"]*"/, "");
+            // Ячейка — ровно одна метка (маркеры повтора не в счёт) с числовым значением → число.
+            const single = text
+              .replace(/\{[#/][^{}]*\}/g, "")
+              .trim()
+              .match(/^\{([^{}]+)\}$/);
+            if (single && NUMERIC_FIELDS.has(single[1].trim()) && NUMERIC.test(clean.trim())) return `<c${h}><v>${clean.trim().replace(",", ".")}</v></c>`;
+            return `<c${h} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(clean)}</t></is></c>`;
+          });
+          return `<row${head}>${cells}</row>`;
+        })
+        .join("");
     }
     res += xml.slice(last);
     // Объединения: в строке-повторе — по одному на каждую копию (ни одного при пустом списке), остальные — сдвиг.
-    res = res.replace(/<mergeCell ref="([^"]+)"\/>/g, (_, ref: string) => {
-      const rows = [...ref.matchAll(/(\d+)/g)].map((m) => Number(m[1]));
-      const rep = repeats.find(([x]) => rows.every((y) => y === x));
-      if (rep) return Array.from({ length: rep[1] }, (_x, i) => `<mergeCell ref="${ref.replace(/(\d+)/g, String(map(rep[0]) + i))}"/>`).join("");
-      return `<mergeCell ref="${shiftRefs(ref, map)}"/>`;
-    }).replace(/<dimension ref="([^"]+)"\/>/, (_, ref: string) => `<dimension ref="${shiftRefs(ref, map)}"/>`)
+    res = res
+      .replace(/<mergeCell ref="([^"]+)"\/>/g, (_, ref: string) => {
+        const rows = [...ref.matchAll(/(\d+)/g)].map((m) => Number(m[1]));
+        const rep = repeats.find(([x]) => rows.every((y) => y === x));
+        if (rep) return Array.from({ length: rep[1] }, (_x, i) => `<mergeCell ref="${ref.replace(/(\d+)/g, String(map(rep[0]) + i))}"/>`).join("");
+        return `<mergeCell ref="${shiftRefs(ref, map)}"/>`;
+      })
+      .replace(/<dimension ref="([^"]+)"\/>/, (_, ref: string) => `<dimension ref="${shiftRefs(ref, map)}"/>`)
       // Проверка данных, условное форматирование, гиперссылки, разрывы страниц ниже повтора — тоже сдвигаются.
-      .replace(/(<(?:dataValidation|conditionalFormatting|selection)\b[^>]*\ssqref=")([^"]+)"/g, (_, a: string, ref: string) => `${a}${shiftFormula(ref, shift)}"`)
+      .replace(
+        /(<(?:dataValidation|conditionalFormatting|selection)\b[^>]*\ssqref=")([^"]+)"/g,
+        (_, a: string, ref: string) => `${a}${shiftFormula(ref, shift)}"`,
+      )
       .replace(/(<hyperlink\b[^>]*\sref=")([^"]+)"/g, (_, a: string, ref: string) => `${a}${shiftRefs(ref, map)}"`)
       .replace(/(<brk\b[^>]*\sid=")(\d+)"/g, (_, a: string, n: string) => `${a}${map(Number(n) + 1) - 1}"`);
     res = res.replace(/<mergeCells count="\d+"/, `<mergeCells count="${(res.match(/<mergeCell ref=/g) ?? []).length}"`);
     filled.set(name, res);
     // Картинки листа (печати, подписи): якоря строк (с 0) ниже повтора сдвигаются.
-    const rels = files.get(name.replace(/worksheets\/(sheet\d+\.xml)$/, "worksheets/_rels/$1.rels"))?.().toString("utf8") ?? "";
+    const rels =
+      files
+        .get(name.replace(/worksheets\/(sheet\d+\.xml)$/, "worksheets/_rels/$1.rels"))?.()
+        .toString("utf8") ?? "";
     for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) {
       const target = attr(m[0], "Target") ?? "";
       if (!/drawing/i.test(attr(m[0], "Type") ?? "")) continue;
       const path = target.startsWith("/") ? target.slice(1) : `xl/${target.replace(/^\.\.\//, "")}`;
       const dxml = files.get(path)?.().toString("utf8");
-      if (dxml !== undefined) drawings.set(path, dxml.replace(/<xdr:row>(\d+)<\/xdr:row>/g, (_, n: string) => `<xdr:row>${map(Number(n) + 1) - 1}</xdr:row>`));
+      if (dxml !== undefined)
+        drawings.set(
+          path,
+          dxml.replace(/<xdr:row>(\d+)<\/xdr:row>/g, (_, n: string) => `<xdr:row>${map(Number(n) + 1) - 1}</xdr:row>`),
+        );
     }
   }
   // Области печати и прочие имена листа: по localSheetId (порядок листов в книге) сдвигаем номера строк.
@@ -153,7 +185,7 @@ export function fillXlsx(buf: Uint8Array, data: FormData): { buf: Buffer; warnin
   const sheetPaths = [...wb.matchAll(/<sheet\b[^>]*>/g)].map((m) => {
     const id = attr(m[0], "r:id");
     const target = [...rels.matchAll(/<Relationship\b[^>]*>/g)].map((x) => x[0]).find((x) => attr(x, "Id") === id);
-    const t = target ? attr(target, "Target") ?? "" : "";
+    const t = target ? (attr(target, "Target") ?? "") : "";
     return t.startsWith("/") ? t.slice(1) : `xl/${t}`;
   });
   const wbOut = wb.replace(/<definedName\b([^>]*)>([\s\S]*?)<\/definedName>/g, (whole, head: string, body: string) => {
@@ -165,9 +197,22 @@ export function fillXlsx(buf: Uint8Array, data: FormData): { buf: Buffer; warnin
     if (filled.has(name)) out.push([name, filled.get(name)!]);
     else if (drawings.has(name)) out.push([name, drawings.get(name)!]);
     else if (name === "xl/workbook.xml") out.push([name, wbOut]);
-    else if (name === "xl/calcChain.xml") continue; // цепочка вычислений устарела после сдвига — Excel построит заново
-    else if (name === "xl/_rels/workbook.xml.rels") out.push([name, get().toString("utf8").replace(/<Relationship\b[^>]*calcChain[^>]*\/>/g, "")]);
-    else if (name === "[Content_Types].xml") out.push([name, get().toString("utf8").replace(/<Override\b[^>]*calcChain[^>]*\/>/g, "")]);
+    else if (name === "xl/calcChain.xml")
+      continue; // цепочка вычислений устарела после сдвига — Excel построит заново
+    else if (name === "xl/_rels/workbook.xml.rels")
+      out.push([
+        name,
+        get()
+          .toString("utf8")
+          .replace(/<Relationship\b[^>]*calcChain[^>]*\/>/g, ""),
+      ]);
+    else if (name === "[Content_Types].xml")
+      out.push([
+        name,
+        get()
+          .toString("utf8")
+          .replace(/<Override\b[^>]*calcChain[^>]*\/>/g, ""),
+      ]);
     else out.push([name, get()]);
   }
   return { buf: writeZip(out), warnings: [...warnings] };

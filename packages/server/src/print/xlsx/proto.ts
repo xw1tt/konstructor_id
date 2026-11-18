@@ -24,13 +24,17 @@ const resultTable = (L: Layout, p: ProtoData, view: BlankView) => xlsxBlankTable
 /** Строка подписи: должность (надпись), линия 35 мм, ФИО 45 мм — у правого края. */
 function signRow(L: Layout, label: string, name: string) {
   const col = L.sheet.colsMm[0];
-  const line = Math.round(35 / col), who = Math.round(45 / col);
+  const line = Math.round(35 / col),
+    who = Math.round(45 / col);
   L.gap(8);
-  L.line([
-    { c1: 1, c2: L.cols - line - who - 1, text: label },
-    { c1: L.cols - line - who, c2: L.cols - who - 1, text: "", under: true },
-    { c1: L.cols - who + 1, c2: L.cols, text: name, style: { h: "left" } },
-  ], S);
+  L.line(
+    [
+      { c1: 1, c2: L.cols - line - who - 1, text: label },
+      { c1: L.cols - line - who, c2: L.cols - who - 1, text: "", under: true },
+      { c1: L.cols - who + 1, c2: L.cols, text: name, style: { h: "left" } },
+    ],
+    S,
+  );
 }
 
 export function protoSheet(b: ActBundle, view?: BlankView): Layout {
@@ -39,7 +43,10 @@ export function protoSheet(b: ActBundle, view?: BlankView): Layout {
   const landscape = protoLandscape(p);
   const width = landscape ? 277 : 180;
   const n = landscape ? 55 : 36;
-  const L = new Layout(`${p.code} ${withNo(String(p.number ?? ""))}`, Array(n).fill(width / n), { landscape, margins: landscape ? [10, 10, 10, 10] : [10, 10, 10, 20] });
+  const L = new Layout(`${p.code} ${withNo(String(p.number ?? ""))}`, Array(n).fill(width / n), {
+    landscape,
+    margins: landscape ? [10, 10, 10, 10] : [10, 10, 10, 20],
+  });
   const def = PROTO_DEFS[p.kind];
   view ??= blankView(p.kind);
   const sub = () => L.para(subtitle(p.name), { b: true, h: "center", size: S });
@@ -47,14 +54,19 @@ export function protoSheet(b: ActBundle, view?: BlankView): Layout {
     const lab = p.lab ?? { nameAddress: "", certificate: "", head: "", tester: "" };
     const org = (id: number | null | undefined) => b.organizations.find((o) => o.id === id)?.shortName ?? "";
     const section = b.sections.find((s) => s.id === b.act.sectionId);
-    ipHead(L, lab.nameAddress, lab.certificate,
-      `Заказчик: ${org(b.object.roles.developer)}. Объект: ${b.object.name}. Проектная документация: ${section?.code ?? ""}. Дата проведения измерений: ${dates(p)}`);
+    ipHead(
+      L,
+      lab.nameAddress,
+      lab.certificate,
+      `Заказчик: ${org(b.object.roles.developer)}. Объект: ${b.object.name}. Проектная документация: ${section?.code ?? ""}. Дата проведения измерений: ${dates(p)}`,
+    );
     L.para(`Протокол ${withNo(String(p.number ?? ""))}`, { b: true, h: "center", size: 12 });
     sub();
     L.gap(4);
-    const climate = def.climate === "temp"
-      ? `Температура воздуха ${p.temperature} °C.`
-      : `Температура воздуха ${p.temperature} °C, влажность воздуха ${p.humidity} %, атмосферное давление ${p.pressure} мм рт. ст.`;
+    const climate =
+      def.climate === "temp"
+        ? `Температура воздуха ${p.temperature} °C.`
+        : `Температура воздуха ${p.temperature} °C, влажность воздуха ${p.humidity} %, атмосферное давление ${p.pressure} мм рт. ст.`;
     L.para(`Климатические условия при проведении измерений: ${climate}`, { size: S });
     L.para(`Цель измерений (испытаний): ${p.purpose}`, { size: S });
     L.para(`Нормативные и технические документы, на соответствие требованиям которых проведены измерения (испытания): ${p.normative}`, { size: S });
@@ -66,7 +78,10 @@ export function protoSheet(b: ActBundle, view?: BlankView): Layout {
     L.gap(4);
     if (view.shown("instruments")) {
       L.para("Перечень используемых средств измерений.", { size: S });
-      instruments(L, p.instruments.map((i) => ({ ...i, checkedOn: plainDate(i.checkedOn), nextCheck: plainDate(i.nextCheck) })));
+      instruments(
+        L,
+        p.instruments.map((i) => ({ ...i, checkedOn: plainDate(i.checkedOn), nextCheck: plainDate(i.nextCheck) })),
+      );
     }
     L.gap(6);
     signRow(L, "Руководитель электролаборатории:", lab.head);
@@ -77,7 +92,13 @@ export function protoSheet(b: ActBundle, view?: BlankView): Layout {
   sub();
   L.gap(4);
   const half = Math.floor(L.cols / 2);
-  L.line([{ c1: 1, c2: half, text: p.city ? `г. ${p.city}` : "" }, { c1: half + 1, c2: L.cols, text: dates(p), style: { h: "right" } }], S);
+  L.line(
+    [
+      { c1: 1, c2: half, text: p.city ? `г. ${p.city}` : "" },
+      { c1: half + 1, c2: L.cols, text: dates(p), style: { h: "right" } },
+    ],
+    S,
+  );
   L.gap(4);
   L.para(`Объект: ${b.object.name}`, { size: S });
   if (p.subject) L.para(`Предмет: ${p.subject}`, { size: S });

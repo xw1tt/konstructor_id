@@ -21,7 +21,12 @@ async function merged(r: any) {
   wb.drop("ДокументыКачества");
   for (const u of plan.updates) await wb.write("Материалы", u.row, u.values, u.links);
   const n = (await wb.read("Материалы"))!.rows.length;
-  if (plan.appended.length) await wb.insert("Материалы", n, plan.appended.map((a) => a.values));
+  if (plan.appended.length)
+    await wb.insert(
+      "Материалы",
+      n,
+      plan.appended.map((a) => a.values),
+    );
   for (const [i, a] of plan.appended.entries()) if (Object.keys(a.links).length) await wb.write("Материалы", n + i, {}, a.links);
   return { wb, store: withVirtualTables(wb), plan };
 }
@@ -33,9 +38,9 @@ const withSpec = () => {
   mats[1]["№ п/п РКЦ"] = "1.1";
   mats[2]["№ п/п РКЦ"] = "1.2";
   r["Спецификация"] = [
-    { "№ п/п": "1.1", "Раздел": "Слаботочные", "Наименование": "Кабель по РКЦ", "Ед. изм.": "м", "Кол-во по проекту": 2000, "Источник": "РКЦ" },
-    { "№ п/п": "1.2", "Раздел": "Слаботочные", "Наименование": "Труба по РКЦ", "Ед. изм.": "м", "Кол-во по проекту": 300, "Источник": "РКЦ" },
-    { "№ п/п": "2.7", "Раздел": "Прочее", "Наименование": "Позиция без материала", "Ед. изм.": "шт", "Кол-во по проекту": 4, "Источник": "РКЦ" },
+    { "№ п/п": "1.1", Раздел: "Слаботочные", Наименование: "Кабель по РКЦ", "Ед. изм.": "м", "Кол-во по проекту": 2000, Источник: "РКЦ" },
+    { "№ п/п": "1.2", Раздел: "Слаботочные", Наименование: "Труба по РКЦ", "Ед. изм.": "м", "Кол-во по проекту": 300, Источник: "РКЦ" },
+    { "№ п/п": "2.7", Раздел: "Прочее", Наименование: "Позиция без материала", "Ед. изм.": "шт", "Кол-во по проекту": 4, Источник: "РКЦ" },
   ];
   return r;
 };
@@ -46,9 +51,15 @@ test("после переноса книга печатает те же доку
   const { store, plan } = await merged(r);
   assert.deepEqual(plan.problems, []);
   const after = await readBook(store);
-  const docs = (b: typeof before) => (b.tables["ДокументыКачества"] ?? []).map((x) => [x.v.type, x.v.number, x.v.materials, x.v.sheets]).sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  const docs = (b: typeof before) =>
+    (b.tables["ДокументыКачества"] ?? [])
+      .map((x) => [x.v.type, x.v.number, x.v.materials, x.v.sheets])
+      .sort((a, b) => String(a[1]).localeCompare(String(b[1])));
   assert.deepEqual(docs(after), docs(before));
-  const q = (b: typeof before) => buildBundle(b, AOV1, defaultImportant()).bundle!.qualityDocs.map((d) => [d.type, d.number, d.materialIds.length]).sort();
+  const q = (b: typeof before) =>
+    buildBundle(b, AOV1, defaultImportant())
+      .bundle!.qualityDocs.map((d) => [d.type, d.number, d.materialIds.length])
+      .sort();
   assert.deepEqual(q(after), q(before));
   const sc = (b: typeof before) => specClosed(b).map((p) => [p.number, p.quantity, p.closed, p.number === "2.7" ? "-" : p.materials.length]);
   assert.deepEqual(sc(after), sc(before));
@@ -61,32 +72,39 @@ test("виртуальные документы: новый — в свобод�
   const book = await readBook(store);
   const [m1, m2] = (book.tables["Материалы"] ?? []).map((m) => String(m.v.name));
   const before = (await store.read("ДокументыКачества"))!.rows.length;
-  const i = await store.insert("ДокументыКачества", 0, [{ "Материалы": `${m1}; ${m2}`, "Тип": "Сертификат соответствия", "Номер": "ОБЩ-1", "Листов": 2 }]);
+  const i = await store.insert("ДокументыКачества", 0, [{ Материалы: `${m1}; ${m2}`, Тип: "Сертификат соответствия", Номер: "ОБЩ-1", Листов: 2 }]);
   const docs = await readBook(store);
   const d = docs.tables["ДокументыКачества"]!.find((x) => x.v.number === "ОБЩ-1")!;
   assert.equal(d.row, i);
   assert.equal(d.v.materials, `${m1}; ${m2}`);
   assert.equal((await store.read("ДокументыКачества"))!.rows.length, before + 1, "один документ на два материала");
-  await store.write("ДокументыКачества", i, { "Скан": "общ.pdf" }, { "Скан": "https://localhost:3443/api/files/9" });
+  await store.write("ДокументыКачества", i, { Скан: "общ.pdf" }, { Скан: "https://localhost:3443/api/files/9" });
   const t = (await store.read("ДокументыКачества"))!;
   assert.equal(t.links[i][t.headers.indexOf("Скан")], "https://localhost:3443/api/files/9");
   // Отвязать второй материал.
-  await store.write("ДокументыКачества", i, { "Материалы": m1 });
+  await store.write("ДокументыКачества", i, { Материалы: m1 });
   assert.equal((await readBook(store)).tables["ДокументыКачества"]!.find((x) => x.v.number === "ОБЩ-1")!.v.materials, m1);
   await store.remove("ДокументыКачества", [i]);
   assert.ok(!(await readBook(store)).tables["ДокументыКачества"]!.some((x) => x.v.number === "ОБЩ-1"));
   // Четвёртый документ материалу — ошибка с понятным текстом.
   for (const n of ["A", "B", "C", "D"]) {
-    try { await store.insert("ДокументыКачества", 0, [{ "Материалы": "Новый М", "Тип": "Паспорт качества", "Номер": n }]); }
-    catch (e) { assert.equal(n, "D"); assert.match((e as Error).message, /У материала «Новый М» уже 3 документа/); }
+    try {
+      await store.insert("ДокументыКачества", 0, [{ Материалы: "Новый М", Тип: "Паспорт качества", Номер: n }]);
+    } catch (e) {
+      assert.equal(n, "D");
+      assert.match((e as Error).message, /У материала «Новый М» уже 3 документа/);
+    }
   }
-  assert.ok((await wb.read("Материалы"))!.rows.some((r) => r[0] === "Новый М"), "материала не было — строка создана");
+  assert.ok(
+    (await wb.read("Материалы"))!.rows.some((r) => r[0] === "Новый М"),
+    "материала не было — строка создана",
+  );
 });
 
 test("виртуальная спецификация: новая позиция, правка, удаление (материал остаётся, позиция без материала — удаляется)", async () => {
   const { wb, store } = await merged(withSpec());
   const spec = () => readBook(store).then((b) => b.tables["Спецификация"] ?? []);
-  const i = await store.insert("Спецификация", 0, [{ "№ п/п": "3.1", "Наименование": "Лоток", "Ед. изм.": "м", "Кол-во по проекту": 50 }]);
+  const i = await store.insert("Спецификация", 0, [{ "№ п/п": "3.1", Наименование: "Лоток", "Ед. изм.": "м", "Кол-во по проекту": 50 }]);
   assert.equal((await spec())[i].v.number, "3.1");
   await store.write("Спецификация", i, { "Кол-во по проекту": 60 });
   assert.equal((await spec())[i].v.quantity, 60);
@@ -123,8 +141,8 @@ test("повторная загрузка РКЦ: на месте по № п/п
 test("перенос: документ четвёртым на материал — в списке проблем; документ без материалов — тоже", async () => {
   const r: any = aov1Records();
   const m = r["Материалы"][0]["Наименование"];
-  r["ДокументыКачества"].push(...["X1", "X2", "X3", "X4"].map((n) => ({ "Материалы": m, "Тип": "Паспорт качества", "Номер": n, "Листов": 1 })));
-  r["ДокументыКачества"].push({ "Материалы": "", "Тип": "Паспорт качества", "Номер": "БЕЗ", "Листов": 1 });
+  r["ДокументыКачества"].push(...["X1", "X2", "X3", "X4"].map((n) => ({ Материалы: m, Тип: "Паспорт качества", Номер: n, Листов: 1 })));
+  r["ДокументыКачества"].push({ Материалы: "", Тип: "Паспорт качества", Номер: "БЕЗ", Листов: 1 });
   const { plan } = await merged(r);
   assert.ok(plan.problems.some((p) => /уже 3 документа — не поместился/.test(p)));
   assert.ok(plan.problems.some((p) => /«Паспорт качества БЕЗ»: не указаны материалы/.test(p)));
@@ -133,13 +151,17 @@ test("перенос: документ четвёртым на материал 
 test("запись из библиотеки: документы ложатся в строки своих материалов, сканы — каждому свой", async () => {
   const { writeBook } = await import("@idk/shared/workbook/write");
   const { store } = await merged(aov1Records());
-  await writeBook(store, {
-    "Материалы": [{ "Наименование": "Лоток Б" }, { "Наименование": "Лоток А" }],
-    "ДокументыКачества": [
-      { "Материалы": "Лоток А", "Тип": "Паспорт качества", "Номер": "ЛА", "Листов": 1, "Скан": "а.pdf" },
-      { "Материалы": "Лоток Б", "Тип": "Паспорт качества", "Номер": "ЛБ", "Листов": 1, "Скан": "б.pdf" },
-    ],
-  } as any, { "ДокументыКачества": [{ "Скан": "https://h/api/files/1" }, { "Скан": "https://h/api/files/2" }] } as any);
+  await writeBook(
+    store,
+    {
+      Материалы: [{ Наименование: "Лоток Б" }, { Наименование: "Лоток А" }],
+      ДокументыКачества: [
+        { Материалы: "Лоток А", Тип: "Паспорт качества", Номер: "ЛА", Листов: 1, Скан: "а.pdf" },
+        { Материалы: "Лоток Б", Тип: "Паспорт качества", Номер: "ЛБ", Листов: 1, Скан: "б.pdf" },
+      ],
+    } as any,
+    { ДокументыКачества: [{ Скан: "https://h/api/files/1" }, { Скан: "https://h/api/files/2" }] } as any,
+  );
   const t = (await store.read("ДокументыКачества"))!;
   const at = (n: string) => t.links[t.rows.findIndex((r) => r[t.headers.indexOf("Номер")] === n)][t.headers.indexOf("Скан")];
   assert.equal(at("ЛА"), "https://h/api/files/1");
@@ -152,10 +174,16 @@ test("помощник: добавленные документы качеств
   const before = (await store.read("ДокументыКачества"))!.rows.length;
   const book = await readBook(store);
   const [m1, m2] = (book.tables["Материалы"] ?? []).map((m) => String(m.v.name));
-  const undo = await applyChanges(store, [{ kind: "add", table: "ДокументыКачества", rows: [
-    { "Материалы": m2, "Тип": "Паспорт качества", "Номер": "У-2", "Листов": 1 },
-    { "Материалы": m1, "Тип": "Паспорт качества", "Номер": "У-1", "Листов": 1 },
-  ] }]);
+  const undo = await applyChanges(store, [
+    {
+      kind: "add",
+      table: "ДокументыКачества",
+      rows: [
+        { Материалы: m2, Тип: "Паспорт качества", Номер: "У-2", Листов: 1 },
+        { Материалы: m1, Тип: "Паспорт качества", Номер: "У-1", Листов: 1 },
+      ],
+    },
+  ]);
   assert.equal((await store.read("ДокументыКачества"))!.rows.length, before + 2);
   await undoChanges(store, undo);
   const after = (await readBook(store)).tables["ДокументыКачества"]!;
@@ -167,19 +195,27 @@ test("0.29.1: документы «б/н» не склеиваются — дв�
   const r: any = aov1Records();
   const [m1, m2] = r["Материалы"];
   r["ДокументыКачества"] = [
-    { "Материалы": m1["Наименование"], "Тип": "Паспорт качества", "Номер": "б/н", "Листов": 1, "Скан": "п1.pdf" },
-    { "Материалы": m1["Наименование"], "Тип": "Паспорт качества", "Номер": "б/н", "Листов": 1, "Скан": "п2.pdf" },
-    { "Материалы": m2["Наименование"], "Тип": "Прочее", "Номер": "б/н", "Листов": 1, "Скан": "проч2.pdf" },
-    { "Материалы": `${m1["Наименование"]}; ${m2["Наименование"]}`, "Тип": "Сертификат соответствия", "Номер": "ОБЩ-1", "Листов": 2, "Скан": "общ.pdf" },
-    { "Материалы": m2["Наименование"], "Тип": "Паспорт качества", "Номер": "б/н", "Листов": 1, "Скан": "" },
+    { Материалы: m1["Наименование"], Тип: "Паспорт качества", Номер: "б/н", Листов: 1, Скан: "п1.pdf" },
+    { Материалы: m1["Наименование"], Тип: "Паспорт качества", Номер: "б/н", Листов: 1, Скан: "п2.pdf" },
+    { Материалы: m2["Наименование"], Тип: "Прочее", Номер: "б/н", Листов: 1, Скан: "проч2.pdf" },
+    { Материалы: `${m1["Наименование"]}; ${m2["Наименование"]}`, Тип: "Сертификат соответствия", Номер: "ОБЩ-1", Листов: 2, Скан: "общ.pdf" },
+    { Материалы: m2["Наименование"], Тип: "Паспорт качества", Номер: "б/н", Листов: 1, Скан: "" },
   ];
   const { store, plan } = await merged(r);
   assert.deepEqual(plan.problems, []);
   const docs = (await readBook(store)).tables["ДокументыКачества"]!;
   assert.equal(docs.length, 5, "пять разных документов");
-  assert.deepEqual(docs.filter((d) => d.v.number === "ОБЩ-1").map((d) => d.v.materials), [`${m1["Наименование"]}; ${m2["Наименование"]}`], "общий сертификат — один на два материала");
+  assert.deepEqual(
+    docs.filter((d) => d.v.number === "ОБЩ-1").map((d) => d.v.materials),
+    [`${m1["Наименование"]}; ${m2["Наименование"]}`],
+    "общий сертификат — один на два материала",
+  );
   const b = buildBundle(await readBook(store), AOV1, defaultImportant()).bundle!;
-  assert.equal(b.qualityDocs.filter((d) => d.number === "б/н").length, 4, "два паспорта б/н у m1 и «Прочее б/н» у m2 — в пакете; у паспорта б/н без скана — свой документ");
+  assert.equal(
+    b.qualityDocs.filter((d) => d.number === "б/н").length,
+    4,
+    "два паспорта б/н у m1 и «Прочее б/н» у m2 — в пакете; у паспорта б/н без скана — свой документ",
+  );
 });
 
 test("0.29.1: «б/н» с одним сканом у двух материалов — один документ; два одинаковых номера с разными сканами — два", async () => {
@@ -189,8 +225,22 @@ test("0.29.1: «б/н» с одним сканом у двух материал�
   const { wb, store } = await merged(r);
   const t = (await wb.read("Материалы"))!;
   const at = (name: string) => t.rows.findIndex((x) => x[t.headers.indexOf("Наименование")] === name);
-  await wb.write("Материалы", at(m1["Наименование"]), { "Док.1: вид": "Прочее", "Док.1: номер": "б/н", "Док.1: скан": "общий.pdf", "Док.2: вид": "Паспорт качества", "Док.2: номер": "77", "Док.2: скан": "а.pdf" });
-  await wb.write("Материалы", at(m2["Наименование"]), { "Док.1: вид": "Прочее", "Док.1: номер": "б/н", "Док.1: скан": "общий.pdf", "Док.2: вид": "Паспорт качества", "Док.2: номер": "77", "Док.2: скан": "б.pdf" });
+  await wb.write("Материалы", at(m1["Наименование"]), {
+    "Док.1: вид": "Прочее",
+    "Док.1: номер": "б/н",
+    "Док.1: скан": "общий.pdf",
+    "Док.2: вид": "Паспорт качества",
+    "Док.2: номер": "77",
+    "Док.2: скан": "а.pdf",
+  });
+  await wb.write("Материалы", at(m2["Наименование"]), {
+    "Док.1: вид": "Прочее",
+    "Док.1: номер": "б/н",
+    "Док.1: скан": "общий.pdf",
+    "Док.2: вид": "Паспорт качества",
+    "Док.2: номер": "77",
+    "Док.2: скан": "б.pdf",
+  });
   const docs = (await readBook(store)).tables["ДокументыКачества"]!;
   assert.equal(docs.filter((d) => d.v.number === "б/н").length, 1);
   assert.equal(docs.filter((d) => d.v.number === "77").length, 2);

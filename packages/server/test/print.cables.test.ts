@@ -28,7 +28,10 @@ async function pdf(doc: string, bundle: unknown) {
   const buf = new Uint8Array(await r.arrayBuffer());
   const d = await getDocument({ data: buf.slice() }).promise;
   const sizes: number[][] = [];
-  for (let i = 1; i <= d.numPages; i++) { const v = (await d.getPage(i)).view; sizes.push([v[2], v[3]]); }
+  for (let i = 1; i <= d.numPages; i++) {
+    const v = (await d.getPage(i)).view;
+    sizes.push([v[2], v[3]]);
+  }
   return { status: 200, json: null, pages: await pdfPages(buf), sizes, disposition: r.headers.get("content-disposition") ?? "" };
 }
 
@@ -38,8 +41,23 @@ test("КЖ АОВ1: 1 лист, шифр, ИТОГО 1618,9, подписи, Л�
   assert.equal(r.pages.length, 1);
   assert.ok(r.sizes[0][1] > r.sizes[0][0], "книжная");
   const t = r.pages[0];
-  for (const s of ["СБД-1436-АОВ1К1", "П2.Щ-АК2-17", "П5.Щ-АК2-12", "ИТОГО", "1618,9", "Востров", "Королев", "Валерьянов", "06.26",
-    "Кабельный журнал", "ИД", "Велесстрой", "Подземная часть", "Взам. инв."]) assert.ok(t.includes(s), s);
+  for (const s of [
+    "СБД-1436-АОВ1К1",
+    "П2.Щ-АК2-17",
+    "П5.Щ-АК2-12",
+    "ИТОГО",
+    "1618,9",
+    "Востров",
+    "Королев",
+    "Валерьянов",
+    "06.26",
+    "Кабельный журнал",
+    "ИД",
+    "Велесстрой",
+    "Подземная часть",
+    "Взам. инв.",
+  ])
+    assert.ok(t.includes(s), s);
   assert.match(t, /Стадия Лист Листов ИД 1 1/);
   assert.ok(r.disposition.includes(encodeURIComponent("СБД-1436-АОВ1К1.pdf")));
 });
@@ -60,10 +78,28 @@ test("протокол АОВ1: альбомный, 25 строк, значен�
   assert.ok(r.sizes[0][0] > r.sizes[0][1], "альбомная");
   assert.ok(r.pages.length >= 3 && r.pages.length <= 5, `страниц ${r.pages.length}`);
   const t = r.pages.join(" ");
-  for (const s of ["Протокол №1", "проверки сопротивления изоляции", "Температура воздуха 20 °C", "Влажность воздуха 60 %",
-    "приемо-сдаточные", "ПУЭ 7 изд. 1.8.37 п.1, таблица 1.8.34", "П2.Щ-АК2-17; RS-485", "П5.Щ-АК2-12; RS-485", ">1000", "—",
-    "Заказчик: ООО \"СБД\"", "05.06.2026 г. - 06.06.2026 г.", "№9305", "Ml3102Н CL", "RGKTH-10", "Рябов Е.А.", "Ходырев С.А.",
-    "Проведена проверка целостности жил", "Заключение на соответствие требованиям НТД"]) assert.ok(t.includes(s), s);
+  for (const s of [
+    "Протокол №1",
+    "проверки сопротивления изоляции",
+    "Температура воздуха 20 °C",
+    "Влажность воздуха 60 %",
+    "приемо-сдаточные",
+    "ПУЭ 7 изд. 1.8.37 п.1, таблица 1.8.34",
+    "П2.Щ-АК2-17; RS-485",
+    "П5.Щ-АК2-12; RS-485",
+    ">1000",
+    "—",
+    'Заказчик: ООО "СБД"',
+    "05.06.2026 г. - 06.06.2026 г.",
+    "№9305",
+    "Ml3102Н CL",
+    "RGKTH-10",
+    "Рябов Е.А.",
+    "Ходырев С.А.",
+    "Проведена проверка целостности жил",
+    "Заключение на соответствие требованиям НТД",
+  ])
+    assert.ok(t.includes(s), s);
   assert.ok(r.disposition.includes(encodeURIComponent(`${AOV1}.Протокол.pdf`)));
 });
 

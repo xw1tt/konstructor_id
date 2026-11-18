@@ -3,16 +3,19 @@ import assert from "node:assert/strict";
 import { apiGet, apiSend, apiUpload, ServerUnavailableError } from "@idk/addin/api";
 
 const realFetch = globalThis.fetch;
-afterEach(() => { globalThis.fetch = realFetch; });
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
 
 test("api: сетевая ошибка → ServerUnavailableError", async () => {
-  globalThis.fetch = async () => { throw new TypeError("fetch failed"); };
+  globalThis.fetch = async () => {
+    throw new TypeError("fetch failed");
+  };
   await assert.rejects(apiGet("/api/object"), ServerUnavailableError);
 });
 
 test("api: ответ 409 с error → Error с этим текстом", async () => {
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ error: "Организация используется: представители (2)" }), { status: 409 });
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: "Организация используется: представители (2)" }), { status: 409 });
   await assert.rejects(apiSend("DELETE", "/api/organizations/1"), (e: Error) => {
     assert.ok(!(e instanceof ServerUnavailableError));
     assert.equal(e.message, "Организация используется: представители (2)");

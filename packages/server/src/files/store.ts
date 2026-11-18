@@ -14,8 +14,7 @@ export const ALLOWED_MIME: Record<string, string> = {
   "image/png": "png",
 };
 
-export const tooBig = (limit: number) =>
-  new HttpError(413, `Файл больше ${limit >= 1048576 ? Math.round(limit / 1048576) + " МБ" : limit + " байт"}`);
+export const tooBig = (limit: number) => new HttpError(413, `Файл больше ${limit >= 1048576 ? Math.round(limit / 1048576) + " МБ" : limit + " байт"}`);
 
 export async function countPages(path: string, mime: string): Promise<number> {
   if (mime !== "application/pdf") return 1;
@@ -35,9 +34,7 @@ export function getFile(db: Db, id: number): (FileRow & { path: string }) | unde
 }
 
 /** Сохраняет поток в files/<xx>/<sha256>.<ext>; одинаковое содержимое хранится один раз. */
-export async function saveFile(
-  db: Db, dataDir: string, stream: Readable, meta: { name: string; mime: string }, limit: number,
-): Promise<FileRow> {
+export async function saveFile(db: Db, dataDir: string, stream: Readable, meta: { name: string; mime: string }, limit: number): Promise<FileRow> {
   const ext = ALLOWED_MIME[meta.mime];
   if (!ext) throw new HttpError(415, "Поддерживаются только PDF, JPEG и PNG");
   const tmpDir = join(dataDir, "files", "tmp");
@@ -66,8 +63,7 @@ export async function saveFile(
     mkdirSync(dirname(abs), { recursive: true });
     if (!existsSync(abs)) renameSync(tmp, abs);
     else rmSync(tmp, { force: true });
-    const r = db.prepare("INSERT INTO files (sha256, name, mime, size, pages, path) VALUES (?,?,?,?,?,?)")
-      .run(sha256, meta.name, meta.mime, size, pages, rel);
+    const r = db.prepare("INSERT INTO files (sha256, name, mime, size, pages, path) VALUES (?,?,?,?,?,?)").run(sha256, meta.name, meta.mime, size, pages, rel);
     return toRow(db.prepare("SELECT * FROM files WHERE id=?").get(Number(r.lastInsertRowid)));
   } catch (e) {
     out.destroy();

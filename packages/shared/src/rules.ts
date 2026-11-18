@@ -17,17 +17,8 @@ export function orgFullForm(org: Organization): string {
 }
 
 /** Представители роли с действующими на дату полномочиями (границы включительно), по sortOrder. */
-export function activeRepresentatives(
-  reps: Representative[],
-  role: RoleCode,
-  date: string,
-): Representative[] {
+export function activeRepresentatives(reps: Representative[], role: RoleCode, date: string): Representative[] {
   return reps
-    .filter(
-      (r) =>
-        r.role === role &&
-        (r.validFrom === null || r.validFrom <= date) &&
-        (r.validTo === null || date <= r.validTo),
-    )
+    .filter((r) => r.role === role && (r.validFrom === null || r.validFrom <= date) && (r.validTo === null || date <= r.validTo))
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }

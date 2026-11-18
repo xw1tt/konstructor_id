@@ -4,7 +4,10 @@ import { z } from "zod";
 export const AI_KINDS = ["yandex", "gigachat", "local", "openai"] as const;
 export type AiKind = (typeof AI_KINDS)[number];
 export const AI_KIND_LABELS: Record<AiKind, string> = {
-  yandex: "YandexGPT", gigachat: "GigaChat", local: "Локальная модель", openai: "OpenAI-совместимая",
+  yandex: "YandexGPT",
+  gigachat: "GigaChat",
+  local: "Локальная модель",
+  openai: "OpenAI-совместимая",
 };
 
 export const AI_DEFAULTS: Record<AiKind, { baseUrl: string; model: string }> = {
@@ -45,7 +48,9 @@ export function resolveProvider(p: Provider): Provider & { maskNames: boolean } 
   const baseUrl = (p.baseUrl || d.baseUrl).replace(/\/+$/, "");
   const model = p.model || (p.kind === "yandex" && p.folderId ? `gpt://${p.folderId}/yandexgpt/latest` : d.model);
   return {
-    ...p, baseUrl, model,
+    ...p,
+    baseUrl,
+    model,
     scope: p.kind === "gigachat" ? p.scope || GIGACHAT_SCOPES[0] : p.scope,
     authUrl: p.kind === "gigachat" ? p.authUrl || GIGACHAT_AUTH_URL : p.authUrl,
     maskNames: p.maskNames ?? (p.kind === "openai" && !isLocalUrl(baseUrl)),
@@ -87,5 +92,12 @@ export type ToolDef = z.infer<typeof ToolDef>;
 export const ChatRequest = z.object({ messages: z.array(ChatMessage).min(1), tools: z.array(ToolDef).default([]) });
 export type ChatRequest = z.infer<typeof ChatRequest>;
 
-export interface Usage { prompt: number; completion: number }
-export interface ChatReply { message: AssistantMessage; usage: Usage; provider: string }
+export interface Usage {
+  prompt: number;
+  completion: number;
+}
+export interface ChatReply {
+  message: AssistantMessage;
+  usage: Usage;
+  provider: string;
+}

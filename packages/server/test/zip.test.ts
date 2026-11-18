@@ -4,7 +4,10 @@ import assert from "node:assert/strict";
 import { openZip, writeZip, ZipError } from "@idk/server/zip/zip";
 
 test("запись и чтение: имена UTF-8, порядок, повторная запись", () => {
-  const z = writeZip([["a.txt", "Привет"], ["b/c.xml", Buffer.from("<x/>")]]);
+  const z = writeZip([
+    ["a.txt", "Привет"],
+    ["b/c.xml", Buffer.from("<x/>")],
+  ]);
   const m = openZip(z);
   assert.deepEqual([...m.keys()], ["a.txt", "b/c.xml"]);
   assert.equal(m.get("a.txt")!().toString("utf8"), "Привет");

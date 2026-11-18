@@ -12,14 +12,26 @@ import { protoRecords, AOV1 } from "../../shared/test/fixtures/protoBook.ts";
 import { PrintOptions } from "@idk/shared/templates";
 
 const tpl: UserTemplate = {
-  id: "t-1", name: "Т", print: PrintOptions.parse({ schemeEach: false }),
-  docs: [{ kind: "builtin", doc: "aosr", form: null }, { kind: "builtin", doc: "pkl", form: null }, { kind: "builtin", doc: "pav", form: null }],
+  id: "t-1",
+  name: "Т",
+  print: PrintOptions.parse({ schemeEach: false }),
+  docs: [
+    { kind: "builtin", doc: "aosr", form: null },
+    { kind: "builtin", doc: "pkl", form: null },
+    { kind: "builtin", doc: "pav", form: null },
+  ],
 };
 const book = async (patch?: Parameters<typeof protoRecords>[0]) => readBook(new MemoryWorkbook(protoRecords(patch) as any));
 
 test("кнопки печати: в карточке акта — документы «на акт», в карточке комплекта — «на комплект»", () => {
-  assert.deepEqual(templateButtons(tpl).map((b) => b.label), ["АОСР", "ПКЛ"]);
-  assert.deepEqual(templateButtons(tpl, "kit").map((b) => b.label), ["ПАВ"]);
+  assert.deepEqual(
+    templateButtons(tpl).map((b) => b.label),
+    ["АОСР", "ПКЛ"],
+  );
+  assert.deepEqual(
+    templateButtons(tpl, "kit").map((b) => b.label),
+    ["ПАВ"],
+  );
 });
 
 test("статус полноты «нет данных»", () => {
@@ -33,7 +45,9 @@ test("пакет документа для печати: по акту, по к�
   assert.equal(protoBundleFor(b, "pav", { act: AOV1 }, defaultImportant()).bundle?.proto?.number, "ПАВ-1", "документ комплекта, в который входит акт");
   const none = protoBundleFor(b, "pokb", { act: AOV1 }, defaultImportant());
   assert.equal(none.bundle, null);
-  assert.deepEqual(none.issues.map((i) => [i.table, i.column, i.message]),
-    [["Протоколы", "№ документа", `Нет строки «ПОКБ» в таблице «Протоколы» для акта «${AOV1}»`]]);
+  assert.deepEqual(
+    none.issues.map((i) => [i.table, i.column, i.message]),
+    [["Протоколы", "№ документа", `Нет строки «ПОКБ» в таблице «Протоколы» для акта «${AOV1}»`]],
+  );
   assert.equal(bundleFor(b, AOV1, defaultImportant(), "pkl").bundle?.proto?.code, "ПКЛ", "своя форма протокола — пакет протокола");
 });

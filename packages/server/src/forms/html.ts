@@ -18,7 +18,8 @@ function runHtml(run: string): string {
   const sz = attr(pr, /<w:sz\s+w:val="(\d+)"/);
   if (sz) style.push(`font-size:${Number(sz) / 2}pt`);
   const text = [...run.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:br\s*\/>|<w:tab\s*\/>/g)]
-    .map((m) => (m[0].startsWith("<w:br") ? "<br>" : m[0].startsWith("<w:tab") ? "&emsp;" : xmlEscape(xmlUnescape(m[1] ?? "")))).join("");
+    .map((m) => (m[0].startsWith("<w:br") ? "<br>" : m[0].startsWith("<w:tab") ? "&emsp;" : xmlEscape(xmlUnescape(m[1] ?? ""))))
+    .join("");
   return style.length ? `<span style="${style.join(";")}">${text}</span>` : text;
 }
 
@@ -35,30 +36,36 @@ function tableHtml(tbl: string): string {
       span: Number(attr(c[1], /<w:gridSpan\s+w:val="(\d+)"/) ?? 1),
       vm: /<w:vMerge\s+w:val="restart"/.test(c[1]) ? "restart" : /<w:vMerge\s*\/>|<w:vMerge\s+w:val="continue"/.test(c[1]) ? "continue" : "",
       html: [...c[1].matchAll(/<w:p(?:\s[^>]*[^/>])?>[\s\S]*?<\/w:p>|<w:p(?:\s[^>]*)?\/>/g)].map((x) => paraHtml(x[0])).join(""),
-    })));
+    })),
+  );
   // rowspan: ячейка «restart» поглощает «continue» ниже в той же колонке сетки.
-  const colOf = (row: typeof rows[number], i: number) => row.slice(0, i).reduce((s, c) => s + c.span, 0);
-  const out = rows.map((row, ri) => row.map((c, ci) => {
-    if (c.vm === "continue") return "";
-    let rs = 1;
-    if (c.vm === "restart") {
-      const col = colOf(row, ci);
-      for (let k = ri + 1; k < rows.length; k++) {
-        const below = rows[k].find((x, xi) => colOf(rows[k], xi) === col);
-        if (below?.vm !== "continue") break;
-        rs++;
-      }
-    }
-    return `<td${c.span > 1 ? ` colspan="${c.span}"` : ""}${rs > 1 ? ` rowspan="${rs}"` : ""}>${c.html}</td>`;
-  }).join(""));
+  const colOf = (row: (typeof rows)[number], i: number) => row.slice(0, i).reduce((s, c) => s + c.span, 0);
+  const out = rows.map((row, ri) =>
+    row
+      .map((c, ci) => {
+        if (c.vm === "continue") return "";
+        let rs = 1;
+        if (c.vm === "restart") {
+          const col = colOf(row, ci);
+          for (let k = ri + 1; k < rows.length; k++) {
+            const below = rows[k].find((x, xi) => colOf(rows[k], xi) === col);
+            if (below?.vm !== "continue") break;
+            rs++;
+          }
+        }
+        return `<td${c.span > 1 ? ` colspan="${c.span}"` : ""}${rs > 1 ? ` rowspan="${rs}"` : ""}>${c.html}</td>`;
+      })
+      .join(""),
+  );
   return `<table>${out.map((r) => `<tr>${r}</tr>`).join("")}</table>`;
 }
 
 export function docxToHtml(buf: Uint8Array): string {
   const xml = openZip(buf).get("word/document.xml")!().toString("utf8");
   const body = xml.match(/<w:body>([\s\S]*)<\/w:body>/)?.[1] ?? "";
-  const parts = [...body.matchAll(/<w:tbl\b[\s\S]*?<\/w:tbl>|<w:p(?:\s[^>]*[^/>])?>[\s\S]*?<\/w:p>|<w:p(?:\s[^>]*)?\/>/g)]
-    .map((m) => (m[0].startsWith("<w:tbl") ? tableHtml(m[0]) : paraHtml(m[0])));
+  const parts = [...body.matchAll(/<w:tbl\b[\s\S]*?<\/w:tbl>|<w:p(?:\s[^>]*[^/>])?>[\s\S]*?<\/w:p>|<w:p(?:\s[^>]*)?\/>/g)].map((m) =>
+    m[0].startsWith("<w:tbl") ? tableHtml(m[0]) : paraHtml(m[0]),
+  );
   return doc(parts.join("\n"));
 }
 

@@ -8,7 +8,6 @@ export type TemplateCode = string;
 export const DEFAULT_TEMPLATE: TemplateCode = "sbd";
 const KEY = "idk.template";
 
-
 export async function loadTemplate(store: TableStore): Promise<TemplateCode> {
   const v = await store.setting(KEY);
   return v?.trim() ? v.trim() : DEFAULT_TEMPLATE;
@@ -33,7 +32,9 @@ export type FormDoc = (typeof FORM_DOCS)[number];
 export const PrintOptions = z.object({
   schemeEach: z.boolean().default(false),
   formSet: z.enum(FORM_SETS).default("sbd"),
-  forms: z.object(Object.fromEntries(FORM_DOCS.map((d) => [d, z.enum(FORM_SETS).optional()])) as Record<FormDoc, z.ZodOptional<z.ZodEnum<["sbd", "ti"]>>>).default({}),
+  forms: z
+    .object(Object.fromEntries(FORM_DOCS.map((d) => [d, z.enum(FORM_SETS).optional()])) as Record<FormDoc, z.ZodOptional<z.ZodEnum<["sbd", "ti"]>>>)
+    .default({}),
   kjReserve: z.number().min(0).max(100).default(2),
   kjDecimals: z.number().int().min(0).max(3).nullable().default(null),
   blanks: z.record(BlankSettings).default({}),

@@ -28,7 +28,9 @@ export function newRowDefaults(table: TableName, book: Book, today = todayIso())
   if (table !== "Акты") return out;
   const acts = (book.tables["Акты"] ?? []).map((r) => ({ baseNumber: cellText(r.v.baseNumber) })).filter((a) => a.baseNumber);
   const reps = (book.tables["Представители"] ?? []).map((r) => ({
-    role: cellText(r.v.role), name: cellText(r.v.fullName), order: (parseNumberCell(r.v.sortOrder) as { value: number | null }).value ?? 0,
+    role: cellText(r.v.role),
+    name: cellText(r.v.fullName),
+    order: (parseNumberCell(r.v.sortOrder) as { value: number | null }).value ?? 0,
   }));
   const byOrder = (role: string) => reps.filter((r) => r.role === role).sort((a, b) => a.order - b.order);
   const performers = byOrder(ROLE_BOOK_LABELS.performer);

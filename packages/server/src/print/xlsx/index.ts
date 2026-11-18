@@ -26,16 +26,24 @@ type RenderXlsx = (b: ActBundle, o: Partial<PrintOptions>, set: FormSet) => Shee
 /** Excel-формы документов по наборам (те же ключи, что у ACT_DOC_RENDER). */
 export const ACT_DOC_XLSX: Record<ActDocKind, Partial<Record<FormSet, RenderXlsx>>> = {
   aosr: { sbd: (b, o) => aosrSheet(buildDocDataFromBundle(b, "aosr", o)).sheet },
-  rim: { sbd: (b, o) => rimSheet(buildDocDataFromBundle(b, "rim", o), view("rim:sbd", o)).sheet, ti: (b, o) => tiRmSheet(tiDocData(b), view("rim:ti", o)).sheet },
+  rim: {
+    sbd: (b, o) => rimSheet(buildDocDataFromBundle(b, "rim", o), view("rim:sbd", o)).sheet,
+    ti: (b, o) => tiRmSheet(tiDocData(b), view("rim:ti", o)).sheet,
+  },
   vd: { sbd: (b, o) => vdSheet(buildDocDataFromBundle(b, "vd", o), view("vd:sbd", o)).sheet, ti: (b, o) => tiVdSheet(tiDocData(b), view("vd:ti", o)).sheet },
   vor: { sbd: (b, o) => vorSheet(buildDocDataFromBundle(b, "vor", o), view("vor:sbd", o)).sheet },
   avk: { sbd: (b, o) => avkSheet(buildAvkData(b), view("avk:sbd", o)).sheet },
   kj: {
     sbd: (b, _o, set) => kjSheet(cableDocData(b, "kj", set)),
-    ti: (b, o, set) => tiKjSheet({
-      header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date), number: docNumberFor(b.act.baseNumber, "kj", set),
-      journal: tiJournal(cables(b).rows, o.kjReserve ?? 2, o.kjDecimals ?? null),
-    }, view("kj:ti", o)).sheet,
+    ti: (b, o, set) =>
+      tiKjSheet(
+        {
+          header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date),
+          number: docNumberFor(b.act.baseNumber, "kj", set),
+          journal: tiJournal(cables(b).rows, o.kjReserve ?? 2, o.kjDecimals ?? null),
+        },
+        view("kj:ti", o),
+      ).sheet,
   },
   ip: { sbd: (b, o, set) => ipSheet(cableDocData(b, "ip", set), view("ip:sbd", o)).sheet },
   rp: { ti: (b, o) => tiRpSheet(tiDocData(b), view("rp:ti", o)).sheet },

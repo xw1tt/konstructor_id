@@ -7,29 +7,46 @@ import { restoreWidth, trackWidth, WIDTH_KEY } from "@idk/addin/panel/panelWidth
 import { PrintOptions } from "@idk/shared/templates";
 
 const form = { file: "x.docx", type: "docx" as const, original: "x.docx" };
-const tpl: UserTemplate = { id: "t-1", name: "ПИК", docs: [
-  { kind: "builtin", doc: "aosr", form },
-  { kind: "custom", code: "АГИ", name: "Акт гидр. испытаний", form },
-  { kind: "custom", code: "ЧЕР", name: "Черновик", form: null },
-], print: PrintOptions.parse({}) };
+const tpl: UserTemplate = {
+  id: "t-1",
+  name: "ПИК",
+  docs: [
+    { kind: "builtin", doc: "aosr", form },
+    { kind: "custom", code: "АГИ", name: "Акт гидр. испытаний", form },
+    { kind: "custom", code: "ЧЕР", name: "Черновик", form: null },
+  ],
+  print: PrintOptions.parse({}),
+};
 
 test("кнопки печати по шаблону", () => {
-  assert.deepEqual(templateButtons(BUILTIN_SBD).map((b) => b.label), ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "Протокол"]);
-  assert.deepEqual(templateButtons(tpl), [
-    { key: "aosr", label: "АОСР", doc: "aosr", code: null, form: true },
-    { key: "АГИ", label: "Акт гидр. испытаний", doc: null, code: "АГИ", form: true },
-  ], "свой документ без формы не печатается");
+  assert.deepEqual(
+    templateButtons(BUILTIN_SBD).map((b) => b.label),
+    ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "Протокол"],
+  );
+  assert.deepEqual(
+    templateButtons(tpl),
+    [
+      { key: "aosr", label: "АОСР", doc: "aosr", code: null, form: true },
+      { key: "АГИ", label: "Акт гидр. испытаний", doc: null, code: "АГИ", form: true },
+    ],
+    "свой документ без формы не печатается",
+  );
 });
 
 test("неизвестный шаблон книги — «СБД» с предупреждением", () => {
   assert.deepEqual(resolveTemplate([BUILTIN_SBD, tpl], "t-1"), { template: tpl, warning: null, ready: true });
-  assert.deepEqual(resolveTemplate([BUILTIN_SBD], "t-x"),
-    { template: BUILTIN_SBD, warning: "Шаблон «t-x» не найден на этом компьютере — печать по «СБД»", ready: true });
+  assert.deepEqual(resolveTemplate([BUILTIN_SBD], "t-x"), {
+    template: BUILTIN_SBD,
+    warning: "Шаблон «t-x» не найден на этом компьютере — печать по «СБД»",
+    ready: true,
+  });
 });
 
 const store = (init: Record<string, string> = {}) => {
   const m = new Map(Object.entries(init));
-  return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), m } as unknown as Storage & { m: Map<string, string> };
+  return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), m } as unknown as Storage & {
+    m: Map<string, string>;
+  };
 };
 
 test("восстановление ширины панели", () => {
@@ -41,7 +58,11 @@ test("восстановление ширины панели", () => {
   restoreWidth(office(true), store({ [WIDTH_KEY]: "420" }));
   restoreWidth(office(false), store({ [WIDTH_KEY]: "500" }));
   restoreWidth(office(true), store());
-  restoreWidth(office(true), { getItem: () => { throw new Error("SecurityError"); } } as unknown as Storage);
+  restoreWidth(office(true), {
+    getItem: () => {
+      throw new Error("SecurityError");
+    },
+  } as unknown as Storage);
   assert.deepEqual(calls, [420]);
 });
 
@@ -51,13 +72,16 @@ test("ширина сохраняется через 500 мс после изм�
   const listeners: (() => void)[] = [];
   const win = { innerWidth: 300, addEventListener: (_: string, f: () => void) => listeners.push(f), removeEventListener() {} } as unknown as Window;
   const stop = trackWidth(win, s);
-  (win as any).innerWidth = 380; listeners[0]();
-  (win as any).innerWidth = 410; listeners[0]();
+  (win as any).innerWidth = 380;
+  listeners[0]();
+  (win as any).innerWidth = 410;
+  listeners[0]();
   mock.timers.tick(499);
   assert.equal(s.m.get(WIDTH_KEY), undefined);
   mock.timers.tick(1);
   assert.equal(s.m.get(WIDTH_KEY), "410");
-  (win as any).innerWidth = 150; listeners[0]();
+  (win as any).innerWidth = 150;
+  listeners[0]();
   mock.timers.tick(500);
   assert.equal(s.m.get(WIDTH_KEY), "410");
   stop();
@@ -72,9 +96,17 @@ test("финальная проверка: пока список шаблоно�
 
 test("сохранение шаблона передаёт настройку п.4", async () => {
   const { saveTemplateDocs } = await import("@idk/addin/panel/templatesApi");
-  const g = globalThis as any, saved = g.fetch;
+  const g = globalThis as any,
+    saved = g.fetch;
   let body: any = null;
-  g.fetch = async (_: string, init: RequestInit) => { body = JSON.parse(String(init.body)); return new Response(JSON.stringify({}), { status: 200 }); };
-  try { await saveTemplateDocs({ ...tpl, print: PrintOptions.parse({ schemeEach: true }) }); } finally { g.fetch = saved; }
+  g.fetch = async (_: string, init: RequestInit) => {
+    body = JSON.parse(String(init.body));
+    return new Response(JSON.stringify({}), { status: 200 });
+  };
+  try {
+    await saveTemplateDocs({ ...tpl, print: PrintOptions.parse({ schemeEach: true }) });
+  } finally {
+    g.fetch = saved;
+  }
   assert.deepEqual(body.print, PrintOptions.parse({ schemeEach: true }));
 });

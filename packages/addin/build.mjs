@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 // Версия панели — из манифеста («0.29.1.0» → «0.29.1»), показывается в «Настройках» рядом с установленной.
 const manifestVersion = (readFileSync(join(here, "manifest.xml"), "utf8").match(/<Version>([^<]+)<\/Version>/)?.[1] ?? "0.0.0.0")
-  .split(".").reduce((a, p, i, all) => (all.slice(i).every((x) => x === "0") && i >= 2 ? a : [...a, p]), []).join(".");
+  .split(".")
+  .reduce((a, p, i, all) => (all.slice(i).every((x) => x === "0") && i >= 2 ? a : [...a, p]), [])
+  .join(".");
 const out = join(here, "dist");
 mkdirSync(out, { recursive: true });
 await build({

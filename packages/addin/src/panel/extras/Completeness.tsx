@@ -18,27 +18,44 @@ export function Completeness({ port, state, act }: { port: ExcelPort; state: Boo
   const { unknown } = actDocs(template, catalog, state.book, act);
   const skip = async (code: string) => {
     setError("");
-    try { await skipDoc(port, state.book!, act, code); state.refresh(); } catch (e) { setError((e as Error).message); }
+    try {
+      await skipDoc(port, state.book!, act, code);
+      state.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    }
   };
   return (
     <>
       <h3 className="tools-title">Полнота</h3>
       {unknown.length > 0 && (
-        <p className="warn" role="status">Нет в справочнике: {unknown.join("; ")} — для этих видов работ документы не подобраны.</p>
+        <p className="warn" role="status">
+          Нет в справочнике: {unknown.join("; ")} — для этих видов работ документы не подобраны.
+        </p>
       )}
-      {list.length === 0 ? <p className="muted">Шаблону не нужны документы для этого акта.</p> : (
+      {list.length === 0 ? (
+        <p className="muted">Шаблону не нужны документы для этого акта.</p>
+      ) : (
         <ul className="list completeness" aria-label="Полнота акта">
           {list.map((s) => (
             <li key={docCode(s.doc)}>
               <span className={s.status === "noScan" || s.status === "noForm" || s.status === "noData" ? "warn" : "ok"}>
-                {MARK[s.status]} {statusText(s.status, s.label)}{s.status === "noScan" ? ` (№${s.number} в «Реестре ИД»)` : ""}{s.status === "noData" ? " (строка на листе «Протоколы и акты»)" : ""}
+                {MARK[s.status]} {statusText(s.status, s.label)}
+                {s.status === "noScan" ? ` (№${s.number} в «Реестре ИД»)` : ""}
+                {s.status === "noData" ? " (строка на листе «Протоколы и акты»)" : ""}
               </span>{" "}
-              <button className="btn btn-link" onClick={() => void skip(docCode(s.doc))} title="Записать код в «Без документов»">не нужен для этого акта</button>
+              <button className="btn btn-link" onClick={() => void skip(docCode(s.doc))} title="Записать код в «Без документов»">
+                не нужен для этого акта
+              </button>
             </li>
           ))}
         </ul>
       )}
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </>
   );
 }

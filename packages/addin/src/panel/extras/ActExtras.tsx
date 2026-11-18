@@ -67,7 +67,9 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
       </div>
       <ActMaterials port={port} state={state} act={act} />
       {unbound.length > 0 && (
-        <p className="warn" role="status">Не привязаны к спецификации: {unbound.join("; ")}. Укажите «№ п/п РКЦ» в «Материалах» — печать это не блокирует.</p>
+        <p className="warn" role="status">
+          Не привязаны к спецификации: {unbound.join("; ")}. Укажите «№ п/п РКЦ» в «Материалах» — печать это не блокирует.
+        </p>
       )}
       <ActSigners port={port} state={state} act={act} />
       <Completeness port={port} state={state} act={act} />
@@ -76,19 +78,36 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
       <div className="row-actions" aria-label="Печать документов">
         {templateButtons(tpl.template).map((b) => (
           <button key={b.key} className="btn" disabled={busy !== null} onClick={() => void print(b)} title={b.form ? "По своей форме шаблона" : undefined}>
-            {busy === b.key ? "Готовлю…" : b.label}{b.form ? " ✎" : ""}
+            {busy === b.key ? "Готовлю…" : b.label}
+            {b.form ? " ✎" : ""}
           </button>
         ))}
       </div>
-      {tpl.warning && <p className="warn" role="status">{tpl.warning}</p>}
+      {tpl.warning && (
+        <p className="warn" role="status">
+          {tpl.warning}
+        </p>
+      )}
       {made && (
         <p className="notice" role="status">
-          {made.name}: <a href={`/api/form-jobs/${made.id}/source`} download>скачать файл для правки</a>
-          {made.warnings.length > 0 && <><br /><span className="warn">{made.warnings.join(". ")}</span></>}
+          {made.name}:{" "}
+          <a href={`/api/form-jobs/${made.id}/source`} download>
+            скачать файл для правки
+          </a>
+          {made.warnings.length > 0 && (
+            <>
+              <br />
+              <span className="warn">{made.warnings.join(". ")}</span>
+            </>
+          )}
         </p>
       )}
       <IssueList port={port} lines={lines} title="Перед печатью исправьте:" />
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

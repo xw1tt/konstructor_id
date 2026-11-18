@@ -62,8 +62,23 @@ test("перенос по словам: каждая строка помещае
 test("таблица: шапка с объединениями, повтор шапки, рамки", () => {
   const L = new Layout("Т", [10, 10, 10], { margins: [10, 10, 10, 10] });
   L.para("Таблица");
-  L.table([[{ header: "№", rowspan: 2 }, { header: "Сопротивление", span: 2 }], [{ header: "A" }, { header: "B" }]],
-    [[{ text: 1 }, { text: "x" }, { text: "y" }], [{ text: 2, rowspan: 2 }, { text: "z", span: 2 }], [{ text: "q" }, { text: "w" }]]);
+  L.table(
+    [
+      [
+        { header: "№", rowspan: 2 },
+        { header: "Сопротивление", span: 2 },
+      ],
+      [{ header: "A" }, { header: "B" }],
+    ],
+    [
+      [{ text: 1 }, { text: "x" }, { text: "y" }],
+      [
+        { text: 2, rowspan: 2 },
+        { text: "z", span: 2 },
+      ],
+      [{ text: "q" }, { text: "w" }],
+    ],
+  );
   const s = readXlsx(writeBook([L.sheet])).sheets[0];
   assert.deepEqual(L.sheet.titleRows, [2, 3]);
   assert.ok(s.merges.includes("A2:A3") && s.merges.includes("B2:C2") && s.merges.includes("A5:A6") && s.merges.includes("B5:C5"));
@@ -77,10 +92,31 @@ test("АОСР в Excel: все значения, разрыв страницы 
   const L = aosrSheet(d);
   const s = readXlsx(writeBook([L.sheet])).sheets[0];
   const all = flat(s.rows.join(" "));
-  for (const v of [d.objectName, d.developer, d.builder, d.designer, d.performerOrg, d.works, d.p2, d.normative, d.nextWorks, d.attachments, d.dateStart, d.dateEnd, `№${d.number}`, d.date, ...d.p3, ...d.p4, ...d.reps.flatMap((r) => r.lines)])
+  for (const v of [
+    d.objectName,
+    d.developer,
+    d.builder,
+    d.designer,
+    d.performerOrg,
+    d.works,
+    d.p2,
+    d.normative,
+    d.nextWorks,
+    d.attachments,
+    d.dateStart,
+    d.dateEnd,
+    `№${d.number}`,
+    d.date,
+    ...d.p3,
+    ...d.p4,
+    ...d.reps.flatMap((r) => r.lines),
+  ])
     assert.ok(all.includes(flat(v)), v);
   for (const sgn of d.signs) for (const n of sgn.names) assert.ok(all.includes(n), n);
-  assert.equal((all.match(/\(фамилия, инициалы, подпись\)/g) ?? []).length, d.signs.reduce((n, x) => n + x.names.length, 0));
+  assert.equal(
+    (all.match(/\(фамилия, инициалы, подпись\)/g) ?? []).length,
+    d.signs.reduce((n, x) => n + x.names.length, 0),
+  );
   // Разрыв — сразу перед строкой «1. К освидетельствованию…».
   const p1 = [...s.cells.entries()].find(([, row]) => [...row.values()].some((t) => t.startsWith("1. К освидетельствованию")))![0];
   assert.ok(s.breaks.length === 1 && s.breaks[0] < p1 && s.breaks[0] >= p1 - 2, `${s.breaks} / ${p1}`);

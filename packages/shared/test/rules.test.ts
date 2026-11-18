@@ -31,8 +31,19 @@ test("orgFullForm: пустые поля пропускаются вместе �
 });
 
 const rep = (o: Partial<Representative>): Representative => ({
-  id: 1, role: "performer", position: "Начальник участка", fullName: "Востров В.П.", orgId: 1,
-  authorityDoc: "", nrsNumber: "", nrsDate: null, validFrom: null, validTo: null, sortOrder: 1, actText: "", ...o,
+  id: 1,
+  role: "performer",
+  position: "Начальник участка",
+  fullName: "Востров В.П.",
+  orgId: 1,
+  authorityDoc: "",
+  nrsNumber: "",
+  nrsDate: null,
+  validFrom: null,
+  validTo: null,
+  sortOrder: 1,
+  actText: "",
+  ...o,
 });
 
 test("activeRepresentatives: последняя дата включительно", () => {
@@ -47,13 +58,11 @@ test("activeRepresentatives: null = без ограничения", () => {
 });
 
 test("activeRepresentatives: несколько в роли — по sortOrder", () => {
-  const reps = [
-    rep({ id: 2, fullName: "Востров В.П.", sortOrder: 2 }),
-    rep({ id: 1, fullName: "Королёв А.А.", sortOrder: 1 }),
-  ];
-  assert.deepEqual(activeRepresentatives(reps, "performer", "2026-07-28").map((r) => r.fullName), [
-    "Королёв А.А.", "Востров В.П.",
-  ]);
+  const reps = [rep({ id: 2, fullName: "Востров В.П.", sortOrder: 2 }), rep({ id: 1, fullName: "Королёв А.А.", sortOrder: 1 })];
+  assert.deepEqual(
+    activeRepresentatives(reps, "performer", "2026-07-28").map((r) => r.fullName),
+    ["Королёв А.А.", "Востров В.П."],
+  );
 });
 
 test("schemas: OrganizationInput без shortName отклоняется", () => {

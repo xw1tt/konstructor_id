@@ -20,12 +20,18 @@ test("ключ бланка — по форме документа; кабель
 
 test("вид бланка: скрытые графы, свои заголовки; основную графу скрыть нельзя", () => {
   const v = blankView("kj:ti", { hide: ["tray", "designation", "reserve"], headers: { mark: "Марка кабеля" } });
-  assert.deepEqual(v.columns.map((c) => c.key), ["designation", "from", "to", "mark", "project", "fact", "smooth", "corrugated"]);
+  assert.deepEqual(
+    v.columns.map((c) => c.key),
+    ["designation", "from", "to", "mark", "project", "fact", "smooth", "corrugated"],
+  );
   assert.equal(v.columns.find((c) => c.key === "mark")!.header, "Марка кабеля");
   assert.equal(v.shown("reserve"), false);
   assert.equal(v.shown("total"), true);
-  assert.deepEqual(describeBlank("kj:ti", { hide: ["tray", "reserve"], headers: { mark: "Марка кабеля" } }),
-    ["без графы «Лоток»", "без «Кф запаса в строках «в т.ч. <марка>»»", "графа «Марка» → «Марка кабеля»"]);
+  assert.deepEqual(describeBlank("kj:ti", { hide: ["tray", "reserve"], headers: { mark: "Марка кабеля" } }), [
+    "без графы «Лоток»",
+    "без «Кф запаса в строках «в т.ч. <марка>»»",
+    "графа «Марка» → «Марка кабеля»",
+  ]);
 });
 
 test("часть бланка по словам пользователя: «Лоток, м», «Труба гладкая, м», «строку с коэффициентом запаса»", () => {
@@ -40,7 +46,10 @@ test("часть бланка по словам пользователя: «Ло
 
 test("предложение помощника: шаблон «Камчатка» — КЖ без строки запаса и способов прокладки", () => {
   assert.equal(findTemplateDoc(kamchatka, "Кабельный журнал")!.kind, "kj");
-  const r = validateBlankProposal(kamchatka, { doc: "КЖ", hide: ["Лоток, м", "Труба гладкая, м", "Труба гофрированная, м", "строка с коэффициентом запаса 2%"] });
+  const r = validateBlankProposal(kamchatka, {
+    doc: "КЖ",
+    hide: ["Лоток, м", "Труба гладкая, м", "Труба гофрированная, м", "строка с коэффициентом запаса 2%"],
+  });
   assert.ok(r.ok, !r.ok ? r.error : "");
   if (!r.ok) return;
   assert.deepEqual(r.change.after.blanks["kj:ti"], { hide: ["tray", "smooth", "corrugated", "reserve"], headers: {} });
@@ -50,7 +59,7 @@ test("предложение помощника: шаблон «Камчатка
   const again = validateBlankProposal({ ...kamchatka, print: r.change.after }, { doc: "КЖ", hide: ["tray"] });
   assert.equal(again.ok, false);
   // Вернуть и сбросить.
-  const back = validateBlankProposal({ ...kamchatka, print: r.change.after }, { doc: "КЖ", show: ["Лоток"], rename: { "Марка": "Марка, сечение" } });
+  const back = validateBlankProposal({ ...kamchatka, print: r.change.after }, { doc: "КЖ", show: ["Лоток"], rename: { Марка: "Марка, сечение" } });
   assert.ok(back.ok && back.change.after.blanks["kj:ti"].hide.length === 3 && back.change.after.blanks["kj:ti"].headers.mark === "Марка, сечение");
   const reset = validateBlankProposal({ ...kamchatka, print: r.change.after }, { doc: "КЖ", reset: true });
   assert.ok(reset.ok && !("kj:ti" in reset.change.after.blanks));
@@ -61,7 +70,12 @@ test("предложение: ошибки — нет документа, осн
   assert.match((validateBlankProposal(kamchatka, { doc: "КЖ", hide: ["Обозначение кабеля, провода"] }) as any).error, /скрыть нельзя/);
   assert.match((validateBlankProposal(kamchatka, { doc: "КЖ", hide: ["Цвет"] }) as any).error, /нет графы или строки «Цвет»/);
   assert.match((validateBlankProposal(kamchatka, { doc: "АОСР", hide: ["x"] }) as any).error, /нормативом/);
-  const own = { ...kamchatka, docs: kamchatka.docs.map((d) => (d.kind === "builtin" && d.doc === "kj" ? { ...d, form: { file: "f.xlsx", type: "xlsx" as const, original: "КЖ.xlsx" } } : d)) };
+  const own = {
+    ...kamchatka,
+    docs: kamchatka.docs.map((d) =>
+      d.kind === "builtin" && d.doc === "kj" ? { ...d, form: { file: "f.xlsx", type: "xlsx" as const, original: "КЖ.xlsx" } } : d,
+    ),
+  };
   assert.match((validateBlankProposal(own, { doc: "КЖ", hide: ["Лоток"] }) as any).error, /своя форма из файла/);
   const ti = validateBlankProposal(BUILTIN_TI, { doc: "КЖ", hide: ["Лоток"] });
   assert.ok(ti.ok && ti.change.copy && ti.lines.some((l) => /будет создана копия «ТИ \(копия\)»/.test(l)));

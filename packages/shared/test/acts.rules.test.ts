@@ -8,21 +8,60 @@ import type { ActMaterialInput, ActDocumentInput, VorLineInput } from "@idk/shar
 
 const BASE = "К32.В.СТ.АОВ1.01.00.1";
 const org = (o: Partial<Organization>): Organization => ({
-  id: 1, shortName: "", fullName: "", ogrn: "", inn: "", address: "", phone: "", sroName: "", sroOgrn: "", sroInn: "", ...o,
+  id: 1,
+  shortName: "",
+  fullName: "",
+  ogrn: "",
+  inn: "",
+  address: "",
+  phone: "",
+  sroName: "",
+  sroOgrn: "",
+  sroInn: "",
+  ...o,
 });
 const rep = (o: Partial<Representative>): Representative => ({
-  id: 1, role: "performer", position: "", fullName: "", orgId: 1, authorityDoc: "", nrsNumber: "", nrsDate: null,
-  validFrom: null, validTo: null, sortOrder: 1, actText: "", ...o,
+  id: 1,
+  role: "performer",
+  position: "",
+  fullName: "",
+  orgId: 1,
+  authorityDoc: "",
+  nrsNumber: "",
+  nrsDate: null,
+  validFrom: null,
+  validTo: null,
+  sortOrder: 1,
+  actText: "",
+  ...o,
 });
 const mat = (id: number, name: string, o: Partial<Material> = {}): Material => ({
-  id, name, mark: "", article: "", manufacturer: "", unit: "шт.", ...o,
+  id,
+  name,
+  mark: "",
+  article: "",
+  manufacturer: "",
+  unit: "шт.",
+  ...o,
 });
 const doc = (id: number, o: Partial<QualityDoc>): QualityDoc => ({
-  id, type: "passport", number: "", issueDate: null, validUntil: null, sheets: 1, fileId: null, materialIds: [],
-  registryName: "", ...o,
+  id,
+  type: "passport",
+  number: "",
+  issueDate: null,
+  validUntil: null,
+  sheets: 1,
+  fileId: null,
+  materialIds: [],
+  registryName: "",
+  ...o,
 });
 const am = (materialId: number, sortOrder: number, o: Partial<ActMaterialInput> = {}): ActMaterialInput => ({
-  materialId, position: "б/н", quantity: null, sortOrder, ...o,
+  materialId,
+  position: "б/н",
+  quantity: null,
+  sortOrder,
+  ...o,
 });
 
 test("format: даты, числа, номера", () => {
@@ -38,18 +77,36 @@ test("format: даты, числа, номера", () => {
 });
 
 const sbd = org({ id: 1, shortName: 'ООО "СБД"' });
-const veles = org({ id: 2, shortName: 'ООО "Велесстрой"', ogrn: "1087746466950", inn: "7709787790", address: "125047, г. Москва, ул.2-ая Тверская-Ямская, д. 10" });
+const veles = org({
+  id: 2,
+  shortName: 'ООО "Велесстрой"',
+  ogrn: "1087746466950",
+  inn: "7709787790",
+  address: "125047, г. Москва, ул.2-ая Тверская-Ямская, д. 10",
+});
 
 test("repLine: стройконтроль заказчика", () => {
   assert.equal(
-    repLine(rep({ role: "developer_control", position: "Ведущий инженер по автоматике и слаботочным системам", fullName: "Валерьянов А.А.", nrsNumber: "С-77-221429", authorityDoc: "приказ № П-1-ОД-267 от 18.06.2025 г." }), sbd),
+    repLine(
+      rep({
+        role: "developer_control",
+        position: "Ведущий инженер по автоматике и слаботочным системам",
+        fullName: "Валерьянов А.А.",
+        nrsNumber: "С-77-221429",
+        authorityDoc: "приказ № П-1-ОД-267 от 18.06.2025 г.",
+      }),
+      sbd,
+    ),
     'Ведущий инженер по автоматике и слаботочным системам ООО "СБД" Валерьянов А.А., идентификационный номер специалиста №С-77-221429, приказ № П-1-ОД-267 от 18.06.2025 г.',
   );
 });
 
 test("repLine: лицо, осуществляющее строительство, без НРС", () => {
   assert.equal(
-    repLine(rep({ role: "builder", position: "Заместитель руководителя проекта", fullName: "Аксенов А.М.", authorityDoc: "приказ №П-КУТ00/3 от 20.04.2026 г." }), sbd),
+    repLine(
+      rep({ role: "builder", position: "Заместитель руководителя проекта", fullName: "Аксенов А.М.", authorityDoc: "приказ №П-КУТ00/3 от 20.04.2026 г." }),
+      sbd,
+    ),
     'Заместитель руководителя проекта ООО "СБД" Аксенов А.М., приказ №П-КУТ00/3 от 20.04.2026 г.',
   );
 });
@@ -74,15 +131,26 @@ const pipeDocs = [
 
 test("point3Lines: 2 материала — по строке с документами", () => {
   const lines = point3Lines([am(2, 1), am(4, 2)], [pipe, clip], new Map([[2, pipeDocs]]), BASE);
-  assert.equal(lines[0], "Труба ПВХ жёсткая гладкая, d20 мм — Паспорт качества №63920 от 19.05.2025 г.; Сертификат соответствия №ЕАЭС RU C-RU.ПБ68.В.00389/21 от 07.07.2021 г.");
+  assert.equal(
+    lines[0],
+    "Труба ПВХ жёсткая гладкая, d20 мм — Паспорт качества №63920 от 19.05.2025 г.; Сертификат соответствия №ЕАЭС RU C-RU.ПБ68.В.00389/21 от 07.07.2021 г.",
+  );
   assert.equal(lines[1], "Держатель-клипса для монтажного пистолета, d20 мм, серый");
 });
 
 test("point3Lines: больше 5 материалов — ссылка на РИМ и ВД", () => {
   const ms = [1, 2, 3, 4, 5, 6].map((i) => mat(i, `M${i}`));
-  assert.deepEqual(point3Lines(ms.map((m, i) => am(m.id, i)), ms, new Map(), BASE), [
-    "Согласно реестру использованных материалов №К32.В.СТ.АОВ1.01.00.1.РИМ ведомости смонтированного оборудования, технических средств и материалов №К32.В.СТ.АОВ1.01.00.1.ВД",
-  ]);
+  assert.deepEqual(
+    point3Lines(
+      ms.map((m, i) => am(m.id, i)),
+      ms,
+      new Map(),
+      BASE,
+    ),
+    [
+      "Согласно реестру использованных материалов №К32.В.СТ.АОВ1.01.00.1.РИМ ведомости смонтированного оборудования, технических средств и материалов №К32.В.СТ.АОВ1.01.00.1.ВД",
+    ],
+  );
 });
 
 test("point4Lines: нет документов — «Не требуется»", () => {
@@ -101,7 +169,14 @@ test("point4Lines: схема и прочий документ", () => {
 });
 
 test("point4Lines: подряд идущие схемы — «Исполнительная схема» один раз, через «;»", () => {
-  const s = (n: number, name: string): ActDocumentInput => ({ kind: "scheme", number: `К32.В.СТ.АОВ1.01.00.${n}`, name, date: null, fileId: null, sortOrder: n });
+  const s = (n: number, name: string): ActDocumentInput => ({
+    kind: "scheme",
+    number: `К32.В.СТ.АОВ1.01.00.${n}`,
+    name,
+    date: null,
+    fileId: null,
+    sortOrder: n,
+  });
   assert.deepEqual(point4Lines([s(1, "Монтаж на П5"), s(2, "Монтаж на П4"), s(3, "Монтаж на П3")]), [
     "Исполнительная схема №К32.В.СТ.АОВ1.01.00.1. Монтаж на П5;",
     "№К32.В.СТ.АОВ1.01.00.2. Монтаж на П4;",
@@ -114,23 +189,51 @@ const m2 = mat(7, "Муфта труба-коробка, IP67, М20х1,5, д.20�
 const letter = doc(20, { type: "info_letter", number: "2448", issueDate: "2023-02-17", sheets: 2, materialIds: [6, 7] });
 
 test("rimRows: письмо №2448 на две муфты — одна строка", () => {
-  const rows = rimRows([am(6, 1), am(7, 2)], [m1, m2], new Map([[6, [letter]], [7, [letter]]]));
+  const rows = rimRows(
+    [am(6, 1), am(7, 2)],
+    [m1, m2],
+    new Map([
+      [6, [letter]],
+      [7, [letter]],
+    ]),
+  );
   assert.equal(rows.length, 1);
   assert.deepEqual(rows[0], {
     name: "Муфта труба-труба с ограничителем IP40, d20 мм, Муфта труба-коробка, IP67, М20х1,5, д.20мм",
-    type: "информационное письмо", number: "№2448", date: "17.02.2023 г.", sheets: 2, group: 0, cont: false,
+    type: "информационное письмо",
+    number: "№2448",
+    date: "17.02.2023 г.",
+    sheets: 2,
+    group: 0,
+    cont: false,
   });
 });
 
 test("rimRows: порядок — паспорт раньше сертификата; дата со сроком", () => {
-  const cert = doc(30, { type: "certificate", number: "ЕАЭС RU C-RU.АД38.В.00024/21", issueDate: "2021-06-11", validUntil: "2026-06-10", sheets: 3, materialIds: [1] });
+  const cert = doc(30, {
+    type: "certificate",
+    number: "ЕАЭС RU C-RU.АД38.В.00024/21",
+    issueDate: "2021-06-11",
+    validUntil: "2026-06-10",
+    sheets: 3,
+    materialIds: [1],
+  });
   const pass = doc(31, { type: "passport", number: "№3/405", issueDate: "2025-05-09", materialIds: [1] });
   const rows = rimRows([am(1, 1)], [mat(1, "Кабель")], new Map([[1, [cert, pass]]]));
-  assert.deepEqual(rows.map((r) => r.type), ["паспорт качества", "сертификат соответствия"]);
+  assert.deepEqual(
+    rows.map((r) => r.type),
+    ["паспорт качества", "сертификат соответствия"],
+  );
   assert.equal(rows[0].number, "№3/405");
   assert.equal(rows[1].date, "от 11.06.2021 г. до 10.06.2026 г.");
   // наименование материала — один раз: вторая строка его группы — продолжение
-  assert.deepEqual(rows.map((r) => [r.group, r.cont]), [[0, false], [0, true]]);
+  assert.deepEqual(
+    rows.map((r) => [r.group, r.cont]),
+    [
+      [0, false],
+      [0, true],
+    ],
+  );
 });
 
 test("point4Lines: «Исполнительная схема» перед каждой схемой — по настройке", () => {
@@ -139,19 +242,31 @@ test("point4Lines: «Исполнительная схема» перед каж
     "Исполнительная схема №1. Монтаж трубы;",
     "Исполнительная схема №2. Монтаж кабеля",
   ]);
-  assert.deepEqual(point4Lines([s(1, "Монтаж трубы"), s(2, "Монтаж кабеля")]), [
-    "Исполнительная схема №1. Монтаж трубы;",
-    "№2. Монтаж кабеля",
-  ]);
+  assert.deepEqual(point4Lines([s(1, "Монтаж трубы"), s(2, "Монтаж кабеля")]), ["Исполнительная схема №1. Монтаж трубы;", "№2. Монтаж кабеля"]);
 });
 
 test("rimRows: группы материалов; общий документ — отдельная группа", () => {
-  const a = doc(40, { materialIds: [1] }), b = doc(41, { type: "certificate", materialIds: [1] });
-  const c = doc(42, { materialIds: [2] }), shared = doc(43, { type: "info_letter", materialIds: [1, 2] });
-  const rows = rimRows([am(1, 1), am(2, 2)], [mat(1, "Кабель"), mat(2, "Труба")], new Map([[1, [a, b, shared]], [2, [c, shared]]]));
-  assert.deepEqual(rows.map((r) => [r.name, r.group, r.cont]), [
-    ["Кабель", 0, false], ["Кабель", 0, true], ["Труба", 1, false], ["Кабель, Труба", 2, false],
-  ]);
+  const a = doc(40, { materialIds: [1] }),
+    b = doc(41, { type: "certificate", materialIds: [1] });
+  const c = doc(42, { materialIds: [2] }),
+    shared = doc(43, { type: "info_letter", materialIds: [1, 2] });
+  const rows = rimRows(
+    [am(1, 1), am(2, 2)],
+    [mat(1, "Кабель"), mat(2, "Труба")],
+    new Map([
+      [1, [a, b, shared]],
+      [2, [c, shared]],
+    ]),
+  );
+  assert.deepEqual(
+    rows.map((r) => [r.name, r.group, r.cont]),
+    [
+      ["Кабель", 0, false],
+      ["Кабель", 0, true],
+      ["Труба", 1, false],
+      ["Кабель, Труба", 2, false],
+    ],
+  );
 });
 
 test("rimRows: registryName перекрывает имена материалов", () => {
@@ -159,7 +274,11 @@ test("rimRows: registryName перекрывает имена материало
   assert.equal(rimRows([am(6, 1)], [m1], new Map([[6, [d]]]))[0].name, "Винт М6, М8, гайка М6, М8");
 });
 
-const cable = mat(1, "Кабель для промышленного интерфейса RS-485", { mark: "СегментКИ-485-ПсЭнг(А)-HF 1х2х0,78-300 В", manufacturer: 'ООО "СегментЭНЕРГО"', unit: "м." });
+const cable = mat(1, "Кабель для промышленного интерфейса RS-485", {
+  mark: "СегментКИ-485-ПсЭнг(А)-HF 1х2х0,78-300 В",
+  manufacturer: 'ООО "СегментЭНЕРГО"',
+  unit: "м.",
+});
 const vor = (group: string, materialId: number, quantity: number, sortOrder: number): VorLineInput => ({ group, materialId, quantity, sortOrder });
 
 test("vdRows: количество — сумма ВОР, если quantity = null", () => {
@@ -181,7 +300,10 @@ test("vdRows: артикул пуст — берётся марка", () => {
 
 test("vorRows: группы и строки", () => {
   const rows = vorRows([vor("Этаж П5", 2, 259.4, 1), vor("Этаж П5", 1, 430, 0), vor("Этаж П4", 2, 329.1, 2)], [pipe, cable]);
-  assert.deepEqual(rows.map((r) => r.kind), ["group", "line", "line", "group", "line"]);
+  assert.deepEqual(
+    rows.map((r) => r.kind),
+    ["group", "line", "line", "group", "line"],
+  );
   assert.deepEqual(rows[2], { kind: "line", name: "Труба ПВХ жёсткая гладкая, d20 мм (63920, DKC)", unit: "м.", quantity: "259,4" });
   assert.equal((rows[1] as any).name, 'Кабель для промышленного интерфейса RS-485 (СегментКИ-485-ПсЭнг(А)-HF 1х2х0,78-300 В, ООО "СегментЭНЕРГО")');
   assert.deepEqual(rows[3], { kind: "group", title: "Этаж П4" });
@@ -194,7 +316,10 @@ test("signers: роль без действующего — пустая под�
     rep({ id: 3, role: "designer", fullName: "Смирнов М.А.", validTo: "2026-01-01" }),
   ];
   const s = signers(reps, ["designer", "performer"], "2026-07-28");
-  assert.deepEqual(s.map((x) => x.names), [[""], ["Королев Д.М.", "Востров В.П."]]);
+  assert.deepEqual(
+    s.map((x) => x.names),
+    [[""], ["Королев Д.М.", "Востров В.П."]],
+  );
   assert.match(s[0].label, /подготовку проектной документации/);
 });
 
@@ -203,7 +328,10 @@ test("vorRows: итог по этажам в порядке материалов
   const rows = vorRows(lines, [pipe, cable], [am(1, 0), am(2, 1)]);
   const t = rows.findIndex((r) => r.kind === "group" && r.title.startsWith("Итого"));
   assert.deepEqual(rows[t], { kind: "group", title: "Итого по этажам П5, П4" });
-  assert.deepEqual(rows.slice(t + 1).map((r: any) => r.quantity), ["866,6", "588,5"]);
+  assert.deepEqual(
+    rows.slice(t + 1).map((r: any) => r.quantity),
+    ["866,6", "588,5"],
+  );
 });
 
 test("vorTotalTitle: общий префикс «Этаж» и прочие группы", async () => {
@@ -215,6 +343,16 @@ test("vorTotalTitle: общий префикс «Этаж» и прочие гр
 test("rimRows: общий документ — после документов последнего своего материала", () => {
   const p6 = doc(40, { type: "passport", number: "54920", issueDate: "2025-05-19", materialIds: [6] });
   const p7 = doc(41, { type: "passport", number: "50220", issueDate: "2026-05-14", materialIds: [7] });
-  const rows = rimRows([am(6, 1), am(7, 2)], [m1, m2], new Map([[6, [letter, p6]], [7, [letter, p7]]]));
-  assert.deepEqual(rows.map((r) => r.number), ["№54920", "№50220", "№2448"]);
+  const rows = rimRows(
+    [am(6, 1), am(7, 2)],
+    [m1, m2],
+    new Map([
+      [6, [letter, p6]],
+      [7, [letter, p7]],
+    ]),
+  );
+  assert.deepEqual(
+    rows.map((r) => r.number),
+    ["№54920", "№50220", "№2448"],
+  );
 });

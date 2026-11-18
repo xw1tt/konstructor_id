@@ -8,7 +8,13 @@ import { LIB_KINDS, LibRecord, libColumns, libKey, libKeyFilled, type LibKind, t
 import type { CellValue } from "@idk/shared/workbook/values";
 import { HttpError } from "../http/router.ts";
 
-const who = () => { try { return `${userInfo().username}@${hostname()}`; } catch { return hostname(); } };
+const who = () => {
+  try {
+    return `${userInfo().username}@${hostname()}`;
+  } catch {
+    return hostname();
+  }
+};
 
 const writeAtomic = (file: string, text: string) => {
   const tmp = `${file}.${randomUUID()}.tmp`;
@@ -18,15 +24,24 @@ const writeAtomic = (file: string, text: string) => {
 
 export class LibraryStore {
   private settingsFile: string;
-  constructor(private dataDir: string, private now: () => Date = () => new Date()) {
+  constructor(
+    private dataDir: string,
+    private now: () => Date = () => new Date(),
+  ) {
     this.settingsFile = join(dataDir, "settings.json");
   }
 
   private readSettings(): Record<string, unknown> {
-    try { return JSON.parse(readFileSync(this.settingsFile, "utf8")); } catch { return {}; }
+    try {
+      return JSON.parse(readFileSync(this.settingsFile, "utf8"));
+    } catch {
+      return {};
+    }
   }
 
-  defaultDir(): string { return join(this.dataDir, "library"); }
+  defaultDir(): string {
+    return join(this.dataDir, "library");
+  }
 
   settings(): { dir: string; isDefault: boolean } {
     const d = this.readSettings().libraryDir;
@@ -38,7 +53,8 @@ export class LibraryStore {
     const target = dir?.trim() || null;
     this.check(target ?? this.defaultDir());
     const s = this.readSettings();
-    if (target) s.libraryDir = target; else delete s.libraryDir;
+    if (target) s.libraryDir = target;
+    else delete s.libraryDir;
     mkdirSync(this.dataDir, { recursive: true });
     writeAtomic(this.settingsFile, JSON.stringify(s, null, 2));
     return this.settings();
@@ -76,17 +92,29 @@ export class LibraryStore {
     const out: LibRecord[] = [];
     for (const f of readdirSync(dir)) {
       if (!f.endsWith(".json")) continue;
-      try { out.push(LibRecord.parse(JSON.parse(readFileSync(join(dir, f), "utf8")))); } catch { /* битый или недописанный файл — пропуск */ }
+      try {
+        out.push(LibRecord.parse(JSON.parse(readFileSync(join(dir, f), "utf8"))));
+      } catch {
+        /* битый или недописанный файл — пропуск */
+      }
     }
     const needle = q.trim().toLowerCase();
-    const text = (r: LibRecord) => Object.values(r.values).map((v) => (v === null ? "" : String(v))).join(" ").toLowerCase();
+    const text = (r: LibRecord) =>
+      Object.values(r.values)
+        .map((v) => (v === null ? "" : String(v)))
+        .join(" ")
+        .toLowerCase();
     const first = (r: LibRecord) => String(Object.values(r.values)[0] ?? "");
     return out.filter((r) => !needle || text(r).includes(needle)).sort((a, b) => first(a).localeCompare(first(b), "ru"));
   }
 
   get(kind: LibKind, id: string): LibRecord | null {
     if (!/^[0-9a-f]{32}$/.test(id)) return null;
-    try { return LibRecord.parse(JSON.parse(readFileSync(join(this.root(), kind, `${id}.json`), "utf8"))); } catch { return null; }
+    try {
+      return LibRecord.parse(JSON.parse(readFileSync(join(this.root(), kind, `${id}.json`), "utf8")));
+    } catch {
+      return null;
+    }
   }
 
   /** Добавить или обновить по ключу. Скан не передан — остаётся прежний. */

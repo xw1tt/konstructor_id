@@ -10,7 +10,10 @@ import { HttpError } from "../http/router.ts";
 import { removeQuietly } from "../forms/convert.ts";
 
 export interface ScanText {
-  text: string; pages: number; method: "pdf-text" | "ocr"; warnings: string[];
+  text: string;
+  pages: number;
+  method: "pdf-text" | "ocr";
+  warnings: string[];
   /** Страницы картинками (data:image/png;base64,…) — для нейросети, которая видит изображения (0.29). */
   images: string[];
 }
@@ -32,37 +35,89 @@ function polyfillCanvasGlobals() {
   const g = globalThis as any;
   if (!g.DOMMatrix) {
     g.DOMMatrix = class DOMMatrix {
-      a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+      a = 1;
+      b = 0;
+      c = 0;
+      d = 1;
+      e = 0;
+      f = 0;
       constructor(init?: number[] | string) {
         if (Array.isArray(init) && init.length >= 6) [this.a, this.b, this.c, this.d, this.e, this.f] = init;
       }
-      get is2D() { return true; }
-      get isIdentity() { return this.a === 1 && this.b === 0 && this.c === 0 && this.d === 1 && this.e === 0 && this.f === 0; }
+      get is2D() {
+        return true;
+      }
+      get isIdentity() {
+        return this.a === 1 && this.b === 0 && this.c === 0 && this.d === 1 && this.e === 0 && this.f === 0;
+      }
       multiplySelf(m: any) {
         const { a, b, c, d, e, f } = this;
-        this.a = a * m.a + c * m.b; this.b = b * m.a + d * m.b;
-        this.c = a * m.c + c * m.d; this.d = b * m.c + d * m.d;
-        this.e = a * m.e + c * m.f + e; this.f = b * m.e + d * m.f + f;
+        this.a = a * m.a + c * m.b;
+        this.b = b * m.a + d * m.b;
+        this.c = a * m.c + c * m.d;
+        this.d = b * m.c + d * m.d;
+        this.e = a * m.e + c * m.f + e;
+        this.f = b * m.e + d * m.f + f;
         return this;
       }
-      preMultiplySelf(m: any) { const t = new g.DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]).multiplySelf(this); Object.assign(this, { a: t.a, b: t.b, c: t.c, d: t.d, e: t.e, f: t.f }); return this; }
-      multiply(m: any) { return new g.DOMMatrix([this.a, this.b, this.c, this.d, this.e, this.f]).multiplySelf(m); }
-      translate(x = 0, y = 0) { return this.multiply({ a: 1, b: 0, c: 0, d: 1, e: x, f: y }); }
-      translateSelf(x = 0, y = 0) { return this.multiplySelf({ a: 1, b: 0, c: 0, d: 1, e: x, f: y }); }
-      scale(x = 1, y = x) { return this.multiply({ a: x, b: 0, c: 0, d: y, e: 0, f: 0 }); }
-      scaleSelf(x = 1, y = x) { return this.multiplySelf({ a: x, b: 0, c: 0, d: y, e: 0, f: 0 }); }
+      preMultiplySelf(m: any) {
+        const t = new g.DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]).multiplySelf(this);
+        Object.assign(this, { a: t.a, b: t.b, c: t.c, d: t.d, e: t.e, f: t.f });
+        return this;
+      }
+      multiply(m: any) {
+        return new g.DOMMatrix([this.a, this.b, this.c, this.d, this.e, this.f]).multiplySelf(m);
+      }
+      translate(x = 0, y = 0) {
+        return this.multiply({ a: 1, b: 0, c: 0, d: 1, e: x, f: y });
+      }
+      translateSelf(x = 0, y = 0) {
+        return this.multiplySelf({ a: 1, b: 0, c: 0, d: 1, e: x, f: y });
+      }
+      scale(x = 1, y = x) {
+        return this.multiply({ a: x, b: 0, c: 0, d: y, e: 0, f: 0 });
+      }
+      scaleSelf(x = 1, y = x) {
+        return this.multiplySelf({ a: x, b: 0, c: 0, d: y, e: 0, f: 0 });
+      }
       invertSelf() {
-        const { a, b, c, d, e, f } = this; const det = a * d - b * c;
-        if (!det) { Object.assign(this, { a: NaN, b: NaN, c: NaN, d: NaN, e: NaN, f: NaN }); return this; }
+        const { a, b, c, d, e, f } = this;
+        const det = a * d - b * c;
+        if (!det) {
+          Object.assign(this, { a: NaN, b: NaN, c: NaN, d: NaN, e: NaN, f: NaN });
+          return this;
+        }
         Object.assign(this, { a: d / det, b: -b / det, c: -c / det, d: a / det, e: (c * f - d * e) / det, f: (b * e - a * f) / det });
         return this;
       }
-      inverse() { return new g.DOMMatrix([this.a, this.b, this.c, this.d, this.e, this.f]).invertSelf(); }
-      transformPoint(p: { x?: number; y?: number } = {}) { const x = p.x ?? 0, y = p.y ?? 0; return { x: this.a * x + this.c * y + this.e, y: this.b * x + this.d * y + this.f, z: 0, w: 1 }; }
+      inverse() {
+        return new g.DOMMatrix([this.a, this.b, this.c, this.d, this.e, this.f]).invertSelf();
+      }
+      transformPoint(p: { x?: number; y?: number } = {}) {
+        const x = p.x ?? 0,
+          y = p.y ?? 0;
+        return { x: this.a * x + this.c * y + this.e, y: this.b * x + this.d * y + this.f, z: 0, w: 1 };
+      }
     };
   }
-  if (!g.Path2D) g.Path2D = class Path2D { addPath() {} moveTo() {} lineTo() {} bezierCurveTo() {} quadraticCurveTo() {} closePath() {} rect() {} };
-  if (!g.ImageData) g.ImageData = class ImageData { constructor(public data: unknown, public width: number, public height: number) {} };
+  if (!g.Path2D)
+    g.Path2D = class Path2D {
+      addPath() {}
+      moveTo() {}
+      lineTo() {}
+      bezierCurveTo() {}
+      quadraticCurveTo() {}
+      closePath() {}
+      rect() {}
+    };
+  if (!g.ImageData)
+    g.ImageData = class ImageData {
+      constructor(
+        public data: unknown,
+        public width: number,
+        public height: number,
+      ) {}
+    };
 }
 
 /** Текстовый слой PDF (первые страницы) и число страниц. */
@@ -70,23 +125,36 @@ export async function pdfText(buf: Buffer, maxPages = 6): Promise<{ text: string
   polyfillCanvasGlobals();
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   let cMapUrl: string | undefined;
-  try { cMapUrl = join(dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json")), "cmaps") + "/"; } catch { /* без cmaps */ }
+  try {
+    cMapUrl = join(dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json")), "cmaps") + "/";
+  } catch {
+    /* без cmaps */
+  }
   const task = getDocument({ data: new Uint8Array(buf), useSystemFonts: true, cMapUrl, cMapPacked: true });
   const doc = await task.promise;
   const out: string[] = [];
   for (let i = 1; i <= Math.min(doc.numPages, maxPages); i++) {
     const c = await (await doc.getPage(i)).getTextContent();
     // Строки — по смене вертикали: так «Срок действия … по …» остаётся рядом с датами.
-    let line = "", y: number | null = null;
+    let line = "",
+      y: number | null = null;
     const lines: string[] = [];
     for (const it of c.items as any[]) {
       const yy = Math.round(it.transform?.[5] ?? 0);
-      if (y !== null && Math.abs(yy - y) > 3) { lines.push(line); line = ""; }
+      if (y !== null && Math.abs(yy - y) > 3) {
+        lines.push(line);
+        line = "";
+      }
       line += (line && !line.endsWith(" ") ? " " : "") + String(it.str ?? "");
       y = yy;
     }
     lines.push(line);
-    out.push(lines.map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n"));
+    out.push(
+      lines
+        .map((l) => l.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .join("\n"),
+    );
   }
   const pages = doc.numPages;
   await task.destroy();
@@ -108,8 +176,11 @@ export async function readScan(buf: Buffer, mime: string, ocr: OcrRunner, opts: 
   };
   try {
     if (mime === "application/pdf") {
-      let pages = 1, text = "";
-      try { ({ text, pages } = await pdfText(buf)); } catch (e) {
+      let pages = 1,
+        text = "";
+      try {
+        ({ text, pages } = await pdfText(buf));
+      } catch (e) {
         const m = (e as Error)?.message ?? "";
         // Сбой самой программы чтения PDF — не «повреждённый файл»: попробовать распознать страницы как картинки.
         if (/password|encrypt/i.test(m)) throw new HttpError(400, "PDF защищён паролем — снимите защиту и загрузите снова");
@@ -135,7 +206,8 @@ export async function readScan(buf: Buffer, mime: string, ocr: OcrRunner, opts: 
   }
 }
 
-const russianHint = "Распознавание русского текста в Windows не установлено — текст мог распознаться с ошибками. " +
+const russianHint =
+  "Распознавание русского текста в Windows не установлено — текст мог распознаться с ошибками. " +
   "Добавьте его: Параметры → Время и язык → Язык → Русский → Параметры → «Оптическое распознавание символов»";
 
 /** Скрипт PowerShell 5.1: WinRT OCR; страницы PDF — через Windows.Data.Pdf. Результат — UTF-8 в файл out. */
@@ -198,27 +270,49 @@ $txt=($parts -join ($NL+$NL))
 `;
 
 export function windowsOcr(): OcrRunner {
-  return (path, kind, maxPages, renderDir) => new Promise((resolve, reject) => {
-    if (process.platform !== "win32") {
-      reject(new HttpError(501, "Распознавание сканов-картинок работает в Windows (встроенное распознавание текста). PDF с текстовым слоем читается везде"));
-      return;
-    }
-    const dir = dirname(path);
-    const script = join(dir, "ocr.ps1"), out = join(dir, "ocr.txt");
-    writeFileSync(script, "﻿" + OCR_SCRIPT);
-    execFile("powershell", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, "-Path", path, "-Kind", kind, "-Max", String(maxPages), "-Out", out, ...(renderDir ? ["-Render", renderDir] : [])],
-      { timeout: OCR_TIMEOUT_MS, windowsHide: true }, (err, _stdout, stderr) => {
-        if (!err && existsSync(out)) {
-          const raw = readFileSync(out, "utf8");
-          const nl = raw.indexOf("\n");
-          resolve({ lang: raw.slice(0, nl), text: raw.slice(nl + 1) });
-          return;
-        }
-        const errFile = out + ".err";
-        const msg = (existsSync(errFile) ? readFileSync(errFile, "utf8") : String(stderr || err?.message || "")).trim();
-        if (/NO_OCR/.test(msg)) reject(new HttpError(500, "В Windows нет ни одного языка распознавания текста. " + russianHint));
-        else if (err && (err as any).killed) reject(new HttpError(504, "Распознавание заняло больше 2 минут — попробуйте файл с меньшим числом страниц"));
-        else reject(new HttpError(500, `Не удалось распознать скан средствами Windows: ${msg.replace(/\s+/g, " ").slice(0, 400) || "неизвестная ошибка"}`));
-      });
-  });
+  return (path, kind, maxPages, renderDir) =>
+    new Promise((resolve, reject) => {
+      if (process.platform !== "win32") {
+        reject(new HttpError(501, "Распознавание сканов-картинок работает в Windows (встроенное распознавание текста). PDF с текстовым слоем читается везде"));
+        return;
+      }
+      const dir = dirname(path);
+      const script = join(dir, "ocr.ps1"),
+        out = join(dir, "ocr.txt");
+      writeFileSync(script, "﻿" + OCR_SCRIPT);
+      execFile(
+        "powershell",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          script,
+          "-Path",
+          path,
+          "-Kind",
+          kind,
+          "-Max",
+          String(maxPages),
+          "-Out",
+          out,
+          ...(renderDir ? ["-Render", renderDir] : []),
+        ],
+        { timeout: OCR_TIMEOUT_MS, windowsHide: true },
+        (err, _stdout, stderr) => {
+          if (!err && existsSync(out)) {
+            const raw = readFileSync(out, "utf8");
+            const nl = raw.indexOf("\n");
+            resolve({ lang: raw.slice(0, nl), text: raw.slice(nl + 1) });
+            return;
+          }
+          const errFile = out + ".err";
+          const msg = (existsSync(errFile) ? readFileSync(errFile, "utf8") : String(stderr || err?.message || "")).trim();
+          if (/NO_OCR/.test(msg)) reject(new HttpError(500, "В Windows нет ни одного языка распознавания текста. " + russianHint));
+          else if (err && (err as any).killed) reject(new HttpError(504, "Распознавание заняло больше 2 минут — попробуйте файл с меньшим числом страниц"));
+          else reject(new HttpError(500, `Не удалось распознать скан средствами Windows: ${msg.replace(/\s+/g, " ").slice(0, 400) || "неизвестная ошибка"}`));
+        },
+      );
+    });
 }

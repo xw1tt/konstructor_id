@@ -7,14 +7,22 @@ import { isBlankNumber } from "@idk/shared/workbook/virtual";
 import type { ExcelPort } from "../../book/excelPort.ts";
 
 export interface NewDoc {
-  type: string; number: string; date: string; valid: string; sheets: string; materials: string[];
+  type: string;
+  number: string;
+  date: string;
+  valid: string;
+  sheets: string;
+  materials: string[];
   /** Загруженный скан (/api/files/:id). */
   scan: { id: number; name: string } | null;
 }
 
 const norm = (s: string) => s.trim().toLowerCase();
 /** Номер для сравнения: без «№»/«N», пробелов и регистра; похожие латинские и русские буквы — одинаково. */
-export const numKey = (s: string) => flat(s).replace(/^\s*(№|n|no\.?)\s*/i, "").replace(/[\s№]/g, "");
+export const numKey = (s: string) =>
+  flat(s)
+    .replace(/^\s*(№|n|no\.?)\s*/i, "")
+    .replace(/[\s№]/g, "");
 
 export async function addQualityDoc(port: ExcelPort, d: NewDoc): Promise<string> {
   const materials = [...new Set(d.materials.map((m) => m.trim()).filter(Boolean))];
@@ -24,27 +32,33 @@ export async function addQualityDoc(port: ExcelPort, d: NewDoc): Promise<string>
   const t = await port.read("ДокументыКачества");
   if (!t) throw new Error("Таблица «Материалы» не найдена — нажмите «Обновить разметку»");
   const h = (n: string) => t.headers.indexOf(n);
-  const link = d.scan ? { "Скан": `${location.origin}/api/files/${d.scan.id}` } : null;
+  const link = d.scan ? { Скан: `${location.origin}/api/files/${d.scan.id}` } : null;
   // «б/н» — один и тот же документ только при том же скане (иначе это разные паспорта без номера).
   const blank = isBlankNumber(d.number);
-  const same = t.rows.findIndex((r, i) => norm(cellText(r[h("Тип")] ?? null)) === norm(d.type) && numKey(cellText(r[h("Номер")] ?? null)) === numKey(d.number)
-    && (!blank || (!!link && t.links[i]?.[h("Скан")] === link["Скан"])));
+  const same = t.rows.findIndex(
+    (r, i) =>
+      norm(cellText(r[h("Тип")] ?? null)) === norm(d.type) &&
+      numKey(cellText(r[h("Номер")] ?? null)) === numKey(d.number) &&
+      (!blank || (!!link && t.links[i]?.[h("Скан")] === link["Скан"])),
+  );
   if (same >= 0) {
     const before = cellText(t.rows[same][h("Материалы")] ?? null);
     let list = before;
     for (const m of materials) if (!splitRefs(list).some((x) => norm(x) === norm(m))) list = docMaterials(list, m, true);
-    if (list !== before) await port.write("ДокументыКачества", same, { "Материалы": list });
-    if (link && !t.links[same]?.[h("Скан")]) await port.write("ДокументыКачества", same, { "Скан": d.scan!.name }, link);
+    if (list !== before) await port.write("ДокументыКачества", same, { Материалы: list });
+    if (link && !t.links[same]?.[h("Скан")]) await port.write("ДокументыКачества", same, { Скан: d.scan!.name }, link);
     const added = splitRefs(list).length - splitRefs(before).length;
     return added ? `документ уже был — добавлен к материалам: ${added}` : "документ уже есть у этих материалов";
   }
   const sheets = Number(d.sheets);
   const values = newQualityDoc(materials.join("; "), {
-    type: d.type, number: d.number,
-    date: d.date ? isoToExcelSerial(d.date) : null, validUntil: d.valid ? isoToExcelSerial(d.valid) : null,
+    type: d.type,
+    number: d.number,
+    date: d.date ? isoToExcelSerial(d.date) : null,
+    validUntil: d.valid ? isoToExcelSerial(d.valid) : null,
     sheets: Number.isInteger(sheets) && sheets > 0 ? sheets : null,
   });
   const row = await port.insert("ДокументыКачества", t.rows.length, [values]);
-  if (link) await port.write("ДокументыКачества", row, { "Скан": d.scan!.name }, link);
+  if (link) await port.write("ДокументыКачества", row, { Скан: d.scan!.name }, link);
   return `добавлен к материалам: ${materials.length}`;
 }

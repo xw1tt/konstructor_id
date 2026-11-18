@@ -12,8 +12,14 @@ export async function loadAll(api: LibraryApi): Promise<LibRecord[]> {
 }
 
 /** Добавляет выбранные записи и их зависимости в книгу; сканы — в локальное хранилище, ссылка — в ячейку «Скан». */
-export async function addToBook(store: TableStore, book: Book, picked: LibRecord[], all: LibRecord[], api: LibraryApi, origin: string):
-  Promise<{ added: number; skipped: number }> {
+export async function addToBook(
+  store: TableStore,
+  book: Book,
+  picked: LibRecord[],
+  all: LibRecord[],
+  api: LibraryApi,
+  origin: string,
+): Promise<{ added: number; skipped: number }> {
   const plan = planAdd(book, picked, all);
   const links = new Map<string, string>();
   for (const r of plan.add) {
@@ -27,8 +33,7 @@ export async function addToBook(store: TableStore, book: Book, picked: LibRecord
 }
 
 /** Строки таблицы книги — в библиотеку (документ — со сканом). Пустые по ключу — пропуск. */
-export async function sendToLibrary(book: Book, table: TableName, rows: number[], api: LibraryApi):
-  Promise<{ added: number; updated: number; empty: number }> {
+export async function sendToLibrary(book: Book, table: TableName, rows: number[], api: LibraryApi): Promise<{ added: number; updated: number; empty: number }> {
   const kind = libKindOf(table);
   if (!kind) throw new Error(`Таблица «${table}» не хранится в библиотеке`);
   const res = { added: 0, updated: 0, empty: 0 };
@@ -36,9 +41,13 @@ export async function sendToLibrary(book: Book, table: TableName, rows: number[]
   for (const r of book.tables[LIB_TABLE[kind]] ?? []) {
     if (!want.has(r.row)) continue;
     const values = libValues(kind, r);
-    if (!libKeyFilled(kind, values)) { res.empty++; continue; }
+    if (!libKeyFilled(kind, values)) {
+      res.empty++;
+      continue;
+    }
     const { created } = await api.save(kind, values, kind === "doc" ? fileIdOf(r.link.file) : null);
-    if (created) res.added++; else res.updated++;
+    if (created) res.added++;
+    else res.updated++;
   }
   return res;
 }

@@ -3,7 +3,10 @@ import { logError } from "../diag/log.ts";
 import { ZodError, type ZodType } from "zod";
 
 export class HttpError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -22,11 +25,19 @@ export interface Ctx {
 
 /** Ответ обработчика: значение → 200 JSON; Reply → указанный статус; undefined → ответ уже отправлен. */
 export class Reply {
-  constructor(public status: number, public json?: unknown) {}
+  constructor(
+    public status: number,
+    public json?: unknown,
+  ) {}
 }
 
 type Handler = (ctx: Ctx) => unknown | Promise<unknown>;
-interface Route { method: string; re: RegExp; keys: string[]; handler: Handler }
+interface Route {
+  method: string;
+  re: RegExp;
+  keys: string[];
+  handler: Handler;
+}
 
 const JSON_LIMIT = 1024 * 1024;
 
@@ -71,16 +82,22 @@ export class Router {
 
   add(method: string, pattern: string, handler: Handler) {
     const keys: string[] = [];
-    const re = new RegExp(
-      "^" + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), "([^/]+)")) + "/?$",
-    );
+    const re = new RegExp("^" + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), "([^/]+)")) + "/?$");
     this.routes.push({ method, re, keys, handler });
     return this;
   }
-  get(p: string, h: Handler) { return this.add("GET", p, h); }
-  post(p: string, h: Handler) { return this.add("POST", p, h); }
-  put(p: string, h: Handler) { return this.add("PUT", p, h); }
-  delete(p: string, h: Handler) { return this.add("DELETE", p, h); }
+  get(p: string, h: Handler) {
+    return this.add("GET", p, h);
+  }
+  post(p: string, h: Handler) {
+    return this.add("POST", p, h);
+  }
+  put(p: string, h: Handler) {
+    return this.add("PUT", p, h);
+  }
+  delete(p: string, h: Handler) {
+    return this.add("DELETE", p, h);
+  }
 
   /** true, если путь обработан роутером. */
   async handle(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
@@ -95,7 +112,10 @@ export class Router {
     let matched: { route: Route; m: RegExpMatchArray } | undefined;
     for (const route of this.routes) {
       const m = path.match(route.re);
-      if (m && route.method === req.method) { matched = { route, m }; break; }
+      if (m && route.method === req.method) {
+        matched = { route, m };
+        break;
+      }
     }
     if (!matched) return false;
     if (req.method !== "GET" && req.headers.origin && !this.allowedOrigins.includes(req.headers.origin)) {
@@ -105,7 +125,10 @@ export class Router {
     const params: Record<string, string> = {};
     matched.route.keys.forEach((k, i) => (params[k] = matched!.m[i + 1]));
     const ctx: Ctx = {
-      req, res, params, query: url.searchParams,
+      req,
+      res,
+      params,
+      query: url.searchParams,
       async body(schema, limit) {
         const raw = await readJson(req, limit);
         const r = schema.safeParse(raw);
@@ -125,7 +148,10 @@ export class Router {
       else if (out === undefined) sendJson(res, 204);
       else sendJson(res, 200, out);
     } catch (e) {
-      if (res.headersSent) { res.destroy(); return true; }
+      if (res.headersSent) {
+        res.destroy();
+        return true;
+      }
       if (e instanceof HttpError) sendJson(res, e.status, { error: e.message });
       else {
         logError(`${req.method} ${req.url ?? ""}`, e);

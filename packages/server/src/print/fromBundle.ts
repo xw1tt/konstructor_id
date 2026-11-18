@@ -34,7 +34,12 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
   const set = options.formSet ?? "sbd";
   const aosrNumber = docNumberFor(act.baseNumber, "aosr", set);
   const repText = (r: Representative | undefined) =>
-    r ? [r.position, org(r.orgId)?.shortName ?? "", r.fullName].map((s) => s.trim()).filter(Boolean).join(" ") : "";
+    r
+      ? [r.position, org(r.orgId)?.shortName ?? "", r.fullName]
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .join(" ")
+      : "";
 
   const build = {
     aosr: (): AosrData => {
@@ -53,8 +58,12 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
         }),
         performerOrg: org(act.performerOrgId)?.shortName ?? "",
         works: act.works,
-        p2: [`Шифр рабочей документации: ${section?.code ?? ""}`, act.sheets && `листы ${act.sheets}`]
-          .filter(Boolean).join(" ") + [act.revision, designer?.shortName].filter(Boolean).map((s) => `, ${s}`).join(""),
+        p2:
+          [`Шифр рабочей документации: ${section?.code ?? ""}`, act.sheets && `листы ${act.sheets}`].filter(Boolean).join(" ") +
+          [act.revision, designer?.shortName]
+            .filter(Boolean)
+            .map((s) => `, ${s}`)
+            .join(""),
         p3: point3Lines(actMats, mats, docsByMaterial, act.baseNumber, set),
         p4: point4Lines(b.documents, options),
         dateStart: formatDateLong(act.dateStart),
@@ -68,12 +77,16 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
       };
     },
     rim: (): RimData => ({
-      aosrNumber, number: docNumberFor(act.baseNumber, "rim", set),
-      rows: rimRows(actMats, mats, docsByMaterial), signs: signers(reps, APPENDIX_ROLES, act.date),
+      aosrNumber,
+      number: docNumberFor(act.baseNumber, "rim", set),
+      rows: rimRows(actMats, mats, docsByMaterial),
+      signs: signers(reps, APPENDIX_ROLES, act.date),
     }),
     vd: (): VdData => ({
-      aosrNumber, number: docNumberFor(act.baseNumber, "vd", set),
-      rows: vdRows(actMats, mats, vor), signs: signers(reps, APPENDIX_ROLES, act.date),
+      aosrNumber,
+      number: docNumberFor(act.baseNumber, "vd", set),
+      rows: vdRows(actMats, mats, vor),
+      signs: signers(reps, APPENDIX_ROLES, act.date),
     }),
     vor: (): VorData => ({
       objectName: obj.name,
@@ -93,16 +106,26 @@ export function buildAvkData(b: ActBundle): AvkData {
   const org = (id: number | null | undefined): Organization | undefined => b.organizations.find((o) => o.id === id);
   const section = act.sectionId !== null ? b.sections.find((s) => s.id === act.sectionId) : undefined;
   const repText = (r: Representative | undefined) =>
-    r ? [r.position, org(r.orgId)?.shortName ?? "", r.fullName].map((s) => s.trim()).filter(Boolean).join(" ") : "";
+    r
+      ? [r.position, org(r.orgId)?.shortName ?? "", r.fullName]
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .join(" ")
+      : "";
   const date = b.avk?.date ?? act.dateStart ?? act.date;
   const customer = b.representatives.find((r) => r.id === act.vorCustomerRepId) ?? activeRepresentatives(b.representatives, "developer_control", date)[0];
   const contractor = b.representatives.find((r) => r.id === act.vorContractorRepId) ?? activeRepresentatives(b.representatives, "performer", date).at(-1);
   const docsByMaterial = new Map(b.actMaterials.map((m) => [m.materialId, b.qualityDocs.filter((d) => d.materialIds.includes(m.materialId))]));
   return {
     number: b.avk?.number || avkDefaultNumber(act.baseNumber, section?.code ?? ""),
-    date: formatDateShort(date), city: b.object.city, customer: org(b.object.roles.developer)?.shortName ?? "",
-    objectName: b.object.name, customerRep: repText(customer), contractorRep: repText(contractor),
-    sectionName: section?.name ?? "", sectionCode: section?.code ?? "",
+    date: formatDateShort(date),
+    city: b.object.city,
+    customer: org(b.object.roles.developer)?.shortName ?? "",
+    objectName: b.object.name,
+    customerRep: repText(customer),
+    contractorRep: repText(contractor),
+    sectionName: section?.name ?? "",
+    sectionCode: section?.code ?? "",
     rows: avkRows(b.actMaterials, b.materials, docsByMaterial, b.vor),
   };
 }

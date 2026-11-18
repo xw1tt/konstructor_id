@@ -18,7 +18,7 @@ test("statusText для четырёх статусов", () => {
 test("shortageText", () => assert.equal(shortageText(3), "Не хватает документов: 3"));
 
 test("skipDoc дописывает код в «Без документов» через «; » без повторов", async () => {
-  const wb = new MemoryWorkbook({ "Акты": [{ "Номер акта": "1" }, { "Номер акта": "2", "Без документов": "ПКЛ" }] });
+  const wb = new MemoryWorkbook({ Акты: [{ "Номер акта": "1" }, { "Номер акта": "2", "Без документов": "ПКЛ" }] });
   await skipDoc(wb, await readBook(wb), "1", "ПОКБ");
   await skipDoc(wb, await readBook(wb), "2", "ПОКБ");
   await skipDoc(wb, await readBook(wb), "2", "пкл");

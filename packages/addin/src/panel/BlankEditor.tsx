@@ -2,10 +2,21 @@
 import { useState } from "react";
 import { blankDef, blankView, describeBlank } from "@idk/shared/blanks";
 
-export interface BlankValue { hide: string[]; headers: Record<string, string> }
+export interface BlankValue {
+  hide: string[];
+  headers: Record<string, string>;
+}
 
-export function BlankEditor({ blankKey, value, disabled, onChange }: {
-  blankKey: string; value: BlankValue | null; disabled?: boolean; onChange(v: BlankValue): void;
+export function BlankEditor({
+  blankKey,
+  value,
+  disabled,
+  onChange,
+}: {
+  blankKey: string;
+  value: BlankValue | null;
+  disabled?: boolean;
+  onChange(v: BlankValue): void;
 }) {
   const def = blankDef(blankKey);
   const [open, setOpen] = useState(false);
@@ -17,7 +28,8 @@ export function BlankEditor({ blankKey, value, disabled, onChange }: {
   return (
     <div className="blank-editor">
       <button className="btn" aria-expanded={open} onClick={() => setOpen(!open)}>
-        Бланк{diff.length ? ` (изменён: ${diff.length})` : ""}{open ? " ▴" : " ▾"}
+        Бланк{diff.length ? ` (изменён: ${diff.length})` : ""}
+        {open ? " ▴" : " ▾"}
       </button>
       {open && (
         <fieldset className="setting" disabled={disabled}>
@@ -28,8 +40,16 @@ export function BlankEditor({ blankKey, value, disabled, onChange }: {
                 <input type="checkbox" checked={view.shown(c.key)} disabled={c.fixed} onChange={(e) => toggle(c.key, e.target.checked)} />
                 {c.group ? <span className="muted">{c.group}: </span> : null}
               </label>
-              <input aria-label={`Заголовок графы «${c.header}»`} placeholder={c.header} defaultValue={v.headers[c.key] ?? ""} key={`${blankKey}-${c.key}-${v.headers[c.key] ?? ""}`}
-                onBlur={(e) => { const h = e.target.value.trim(); if (h !== (v.headers[c.key] ?? "")) onChange({ ...v, headers: { ...v.headers, [c.key]: h === c.header ? "" : h } }); }} />
+              <input
+                aria-label={`Заголовок графы «${c.header}»`}
+                placeholder={c.header}
+                defaultValue={v.headers[c.key] ?? ""}
+                key={`${blankKey}-${c.key}-${v.headers[c.key] ?? ""}`}
+                onBlur={(e) => {
+                  const h = e.target.value.trim();
+                  if (h !== (v.headers[c.key] ?? "")) onChange({ ...v, headers: { ...v.headers, [c.key]: h === c.header ? "" : h } });
+                }}
+              />
             </div>
           ))}
           {def.blocks.length > 0 && <p className="muted">Строки и блоки:</p>}
@@ -39,7 +59,9 @@ export function BlankEditor({ blankKey, value, disabled, onChange }: {
             </label>
           ))}
           <div className="row-actions">
-            <button className="btn" disabled={!diff.length} onClick={() => onChange({ hide: [], headers: {} })}>Исходный вид</button>
+            <button className="btn" disabled={!diff.length} onClick={() => onChange({ hide: [], headers: {} })}>
+              Исходный вид
+            </button>
           </div>
           <p className="muted">Действует на PDF и Excel всех актов книги с этим шаблоном. Пустой заголовок — как в образце.</p>
         </fieldset>

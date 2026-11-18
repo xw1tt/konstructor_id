@@ -7,9 +7,8 @@ import { findDoc, docCode } from "../routes/formJobs.ts";
 import { docLabel } from "@idk/shared/forms/template";
 import type { KitDeps } from "./assemble.ts";
 
-const bundleOf = (q: KitRequest, row: KitRow) => (row.doc?.proto
-  ? q.protos.find((p) => p.proto?.number === row.doc!.proto)
-  : q.acts.find((a) => a.act.baseNumber === row.doc!.act));
+const bundleOf = (q: KitRequest, row: KitRow) =>
+  row.doc?.proto ? q.protos.find((p) => p.proto?.number === row.doc!.proto) : q.acts.find((a) => a.act.baseNumber === row.doc!.act);
 const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, "_");
 
 /** Архив .zip: «01 <имя>.xlsx» (своя форма Word — .docx); документы, которые не удалось собрать, — в «Ошибки.txt». */

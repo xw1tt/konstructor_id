@@ -25,7 +25,10 @@ export interface RefreshState {
 }
 
 /** Строка справочника в ответе GET /api/norms. */
-export interface NormItem extends CatalogRow { id: number; section: NormSection }
+export interface NormItem extends CatalogRow {
+  id: number;
+  section: NormSection;
+}
 export interface NormSearchResult {
   total: number;
   counts: Record<NormSection, number>;
@@ -33,7 +36,13 @@ export interface NormSearchResult {
   items: NormItem[];
 }
 
-export interface CatalogRow { designation: string; title: string; pages: number; status: string; url: string }
+export interface CatalogRow {
+  designation: string;
+  title: string;
+  pages: number;
+  status: string;
+  url: string;
+}
 
 const ENTITIES: Record<string, string> = { quot: '"', amp: "&", lt: "<", gt: ">", nbsp: " ", laquo: "«", raquo: "»", apos: "'", ndash: "–", mdash: "—" };
 
@@ -47,7 +56,10 @@ function decode(s: string): string {
   });
 }
 
-const text = (html: string) => decode(html.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+const text = (html: string) =>
+  decode(html.replace(/<[^>]*>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
 
 /** Ссылка на карточку: абсолютная или относительная, с параметрами после кода или без. */
 const DETAILS = /href\s*=\s*["']((?:https?:\/\/[^/"']+)?\/?[a-z]+\/details\/[0-9a-f-]{36}[^"']*)["']/i;

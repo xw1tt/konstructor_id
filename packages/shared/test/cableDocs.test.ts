@@ -31,17 +31,38 @@ test("30 строк — один лист, 31 — два", async () => {
 });
 
 test("две марки — ИТОГО по каждой и Всего; трубы; заголовки групп", () => {
-  const r = (designation: string, cableMark: string, cableLength: number, group = "", pipeMark = "", pipeLength: number | null = null): CableRow =>
-    ({ group, designation, from: "", to: "", direction: "", cableMark, cableLength, pipeMark, pipeLength, note: "", projectLength: null, tray: null, smoothPipe: null, corrugatedPipe: null });
+  const r = (designation: string, cableMark: string, cableLength: number, group = "", pipeMark = "", pipeLength: number | null = null): CableRow => ({
+    group,
+    designation,
+    from: "",
+    to: "",
+    direction: "",
+    cableMark,
+    cableLength,
+    pipeMark,
+    pipeLength,
+    note: "",
+    projectLength: null,
+    tray: null,
+    smoothPipe: null,
+    corrugatedPipe: null,
+  });
   const lines = journalLines([r("1", "А", 10.5, "Этаж П1"), r("2", "Б", 5, "Этаж П1", "Труба 20", 3), r("3", "А", 1, "Этаж П2")]);
-  assert.deepEqual(lines.map((l) => l.kind === "group" ? `г:${l.title}` : l.kind === "cable" ? `к:${l.row.designation}` : `${l.label}:${l.mark}:${l.length}${l.pipe ? ":т" : ""}`),
-    ["г:Этаж П1", "к:1", "к:2", "г:Этаж П2", "к:3", "ИТОГО:А:11,5", "ИТОГО:Б:5", "Всего::16,5", "ИТОГО:Труба 20:3:т"]);
+  assert.deepEqual(
+    lines.map((l) =>
+      l.kind === "group" ? `г:${l.title}` : l.kind === "cable" ? `к:${l.row.designation}` : `${l.label}:${l.mark}:${l.length}${l.pipe ? ":т" : ""}`,
+    ),
+    ["г:Этаж П1", "к:1", "к:2", "г:Этаж П2", "к:3", "ИТОГО:А:11,5", "ИТОГО:Б:5", "Всего::16,5", "ИТОГО:Труба 20:3:т"],
+  );
 });
 
 test("подписи штампа АОВ1: Востров, Королев, Валерьянов; дата 06.26", async () => {
   const b = await bundle("kj");
   const s = journalSigners(b.representatives, b.organizations, b.act.date);
-  assert.deepEqual(s.map((x) => x.name), ["Востров В.П.", "Королев Д.М.", "Валерьянов А.А."]);
+  assert.deepEqual(
+    s.map((x) => x.name),
+    ["Востров В.П.", "Королев Д.М.", "Валерьянов А.А."],
+  );
   assert.equal(s[0].org, 'ООО "ТехноИнжиниринг"');
   assert.equal(s[0].position, "Начальник участка");
   assert.equal(monthYear("2026-06-30"), "06.26");
@@ -52,8 +73,14 @@ test("строки протокола АОВ1", async () => {
   const c = (await bundle("ip")).cables!;
   const rows = protocolRows(c.rows, c.marks);
   assert.equal(rows.length, 25);
-  assert.deepEqual(rows[0], { n: 1, line: "П2.Щ-АК2-17; RS-485", mark: MARK, voltage: "500", allowed: "0,5",
-    values: [">1000", "—", "—", "—", "—", "—", "—", "—", "—", "—"] });
+  assert.deepEqual(rows[0], {
+    n: 1,
+    line: "П2.Щ-АК2-17; RS-485",
+    mark: MARK,
+    voltage: "500",
+    allowed: "0,5",
+    values: [">1000", "—", "—", "—", "—", "—", "—", "—", "—", "—"],
+  });
   const noPurpose = protocolRows(c.rows.slice(0, 1), [{ ...c.marks[0], purpose: "" }]);
   assert.equal(noPurpose[0].line, "П2.Щ-АК2-17");
 });
@@ -65,7 +92,7 @@ test("кабельные сборки: марка с «В протокол» —
   const ASM = "Кабельная сборка КС-1, 2 м";
   r["КабельныйЖурнал"][1]["Кабель: марка, число жил, сечение"] = ASM;
   r["КабельныйЖурнал"][3]["Кабель: марка, число жил, сечение"] = ASM;
-  r["ИзмеренияМарок"].push({ "Марка": ASM, "В протокол": "нет" });
+  r["ИзмеренияМарок"].push({ Марка: ASM, "В протокол": "нет" });
   const book = await readBook(new MemoryWorkbook(r));
   const ip = buildCableBundle(book, AOV1, defaultImportant(), "ip");
   assert.deepEqual(ip.issues, [], "у сборки не требуются напряжение и сопротивления");
@@ -73,7 +100,10 @@ test("кабельные сборки: марка с «В протокол» —
   const rows = protocolRows(c.rows, c.marks);
   assert.equal(rows.length, 23);
   assert.ok(rows.every((x) => x.mark !== ASM));
-  assert.deepEqual(rows.map((x) => x.n), rows.map((_, i) => i + 1));
+  assert.deepEqual(
+    rows.map((x) => x.n),
+    rows.map((_, i) => i + 1),
+  );
   const kj = buildCableBundle(book, AOV1, defaultImportant(), "kj").bundle!.cables!;
   assert.equal(journalLines(kj.rows).filter((l) => l.kind === "cable" && l.row.cableMark === ASM).length, 2, "журнал показывает сборки");
 });

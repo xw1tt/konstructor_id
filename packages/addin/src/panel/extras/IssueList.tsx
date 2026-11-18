@@ -10,7 +10,9 @@ export function IssueList({ port, lines, title, tone }: { port: ExcelPort; lines
       <ul className="list">
         {lines.map((l, i) => (
           <li key={i}>
-            <button className="link" onClick={() => void port.selectCell(l.table, l.row, l.table === "Объект" ? "Значение" : l.column)}>{l.text}</button>
+            <button className="link" onClick={() => void port.selectCell(l.table, l.row, l.table === "Объект" ? "Значение" : l.column)}>
+              {l.text}
+            </button>
           </li>
         ))}
       </ul>

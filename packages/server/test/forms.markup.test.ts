@@ -22,9 +22,13 @@ const bundle = async (patch: (b: any) => void = () => {}) => {
 
 /** Заполненный акт «как у пользователя»: значения акта АОВ1 в тексте и таблица материалов. */
 async function sample() {
-  const b = await bundle((x) => { x.act.dateStart = x.act.date; x.act.dateEnd = x.act.date; });
+  const b = await bundle((x) => {
+    x.act.dateStart = x.act.date;
+    x.act.dateEnd = x.act.date;
+  });
   const d = formData(b);
-  const v = d.values, m = d.lists["Материалы"];
+  const v = d.values,
+    m = d.lists["Материалы"];
   const body = [
     p(r(`АКТ № ${v["Акт.Номер АОСР"]}`)),
     p(r(`Объект: ${v["Объект.Наименование"]}`)),
@@ -44,7 +48,11 @@ test("метки на местах значений, строка материа
   assert.match(text, /^Объект: \{Объект\.Наименование\}$/m);
   assert.match(text, /^Технадзор: \{Технадзор\.Подпись\}$/m);
   assert.match(text, /^\{#Материалы\}\{Материал\.№\}\n\{Материал\.Наименование\}\n\{Материал\.Кол-во\}\{\/Материалы\}$/m);
-  assert.doesNotMatch(text, new RegExp(d.lists["Материалы"][1]["Материал.Наименование"].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "строки других материалов удалены");
+  assert.doesNotMatch(
+    text,
+    new RegExp(d.lists["Материалы"][1]["Материал.Наименование"].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    "строки других материалов удалены",
+  );
   assert.match(text, /Итого/);
   assert.match(text, /Подпись нет данных/, "короткие значения («нет») не ищутся внутри обычного текста");
   assert.ok(res.found >= 6, String(res.found));
@@ -72,10 +80,14 @@ test("обратная проверка: размеченная форма на 
 test(".xlsx: метки в ячейках и строка-повтор", async () => {
   const { d } = await sample();
   const m = d.lists["Материалы"];
-  const src = makeXlsx({ "Л": [[`Акт ${d.values["Акт.Номер АОСР"]}`], ...m.map((x) => [x["Материал.Наименование"], x["Материал.Кол-во"]]), ["Итого"]] });
+  const src = makeXlsx({ Л: [[`Акт ${d.values["Акт.Номер АОСР"]}`], ...m.map((x) => [x["Материал.Наименование"], x["Материал.Кол-во"]]), ["Итого"]] });
   const res = markupForm(src, "xlsx", d);
   const form = applyChoices(res.buf, "xlsx", {});
-  assert.deepEqual(readXlsx(form).grid("Л").slice(0, 3), [["Акт {Акт.Номер АОСР}"], ["{#Материалы}{Материал.Наименование}", "{Материал.Кол-во}{/Материалы}"], ["Итого"]]);
+  assert.deepEqual(readXlsx(form).grid("Л").slice(0, 3), [
+    ["Акт {Акт.Номер АОСР}"],
+    ["{#Материалы}{Материал.Наименование}", "{Материал.Кол-во}{/Материалы}"],
+    ["Итого"],
+  ]);
   assert.equal(readXlsx(fillXlsx(form, d).buf).grid("Л").length, m.length + 2);
 });
 
@@ -127,25 +139,50 @@ test("финальная проверка: .xlsx — объединения уд
   const { openZip, writeZip } = await import("@idk/server/zip/zip");
   const { d } = await sample();
   const m = d.lists["Материалы"].slice(0, 3);
-  const z = openZip(makeXlsx({ "Л": [["Шапка"], ...m.map((x) => [x["Материал.Наименование"]]), ["Итого"]] }));
-  const src = writeZip([...z].map(([k, g]) => [k, k === "xl/worksheets/sheet1.xml"
-    ? g().toString().replace("</sheetData>", '</sheetData><mergeCells count="4"><mergeCell ref="A2:C2"/><mergeCell ref="A3:C3"/><mergeCell ref="A4:C4"/><mergeCell ref="A5:C5"/></mergeCells>') : g()]));
+  const z = openZip(makeXlsx({ Л: [["Шапка"], ...m.map((x) => [x["Материал.Наименование"]]), ["Итого"]] }));
+  const src = writeZip(
+    [...z].map(([k, g]) => [
+      k,
+      k === "xl/worksheets/sheet1.xml"
+        ? g()
+            .toString()
+            .replace(
+              "</sheetData>",
+              '</sheetData><mergeCells count="4"><mergeCell ref="A2:C2"/><mergeCell ref="A3:C3"/><mergeCell ref="A4:C4"/><mergeCell ref="A5:C5"/></mergeCells>',
+            )
+        : g(),
+    ]),
+  );
   const out = applyChoices(markupForm(src, "xlsx", d).buf, "xlsx", {});
   const xml = openZip(out).get("xl/worksheets/sheet1.xml")!().toString();
-  assert.deepEqual([...xml.matchAll(/<mergeCell ref="([^"]+)"/g)].map((x) => x[1]), ["A2:C2", "A3:C3"]);
+  assert.deepEqual(
+    [...xml.matchAll(/<mergeCell ref="([^"]+)"/g)].map((x) => x[1]),
+    ["A2:C2", "A3:C3"],
+  );
   assert.match(xml, /<mergeCells count="2">/);
 });
 
 // Ведомость по образцу: материалы в таблице должны становиться строкой-повтором и в реальных формах.
-const vdSample = (rows: string[][]) => makeDocx(`<w:tbl>${tr("№", "Наименование", "Артикул", "Ед.", "Кол-во")}${rows.map((x) => tr(...x)).join("")}${tr("", "Итого", "", "", "")}</w:tbl>`);
-const vdRow = (x: Record<string, string>, name = x["Материал.Наименование"]) => [x["Материал.№"], name, x["Материал.Артикул"], x["Материал.Ед."], x["Материал.Кол-во"]];
+const vdSample = (rows: string[][]) =>
+  makeDocx(`<w:tbl>${tr("№", "Наименование", "Артикул", "Ед.", "Кол-во")}${rows.map((x) => tr(...x)).join("")}${tr("", "Итого", "", "", "")}</w:tbl>`);
+const vdRow = (x: Record<string, string>, name = x["Материал.Наименование"]) => [
+  x["Материал.№"],
+  name,
+  x["Материал.Артикул"],
+  x["Материал.Ед."],
+  x["Материал.Кол-во"],
+];
 
 test("ведомость: наименование вместе с маркой в одной ячейке — строка-повтор", async () => {
   const { d } = await sample();
   const m = d.lists["Материалы"];
   const src = vdSample(m.map((x) => vdRow(x, `${x["Материал.Наименование"]} ${x["Материал.Артикул"]}`)));
   const text = docxText(applyChoices(markupForm(src, "docx", d).buf, "docx", {}));
-  assert.match(text, /\{#Материалы\}\{Материал\.№\}\n\{Материал\.Наименование\} \{Материал\.Артикул\}\n\{Материал\.Артикул\}\n\{Материал\.Ед\.\}\n\{Материал\.Кол-во\}\{\/Материалы\}/, text);
+  assert.match(
+    text,
+    /\{#Материалы\}\{Материал\.№\}\n\{Материал\.Наименование\} \{Материал\.Артикул\}\n\{Материал\.Артикул\}\n\{Материал\.Ед\.\}\n\{Материал\.Кол-во\}\{\/Материалы\}/,
+    text,
+  );
   assert.ok(!text.includes(m[1]["Материал.Наименование"]), "строки остальных материалов удалены");
   assert.match(text, /Итого/);
 });
@@ -155,7 +192,11 @@ test("ведомость: материалы в другом порядке — 
   const m = d.lists["Материалы"];
   const src = vdSample([...m].reverse().map((x, i) => vdRow({ ...x, "Материал.№": String(i + 1) })));
   const text = docxText(applyChoices(markupForm(src, "docx", d).buf, "docx", {}));
-  assert.match(text, /\{#Материалы\}\{Материал\.№\}\n\{Материал\.Наименование\}\n\{Материал\.Артикул\}\n\{Материал\.Ед\.\}\n\{Материал\.Кол-во\}\{\/Материалы\}/, text);
+  assert.match(
+    text,
+    /\{#Материалы\}\{Материал\.№\}\n\{Материал\.Наименование\}\n\{Материал\.Артикул\}\n\{Материал\.Ед\.\}\n\{Материал\.Кол-во\}\{\/Материалы\}/,
+    text,
+  );
   for (const x of m) assert.ok(!text.includes(x["Материал.Наименование"]), x["Материал.Наименование"]);
 });
 
@@ -172,7 +213,11 @@ test("ведомость .xlsx: наименование с артикулом �
   const { d } = await sample();
   const m = d.lists["Материалы"];
   const rows = [...m].reverse().map((x) => [`${x["Материал.Наименование"]} ${x["Материал.Артикул"]}`, x["Материал.Артикул"], x["Материал.Кол-во"]]);
-  const form = applyChoices(markupForm(makeXlsx({ "Л": [["Шапка"], ...rows, ["Итого"]] }), "xlsx", d).buf, "xlsx", {});
-  assert.deepEqual(readXlsx(form).grid("Л")[1], ["{#Материалы}{Материал.Наименование} {Материал.Артикул}", "{Материал.Артикул}", "{Материал.Кол-во}{/Материалы}"]);
+  const form = applyChoices(markupForm(makeXlsx({ Л: [["Шапка"], ...rows, ["Итого"]] }), "xlsx", d).buf, "xlsx", {});
+  assert.deepEqual(readXlsx(form).grid("Л")[1], [
+    "{#Материалы}{Материал.Наименование} {Материал.Артикул}",
+    "{Материал.Артикул}",
+    "{Материал.Кол-во}{/Материалы}",
+  ]);
   assert.equal(readXlsx(fillXlsx(form, d).buf).grid("Л").length, m.length + 2);
 });

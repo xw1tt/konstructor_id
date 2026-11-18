@@ -6,7 +6,9 @@ import { cellText, parseDateCell, splitRefs, type CellValue } from "../workbook/
 import type { Book, BookRow } from "../workbook/records.ts";
 import type { Issue } from "../workbook/bundle.ts";
 
-export interface Warning extends Issue { act: string }
+export interface Warning extends Issue {
+  act: string;
+}
 
 const iso = (v: CellValue | undefined): string | null => {
   const p = parseDateCell(v ?? null);
@@ -40,14 +42,16 @@ export function checkActs(book: Book, acts: readonly string[], today: string): W
     const a = rows("Акты").find((r) => cellText(r.v.baseNumber ?? null) === act);
     if (!a) continue;
     const date = iso(a.v.date);
-    const start = iso(a.v.dateStart), end = iso(a.v.dateEnd);
+    const start = iso(a.v.dateStart),
+      end = iso(a.v.dateEnd);
     const A = `акт ${act}`;
 
     // Даты акта и работ.
     if (start && end && start > end) warn(act, "Акты", a.row, "Окончание работ", `${A}: окончание работ (${ru(end)}) раньше начала (${ru(start)})`);
     if (date && end && end > date) warn(act, "Акты", a.row, "Окончание работ", `${A}: окончание работ (${ru(end)}) позже даты акта (${ru(date)})`);
     if (date && date > today) warn(act, "Акты", a.row, "Дата акта", `${A}: дата акта ${ru(date)} ещё не наступила`);
-    if (contract && start && start < contract) warn(act, "Акты", a.row, "Начало работ", `${A}: начало работ (${ru(start)}) раньше даты договора (${ru(contract)})`);
+    if (contract && start && start < contract)
+      warn(act, "Акты", a.row, "Начало работ", `${A}: начало работ (${ru(start)}) раньше даты договора (${ru(contract)})`);
 
     // Подписанты: роль есть в книге, но ни у кого полномочия не действуют на дату акта — подписи не будет.
     // 0.30: по ролям, где подписанты выбраны в акте, — проверка выбранных (не блокирует: выбор пользователя главнее).
@@ -55,21 +59,45 @@ export function checkActs(book: Book, acts: readonly string[], today: string): W
     const chosenSet = new Set(chosen.map(norm));
     const picked = reps.filter((r) => chosenSet.has(norm(cellText(r.v.fullName ?? null))));
     const pickedRoles = new Set(picked.map((r) => roleOf(cellText(r.v.role ?? null))));
-    for (const name of chosen) if (!picked.some((r) => norm(cellText(r.v.fullName ?? null)) === norm(name)))
-      warn(act, "Акты", a.row, "Подписанты", `${A}: подписанта «${name}» нет в «Представителях» — его подпись не попадёт в документы`);
-    if (date) for (const name of new Set(picked.map((r) => cellText(r.v.fullName ?? null)))) {
-      const own = picked.filter((r) => cellText(r.v.fullName ?? null) === name);
-      const ok = own.some((r) => { const f = iso(r.v.validFrom), t = iso(r.v.validTo); return (!f || f <= date) && (!t || date <= t); });
-      if (!ok) warn(act, "Представители", own[0].row, "Действует по",
-        `${A} от ${ru(date)}: у выбранного подписанта ${name} полномочия по «Действует с/по» на эту дату не действуют — подпись будет, проверьте приказ`);
-    }
-    if (date) for (const role of rolesInBook) {
-      if (pickedRoles.has(role)) continue;
-      const of = reps.filter((r) => roleOf(cellText(r.v.role ?? null)) === role);
-      const active = of.filter((r) => { const f = iso(r.v.validFrom), t = iso(r.v.validTo); return (!f || f <= date) && (!t || date <= t); });
-      if (!active.length) warn(act, "Представители", of[0].row, "Действует по",
-        `${A} от ${ru(date)}: нет представителя «${cellText(of[0].v.role ?? null)}» с действующими полномочиями — строка подписи будет пустой (проверьте «Действует с/по»)`, `role|${role}`);
-    }
+    for (const name of chosen)
+      if (!picked.some((r) => norm(cellText(r.v.fullName ?? null)) === norm(name)))
+        warn(act, "Акты", a.row, "Подписанты", `${A}: подписанта «${name}» нет в «Представителях» — его подпись не попадёт в документы`);
+    if (date)
+      for (const name of new Set(picked.map((r) => cellText(r.v.fullName ?? null)))) {
+        const own = picked.filter((r) => cellText(r.v.fullName ?? null) === name);
+        const ok = own.some((r) => {
+          const f = iso(r.v.validFrom),
+            t = iso(r.v.validTo);
+          return (!f || f <= date) && (!t || date <= t);
+        });
+        if (!ok)
+          warn(
+            act,
+            "Представители",
+            own[0].row,
+            "Действует по",
+            `${A} от ${ru(date)}: у выбранного подписанта ${name} полномочия по «Действует с/по» на эту дату не действуют — подпись будет, проверьте приказ`,
+          );
+      }
+    if (date)
+      for (const role of rolesInBook) {
+        if (pickedRoles.has(role)) continue;
+        const of = reps.filter((r) => roleOf(cellText(r.v.role ?? null)) === role);
+        const active = of.filter((r) => {
+          const f = iso(r.v.validFrom),
+            t = iso(r.v.validTo);
+          return (!f || f <= date) && (!t || date <= t);
+        });
+        if (!active.length)
+          warn(
+            act,
+            "Представители",
+            of[0].row,
+            "Действует по",
+            `${A} от ${ru(date)}: нет представителя «${cellText(of[0].v.role ?? null)}» с действующими полномочиями — строка подписи будет пустой (проверьте «Действует с/по»)`,
+            `role|${role}`,
+          );
+      }
 
     // Материалы акта и их документы качества.
     const vor = rows("ВОР").filter((r) => cellText(r.v.act ?? null) === act);
@@ -79,12 +107,22 @@ export function checkActs(book: Book, acts: readonly string[], today: string): W
       const docs = docsOf(name);
       if (!docs.length) warn(act, "МатериалыАктов", m.row, "Материал", `${A}: у материала «${name}» нет документов качества`);
       const hasVor = vor.some((v) => norm(cellText(v.v.material ?? null)) === norm(name) && cellText(v.v.quantity ?? null));
-      if (!cellText(m.v.quantity ?? null) && !hasVor) warn(act, "МатериалыАктов", m.row, "Кол-во", `${A}: у материала «${name}» нет количества — пусто и в ВОР нет объёмов`);
+      if (!cellText(m.v.quantity ?? null) && !hasVor)
+        warn(act, "МатериалыАктов", m.row, "Кол-во", `${A}: у материала «${name}» нет количества — пусто и в ВОР нет объёмов`);
       for (const d of docs) {
         const label = `${cellText(d.v.type ?? null) || "документ"} ${cellText(d.v.number ?? null)}`.trim();
-        const valid = iso(d.v.validUntil), issued = iso(d.v.issueDate);
-        if (date && valid && valid < date) warn(act, "ДокументыКачества", d.row, "Действует до", `«${label}» (${name}): срок действия истёк ${ru(valid)} — раньше даты акта ${act} (${ru(date)}); проверьте, что материал поставлен в период действия, или приложите действующий`);
-        if (date && issued && issued > date) warn(act, "ДокументыКачества", d.row, "Дата", `«${label}» (${name}): дата документа ${ru(issued)} позже даты акта ${act} (${ru(date)})`);
+        const valid = iso(d.v.validUntil),
+          issued = iso(d.v.issueDate);
+        if (date && valid && valid < date)
+          warn(
+            act,
+            "ДокументыКачества",
+            d.row,
+            "Действует до",
+            `«${label}» (${name}): срок действия истёк ${ru(valid)} — раньше даты акта ${act} (${ru(date)}); проверьте, что материал поставлен в период действия, или приложите действующий`,
+          );
+        if (date && issued && issued > date)
+          warn(act, "ДокументыКачества", d.row, "Дата", `«${label}» (${name}): дата документа ${ru(issued)} позже даты акта ${act} (${ru(date)})`);
         if (!hasScan(d)) warn(act, "ДокументыКачества", d.row, "Скан", `«${label}» (${name}): нет скана`);
         if (!cellText(d.v.sheets ?? null)) warn(act, "ДокументыКачества", d.row, "Листов", `«${label}» (${name}): не указано число листов`);
       }
@@ -102,12 +140,12 @@ export function checkActs(book: Book, acts: readonly string[], today: string): W
 }
 
 /** Все акты книги по порядку строк «Базы актов». */
-export const allActs = (book: Book): string[] =>
-  [...new Set((book.tables["Акты"] ?? []).map((r) => cellText(r.v.baseNumber ?? null)).filter(Boolean))];
+export const allActs = (book: Book): string[] => [...new Set((book.tables["Акты"] ?? []).map((r) => cellText(r.v.baseNumber ?? null)).filter(Boolean))];
 
 /** «3 предупреждения» */
 export function warningsText(n: number): string {
-  const m10 = n % 10, m100 = n % 100;
+  const m10 = n % 10,
+    m100 = n % 100;
   const w = m10 === 1 && m100 !== 11 ? "предупреждение" : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? "предупреждения" : "предупреждений";
   return `${n} ${w}`;
 }

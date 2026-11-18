@@ -5,7 +5,10 @@ import type { Book } from "../workbook/records.ts";
 
 export class NameMask {
   private names: string[] = [];
-  constructor(book: Book | null, readonly enabled: boolean) {
+  constructor(
+    book: Book | null,
+    readonly enabled: boolean,
+  ) {
     if (!enabled || !book) return;
     const set = new Set((book.tables["Представители"] ?? []).map((r) => cellText(r.v.fullName)).filter((n) => n.length >= 3));
     // Длинные первыми: «Иванов И.И.» не должен заменяться частью «Иванов».
@@ -15,7 +18,9 @@ export class NameMask {
 
   mask(s: string): string {
     let out = s;
-    this.names.forEach((n, i) => { out = out.split(n).join(this.token(i)); });
+    this.names.forEach((n, i) => {
+      out = out.split(n).join(this.token(i));
+    });
     return out;
   }
   unmask(s: string): string {

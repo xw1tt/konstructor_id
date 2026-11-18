@@ -12,8 +12,17 @@ export const neededSheetsOn = (v: string | null | undefined) => v !== "0";
 /** Нужны всегда (основа любой книги): реквизиты, участники, материалы и документы качества, акты, комплекты и реестр.
  *  Остальные листы — по документам шаблона; лист с данными (не примерами) виден всегда. */
 export const ALWAYS_TABLES: readonly TableName[] = [
-  "Объект", "Организации", "Шифры", "Представители", "Материалы", "ДокументыКачества", "Акты", "МатериалыАктов",
-  "Комплекты", "АктыКомплектов", "РеестрИД",
+  "Объект",
+  "Организации",
+  "Шифры",
+  "Представители",
+  "Материалы",
+  "ДокументыКачества",
+  "Акты",
+  "МатериалыАктов",
+  "Комплекты",
+  "АктыКомплектов",
+  "РеестрИД",
 ];
 
 /** Таблицы, нужные встроенным документам шаблона (свои документы таблиц не добавляют). */
@@ -22,7 +31,11 @@ export function neededTables(template: UserTemplate): Set<TableName> {
   for (const d of template.docs) {
     if (d.kind !== "builtin") continue;
     if (isActDocKind(d.doc)) for (const t of ACT_DOC_DEFS[d.doc].tables) out.add(t);
-    else if (isProtoKind(d.doc)) { out.add(PROTO_DEFS[d.doc].table); out.add("Протоколы"); out.add("ПереченьОборудования"); }
+    else if (isProtoKind(d.doc)) {
+      out.add(PROTO_DEFS[d.doc].table);
+      out.add("Протоколы");
+      out.add("ПереченьОборудования");
+    }
   }
   return out;
 }
@@ -31,7 +44,8 @@ export function neededTables(template: UserTemplate): Set<TableName> {
  *  «Реквизиты» видны всегда; выключено — все листы видны. */
 export function sheetPlan(template: UserTemplate, book: Book, enabled: boolean): { visible: SheetName[]; hidden: SheetName[] } {
   const need = neededTables(template);
-  const visible: SheetName[] = [], hidden: SheetName[] = [];
+  const visible: SheetName[] = [],
+    hidden: SheetName[] = [];
   for (const s of SHEETS) {
     const keep = !enabled || s.name === "Реквизиты" || (!s.panelOnly && s.tables.some((t) => need.has(t) || (book.tables[t]?.length ?? 0) > 0));
     (keep ? visible : hidden).push(s.name);

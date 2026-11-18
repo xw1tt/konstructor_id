@@ -19,8 +19,14 @@ export function installShutdown(
     if (done) return;
     done = true;
     server.close();
-    try { db.close(); } catch { /* уже закрыта */ }
-    void cleanup().catch(() => {}).finally(() => proc.exit(0));
+    try {
+      db.close();
+    } catch {
+      /* уже закрыта */
+    }
+    void cleanup()
+      .catch(() => {})
+      .finally(() => proc.exit(0));
   };
   for (const s of SIGNALS) proc.on(s, stop);
 }

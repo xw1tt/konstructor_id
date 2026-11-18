@@ -8,7 +8,8 @@ import { rimDocOrder, vorTotals } from "@idk/shared/acts/rows";
 
 /** Подписи ролей в формах «ТИ» (как в образцах). */
 export const TI_SIGN_LABELS: Partial<Record<RoleCode, string>> = {
-  developer_control: "Представитель застройщика, технического заказчика, лица, ответственного за эксплуатацию здания, сооружения, или регионального оператора по вопросам строительного контроля:",
+  developer_control:
+    "Представитель застройщика, технического заказчика, лица, ответственного за эксплуатацию здания, сооружения, или регионального оператора по вопросам строительного контроля:",
   builder: "Представитель лица, осуществляющего строительство, реконструкцию, капитальный ремонт:",
   builder_control: "Представитель лица, осуществляющего строительство, реконструкцию, капитальный ремонт, по вопросам строительного контроля:",
   designer: "Представитель лица, осуществляющего подготовку проектной документации:",
@@ -16,12 +17,28 @@ export const TI_SIGN_LABELS: Partial<Record<RoleCode, string>> = {
 };
 const ROLES: RoleCode[] = ["developer_control", "builder", "builder_control", "designer", "performer"];
 
-export interface TiHeader { contractor: string; city: string; sectionName: string; sectionCode: string; customer: string; object: string; day: string; month: string; year: string }
-export interface TiSign { label: string; names: string[] }
+export interface TiHeader {
+  contractor: string;
+  city: string;
+  sectionName: string;
+  sectionCode: string;
+  customer: string;
+  object: string;
+  day: string;
+  month: string;
+  year: string;
+}
+export interface TiSign {
+  label: string;
+  names: string[];
+}
 export interface TiData {
   header: TiHeader;
-  aosrNumber: string; actDate: string;
-  vdNumber: string; rmNumber: string; rpNumber: string;
+  aosrNumber: string;
+  actDate: string;
+  vdNumber: string;
+  rmNumber: string;
+  rpNumber: string;
   vd: { n: number; name: string; type: string; quantity: string; unit: string }[];
   /** Группы РМ: документы (подряд, на один и тот же набор материалов), затем эти материалы. */
   rm: { docs: { type: string; date: string; number: string }[]; items: { n: number; name: string }[] }[];
@@ -37,8 +54,15 @@ export function tiHeader(b: ActBundle, dateIso: string | null): TiHeader {
   const section = b.sections.find((s) => s.id === b.act.sectionId);
   const [y = "", m = "", d = ""] = (dateIso ?? "").split("-");
   return {
-    contractor: org(b.act.performerOrgId), city: b.object.city, sectionName: section?.name ?? "", sectionCode: section?.code ?? "",
-    customer: org(b.object.roles.developer), object: b.object.name, day: d, month: m ? MONTHS_GEN.at(Number(m) - 1) ?? "" : "", year: y,
+    contractor: org(b.act.performerOrgId),
+    city: b.object.city,
+    sectionName: section?.name ?? "",
+    sectionCode: section?.code ?? "",
+    customer: org(b.object.roles.developer),
+    object: b.object.name,
+    day: d,
+    month: m ? (MONTHS_GEN.at(Number(m) - 1) ?? "") : "",
+    year: y,
   };
 }
 
@@ -52,17 +76,32 @@ export function tiDocData(b: ActBundle): TiData {
   let n = 0;
   return {
     header: tiHeader(b, act.date),
-    aosrNumber: docNumberFor(act.baseNumber, "aosr", "ti"), actDate: dmy(act.date),
-    vdNumber: docNumberFor(act.baseNumber, "vd", "ti"), rmNumber: docNumberFor(act.baseNumber, "rim", "ti"), rpNumber: docNumberFor(act.baseNumber, "rp", "ti"),
+    aosrNumber: docNumberFor(act.baseNumber, "aosr", "ti"),
+    actDate: dmy(act.date),
+    vdNumber: docNumberFor(act.baseNumber, "vd", "ti"),
+    rmNumber: docNumberFor(act.baseNumber, "rim", "ti"),
+    rpNumber: docNumberFor(act.baseNumber, "rp", "ti"),
     vd: ordered.map((am, i) => {
       const m = mats.get(am.materialId);
-      return { n: i + 1, name: m?.name ?? "", type: m?.mark || m?.article || "", quantity: formatNumber(am.quantity ?? totals.get(am.materialId) ?? null), unit: m?.unit ?? "" };
+      return {
+        n: i + 1,
+        name: m?.name ?? "",
+        type: m?.mark || m?.article || "",
+        quantity: formatNumber(am.quantity ?? totals.get(am.materialId) ?? null),
+        unit: m?.unit ?? "",
+      };
     }),
     rm: rmGroups(docs, ordered).map((g) => ({
       docs: g.docs.map((d) => ({ type: QUALITY_DOC_LABELS[d.type], date: d.issueDate ? dmy(d.issueDate) : "б/д", number: d.number.replace(/^№\s*/, "") })),
       items: g.mats.map((am) => ({ n: ++n, name: mats.get(am.materialId)?.name ?? "" })),
     })),
-    rp: docs.map((d, i) => ({ n: i + 1, type: QUALITY_DOC_LABELS[d.type], date: d.issueDate ? dmy(d.issueDate) : "б/д", number: d.number.replace(/^№\s*/, ""), sheets: d.sheets })),
+    rp: docs.map((d, i) => ({
+      n: i + 1,
+      type: QUALITY_DOC_LABELS[d.type],
+      date: d.issueDate ? dmy(d.issueDate) : "б/д",
+      number: d.number.replace(/^№\s*/, ""),
+      sheets: d.sheets,
+    })),
     signs: tiSigns(b, act.date),
   };
 }

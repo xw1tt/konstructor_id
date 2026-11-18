@@ -9,8 +9,10 @@ import type { Catalog } from "@idk/shared/catalog/model";
 /** Каркас справочника задачи 1 (не зависит от наполнения встроенного): 7 документов конструктора, два вида работ. */
 const BUILTIN_CATALOG: Catalog = {
   version: "t",
-  docs: [...BUILTIN.docs.filter((d) => d.make === "builtin"),
-    { code: "ВОР", name: "Ведомость объемов выполненных работ", clause344: 3, source: "", make: "builtin", builtin: "vor", scope: "act" }],
+  docs: [
+    ...BUILTIN.docs.filter((d) => d.make === "builtin"),
+    { code: "ВОР", name: "Ведомость объемов выполненных работ", clause344: 3, source: "", make: "builtin", builtin: "vor", scope: "act" },
+  ],
   sections: [
     { code: "ЭМ", name: "ЭМ", works: [{ code: "Прокладка КЛ", name: "Прокладка кабельных линий", docs: ["АОСР", "РИМ", "ВД", "ВОР", "АВК", "КЖ", "ПСИ"] }] },
     { code: "ЭС", name: "ЭС", works: [{ code: "Монтаж щитов", name: "Монтаж щитов", docs: ["АОСР", "РИМ", "ВД", "ВОР", "АВК"] }] },
@@ -108,7 +110,8 @@ test("templateWorks: список видов работ шаблона", () => {
 
 test("шаблон плана 11 (без новых полей) парсится", () => {
   const t = UserTemplate.parse({
-    id: "t-00000000-0000-4000-8000-000000000000", name: "Старый",
+    id: "t-00000000-0000-4000-8000-000000000000",
+    name: "Старый",
     docs: [
       { kind: "builtin", doc: "aosr", form: null },
       { kind: "custom", code: "АГИ", name: "Акт", form: null },

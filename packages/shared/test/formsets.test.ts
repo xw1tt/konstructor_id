@@ -39,7 +39,10 @@ test("форма документа: своя для документа, ина�
 test("встроенный шаблон «ТИ»: АОСР, РИМ, РП, ВД, КЖ, протокол; набор ТИ", () => {
   assert.equal(BUILTIN_TI.id, TI_ID);
   assert.equal(BUILTIN_TI.name, "ТИ");
-  assert.deepEqual(BUILTIN_TI.docs.map((d) => d.kind === "builtin" && d.doc), ["aosr", "rim", "rp", "vd", "kj", "ip"]);
+  assert.deepEqual(
+    BUILTIN_TI.docs.map((d) => d.kind === "builtin" && d.doc),
+    ["aosr", "rim", "rp", "vd", "kj", "ip"],
+  );
   assert.equal(BUILTIN_TI.print.formSet, "ti");
   assert.ok(UserTemplate.safeParse(BUILTIN_TI).success);
   assert.ok((PRINT_KINDS as readonly string[]).includes("rp"));

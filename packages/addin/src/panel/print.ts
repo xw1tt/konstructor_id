@@ -15,7 +15,12 @@ import { apiSend } from "../api.ts";
 
 declare const Office: any;
 
-export interface IssueLine { text: string; table: TableName; row: number | null; column: string }
+export interface IssueLine {
+  text: string;
+  table: TableName;
+  row: number | null;
+  column: string;
+}
 
 /** Ошибки проверки как строки «лист, строка N, «столбец»: сообщение»; offsets — строка листа первой строки данных. */
 export function issueLines(issues: Issue[], offsets: Partial<Record<TableName, number>>): IssueLine[] {
@@ -41,7 +46,10 @@ interface IssuePort {
 export async function sheetIssueLines(port: IssuePort, issues: Issue[]): Promise<IssueLine[]> {
   const mapped: Issue[] = [];
   for (const i of issues) {
-    if (!(await port.isVirtual(i.table).catch(() => false))) { mapped.push(i); continue; }
+    if (!(await port.isVirtual(i.table).catch(() => false))) {
+      mapped.push(i);
+      continue;
+    }
     const p = await port.physical(i.table, i.row ?? 0, i.column).catch(() => null);
     mapped.push(p ? { ...i, table: p.table, row: i.row === null ? null : p.row, column: p.column ?? i.column } : { ...i, table: "Материалы" });
   }
@@ -65,19 +73,29 @@ function openPreview(url: string) {
  * Пакет протокола или акта плана 13 для печати: шапка в «Протоколах» по акту (документ «на комплект» — по комплекту,
  * в который входит акт) или по комплекту.
  */
-export function protoBundleFor(book: Book, kind: ProtoKind, where: { act?: string; kit?: string }, important: ImportantMap):
-  { bundle: ActBundle | null; issues: Issue[] } {
+export function protoBundleFor(
+  book: Book,
+  kind: ProtoKind,
+  where: { act?: string; kit?: string },
+  important: ImportantMap,
+): { bundle: ActBundle | null; issues: Issue[] } {
   const def = PROTO_DEFS[kind];
   let head = where.kit !== undefined ? findHeader(book, def.code, { kit: where.kit }) : undefined;
   if (where.act !== undefined) {
-    head = def.scope === "act" ? findHeader(book, def.code, { act: where.act })
-      : (book.tables["АктыКомплектов"] ?? []).filter((r) => cellText(r.v.act) === where.act)
-        .map((r) => findHeader(book, def.code, { kit: cellText(r.v.kit) })).find(Boolean)
-        ?? findHeader(book, def.code, { act: where.act });
+    head =
+      def.scope === "act"
+        ? findHeader(book, def.code, { act: where.act })
+        : ((book.tables["АктыКомплектов"] ?? [])
+            .filter((r) => cellText(r.v.act) === where.act)
+            .map((r) => findHeader(book, def.code, { kit: cellText(r.v.kit) }))
+            .find(Boolean) ?? findHeader(book, def.code, { act: where.act }));
   }
   if (!head) {
     const of = where.act !== undefined ? `акта «${where.act}»` : `комплекта «${where.kit}»`;
-    return { bundle: null, issues: [{ table: "Протоколы", row: null, column: "№ документа", message: `Нет строки «${def.code}» в таблице «Протоколы» для ${of}` }] };
+    return {
+      bundle: null,
+      issues: [{ table: "Протоколы", row: null, column: "№ документа", message: `Нет строки «${def.code}» в таблице «Протоколы» для ${of}` }],
+    };
   }
   return buildProtoBundle(book, cellText(head.v.number), important);
 }
@@ -88,13 +106,21 @@ function printBundle(book: Book, where: { act?: string; kit?: string }, importan
   const act = where.act ?? "";
   // Пакет по описанию документа (план 15): кабельный — КЖ и протокол изоляции.
   return doc && isActDocKind(doc) && ACT_DOC_DEFS[doc].bundle === "cable"
-    ? buildCableBundle(book, act, important, doc as "kj" | "ip", { set: options?.formSet }) : buildBundle(book, act, important);
+    ? buildCableBundle(book, act, important, doc as "kj" | "ip", { set: options?.formSet })
+    : buildBundle(book, act, important);
 }
 
 /** Проверяет акт; при ошибках возвращает их, иначе создаёт задание печати и открывает предпросмотр. Документ «на комплект»
  *  печатается из карточки комплекта: where.kit. */
-export async function printAct(book: Book, actNumber: string, important: ImportantMap, doc: PrintKind, template: TemplateCode,
-  options?: PrintOptions, where: { act?: string; kit?: string } = { act: actNumber }): Promise<Issue[]> {
+export async function printAct(
+  book: Book,
+  actNumber: string,
+  important: ImportantMap,
+  doc: PrintKind,
+  template: TemplateCode,
+  options?: PrintOptions,
+  where: { act?: string; kit?: string } = { act: actNumber },
+): Promise<Issue[]> {
   const { bundle, issues } = printBundle(book, where, important, doc, options);
   if (!bundle) return issues;
   const { id } = await apiSend<{ id: string }>("POST", "/api/print-jobs", { ...bundle, template, options });
@@ -102,8 +128,7 @@ export async function printAct(book: Book, actNumber: string, important: Importa
   return [];
 }
 
-export const previewFormUrl = (id: string, origin: string) =>
-  `${origin}/addin/preview.html?src=${encodeURIComponent(`/api/form-jobs/${id}`)}`;
+export const previewFormUrl = (id: string, origin: string) => `${origin}/addin/preview.html?src=${encodeURIComponent(`/api/form-jobs/${id}`)}`;
 
 /** Пакет акта для своей формы: для КЖ/протокола — кабельный, протокола или акта плана 13 — его пакет, иначе обычный. */
 export function bundleFor(book: Book, actNumber: string, important: ImportantMap, doc: PrintKind | null, options?: PrintOptions) {
@@ -111,8 +136,16 @@ export function bundleFor(book: Book, actNumber: string, important: ImportantMap
 }
 
 /** Печать документа по своей форме шаблона: проверка акта, задание на сервере, предпросмотр. */
-export async function printForm(book: Book, actNumber: string, important: ImportantMap, templateId: string, key: string, doc: PrintKind | null,
-  where: { act?: string; kit?: string } = { act: actNumber }, options?: PrintOptions): Promise<{ issues: Issue[]; job?: { id: string; warnings: string[]; name: string } }> {
+export async function printForm(
+  book: Book,
+  actNumber: string,
+  important: ImportantMap,
+  templateId: string,
+  key: string,
+  doc: PrintKind | null,
+  where: { act?: string; kit?: string } = { act: actNumber },
+  options?: PrintOptions,
+): Promise<{ issues: Issue[]; job?: { id: string; warnings: string[]; name: string } }> {
   const { bundle, issues } = printBundle(book, where, important, doc, options);
   if (!bundle) return { issues };
   const job = await apiSend<{ id: string; warnings: string[]; name: string }>("POST", "/api/form-jobs", { bundle, template: templateId, doc: key });

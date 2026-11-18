@@ -51,7 +51,7 @@ test("сверка ОЖР: после «Заполнить из актов» —
   const first = t.rows[0];
   await wb.remove("ОЖР3", [0]);
   await wb.write("ОЖР3", 0, { "Наименование выполненных работ": "Другие работы" });
-  await wb.insert("ОЖР3", 0, [{ "Дата": 40000, "Наименование выполненных работ": "лишнее" }]);
+  await wb.insert("ОЖР3", 0, [{ Дата: 40000, "Наименование выполненных работ": "лишнее" }]);
   r = call(await ctxOf(wb), "check_ojr", { section: 3 });
   assert.equal(r.missingDates.length, 1);
   assert.match(r.missingDates[0], /акты К32/);
@@ -82,5 +82,8 @@ test("замена текста: одно предложение со всеми
   await undoChanges(wb, undo);
   assert.deepEqual(await readBook(wb), before);
   assert.match(call(ctx, "propose_replace", { find: "Нет такого", replace: "x" }).error, /не найден/);
-  assert.match(call(ctx, "propose_replace", { find: "Выполнивший работы", replace: "Кто-то", table: "Представители", column: "Роль" }).error, /значение из списка/);
+  assert.match(
+    call(ctx, "propose_replace", { find: "Выполнивший работы", replace: "Кто-то", table: "Представители", column: "Роль" }).error,
+    /значение из списка/,
+  );
 });

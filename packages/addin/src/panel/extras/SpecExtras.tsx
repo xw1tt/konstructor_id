@@ -12,7 +12,11 @@ import type { BookState } from "../useBook.ts";
 import { diffText, positionLines, matchLine } from "../spec.ts";
 
 type Note = { text: string; error?: boolean } | null;
-interface Parsed { sheet: string; items: RkcItem[]; warnings: string[] }
+interface Parsed {
+  sheet: string;
+  items: RkcItem[];
+  warnings: string[];
+}
 
 /** Экран «Материалы»: загрузка РКЦ (позиции — в строки материалов, план 31) и лист «Закрытие по актам». */
 export function SpecExtras({ port, state }: { port: ExcelPort; state: BookState }) {
@@ -29,7 +33,10 @@ export function SpecExtras({ port, state }: { port: ExcelPort; state: BookState 
     setParsed(null);
     setUpload(null);
     if (!file) return;
-    if (!/\.xlsx$/i.test(file.name)) { fail("Нужен файл .xlsx. Старый формат .xls сохраните в Excel как «Книга Excel (*.xlsx)»."); return; }
+    if (!/\.xlsx$/i.test(file.name)) {
+      fail("Нужен файл .xlsx. Старый формат .xls сохраните в Excel как «Книга Excel (*.xlsx)».");
+      return;
+    }
     setBusy(true);
     const r = await guard(apiUploadRkc(file), fail);
     setBusy(false);
@@ -78,42 +85,81 @@ export function SpecExtras({ port, state }: { port: ExcelPort; state: BookState 
   return (
     <div className="extras">
       <h3 className="tools-title">Спецификация проекта</h3>
-      <p className="muted">Позиция РКЦ — столбцы «№ п/п РКЦ», «Раздел», «Кол-во по проекту» строки материала. Несколько материалов
-        одной позиции — один № п/п; «Закрыто» позиции — сумма по ним из «Материалов в актах» (в карточке материала).</p>
+      <p className="muted">
+        Позиция РКЦ — столбцы «№ п/п РКЦ», «Раздел», «Кол-во по проекту» строки материала. Несколько материалов одной позиции — один № п/п; «Закрыто» позиции —
+        сумма по ним из «Материалов в актах» (в карточке материала).
+      </p>
       <div className="row-actions">
         <label className="btn">
           {busy && !parsed ? "Загружаю…" : "Загрузить из РКЦ"}
-          <input type="file" accept=".xlsx" hidden onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ""; }} />
+          <input
+            type="file"
+            accept=".xlsx"
+            hidden
+            onChange={(e) => {
+              void pick(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
         </label>
-        <button className="btn" onClick={() => void report()}>Обновить лист «{CLOSED_SHEET}»</button>
+        <button className="btn" onClick={() => void report()}>
+          Обновить лист «{CLOSED_SHEET}»
+        </button>
       </div>
       {upload && !parsed && (
         <div className="confirm" role="group" aria-label="Лист РКЦ">
-          <label>Лист РКЦ{" "}
+          <label>
+            Лист РКЦ{" "}
             <select value={upload.sheet} onChange={(e) => setUpload({ ...upload, sheet: e.target.value })}>
-              {upload.sheets.map((s) => <option key={s} value={s}>{s}</option>)}
+              {upload.sheets.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
           </label>
           <div className="row-actions">
-            <button className="btn btn-primary" disabled={busy} onClick={() => void parse()}>Разобрать</button>
-            <button className="btn" onClick={() => setUpload(null)}>Отмена</button>
+            <button className="btn btn-primary" disabled={busy} onClick={() => void parse()}>
+              Разобрать
+            </button>
+            <button className="btn" onClick={() => setUpload(null)}>
+              Отмена
+            </button>
           </div>
         </div>
       )}
       {parsed && preview && (
         <div className="confirm" role="alertdialog" aria-label="Предпросмотр загрузки РКЦ">
-          <p>Лист «{parsed.sheet}»: позиций {parsed.items.length}. {diffText(preview)}</p>
+          <p>
+            Лист «{parsed.sheet}»: позиций {parsed.items.length}. {diffText(preview)}
+          </p>
           {preview.changed.length > 0 && <p className="muted">Изменены: {preview.changed.map((c) => `${c.number} (${c.fields.join(", ")})`).join("; ")}</p>}
-          {parsed.warnings.length > 0 && <ul className="list warn">{parsed.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
-          <p className="muted">Материалы не удаляются и не переименовываются (новое наименование из РКЦ — в «Примечании»); новые позиции —
-            новыми строками; пропавшие из РКЦ — с пометкой.</p>
+          {parsed.warnings.length > 0 && (
+            <ul className="list warn">
+              {parsed.warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          )}
+          <p className="muted">
+            Материалы не удаляются и не переименовываются (новое наименование из РКЦ — в «Примечании»); новые позиции — новыми строками; пропавшие из РКЦ — с
+            пометкой.
+          </p>
           <div className="row-actions">
-            <button className="btn btn-primary" disabled={busy} onClick={() => void apply()}>Применить</button>
-            <button className="btn" onClick={() => setParsed(null)}>Отмена</button>
+            <button className="btn btn-primary" disabled={busy} onClick={() => void apply()}>
+              Применить
+            </button>
+            <button className="btn" onClick={() => setParsed(null)}>
+              Отмена
+            </button>
           </div>
         </div>
       )}
-      {note && <p className={note.error ? "error" : "notice"} role="status">{note.text}</p>}
+      {note && (
+        <p className={note.error ? "error" : "notice"} role="status">
+          {note.text}
+        </p>
+      )}
     </div>
   );
 }
@@ -125,9 +171,16 @@ export function SpecPositionCard({ state, number, material }: { state: BookState
   if (!p) return null;
   return (
     <div className="extras">
-      <h3 className="tools-title">Позиция РКЦ {p.number}{material ? ` · ${p.name}` : ""}</h3>
+      <h3 className="tools-title">
+        Позиция РКЦ {p.number}
+        {material ? ` · ${p.name}` : ""}
+      </h3>
       <ul className="list">
-        {positionLines(p).map((l) => <li key={l} className={l.includes("больше, чем по проекту") ? "error" : undefined}>{l}</li>)}
+        {positionLines(p).map((l) => (
+          <li key={l} className={l.includes("больше, чем по проекту") ? "error" : undefined}>
+            {l}
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -156,27 +209,42 @@ export function SpecMatchTool({ port, state }: { port: ExcelPort; state: BookSta
   };
   return (
     <div className="extras">
-      <div className="row-actions"><button className="btn" onClick={run}>Подобрать № п/п</button></div>
+      <div className="row-actions">
+        <button className="btn" onClick={run}>
+          Подобрать № п/п
+        </button>
+      </div>
       {list && (
         <div className="confirm" role="group" aria-label="Подбор № п/п">
           <ul className="list match-list">
             {list.map((m, i) => (
               <li key={m.materialRow}>
                 <label>
-                  <input type="checkbox" checked={m.checked}
-                    onChange={(e) => setList(list.map((x, j) => (j === i ? { ...x, checked: e.target.checked } : x)))} />{" "}
+                  <input
+                    type="checkbox"
+                    checked={m.checked}
+                    onChange={(e) => setList(list.map((x, j) => (j === i ? { ...x, checked: e.target.checked } : x)))}
+                  />{" "}
                   {matchLine(m)}
                 </label>
               </li>
             ))}
           </ul>
           <div className="row-actions">
-            <button className="btn btn-primary" onClick={() => void apply()}>Применить отмеченные</button>
-            <button className="btn" onClick={() => setList(null)}>Отмена</button>
+            <button className="btn btn-primary" onClick={() => void apply()}>
+              Применить отмеченные
+            </button>
+            <button className="btn" onClick={() => setList(null)}>
+              Отмена
+            </button>
           </div>
         </div>
       )}
-      {note && <p className={note.error ? "error" : "notice"} role="status">{note.text}</p>}
+      {note && (
+        <p className={note.error ? "error" : "notice"} role="status">
+          {note.text}
+        </p>
+      )}
     </div>
   );
 }

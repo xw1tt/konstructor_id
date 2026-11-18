@@ -11,11 +11,13 @@ export function ImportantDialog({ port, state, table, onClose }: { port: ExcelPo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const toggle = (h: string) => setChecked((prev) => {
-    const next = new Set(prev);
-    if (next.has(h)) next.delete(h); else next.add(h);
-    return next;
-  });
+  const toggle = (h: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(h)) next.delete(h);
+      else next.add(h);
+      return next;
+    });
 
   const save = async () => {
     setBusy(true);
@@ -39,10 +41,18 @@ export function ImportantDialog({ port, state, table, onClose }: { port: ExcelPo
         </label>
       ))}
       <div className="row-actions">
-        <button className="btn btn-primary" disabled={busy} onClick={() => void save()}>Сохранить</button>
-        <button className="btn" onClick={onClose}>Отмена</button>
+        <button className="btn btn-primary" disabled={busy} onClick={() => void save()}>
+          Сохранить
+        </button>
+        <button className="btn" onClick={onClose}>
+          Отмена
+        </button>
       </div>
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

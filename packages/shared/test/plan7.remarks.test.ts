@@ -17,7 +17,7 @@ const book = async (patch: (r: any) => void = () => {}) => {
 test("представители: одна фамилия в двух ролях и повтор роли с фамилией — без ошибок", async () => {
   const b = await book((r) => {
     const first = r["Представители"][1]; // Аксенов — лицо, осуществляющее строительство
-    r["Представители"].push({ ...first, "Роль": ROLE_BOOK_LABELS.performer });
+    r["Представители"].push({ ...first, Роль: ROLE_BOOK_LABELS.performer });
     r["Представители"].push({ ...first });
   });
   const { bundle, issues } = buildBundle(b, AOV1, defaultImportant());
@@ -29,7 +29,9 @@ test("представители: одна фамилия в двух ролях
 
 test("документ качества без даты: пакет без ошибок, в РИМ «б/д», в п.3 без «от»", async () => {
   const { rimRows, point3Lines } = await import("@idk/shared/acts/rows");
-  const b = await book((r) => { r["ДокументыКачества"][0]["Дата"] = null; });
+  const b = await book((r) => {
+    r["ДокументыКачества"][0]["Дата"] = null;
+  });
   const { bundle, issues } = buildBundle(b, AOV1, defaultImportant());
   assert.deepEqual(issues, []);
   assert.equal(TABLES["ДокументыКачества"].columns.find((c) => c.key === "issueDate")!.important, undefined);

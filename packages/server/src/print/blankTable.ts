@@ -22,14 +22,24 @@ export interface BodyRow {
 const val = (c: BCell | undefined) => (c === undefined ? "" : typeof c === "object" ? c.text : c);
 
 /** Ячейки строки по видимым графам: графы, занятые rowspan сверху, пропускаются; rest забирает остаток строки. */
-function rowCells(view: BlankView, row: BodyRow, covered: Set<string>): { key: string; text: string | number; span: number; rowspan: number; align?: "l" | "c" }[] {
+function rowCells(
+  view: BlankView,
+  row: BodyRow,
+  covered: Set<string>,
+): { key: string; text: string | number; span: number; rowspan: number; align?: "l" | "c" }[] {
   const out: { key: string; text: string | number; span: number; rowspan: number; align?: "l" | "c" }[] = [];
   const cols = view.columns;
   for (let i = 0; i < cols.length; i++) {
     const c = cols[i];
-    if (covered.has(c.key)) { covered.delete(c.key); continue; }
+    if (covered.has(c.key)) {
+      covered.delete(c.key);
+      continue;
+    }
     const cell = row.cells?.[c.key];
-    if (cell && typeof cell === "object" && cell.rest) { out.push({ key: c.key, text: cell.text, span: cols.length - i, rowspan: 1, align: c.align }); break; }
+    if (cell && typeof cell === "object" && cell.rest) {
+      out.push({ key: c.key, text: cell.text, span: cols.length - i, rowspan: 1, align: c.align });
+      break;
+    }
     out.push({ key: c.key, text: val(cell), span: 1, rowspan: typeof cell === "object" && cell?.rowspan ? cell.rowspan : 1, align: c.align });
   }
   return out;
@@ -43,9 +53,16 @@ function headRows(view: BlankView): { header: string; span: number; rowspan: num
   const bottom: { header: string; span: number; rowspan: number }[] = [];
   for (let i = 0; i < cols.length;) {
     const g = cols[i].group;
-    if (!g) { top.push({ header: cols[i].header, span: 1, rowspan: 2 }); i++; continue; }
+    if (!g) {
+      top.push({ header: cols[i].header, span: 1, rowspan: 2 });
+      i++;
+      continue;
+    }
     let j = i;
-    while (j < cols.length && cols[j].group === g) { bottom.push({ header: cols[j].header, span: 1, rowspan: 1 }); j++; }
+    while (j < cols.length && cols[j].group === g) {
+      bottom.push({ header: cols[j].header, span: 1, rowspan: 1 });
+      j++;
+    }
     top.push({ header: g, span: j - i, rowspan: 1 });
     i = j;
   }
@@ -56,13 +73,22 @@ export function htmlBlankTable(view: BlankView, rows: BodyRow[], o: { cls?: stri
   const cols = view.columns;
   const total = cols.reduce((s, c) => s + c.width, 0) || 1;
   const colgroup = cols.map((c) => `<col style="width:${((c.width * 100) / total).toFixed(2)}%">`).join("");
-  const head = headRows(view).map((r) => `<tr>${r.map((h) => `<th${h.span > 1 ? ` colspan="${h.span}"` : ""}${h.rowspan > 1 ? ` rowspan="${h.rowspan}"` : ""}>${e(h.header)}</th>`).join("")}</tr>`).join("") +
-    (o.nums ? `<tr class="nums">${cols.map((_, i) => `<td>${i + 1}</td>`).join("")}</tr>` : "");
+  const head =
+    headRows(view)
+      .map(
+        (r) =>
+          `<tr>${r.map((h) => `<th${h.span > 1 ? ` colspan="${h.span}"` : ""}${h.rowspan > 1 ? ` rowspan="${h.rowspan}"` : ""}>${e(h.header)}</th>`).join("")}</tr>`,
+      )
+      .join("") + (o.nums ? `<tr class="nums">${cols.map((_, i) => `<td>${i + 1}</td>`).join("")}</tr>` : "");
   const covered = new Set<string>();
   const pending: Map<string, number> = new Map();
   const trs = rows.map((row) => {
     // rowspan сверху: в следующих строках ячейка этой графы не выводится.
-    for (const [k, n] of pending) { if (n > 0) covered.add(k); pending.set(k, n - 1); if (n - 1 <= 0) pending.delete(k); }
+    for (const [k, n] of pending) {
+      if (n > 0) covered.add(k);
+      pending.set(k, n - 1);
+      if (n - 1 <= 0) pending.delete(k);
+    }
     const cls = row.cls ? ` class="${row.cls}"` : "";
     if (row.full !== undefined) return `<tr${cls}><td colspan="${cols.length}">${e(row.full)}</td></tr>`;
     const cells = rowCells(view, row, covered);
@@ -72,9 +98,13 @@ export function htmlBlankTable(view: BlankView, rows: BodyRow[], o: { cls?: stri
   // Группы строк — в своих tbody (не разрываются между страницами).
   let body = "";
   if (rows.some((r) => r.group !== undefined)) {
-    let cur: number | undefined, buf = "";
+    let cur: number | undefined,
+      buf = "";
     rows.forEach((r, i) => {
-      if (r.group !== cur && buf) { body += `<tbody class="grp">${buf}</tbody>`; buf = ""; }
+      if (r.group !== cur && buf) {
+        body += `<tbody class="grp">${buf}</tbody>`;
+        buf = "";
+      }
       cur = r.group;
       buf += trs[i];
     });
@@ -86,7 +116,10 @@ export function htmlBlankTable(view: BlankView, rows: BodyRow[], o: { cls?: stri
 /** Та же таблица на листе Excel: графы — по долям ширины на столбцы листа. */
 export function xlsxBlankTable(L: Layout, view: BlankView, rows: BodyRow[], o: { nums?: boolean; size?: number; minRow?: number; headSize?: number } = {}) {
   const cols = view.columns;
-  const spans = gridSpans(cols.map((c) => c.width), L.cols);
+  const spans = gridSpans(
+    cols.map((c) => c.width),
+    L.cols,
+  );
   const at = (i: number, n = 1) => spans.slice(i, i + n).reduce((a, b) => a + b, 0);
   const hr = headRows(view);
   let head: Col[][];
@@ -107,7 +140,11 @@ export function xlsxBlankTable(L: Layout, view: BlankView, rows: BodyRow[], o: {
   const covered = new Set<string>();
   const pending = new Map<string, number>();
   const body: TCell[][] = rows.map((row) => {
-    for (const [k, n] of pending) { if (n > 0) covered.add(k); pending.set(k, n - 1); if (n - 1 <= 0) pending.delete(k); }
+    for (const [k, n] of pending) {
+      if (n > 0) covered.add(k);
+      pending.set(k, n - 1);
+      if (n - 1 <= 0) pending.delete(k);
+    }
     if (row.full !== undefined) return [{ text: row.full, span: L.cols, style: { h: "center", ...row.style } }];
     const cells = rowCells(view, row, covered);
     for (const c of cells) if (c.rowspan > 1) pending.set(c.key, c.rowspan - 1);

@@ -16,14 +16,16 @@ async function measure(html: string) {
   const b = (await currentBrowserForTests())!;
   const page = await b.newPage();
   await page.setContent(html, { waitUntil: "load" });
-  const r = await page.evaluate(() => [...document.querySelectorAll(".sheet")].map((s) => {
-    const t = s.querySelector("table.kj-t")!.getBoundingClientRect();
-    const st = s.querySelector(".stamp")!.getBoundingClientRect();
-    const sheet = s.getBoundingClientRect();
-    const over = [...s.querySelectorAll(".fit")].filter((el) => (el as HTMLElement).scrollHeight > (el as HTMLElement).clientHeight + 1).length;
-    const fits = s.querySelectorAll(".stamp .fit").length;
-    return { tableBottom: t.bottom, stampTop: st.top, stampBottom: st.bottom, sheetBottom: sheet.bottom, over, fits };
-  }));
+  const r = await page.evaluate(() =>
+    [...document.querySelectorAll(".sheet")].map((s) => {
+      const t = s.querySelector("table.kj-t")!.getBoundingClientRect();
+      const st = s.querySelector(".stamp")!.getBoundingClientRect();
+      const sheet = s.getBoundingClientRect();
+      const over = [...s.querySelectorAll(".fit")].filter((el) => (el as HTMLElement).scrollHeight > (el as HTMLElement).clientHeight + 1).length;
+      const fits = s.querySelectorAll(".stamp .fit").length;
+      return { tableBottom: t.bottom, stampTop: st.top, stampBottom: st.bottom, sheetBottom: sheet.bottom, over, fits };
+    }),
+  );
   await page.close();
   return r;
 }
@@ -37,9 +39,13 @@ async function data(patch: (b: any) => void) {
 test("ревью: длинные марки кабеля и трубы не раздвигают строки — таблица выше штампа", async () => {
   const d = await data((b) => {
     const r0 = b.cables.rows[0];
-    b.cables.rows = Array.from({ length: 28 }, (_, i) => ({ ...r0, designation: `Л-${i + 1}`,
+    b.cables.rows = Array.from({ length: 28 }, (_, i) => ({
+      ...r0,
+      designation: `Л-${i + 1}`,
       cableMark: "Кабель силовой с медными жилами с изоляцией и оболочкой из ПВХ пониженной пожарной опасности ВВГнг(А)-LS 5х16мк(N,PE)-0,66 кВ",
-      pipeMark: "Труба гофрированная ПВХ с зондом лёгкая d=20 мм серая", pipeLength: 12 }));
+      pipeMark: "Труба гофрированная ПВХ с зондом лёгкая d=20 мм серая",
+      pipeLength: 12,
+    }));
   });
   assert.equal(d.sheets.length, 1);
   const [s] = await measure(kjHtml(d));
@@ -49,8 +55,10 @@ test("ревью: длинные марки кабеля и трубы не ра
 
 test("ревью: длинные наименования объекта и раздела помещаются в штамп", async () => {
   const d = await data(() => {});
-  d.stamp.section = "Комплекс работ по монтажу системы автоматизации и диспетчеризации отопления, вентиляции, кондиционирования и теплоснабжения. Подземная часть. Корпуса А, Б, В";
-  d.stamp.object = "Реконструируемый деловой комплекс в составе корп. А, Б, В, Г, Е с единой стилобатной (подземной) частью и устройством надземной объединительной аркады по адресу: г. Москва, пересечение Кутузовского проспекта и улицы Кульнева (ЗАО г. Москвы). Корпус В. Очередь строительства 2, этап 3";
+  d.stamp.section =
+    "Комплекс работ по монтажу системы автоматизации и диспетчеризации отопления, вентиляции, кондиционирования и теплоснабжения. Подземная часть. Корпуса А, Б, В";
+  d.stamp.object =
+    "Реконструируемый деловой комплекс в составе корп. А, Б, В, Г, Е с единой стилобатной (подземной) частью и устройством надземной объединительной аркады по адресу: г. Москва, пересечение Кутузовского проспекта и улицы Кульнева (ЗАО г. Москвы). Корпус В. Очередь строительства 2, этап 3";
   const [s] = await measure(kjHtml(d));
   assert.ok(s.fits >= 3, "тексты штампа вписываются (класс fit)");
   assert.equal(s.over, 0, "текст штампа не помещается");

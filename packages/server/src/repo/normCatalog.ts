@@ -17,10 +17,13 @@ export const normCatalog = (db: Db) => ({
     try {
       db.prepare("DELETE FROM norm_catalog WHERE section=?").run(section);
       const ins = db.prepare("INSERT INTO norm_catalog (section, ord, designation, title, pages, status, url, search) VALUES (?,?,?,?,?,?,?,?)");
-      rows.filter((r) => isPortalUrl(r.url)).forEach((r, i) =>
-        ins.run(section, i, r.designation, r.title, r.pages, r.status, r.url, searchKey(`${r.designation} ${r.title}`)));
-      db.prepare("INSERT INTO norm_sections (section, updated_at) VALUES (?, ?) ON CONFLICT(section) DO UPDATE SET updated_at=excluded.updated_at")
-        .run(section, at);
+      rows
+        .filter((r) => isPortalUrl(r.url))
+        .forEach((r, i) => ins.run(section, i, r.designation, r.title, r.pages, r.status, r.url, searchKey(`${r.designation} ${r.title}`)));
+      db.prepare("INSERT INTO norm_sections (section, updated_at) VALUES (?, ?) ON CONFLICT(section) DO UPDATE SET updated_at=excluded.updated_at").run(
+        section,
+        at,
+      );
       db.exec("COMMIT");
     } catch (e) {
       db.exec("ROLLBACK");
@@ -29,7 +32,9 @@ export const normCatalog = (db: Db) => ({
   },
 
   search(p: { section?: NormSection; q?: string; offset?: number; limit?: number }): NormSearchResult {
-    const words = searchKey(p.q ?? "").split(" ").filter(Boolean);
+    const words = searchKey(p.q ?? "")
+      .split(" ")
+      .filter(Boolean);
     const where = words.map(() => "instr(search, ?) > 0");
     const args: (string | number)[] = [...words];
     const cond = (extra: string[]) => (extra.length ? `WHERE ${extra.join(" AND ")}` : "");
@@ -43,9 +48,14 @@ export const normCatalog = (db: Db) => ({
     const limit = Math.min(Math.max(1, Math.floor(p.limit ?? DEFAULT_LIMIT)), MAX_LIMIT);
     const offset = Math.max(0, Math.floor(p.offset ?? 0));
     const order = NORM_SECTIONS.map((s, i) => `WHEN '${s.code}' THEN ${i}`).join(" ");
-    const items = (db.prepare(`SELECT id, section, designation, title, pages, status, url FROM norm_catalog ${cond(w)}
-      ORDER BY CASE section ${order} END, ord LIMIT ? OFFSET ?`).all(...a, limit, offset) as any[])
-      .map((r) => ({ id: Number(r.id), section: r.section, designation: r.designation, title: r.title, pages: Number(r.pages), status: r.status, url: r.url }));
+    const items = (
+      db
+        .prepare(
+          `SELECT id, section, designation, title, pages, status, url FROM norm_catalog ${cond(w)}
+      ORDER BY CASE section ${order} END, ord LIMIT ? OFFSET ?`,
+        )
+        .all(...a, limit, offset) as any[]
+    ).map((r) => ({ id: Number(r.id), section: r.section, designation: r.designation, title: r.title, pages: Number(r.pages), status: r.status, url: r.url }));
     const updated: Partial<Record<NormSection, string>> = {};
     for (const r of db.prepare("SELECT section, updated_at FROM norm_sections").all() as any[]) updated[r.section as NormSection] = r.updated_at;
     return { total, counts, updated, items };

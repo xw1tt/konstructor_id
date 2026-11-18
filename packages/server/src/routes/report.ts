@@ -17,7 +17,10 @@ import { attachment } from "./print.ts";
 export const ReportRequest = z.object({
   description: z.string().max(20_000).default(""),
   panel: z.record(z.unknown()).default({}),
-  assistant: z.array(z.object({ kind: z.string(), text: z.string() })).max(500).optional(),
+  assistant: z
+    .array(z.object({ kind: z.string(), text: z.string() }))
+    .max(500)
+    .optional(),
 });
 
 /** Версия программы — файл VERSION установщика (рядом с сервером или выше по папкам). */
@@ -34,10 +37,18 @@ export function appVersion(): string {
 const stamp = (d: Date) => d.toISOString().slice(0, 16).replace("T", "_").replace(":", "-");
 export const defaultReportsDir = () => join(homedir(), "Documents", "Конструктор ИД — отчёты");
 
-export function reportRoutes(r: Router, deps: {
-  dataDir: string; templates: TemplateStore; ai: AiStore; reportsDir?: string; now?: () => Date;
-  /** Для тестов: бот и запросы к Телеграму. */ telegram?: TgConfig | null; fetchImpl?: typeof fetch;
-}) {
+export function reportRoutes(
+  r: Router,
+  deps: {
+    dataDir: string;
+    templates: TemplateStore;
+    ai: AiStore;
+    reportsDir?: string;
+    now?: () => Date;
+    /** Для тестов: бот и запросы к Телеграму. */ telegram?: TgConfig | null;
+    fetchImpl?: typeof fetch;
+  },
+) {
   const made = new Map<string, { zip: Buffer; name: string }>();
   // Установленная версия — для «Настроек» (0.29.2).
   r.get("/api/version", () => ({ version: appVersion() }));
@@ -46,12 +57,28 @@ export function reportRoutes(r: Router, deps: {
     const now = (deps.now ?? (() => new Date()))();
     const errors = recentErrors();
     let templates: unknown;
-    try { templates = deps.templates.list().map((t) => ({ id: t.id, name: t.name, docs: t.docs.length, print: t.print })); } catch (e) { templates = `не прочитаны: ${(e as Error).message}`; }
+    try {
+      templates = deps.templates.list().map((t) => ({ id: t.id, name: t.name, docs: t.docs.length, print: t.print }));
+    } catch (e) {
+      templates = `не прочитаны: ${(e as Error).message}`;
+    }
     let ai: unknown = null;
-    try { const l = deps.ai.list(); ai = { active: l.active, providers: l.providers.map((p) => ({ id: p.id, name: p.name, kind: p.kind, model: p.model })) }; } catch { /* нет подключений */ }
+    try {
+      const l = deps.ai.list();
+      ai = { active: l.active, providers: l.providers.map((p) => ({ id: p.id, name: p.name, kind: p.kind, model: p.model })) };
+    } catch {
+      /* нет подключений */
+    }
     const server = {
-      version: appVersion(), node: process.version, os: `${platform()} ${release()} ${arch()}`, uptimeMin: Math.round(process.uptime() / 60),
-      dataDir: deps.dataDir, browser: process.env.IDK_BROWSER || "Edge (по умолчанию)", logFile: logFile(), templates, ai,
+      version: appVersion(),
+      node: process.version,
+      os: `${platform()} ${release()} ${arch()}`,
+      uptimeMin: Math.round(process.uptime() / 60),
+      dataDir: deps.dataDir,
+      browser: process.env.IDK_BROWSER || "Edge (по умолчанию)",
+      logFile: logFile(),
+      templates,
+      ai,
     };
     const text = [
       `Отчёт «Конструктора ИД» — ${now.toLocaleString("ru-RU")}`,
@@ -66,7 +93,13 @@ export function reportRoutes(r: Router, deps: {
     ].join("\r\n");
     let logTail = "";
     const lf = logFile();
-    if (lf && existsSync(lf)) { try { logTail = readFileSync(lf, "utf8").slice(-200_000); } catch { /* нет доступа */ } }
+    if (lf && existsSync(lf)) {
+      try {
+        logTail = readFileSync(lf, "utf8").slice(-200_000);
+      } catch {
+        /* нет доступа */
+      }
+    }
     const name = `Отчёт ${stamp(now)}.zip`;
     const zip = writeZip([
       ["Отчёт.txt", text],
@@ -83,23 +116,37 @@ export function reportRoutes(r: Router, deps: {
       mkdirSync(dir, { recursive: true });
       path = join(dir, name);
       writeFileSync(path, zip);
-    } catch { path = null; }
+    } catch {
+      path = null;
+    }
     const id = randomUUID();
     made.set(id, { zip, name });
     while (made.size > 5) made.delete(made.keys().next().value!);
     // Сразу разработчику в Телеграм (если бот настроен в установщике); не вышло — архив остаётся у пользователя.
     const tg = deps.telegram !== undefined ? deps.telegram : telegramConfig();
-    let sent: boolean | null = null, sendError = "";
+    let sent: boolean | null = null,
+      sendError = "";
     if (tg) {
-      try { await sendTelegram(tg, text.replace(/\r\n/g, "\n"), { name, data: zip }, deps.fetchImpl); sent = true; }
-      catch (e) { sent = false; sendError = (e as Error).message; logError("report:telegram", e); }
+      try {
+        await sendTelegram(tg, text.replace(/\r\n/g, "\n"), { name, data: zip }, deps.fetchImpl);
+        sent = true;
+      } catch (e) {
+        sent = false;
+        sendError = (e as Error).message;
+        logError("report:telegram", e);
+      }
     }
     return new Reply(201, { id, name, path, errors: errors.length, sent, sendError });
   });
   r.get("/api/report/:id", (c) => {
     const j = made.get(c.params.id);
     if (!j) throw new HttpError(404, "Отчёт не найден — соберите его заново");
-    c.res.writeHead(200, { "content-type": "application/zip", "content-length": j.zip.length, "content-disposition": attachment(j.name), "cache-control": "no-store" });
+    c.res.writeHead(200, {
+      "content-type": "application/zip",
+      "content-length": j.zip.length,
+      "content-disposition": attachment(j.name),
+      "cache-control": "no-store",
+    });
     c.res.end(j.zip);
   });
 }

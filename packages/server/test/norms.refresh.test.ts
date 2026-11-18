@@ -11,7 +11,8 @@ import { tmpDir } from "./helpers/tmp.ts";
 const tr = (section: string, d: string, uuid: string) =>
   `<tr><td><a href="/${section === "foundational" ? "gost" : section}/details/${uuid}">${d}</a></td><td>Наименование ${d}</td><td>5</td><td>Действует</td></tr>`;
 const uuid = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
-const html = (body: string) => new Response(`<html><body><table>${body}</table></body></html>`, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+const html = (body: string) =>
+  new Response(`<html><body><table>${body}</table></body></html>`, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
 
 /** Портал-заглушка: sp — 2 страницы (2 + 1 строка, «Стр. 1 из 2»), остальные — по одной строке на первой странице. */
 function portal(tag = "", overrides: Record<string, () => Promise<Response>> = {}) {
@@ -52,14 +53,29 @@ test("обход всех разделов и страниц", async () => {
 
 test("сбой на середине раздела — раздел не меняется, ранее обновлённые остаются", async () => {
   const db = fresh();
-  await (async () => { const r = createRefresher(db, { fetchImpl: portal().f, sleep: async () => {}, now }); r.start(); await r.done(); })();
-  const { f } = portal(" нов", { "https://protect.gost.ru/gost?page=2": async () => { throw new TypeError("fetch failed"); } });
+  await (async () => {
+    const r = createRefresher(db, { fetchImpl: portal().f, sleep: async () => {}, now });
+    r.start();
+    await r.done();
+  })();
+  const { f } = portal(" нов", {
+    "https://protect.gost.ru/gost?page=2": async () => {
+      throw new TypeError("fetch failed");
+    },
+  });
   const r = createRefresher(db, { fetchImpl: f, sleep: async () => {}, now });
-  r.start(); await r.done();
+  r.start();
+  await r.done();
   assert.equal(r.state().error, "Нет связи с порталом protect.gost.ru");
   const N = normCatalog(db);
-  assert.deepEqual(N.search({ section: "sp" }).items.map((i) => i.designation), ["СП 1 нов", "СП 2 нов", "СП 3 нов"]);
-  assert.deepEqual(N.search({ section: "gost" }).items.map((i) => i.designation), ["ГОСТ 1"]);
+  assert.deepEqual(
+    N.search({ section: "sp" }).items.map((i) => i.designation),
+    ["СП 1 нов", "СП 2 нов", "СП 3 нов"],
+  );
+  assert.deepEqual(
+    N.search({ section: "gost" }).items.map((i) => i.designation),
+    ["ГОСТ 1"],
+  );
   assert.equal(N.search({ section: "rst" }).items[0].designation, "Правила 1");
 });
 
@@ -67,16 +83,19 @@ test("первая страница раздела без строк — оши�
   const db = fresh();
   const { f } = portal("", { "https://protect.gost.ru/sp?page=1": async () => html("<p>Войдите</p>") });
   const r = createRefresher(db, { fetchImpl: f, sleep: async () => {}, now });
-  r.start(); await r.done();
+  r.start();
+  await r.done();
   assert.equal(r.state().error, "Не удалось разобрать список раздела «СП» — возможно, портал изменил вёрстку");
   assert.equal(normCatalog(db).search({}).total, 0);
   const json = portal("", { "https://protect.gost.ru/sp?page=1": async () => new Response("{}", { headers: { "content-type": "application/json" } }) });
   const r2 = createRefresher(db, { fetchImpl: json.f, sleep: async () => {}, now });
-  r2.start(); await r2.done();
+  r2.start();
+  await r2.done();
   assert.equal(r2.state().error, "Не удалось разобрать список раздела «СП» — возможно, портал изменил вёрстку");
   const bad = portal("", { "https://protect.gost.ru/sp?page=1": async () => new Response("", { status: 503 }) });
   const r3 = createRefresher(db, { fetchImpl: bad.f, sleep: async () => {}, now });
-  r3.start(); await r3.done();
+  r3.start();
+  await r3.done();
   assert.equal(r3.state().error, "Нет связи с порталом protect.gost.ru (ответ 503)");
 });
 
@@ -85,9 +104,19 @@ test("заголовок User-Agent и пауза между запросами"
   const seen: string[] = [];
   const pauses: number[] = [];
   const base = portal();
-  const f = (async (u: any, init?: RequestInit) => { seen.push(new Headers(init?.headers).get("user-agent") ?? ""); return base.f(u, init); }) as typeof fetch;
-  const r = createRefresher(db, { fetchImpl: f, sleep: async (ms) => { pauses.push(ms); }, now });
-  r.start(); await r.done();
+  const f = (async (u: any, init?: RequestInit) => {
+    seen.push(new Headers(init?.headers).get("user-agent") ?? "");
+    return base.f(u, init);
+  }) as typeof fetch;
+  const r = createRefresher(db, {
+    fetchImpl: f,
+    sleep: async (ms) => {
+      pauses.push(ms);
+    },
+    now,
+  });
+  r.start();
+  await r.done();
   assert.equal(r.state().error, null);
   assert.ok(seen.length >= 8);
   assert.ok(seen.every((h) => h === "Konstruktor-ID/0.5 (normative catalog)"));
@@ -98,7 +127,10 @@ test("повторный запуск во время обхода — 409; GET 
   let release!: () => void;
   const gate = new Promise<void>((res) => (release = res));
   const base = portal();
-  const f = (async (u: any, i?: RequestInit) => { await gate; return base.f(u, i); }) as typeof fetch;
+  const f = (async (u: any, i?: RequestInit) => {
+    await gate;
+    return base.f(u, i);
+  }) as typeof fetch;
   const s = await startTestServer({ fetchImpl: f, sleep: async () => {} });
   const a = await s.req("POST", "/api/norms/refresh");
   assert.equal(a.status, 202);
@@ -115,7 +147,11 @@ test("повторный запуск во время обхода — 409; GET 
 
 test("ревью: страница входа на 2-й из 3 страниц — раздел не меняется, ошибка разбора", async () => {
   const db = fresh();
-  normCatalog(db).replaceSection("sp", [{ designation: "СП старый", title: "т", pages: 1, status: "Действует", url: "https://protect.gost.ru/sp/details/old" }], "2026-10-01T00:00:00.000Z");
+  normCatalog(db).replaceSection(
+    "sp",
+    [{ designation: "СП старый", title: "т", pages: 1, status: "Действует", url: "https://protect.gost.ru/sp/details/old" }],
+    "2026-10-01T00:00:00.000Z",
+  );
   const page = (n: number) => html(`<p>Стр. ${n} из 3</p>` + tr("sp", `СП ${n}`, uuid(n)));
   const f = (async (u: any) => {
     const url = String(u);
@@ -124,9 +160,15 @@ test("ревью: страница входа на 2-й из 3 страниц �
     return page(3);
   }) as typeof fetch;
   const r = createRefresher(db, { fetchImpl: f, sleep: async () => {}, now });
-  r.start(); await r.done();
+  r.start();
+  await r.done();
   assert.equal(r.state().error, "Не удалось разобрать список раздела «СП» — возможно, портал изменил вёрстку");
-  assert.deepEqual(normCatalog(db).search({ section: "sp" }).items.map((i) => i.designation), ["СП старый"]);
+  assert.deepEqual(
+    normCatalog(db)
+      .search({ section: "sp" })
+      .items.map((i) => i.designation),
+    ["СП старый"],
+  );
 });
 
 test("ревью: портал игнорирует номер страницы (повторяет последнюю) — обход раздела останавливается", async () => {
@@ -135,11 +177,15 @@ test("ревью: портал игнорирует номер страницы 
   const base = portal();
   const f = (async (u: any, i?: RequestInit) => {
     const url = String(u);
-    if (url.startsWith("https://protect.gost.ru/sp?")) { spCalls++; return html(tr("sp", "СП 1", uuid(1)) + tr("sp", "СП 2", uuid(2))); }
+    if (url.startsWith("https://protect.gost.ru/sp?")) {
+      spCalls++;
+      return html(tr("sp", "СП 1", uuid(1)) + tr("sp", "СП 2", uuid(2)));
+    }
     return base.f(u, i);
   }) as typeof fetch;
   const r = createRefresher(db, { fetchImpl: f, sleep: async () => {}, now });
-  r.start(); await r.done();
+  r.start();
+  await r.done();
   assert.equal(r.state().error, null);
   assert.equal(spCalls, 2);
   assert.equal(normCatalog(db).search({ section: "sp" }).total, 2);
@@ -149,9 +195,13 @@ test("заголовки запроса допустимы для настоящ
   const db = fresh();
   const base = portal();
   // Как настоящий fetch: заголовки проверяются до отправки (Headers бросает TypeError на не-Latin1).
-  const strict = (async (u: any, init?: RequestInit) => { new Headers(init?.headers); return base.f(u, init); }) as typeof fetch;
+  const strict = (async (u: any, init?: RequestInit) => {
+    new Headers(init?.headers);
+    return base.f(u, init);
+  }) as typeof fetch;
   const r = createRefresher(db, { fetchImpl: strict, sleep: async () => {}, now });
-  r.start(); await r.done();
+  r.start();
+  await r.done();
   assert.equal(r.state().error, null);
   assert.equal(normCatalog(db).search({}).total, 8);
 });
@@ -159,10 +209,18 @@ test("заголовки запроса допустимы для настоящ
 test("причина «нет связи» видна в сообщении: код ошибки сети или код ответа", async () => {
   const db = fresh();
   const err = Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error("x"), { code: "ENOTFOUND" }) });
-  const r = createRefresher(db, { fetchImpl: (async () => { throw err; }) as typeof fetch, sleep: async () => {}, now });
-  r.start(); await r.done();
+  const r = createRefresher(db, {
+    fetchImpl: (async () => {
+      throw err;
+    }) as typeof fetch,
+    sleep: async () => {},
+    now,
+  });
+  r.start();
+  await r.done();
   assert.equal(r.state().error, "Нет связи с порталом protect.gost.ru (ENOTFOUND)");
   const r2 = createRefresher(db, { fetchImpl: (async () => new Response("", { status: 403 })) as typeof fetch, sleep: async () => {}, now });
-  r2.start(); await r2.done();
+  r2.start();
+  await r2.done();
   assert.equal(r2.state().error, "Нет связи с порталом protect.gost.ru (ответ 403)");
 });

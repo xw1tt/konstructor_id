@@ -1,56 +1,208 @@
-@page { size: A4 portrait; margin: 10mm 10mm 10mm 20mm; }
-* { box-sizing: border-box; }
-body { font-family: "Times New Roman", "Liberation Serif", serif; font-size: 10pt; line-height: 1.15; color: #000; margin: 0; }
-p { margin: 0; }
-.field { margin: 0 0 3pt; }
+@page {
+  size: A4 portrait;
+  margin: 10mm 10mm 10mm 20mm;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  font-family: "Times New Roman", "Liberation Serif", serif;
+  font-size: 10pt;
+  line-height: 1.15;
+  color: #000;
+  margin: 0;
+}
+p {
+  margin: 0;
+}
+.field {
+  margin: 0 0 3pt;
+}
 .field .val {
-  font-weight: bold; font-style: italic; line-height: 13pt; min-height: 13pt; overflow: hidden;
+  font-weight: bold;
+  font-style: italic;
+  line-height: 13pt;
+  min-height: 13pt;
+  overflow: hidden;
   /* линия под каждой строкой значения, как в бланке */
   background-image: linear-gradient(to bottom, transparent 12.2pt, #000 12.2pt, #000 12.8pt, transparent 12.8pt);
-  background-size: 100% 13pt; background-repeat: repeat-y;
+  background-size: 100% 13pt;
+  background-repeat: repeat-y;
 }
-.cap { font-size: 5pt; text-align: center; line-height: 1.05; margin-top: 0.3pt; }
-.title { text-align: center; font-weight: bold; margin: 12pt 0 3pt; }
-.subtitle { text-align: center; font-weight: bold; margin-bottom: 8pt; }
-.numdate { display: flex; justify-content: space-between; gap: 20mm; margin: 6pt 0 4pt; }
-.numdate > div { flex: 1; }
+.cap {
+  font-size: 5pt;
+  text-align: center;
+  line-height: 1.05;
+  margin-top: 0.3pt;
+}
+.title {
+  text-align: center;
+  font-weight: bold;
+  margin: 12pt 0 3pt;
+}
+.subtitle {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 8pt;
+}
+.numdate {
+  display: flex;
+  justify-content: space-between;
+  gap: 20mm;
+  margin: 6pt 0 4pt;
+}
+.numdate > div {
+  flex: 1;
+}
 /* Номер акта — линия вдвое короче прежней (≈ четверть ширины листа, а не больше половины). */
-.numdate > div:first-child { flex: 0 0 60mm; }
-.numdate > div:last-child { text-align: right; flex: 0 0 45mm; }
-.block { margin-top: 3pt; break-inside: avoid; }
+.numdate > div:first-child {
+  flex: 0 0 60mm;
+}
+.numdate > div:last-child {
+  text-align: right;
+  flex: 0 0 45mm;
+}
+.block {
+  margin-top: 3pt;
+  break-inside: avoid;
+}
 /* АОСР: вторая страница всегда начинается с п.1. */
-body.aosr .p1 { break-before: page; }
-.dates { display: grid; grid-template-columns: 30mm 45mm; gap: 1pt 4pt; align-items: baseline; margin-left: 12mm; }
-.inline { display: flex; gap: 4pt; align-items: baseline; }
-.inline .field { flex: 0 0 auto; min-width: 25mm; }
+body.aosr .p1 {
+  break-before: page;
+}
+.dates {
+  display: grid;
+  grid-template-columns: 30mm 45mm;
+  gap: 1pt 4pt;
+  align-items: baseline;
+  margin-left: 12mm;
+}
+.inline {
+  display: flex;
+  gap: 4pt;
+  align-items: baseline;
+}
+.inline .field {
+  flex: 0 0 auto;
+  min-width: 25mm;
+}
 /* АОСР: номер, дата акта, даты работ, доп. сведения и число экземпляров — посередине линии. */
-.numdate .val, .dates .val, .inline .val { text-align: center; }
-.inline .val { padding: 0 3mm; }
-.signs { margin-top: 8pt; }
-.sign { break-inside: avoid; margin-top: 2pt; }
-.sign-name { font-weight: bold; font-style: italic; border-bottom: 0.6pt solid #000; margin-top: 5pt; }
-.sign-label + .sign-name { margin-top: 6pt; }
-.right { text-align: right; }
-.appx-head { text-align: right; margin-bottom: 14pt; }
-.doc-head { text-align: center; font-weight: bold; margin-bottom: 14pt; }
-table.grid { width: 100%; border-collapse: collapse; margin-bottom: 8pt; }
-table.grid th, table.grid td { border: 0.6pt solid #000; padding: 0.8pt 2pt; vertical-align: middle; line-height: 1.1; }
-table.grid thead { display: table-header-group; }
-table.grid tr { break-inside: avoid; }
-table.grid th { font-weight: bold; text-align: center; }
-table.grid td.c, table.grid th.c { text-align: center; }
-table.grid td.l { text-align: left; }
-table.grid tr.nums td { text-align: center; font-weight: bold; }
-body.vor { font-size: 8pt; }
-body.vor .obj { margin: 6pt 0 10pt; }
-body.vor h1 { font-size: 11pt; text-align: center; margin: 10pt 0; }
-body.vor tr.group td { text-align: center; font-weight: bold; }
-body.vor .vor-signs { margin-top: 14pt; display: grid; gap: 14pt; break-inside: avoid; }
-body.vor .vor-sign { display: grid; grid-template-columns: 1fr 45mm; gap: 8mm; align-items: end; }
-body.vor .vor-sign .line { border-bottom: 0.6pt solid #000; text-align: center; }
-body.rim table.grid, body.vd table.grid { font-size: 9.5pt; }
-body.rim tbody.grp { break-inside: avoid; }
-body.rim td.nm.open { border-bottom-style: hidden; }
-body.rim td.nm.cont { border-top-style: hidden; }
-.appx-head { margin-bottom: 10pt; }
-.doc-head { margin-bottom: 10pt; }
+.numdate .val,
+.dates .val,
+.inline .val {
+  text-align: center;
+}
+.inline .val {
+  padding: 0 3mm;
+}
+.signs {
+  margin-top: 8pt;
+}
+.sign {
+  break-inside: avoid;
+  margin-top: 2pt;
+}
+.sign-name {
+  font-weight: bold;
+  font-style: italic;
+  border-bottom: 0.6pt solid #000;
+  margin-top: 5pt;
+}
+.sign-label + .sign-name {
+  margin-top: 6pt;
+}
+.right {
+  text-align: right;
+}
+.appx-head {
+  text-align: right;
+  margin-bottom: 14pt;
+}
+.doc-head {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 14pt;
+}
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8pt;
+}
+table.grid th,
+table.grid td {
+  border: 0.6pt solid #000;
+  padding: 0.8pt 2pt;
+  vertical-align: middle;
+  line-height: 1.1;
+}
+table.grid thead {
+  display: table-header-group;
+}
+table.grid tr {
+  break-inside: avoid;
+}
+table.grid th {
+  font-weight: bold;
+  text-align: center;
+}
+table.grid td.c,
+table.grid th.c {
+  text-align: center;
+}
+table.grid td.l {
+  text-align: left;
+}
+table.grid tr.nums td {
+  text-align: center;
+  font-weight: bold;
+}
+body.vor {
+  font-size: 8pt;
+}
+body.vor .obj {
+  margin: 6pt 0 10pt;
+}
+body.vor h1 {
+  font-size: 11pt;
+  text-align: center;
+  margin: 10pt 0;
+}
+body.vor tr.group td {
+  text-align: center;
+  font-weight: bold;
+}
+body.vor .vor-signs {
+  margin-top: 14pt;
+  display: grid;
+  gap: 14pt;
+  break-inside: avoid;
+}
+body.vor .vor-sign {
+  display: grid;
+  grid-template-columns: 1fr 45mm;
+  gap: 8mm;
+  align-items: end;
+}
+body.vor .vor-sign .line {
+  border-bottom: 0.6pt solid #000;
+  text-align: center;
+}
+body.rim table.grid,
+body.vd table.grid {
+  font-size: 9.5pt;
+}
+body.rim tbody.grp {
+  break-inside: avoid;
+}
+body.rim td.nm.open {
+  border-bottom-style: hidden;
+}
+body.rim td.nm.cont {
+  border-top-style: hidden;
+}
+.appx-head {
+  margin-bottom: 10pt;
+}
+.doc-head {
+  margin-bottom: 10pt;
+}

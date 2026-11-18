@@ -19,10 +19,20 @@ export interface FieldProps {
 function useDraft(value: string) {
   const [draft, setDraft] = useState(value);
   const focused = useRef(false);
-  useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
+  useEffect(() => {
+    if (!focused.current) setDraft(value);
+  }, [value]);
   return {
-    draft, setDraft,
-    bind: { onFocus: () => { focused.current = true; }, onBlurCapture: () => { focused.current = false; } },
+    draft,
+    setDraft,
+    bind: {
+      onFocus: () => {
+        focused.current = true;
+      },
+      onBlurCapture: () => {
+        focused.current = false;
+      },
+    },
   };
 }
 
@@ -30,10 +40,17 @@ export function Field(p: FieldProps) {
   const { col } = p;
   return (
     <label className={"field" + (p.error ? " field-error" : "")}>
-      <span className="field-label">{col.header}{col.important ? " *" : ""}</span>
+      <span className="field-label">
+        {col.header}
+        {col.important ? " *" : ""}
+      </span>
       <Input {...p} />
       {col.hint && <span className="field-hint">{col.hint}</span>}
-      {p.error && <span className="error" role="alert">{p.error}</span>}
+      {p.error && (
+        <span className="error" role="alert">
+          {p.error}
+        </span>
+      )}
     </label>
   );
 }
@@ -42,7 +59,9 @@ function Input(p: FieldProps) {
   const { col, value } = p;
   const text = fromCell(col, value);
   const d = useDraft(text);
-  const commitText = () => { if (d.draft !== text) p.onCommit(d.draft); };
+  const commitText = () => {
+    if (d.draft !== text) p.onCommit(d.draft);
+  };
 
   switch (col.type) {
     case "formula":
@@ -52,8 +71,11 @@ function Input(p: FieldProps) {
     case "date": {
       const iso = parseDateCell(value);
       return (
-        <input type="date" value={iso.ok && iso.value ? iso.value : ""}
-          onChange={(e) => p.onCommit(e.target.value ? e.target.value.split("-").reverse().join(".") : "")} />
+        <input
+          type="date"
+          value={iso.ok && iso.value ? iso.value : ""}
+          onChange={(e) => p.onCommit(e.target.value ? e.target.value.split("-").reverse().join(".") : "")}
+        />
       );
     }
     case "enum":
@@ -61,7 +83,11 @@ function Input(p: FieldProps) {
         <select value={cellText(value)} onChange={(e) => p.onCommit(e.target.value)}>
           <option value="">—</option>
           {!col.values!.includes(cellText(value)) && cellText(value) && <option value={cellText(value)}>{cellText(value)} (не из списка)</option>}
-          {col.values!.map((v) => <option key={v} value={v}>{v}</option>)}
+          {col.values!.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
         </select>
       );
     case "ref":
@@ -71,20 +97,43 @@ function Input(p: FieldProps) {
     case "file":
       return (
         <span className="file">
-          {p.link ? <a href={p.link} target="_blank" rel="noreferrer">{text || "файл"}</a> : <span className="muted">{text || "нет файла"}</span>}
+          {p.link ? (
+            <a href={p.link} target="_blank" rel="noreferrer">
+              {text || "файл"}
+            </a>
+          ) : (
+            <span className="muted">{text || "нет файла"}</span>
+          )}
           {p.onUpload && (
             <label className="btn btn-small">
               Загрузить
-              <input type="file" accept="application/pdf,image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) p.onUpload!(f); e.target.value = ""; }} />
+              <input
+                type="file"
+                accept="application/pdf,image/*"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) p.onUpload!(f);
+                  e.target.value = "";
+                }}
+              />
             </label>
           )}
         </span>
       );
     default:
       return (
-        <input type="text" inputMode={col.type === "number" || col.type === "int" ? "decimal" : undefined}
-          value={d.draft} {...d.bind} onChange={(e) => d.setDraft(e.target.value)} onBlur={commitText}
-          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+        <input
+          type="text"
+          inputMode={col.type === "number" || col.type === "int" ? "decimal" : undefined}
+          value={d.draft}
+          {...d.bind}
+          onChange={(e) => d.setDraft(e.target.value)}
+          onBlur={commitText}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+        />
       );
   }
 }
@@ -103,7 +152,10 @@ function MultiRef({ selected, options, onCommit }: { selected: string[]; options
           <li key={o}>
             <label className="check">
               <input type="checkbox" checked={selected.includes(o)} onChange={() => toggle(o)} />
-              <span className={missing.includes(o) ? "error" : undefined}>{o}{missing.includes(o) ? " (нет на листе «Материалы»)" : ""}</span>
+              <span className={missing.includes(o) ? "error" : undefined}>
+                {o}
+                {missing.includes(o) ? " (нет на листе «Материалы»)" : ""}
+              </span>
             </label>
           </li>
         ))}
@@ -118,29 +170,76 @@ function SearchRef({ value, options, onCommit }: { value: string; options: strin
   const [hi, setHi] = useState(0);
   const open = q !== null;
   const shown = open ? searchOptions(options, q, 50) : [];
-  const pick = (v: string) => { setQ(null); if (v !== value) onCommit(v); };
+  const pick = (v: string) => {
+    setQ(null);
+    if (v !== value) onCommit(v);
+  };
   const missing = !!value && !options.includes(value);
   return (
     <div className="ref-search">
-      <input type="search" value={open ? q : value} placeholder="Начните вводить для поиска"
-        className={missing ? "field-missing" : undefined} title={missing ? "Нет в списке" : undefined}
-        onFocus={() => { setQ(""); setHi(0); }}
-        onChange={(e) => { setQ(e.target.value); setHi(0); }}
+      <input
+        type="search"
+        value={open ? q : value}
+        placeholder="Начните вводить для поиска"
+        className={missing ? "field-missing" : undefined}
+        title={missing ? "Нет в списке" : undefined}
+        onFocus={() => {
+          setQ("");
+          setHi(0);
+        }}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setHi(0);
+        }}
         onBlur={() => setQ(null)}
         onKeyDown={(e) => {
-          if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, shown.length - 1)); }
-          else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
-          else if (e.key === "Enter") { e.preventDefault(); if (shown[hi]) pick(shown[hi]); (e.target as HTMLInputElement).blur(); }
-          else if (e.key === "Escape") { setQ(null); (e.target as HTMLInputElement).blur(); }
-        }} />
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setHi((h) => Math.min(h + 1, shown.length - 1));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setHi((h) => Math.max(h - 1, 0));
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (shown[hi]) pick(shown[hi]);
+            (e.target as HTMLInputElement).blur();
+          } else if (e.key === "Escape") {
+            setQ(null);
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+      />
       {missing && !open && <span className="error">«{value}» нет в списке</span>}
       {open && (
         <ul className="ref-list" role="listbox">
-          {value && <li><button type="button" className="link muted" onMouseDown={(e) => { e.preventDefault(); pick(""); }}>— очистить</button></li>}
+          {value && (
+            <li>
+              <button
+                type="button"
+                className="link muted"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick("");
+                }}
+              >
+                — очистить
+              </button>
+            </li>
+          )}
           {shown.map((o, i) => (
             <li key={o}>
-              <button type="button" className={"link" + (i === hi ? " ref-hi" : "")} role="option" aria-selected={o === value}
-                onMouseDown={(e) => { e.preventDefault(); pick(o); }}>{o}</button>
+              <button
+                type="button"
+                className={"link" + (i === hi ? " ref-hi" : "")}
+                role="option"
+                aria-selected={o === value}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(o);
+                }}
+              >
+                {o}
+              </button>
             </li>
           ))}
           {!shown.length && <li className="muted">Ничего не найдено</li>}

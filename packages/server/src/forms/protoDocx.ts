@@ -7,7 +7,11 @@ import { xmlEscape } from "./docx.ts";
 const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
 const FONT = '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>';
 
-interface POpts { bold?: boolean; center?: boolean; size?: number }
+interface POpts {
+  bold?: boolean;
+  center?: boolean;
+  size?: number;
+}
 const run = (text: string, o: POpts = {}) =>
   `<w:r><w:rPr>${FONT}${o.bold ? "<w:b/>" : ""}<w:sz w:val="${(o.size ?? 10) * 2}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r>`;
 const p = (text: string, o: POpts = {}) =>
@@ -20,9 +24,17 @@ function table(widths: number[], rows: string[][], o: { head?: number; borders?:
   const sum = widths.reduce((s, x) => s + x, 0);
   const tw = widths.map((x) => Math.round((x / sum) * o.total));
   const grid = `<w:tblGrid>${tw.map((x) => `<w:gridCol w:w="${x}"/>`).join("")}</w:tblGrid>`;
-  const tr = (cells: string[], i: number) => `<w:tr>${i < (o.head ?? 0) ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}${cells.map((c, j) =>
-    `<w:tc><w:tcPr><w:tcW w:w="${tw[j]}" w:type="dxa"/></w:tcPr>${p(c, { size: o.size ?? 9, center: i < (o.head ?? 0), bold: i < (o.head ?? 0) && i === 0 })}</w:tc>`).join("")}</w:tr>`;
-  return `<w:tbl><w:tblPr><w:tblW w:w="${o.total}" w:type="dxa"/>${o.borders === false ? "" : BORDERS}<w:tblLayout w:type="fixed"/></w:tblPr>${grid}${rows.map(tr).join("")}</w:tbl>` + p("");
+  const tr = (cells: string[], i: number) =>
+    `<w:tr>${i < (o.head ?? 0) ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}${cells
+      .map(
+        (c, j) =>
+          `<w:tc><w:tcPr><w:tcW w:w="${tw[j]}" w:type="dxa"/></w:tcPr>${p(c, { size: o.size ?? 9, center: i < (o.head ?? 0), bold: i < (o.head ?? 0) && i === 0 })}</w:tc>`,
+      )
+      .join("")}</w:tr>`;
+  return (
+    `<w:tbl><w:tblPr><w:tblW w:w="${o.total}" w:type="dxa"/>${o.borders === false ? "" : BORDERS}<w:tblLayout w:type="fixed"/></w:tblPr>${grid}${rows.map(tr).join("")}</w:tbl>` +
+    p("")
+  );
 }
 
 /** Строка-повтор списка: {#Список} в первой ячейке, {/Список} в последней. */
@@ -34,22 +46,36 @@ export function protoSampleDocx(kind: ProtoKind): Buffer {
   const total = landscape ? 15300 : 9600;
   const sub = def.name.replace(/^(Протокол|Акт)\s+/, "");
   const cols = def.columns;
-  const results = table([7, ...cols.map((c) => c.width ?? 8)], [
-    ["№ п/п", ...cols.map((c) => c.header)],
-    Array.from({ length: cols.length + 1 }, (_, i) => String(i + 1)),
-    repeat("Строки", ["{Строка.№}", ...cols.map((c) => `{Строка.${c.header}}`)]),
-  ], { head: 2, total });
+  const results = table(
+    [7, ...cols.map((c) => c.width ?? 8)],
+    [
+      ["№ п/п", ...cols.map((c) => c.header)],
+      Array.from({ length: cols.length + 1 }, (_, i) => String(i + 1)),
+      repeat("Строки", ["{Строка.№}", ...cols.map((c) => `{Строка.${c.header}}`)]),
+    ],
+    { head: 2, total },
+  );
 
   const body: string[] = [];
   if (def.signer === "lab") {
     body.push(
-      table([1, 1], [["{Лаборатория.Наименование} {Лаборатория.Свидетельство}",
-        "Заказчик: {Объект.Застройщик}. Объект: {Объект.Наименование}. Проектная документация: {Объект.Шифр РД}. Дата проведения измерений: {Документ.Период}"]], { total }),
+      table(
+        [1, 1],
+        [
+          [
+            "{Лаборатория.Наименование} {Лаборатория.Свидетельство}",
+            "Заказчик: {Объект.Застройщик}. Объект: {Объект.Наименование}. Проектная документация: {Объект.Шифр РД}. Дата проведения измерений: {Документ.Период}",
+          ],
+        ],
+        { total },
+      ),
       p("Протокол №{Документ.Номер}", { bold: true, center: true, size: 12 }),
       p(sub, { bold: true, center: true }),
-      p(def.climate === "temp"
-        ? "Климатические условия при проведении измерений: температура воздуха {Документ.Температура} °C."
-        : "Климатические условия при проведении измерений: температура воздуха {Документ.Температура} °C, влажность воздуха {Документ.Влажность} %, атмосферное давление {Документ.Давление} мм рт. ст."),
+      p(
+        def.climate === "temp"
+          ? "Климатические условия при проведении измерений: температура воздуха {Документ.Температура} °C."
+          : "Климатические условия при проведении измерений: температура воздуха {Документ.Температура} °C, влажность воздуха {Документ.Влажность} %, атмосферное давление {Документ.Давление} мм рт. ст.",
+      ),
       p("Цель измерений (испытаний): {Документ.Цель}"),
       p("Нормативные и технические документы, на соответствие требованиям которых проведены измерения (испытания): {Документ.Нормативы}"),
       p("Предмет: {Документ.Предмет}"),
@@ -57,13 +83,42 @@ export function protoSampleDocx(kind: ProtoKind): Buffer {
       results,
       p("Заключение: {Документ.Заключение}"),
       p("Перечень используемых средств измерений."),
-      table([14, 10, 10, 8, 9, 12, 8, 8, 21], [
-        ["Наименование СИ", "Тип", "Диапазон измерений", "Точность", "Заводской номер", "№ свидетельства о поверке", "Дата поверки", "Очередная поверка", "Орган поверки"],
-        repeat("Приборы", ["{Прибор.Наименование}", "{Прибор.Тип}", "{Прибор.Диапазон}", "{Прибор.Точность}", "{Прибор.Заводской №}",
-          "{Прибор.Свидетельство}", "{Прибор.Поверка}", "{Прибор.Очередная поверка}", "{Прибор.Орган поверки}"]),
-      ], { head: 1, total, size: 8 }),
-      table([3, 2, 3], [["Руководитель электролаборатории:", "____________", "{Лаборатория.Руководитель}"],
-        ["Испытания провел:", "____________", "{Лаборатория.Испытатель}"]], { total, borders: false, size: 10 }),
+      table(
+        [14, 10, 10, 8, 9, 12, 8, 8, 21],
+        [
+          [
+            "Наименование СИ",
+            "Тип",
+            "Диапазон измерений",
+            "Точность",
+            "Заводской номер",
+            "№ свидетельства о поверке",
+            "Дата поверки",
+            "Очередная поверка",
+            "Орган поверки",
+          ],
+          repeat("Приборы", [
+            "{Прибор.Наименование}",
+            "{Прибор.Тип}",
+            "{Прибор.Диапазон}",
+            "{Прибор.Точность}",
+            "{Прибор.Заводской №}",
+            "{Прибор.Свидетельство}",
+            "{Прибор.Поверка}",
+            "{Прибор.Очередная поверка}",
+            "{Прибор.Орган поверки}",
+          ]),
+        ],
+        { head: 1, total, size: 8 },
+      ),
+      table(
+        [3, 2, 3],
+        [
+          ["Руководитель электролаборатории:", "____________", "{Лаборатория.Руководитель}"],
+          ["Испытания провел:", "____________", "{Лаборатория.Испытатель}"],
+        ],
+        { total, borders: false, size: 10 },
+      ),
     );
   } else {
     body.push(
@@ -88,11 +143,17 @@ export function protoSampleDocx(kind: ProtoKind): Buffer {
     : '<w:pgMar w:top="567" w:right="567" w:bottom="567" w:left="1134" w:header="0" w:footer="0" w:gutter="0"/>';
   const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${body.join("")}<w:sectPr>${size}${margins}</w:sectPr></w:body></w:document>`;
   return writeZip([
-    ["[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
-      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'],
-    ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
+    [
+      "[Content_Types].xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+    ],
+    [
+      "_rels/.rels",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+    ],
     ["word/document.xml", doc],
   ]);
 }

@@ -8,7 +8,11 @@ export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: numb
   r.post("/api/files", async (c) => {
     const mime = (c.req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
     let name = "file";
-    try { name = decodeURIComponent(String(c.req.headers["x-file-name"] ?? "file")); } catch { /* оставить по умолчанию */ }
+    try {
+      name = decodeURIComponent(String(c.req.headers["x-file-name"] ?? "file"));
+    } catch {
+      /* оставить по умолчанию */
+    }
     const len = Number(c.req.headers["content-length"] ?? 0);
     try {
       if (len > uploadLimit) throw tooBig(uploadLimit);
@@ -34,6 +38,8 @@ export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: numb
       "content-length": f.size,
       "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(f.name).replace(/['()*]/g, (ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase())}`,
     });
-    createReadStream(abs).on("error", () => c.res.destroy()).pipe(c.res);
+    createReadStream(abs)
+      .on("error", () => c.res.destroy())
+      .pipe(c.res);
   });
 }

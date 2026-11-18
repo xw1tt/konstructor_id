@@ -3,7 +3,12 @@ import { TABLES, TABLE_NAMES, type TableName } from "./schema.ts";
 import type { CellValue } from "./values.ts";
 import type { Report, TableData, TableStore } from "./store.ts";
 
-interface MemTable { headers: string[]; formula: boolean[]; rows: CellValue[][]; links: (string | null)[][] }
+interface MemTable {
+  headers: string[];
+  formula: boolean[];
+  rows: CellValue[][];
+  links: (string | null)[][];
+}
 
 export interface MemoryOptions {
   /** Как в Excel: в таблице всегда есть хотя бы одна строка данных (пустая у новой таблицы). */
@@ -15,7 +20,10 @@ export class MemoryWorkbook implements TableStore {
   private settings = new Map<string, string>();
   private reports = new Map<string, Report>();
 
-  constructor(init: Partial<Record<TableName, Record<string, CellValue>[]>> = {}, private opts: MemoryOptions = {}) {
+  constructor(
+    init: Partial<Record<TableName, Record<string, CellValue>[]>> = {},
+    private opts: MemoryOptions = {},
+  ) {
     for (const name of TABLE_NAMES) {
       const cols = TABLES[name].columns;
       const t: MemTable = { headers: cols.map((c) => c.header), formula: cols.map((c) => c.type === "formula"), rows: [], links: [] };
@@ -30,16 +38,30 @@ export class MemoryWorkbook implements TableStore {
   }
 
   private push(t: MemTable, at: number, rec: Record<string, CellValue>) {
-    t.rows.splice(at, 0, t.headers.map((h, i) => (t.formula[i] ? null : rec[h] ?? null)));
-    t.links.splice(at, 0, t.headers.map(() => null));
+    t.rows.splice(
+      at,
+      0,
+      t.headers.map((h, i) => (t.formula[i] ? null : (rec[h] ?? null))),
+    );
+    t.links.splice(
+      at,
+      0,
+      t.headers.map(() => null),
+    );
   }
 
-  async writeReport(report: Report) { this.reports.set(report.sheet, structuredClone(report)); }
+  async writeReport(report: Report) {
+    this.reports.set(report.sheet, structuredClone(report));
+  }
 
   /** Для тестов: отчётный лист, записанный writeReport. */
-  report(sheet: string): Report | null { return this.reports.get(sheet) ?? null; }
+  report(sheet: string): Report | null {
+    return this.reports.get(sheet) ?? null;
+  }
 
-  drop(name: TableName) { this.tables.delete(name); }
+  drop(name: TableName) {
+    this.tables.delete(name);
+  }
 
   /** Создаёт пустую таблицу, если её нет (для стенда панели: «Создать книгу»). */
   create(name: TableName) {
@@ -95,6 +117,10 @@ export class MemoryWorkbook implements TableStore {
     if (this.opts.placeholder && !t.rows.length) this.push(t, 0, {});
   }
 
-  async setting(key: string) { return this.settings.get(key) ?? null; }
-  async setSetting(key: string, value: string) { this.settings.set(key, value); }
+  async setting(key: string) {
+    return this.settings.get(key) ?? null;
+  }
+  async setSetting(key: string, value: string) {
+    this.settings.set(key, value);
+  }
 }

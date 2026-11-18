@@ -17,10 +17,10 @@ export function normKey(designation: string): string {
 const RE = /(?<!\p{L})(ГОСТ\s*Р|ГОСТ|ТР\s*ТС|СП)\s*(\d(?:[\d./-]*\d)?)|(?<!\p{L})(ПУЭ)(?!\p{L})/giu;
 
 const PREFIX: Record<string, { prefix: string; kind: NormKind }> = {
-  "ГОСТР": { prefix: "ГОСТ Р", kind: "ГОСТ Р" },
-  "ГОСТ": { prefix: "ГОСТ", kind: "ГОСТ" },
-  "ТРТС": { prefix: "ТР ТС", kind: "ТР" },
-  "СП": { prefix: "СП", kind: "СП" },
+  ГОСТР: { prefix: "ГОСТ Р", kind: "ГОСТ Р" },
+  ГОСТ: { prefix: "ГОСТ", kind: "ГОСТ" },
+  ТРТС: { prefix: "ТР ТС", kind: "ТР" },
+  СП: { prefix: "СП", kind: "СП" },
 };
 
 /** Обозначения нормативов в тексте — в порядке появления, без повторов. */
@@ -45,13 +45,17 @@ export function extractNormativ(text: string): { designation: string; kind: Norm
 /** Только https://protect.gost.ru/… (без подмены хоста, порта и учётных данных в адресе). */
 export function isPortalUrl(url: string): boolean {
   let u: URL;
-  try { u = new URL(url.trim()); } catch { return false; }
+  try {
+    u = new URL(url.trim());
+  } catch {
+    return false;
+  }
   return u.protocol === "https:" && u.hostname === "protect.gost.ru" && u.port === "" && !u.username && !u.password;
 }
 
 export type PortalTarget = { ok: true; url: string } | { ok: false; message: string };
 
-const SECTION: Partial<Record<string, string>> = { "ГОСТ": "gost", "ГОСТ Р": "gost", "СП": "sp", "ТР": "tr" };
+const SECTION: Partial<Record<string, string>> = { ГОСТ: "gost", "ГОСТ Р": "gost", СП: "sp", ТР: "tr" };
 
 /** Адрес страницы портала для строки реестра: сохранённая ссылка или поиск по обозначению. */
 export function portalTarget(row: { designation: string; kind: string; link: string }): PortalTarget {

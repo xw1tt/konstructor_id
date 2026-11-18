@@ -26,5 +26,7 @@ export class BookCache {
   }
 
   /** Прочитанная таблица (для карточки строки) или undefined, если ещё не читалась. */
-  table(name: TableName): TableData | null | undefined { return this.tables.get(name); }
+  table(name: TableName): TableData | null | undefined {
+    return this.tables.get(name);
+  }
 }

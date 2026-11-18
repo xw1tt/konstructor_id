@@ -9,8 +9,13 @@ import { chat, type Post } from "../ai/providers.ts";
 export function aiRoutes(r: Router, store: AiStore, deps: { post?: Post } = {}) {
   r.get("/api/ai/providers", () => store.list());
   r.put("/api/ai/providers/:id", async (c) => store.save(c.params.id, await c.body(ProviderInput)));
-  r.delete("/api/ai/providers/:id", (c) => { store.remove(c.params.id); });
-  r.put("/api/ai/active", async (c) => { store.setActive((await c.body(z.object({ id: z.string().nullable() }))).id); return store.list(); });
+  r.delete("/api/ai/providers/:id", (c) => {
+    store.remove(c.params.id);
+  });
+  r.put("/api/ai/active", async (c) => {
+    store.setActive((await c.body(z.object({ id: z.string().nullable() }))).id);
+    return store.list();
+  });
   r.post("/api/ai/providers/:id/test", async (c) => {
     const p = store.get(c.params.id);
     const problems = providerProblems(p);

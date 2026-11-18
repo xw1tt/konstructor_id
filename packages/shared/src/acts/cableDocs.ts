@@ -6,9 +6,7 @@ import type { CableRow, MarkMeasure } from "../workbook/cableTypes.ts";
 import { markKey } from "../workbook/cables.ts";
 
 export type JournalLine =
-  | { kind: "group"; title: string }
-  | { kind: "cable"; row: CableRow }
-  | { kind: "total"; label: "ИТОГО" | "Всего"; mark: string; length: string; pipe?: true };
+  { kind: "group"; title: string } | { kind: "cable"; row: CableRow } | { kind: "total"; label: "ИТОГО" | "Всего"; mark: string; length: string; pipe?: true };
 
 /** Строк данных (кабели, группы, итоги) на одном листе журнала — как в образце СБД. */
 export const JOURNAL_LINES_PER_SHEET = 30;
@@ -22,8 +20,13 @@ function totals(items: { mark: string; length: number | null }[], pipe: boolean)
     s.sum += it.length ?? 0;
     sums.set(k, s);
   }
-  const out: JournalLine[] = [...sums.values()].map((s) =>
-    ({ kind: "total", label: "ИТОГО", mark: s.mark, length: formatNumber(s.sum), ...(pipe ? { pipe: true as const } : {}) }));
+  const out: JournalLine[] = [...sums.values()].map((s) => ({
+    kind: "total",
+    label: "ИТОГО",
+    mark: s.mark,
+    length: formatNumber(s.sum),
+    ...(pipe ? { pipe: true as const } : {}),
+  }));
   if (sums.size > 1) {
     const all = [...sums.values()].reduce((a, s) => a + s.sum, 0);
     out.push({ kind: "total", label: "Всего", mark: "", length: formatNumber(all), ...(pipe ? { pipe: true as const } : {}) });
@@ -41,8 +44,18 @@ export function journalLines(rows: CableRow[]): JournalLine[] {
     if (g) group = g;
     out.push({ kind: "cable", row });
   }
-  out.push(...totals(rows.map((r) => ({ mark: r.cableMark, length: r.cableLength })), false));
-  out.push(...totals(rows.map((r) => ({ mark: r.pipeMark, length: r.pipeLength })), true));
+  out.push(
+    ...totals(
+      rows.map((r) => ({ mark: r.cableMark, length: r.cableLength })),
+      false,
+    ),
+  );
+  out.push(
+    ...totals(
+      rows.map((r) => ({ mark: r.pipeMark, length: r.pipeLength })),
+      true,
+    ),
+  );
   return out;
 }
 
@@ -67,31 +80,51 @@ export function monthYear(iso: string | null): string {
   return `${m}.${y.slice(2)}`;
 }
 
-export interface ProtocolRow { n: number; line: string; mark: string; voltage: string; allowed: string; values: string[] }
+export interface ProtocolRow {
+  n: number;
+  line: string;
+  mark: string;
+  voltage: string;
+  allowed: string;
+  values: string[];
+}
 
 /** Строки протокола: каждая линия журнала со значениями своей марки; пустые значения — «—». */
 export function protocolRows(rows: CableRow[], marks: MarkMeasure[]): ProtocolRow[] {
   const byMark = new Map(marks.map((m) => [markKey(m.mark), m]));
   // Марки с «В протокол» — «нет» (кабельные сборки) не измеряются: их линий в протоколе нет, номера — подряд.
-  return rows.filter((r) => byMark.get(markKey(r.cableMark))?.inProtocol !== false).map((r, i) => {
-    const m = byMark.get(markKey(r.cableMark));
-    const purpose = m?.purpose.trim() ?? "";
-    return {
-      n: i + 1,
-      line: purpose ? `${r.designation}; ${purpose}` : r.designation,
-      mark: r.cableMark,
-      voltage: formatNumber(m?.voltage ?? null),
-      allowed: formatNumber(m?.allowed ?? null),
-      values: (m?.values ?? Array(10).fill("")).map((v) => v.trim() || "—"),
-    };
-  });
+  return rows
+    .filter((r) => byMark.get(markKey(r.cableMark))?.inProtocol !== false)
+    .map((r, i) => {
+      const m = byMark.get(markKey(r.cableMark));
+      const purpose = m?.purpose.trim() ?? "";
+      return {
+        n: i + 1,
+        line: purpose ? `${r.designation}; ${purpose}` : r.designation,
+        mark: r.cableMark,
+        voltage: formatNumber(m?.voltage ?? null),
+        allowed: formatNumber(m?.allowed ?? null),
+        values: (m?.values ?? Array(10).fill("")).map((v) => v.trim() || "—"),
+      };
+    });
 }
 
 // ---------- План 14: кабельный журнал набора «ТИ» ----------
 
 export type TiJournalLine =
   | { kind: "group"; title: string }
-  | { kind: "cable"; designation: string; from: string; to: string; mark: string; project: string; fact: string; tray: string; smooth: string; corrugated: string };
+  | {
+      kind: "cable";
+      designation: string;
+      from: string;
+      to: string;
+      mark: string;
+      project: string;
+      fact: string;
+      tray: string;
+      smooth: string;
+      corrugated: string;
+    };
 
 export interface TiJournal {
   lines: TiJournalLine[];
@@ -113,7 +146,7 @@ export const factLength = (r: CableRow): number | null =>
 /** Число с заданным числом знаков после запятой (как разрядность в Excel: по правилам округления, нули дописываются). */
 export function fixedNumber(x: number, decimals: number): string {
   const k = 10 ** decimals;
-  const v = Math.sign(x) * Math.round(Math.abs(x) * k + 1e-9) / k;
+  const v = (Math.sign(x) * Math.round(Math.abs(x) * k + 1e-9)) / k;
   return v.toFixed(decimals).replace(".", ",");
 }
 
@@ -129,12 +162,21 @@ export function tiJournal(rows: CableRow[], reservePct: number, decimals: number
     if (g && g !== group) lines.push({ kind: "group", title: g });
     if (g) group = g;
     lines.push({
-      kind: "cable", designation: r.designation, from: r.from, to: r.to, mark: r.cableMark,
-      project: r.projectLength === null ? "-" : formatNumber(r.projectLength), fact: formatNumber(factLength(r)),
-      tray: formatNumber(r.tray), smooth: formatNumber(r.smoothPipe), corrugated: formatNumber(r.corrugatedPipe),
+      kind: "cable",
+      designation: r.designation,
+      from: r.from,
+      to: r.to,
+      mark: r.cableMark,
+      project: r.projectLength === null ? "-" : formatNumber(r.projectLength),
+      fact: formatNumber(factLength(r)),
+      tray: formatNumber(r.tray),
+      smooth: formatNumber(r.smoothPipe),
+      corrugated: formatNumber(r.corrugatedPipe),
     });
   }
-  const tray = round3(sum(rows.map((r) => r.tray))), smooth = round3(sum(rows.map((r) => r.smoothPipe))), corr = round3(sum(rows.map((r) => r.corrugatedPipe)));
+  const tray = round3(sum(rows.map((r) => r.tray))),
+    smooth = round3(sum(rows.map((r) => r.smoothPipe))),
+    corr = round3(sum(rows.map((r) => r.corrugatedPipe)));
   const marks = new Map<string, { mark: string; project: number | null; fact: number }>();
   for (const r of rows) {
     if (!r.cableMark.trim()) continue;
@@ -147,7 +189,10 @@ export function tiJournal(rows: CableRow[], reservePct: number, decimals: number
   const factAll = round3([...marks.values()].reduce((a, m) => a + m.fact, 0));
   const d = decimals;
   const k = 10 ** (d ?? 0);
-  const up = (x: number) => { const v = Math.ceil(round3(x * (1 + reservePct / 100) * k) - 1e-9) / k; return d === null ? String(v) : fixedNumber(v, d); };
+  const up = (x: number) => {
+    const v = Math.ceil(round3(x * (1 + reservePct / 100) * k) - 1e-9) / k;
+    return d === null ? String(v) : fixedNumber(v, d);
+  };
   const num = (x: number) => (d === null ? formatNumber(x) : fixedNumber(x, d));
   return {
     lines,

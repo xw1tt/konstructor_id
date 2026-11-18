@@ -13,15 +13,26 @@ function fakeApi(): LibraryApi & { recs: Map<string, LibRecord>; imports: string
   const recs = new Map<string, LibRecord>();
   const imports: string[] = [];
   return {
-    recs, imports,
+    recs,
+    imports,
     list: async (kind) => [...recs.values()].filter((r) => r.kind === kind),
     save: async (kind: LibKind, values: Record<string, CellValue>, fileId) => {
       const id = `${kind}:${libKey(kind, values)}`;
       const created = !recs.has(id);
-      recs.set(id, { id, kind, values, scan: fileId ? { sha256: String(fileId).padStart(64, "0"), name: `скан${fileId}.pdf`, mime: "application/pdf" } : recs.get(id)?.scan ?? null, updatedAt: "", updatedBy: "" });
+      recs.set(id, {
+        id,
+        kind,
+        values,
+        scan: fileId ? { sha256: String(fileId).padStart(64, "0"), name: `скан${fileId}.pdf`, mime: "application/pdf" } : (recs.get(id)?.scan ?? null),
+        updatedAt: "",
+        updatedBy: "",
+      });
       return { id, created };
     },
-    importScan: async (sha) => { imports.push(sha); return { fileId: 100 + imports.length, name: "x.pdf" }; },
+    importScan: async (sha) => {
+      imports.push(sha);
+      return { fileId: 100 + imports.length, name: "x.pdf" };
+    },
   };
 }
 
@@ -29,12 +40,15 @@ const ORIGIN = "https://localhost:3443";
 
 test("«В библиотеку» строк книги, затем «Добавить в книгу» в пустую книгу: строки, сканы, без дублей", async () => {
   const src = new MemoryWorkbook({
-    "Организации": [{ "Краткое наименование": "ООО А", "ИНН": "1" }],
-    "Представители": [{ "ФИО": "Иванов И.И.", "Организация": "ООО А", "Должность": "Прораб" }],
-    "Материалы": [{ "Наименование": "Кабель", "Марка": "М", "Ед. изм.": "м." }, { "Наименование": "" , "Марка": "пусто" }],
-    "ДокументыКачества": [{ "Материалы": "Кабель", "Тип": "Паспорт качества", "Номер": "№1", "Листов": 1 }],
+    Организации: [{ "Краткое наименование": "ООО А", ИНН: "1" }],
+    Представители: [{ ФИО: "Иванов И.И.", Организация: "ООО А", Должность: "Прораб" }],
+    Материалы: [
+      { Наименование: "Кабель", Марка: "М", "Ед. изм.": "м." },
+      { Наименование: "", Марка: "пусто" },
+    ],
+    ДокументыКачества: [{ Материалы: "Кабель", Тип: "Паспорт качества", Номер: "№1", Листов: 1 }],
   } as any);
-  await src.write("ДокументыКачества", 0, { "Скан": "паспорт.pdf" }, { "Скан": `${ORIGIN}/api/files/7` });
+  await src.write("ДокументыКачества", 0, { Скан: "паспорт.pdf" }, { Скан: `${ORIGIN}/api/files/7` });
   const api = fakeApi();
   const book = await readBook(src);
   assert.deepEqual(await sendToLibrary(book, "Материалы", [0, 1], api), { added: 1, updated: 0, empty: 1 });
@@ -50,9 +64,18 @@ test("«В библиотеку» строк книги, затем «Добав
   const picked = all.filter((r) => r.kind === "material" || r.kind === "rep");
   assert.deepEqual(await addToBook(dst, await readBook(dst), picked, all, api, ORIGIN), { added: 4, skipped: 0 });
   const b = await readBook(dst);
-  assert.deepEqual(b.tables["Организации"]!.map((r) => r.v.shortName), ["ООО А"]);
-  assert.deepEqual(b.tables["Представители"]!.map((r) => r.v.fullName), ["Иванов И.И."]);
-  assert.deepEqual(b.tables["ДокументыКачества"]!.map((r) => [r.v.number, r.link.file]), [["№1", `${ORIGIN}/api/files/101`]]);
+  assert.deepEqual(
+    b.tables["Организации"]!.map((r) => r.v.shortName),
+    ["ООО А"],
+  );
+  assert.deepEqual(
+    b.tables["Представители"]!.map((r) => r.v.fullName),
+    ["Иванов И.И."],
+  );
+  assert.deepEqual(
+    b.tables["ДокументыКачества"]!.map((r) => [r.v.number, r.link.file]),
+    [["№1", `${ORIGIN}/api/files/101`]],
+  );
   assert.deepEqual(await addToBook(dst, await readBook(dst), picked, all, api, ORIGIN), { added: 0, skipped: 4 }, "повтор — без дублей");
   assert.equal((await readBook(dst)).tables["Материалы"]!.length, 1);
   await assert.rejects(sendToLibrary(b, "Акты", [0], api), /не хранится в библиотеке/);

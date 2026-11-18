@@ -20,7 +20,9 @@ async function captureJob(doc: "kj" | "ip" | "aosr") {
   try {
     const issues = await printAct(await readBook(aov1Book()), AOV1, defaultImportant(), doc, "sbd");
     return { issues, body };
-  } finally { Object.assign(g, saved); }
+  } finally {
+    Object.assign(g, saved);
+  }
 }
 
 test("печать протокола и КЖ передаёт кабели в задании; АОСР — без кабелей", async () => {

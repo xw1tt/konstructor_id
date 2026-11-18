@@ -5,7 +5,9 @@ import { Layout, colsFor } from "../../xlsx/layout.ts";
 import { withNo } from "@idk/shared/acts/format";
 
 export const PORTRAIT = { margins: [10, 10, 10, 20] as [number, number, number, number] };
-const W = 180, N = 36, COL = W / N;
+const W = 180,
+  N = 36,
+  COL = W / N;
 
 export function aosrSheet(d: AosrData): Layout {
   const L = new Layout(d.number || "АОСР", Array(N).fill(COL), PORTRAIT);
@@ -39,20 +41,30 @@ export function aosrSheet(d: AosrData): Layout {
   L.gap(3);
   L.para("5. Даты:");
   // Отступ 12 мм ≈ 2 столбца, надпись 30 мм, линия 45 мм.
-  L.line([{ c1: 3, c2: 8, text: "начала работ" }, { c1: 9, c2: 17, text: d.dateStart, under: true }]);
+  L.line([
+    { c1: 3, c2: 8, text: "начала работ" },
+    { c1: 9, c2: 17, text: d.dateStart, under: true },
+  ]);
   L.gap(2);
-  L.line([{ c1: 3, c2: 8, text: "окончания работ" }, { c1: 9, c2: 17, text: d.dateEnd, under: true }]);
+  L.line([
+    { c1: 3, c2: 8, text: "окончания работ" },
+    { c1: 9, c2: 17, text: d.dateEnd, under: true },
+  ]);
   block("6. Работы выполнены в соответствии с", d.normative, AOSR_CAPS.normative);
   block("7. Разрешается производство последующих работ:", d.nextWorks, AOSR_CAPS.nextWorks);
   L.gap(4);
   const extra = "Дополнительные сведения:";
   const ec = colsFor(extra, COL);
-  L.line([{ c1: 1, c2: ec, text: extra }, { c1: ec + 1, c2: Math.max(ec + 6, ec + colsFor(d.extraInfo, COL, 10, true, true) + 1), text: d.extraInfo, under: true }]);
+  L.line([
+    { c1: 1, c2: ec, text: extra },
+    { c1: ec + 1, c2: Math.max(ec + 6, ec + colsFor(d.extraInfo, COL, 10, true, true) + 1), text: d.extraInfo, under: true },
+  ]);
   L.gap(4);
   const made = "Акт составлен в";
   const mc = colsFor(made, COL);
   L.line([
-    { c1: 1, c2: mc, text: made }, { c1: mc + 1, c2: mc + 6, text: String(d.copies), under: true },
+    { c1: 1, c2: mc, text: made },
+    { c1: mc + 1, c2: mc + 6, text: String(d.copies), under: true },
     { c1: mc + 7, c2: N, text: "экземплярах (в случае заполнения акта на бумажном носителе)." },
   ]);
   block("Приложения:", d.attachments, AOSR_CAPS.attachments);

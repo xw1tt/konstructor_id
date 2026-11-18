@@ -1,22 +1,26 @@
 <!doctype html>
 <html lang="ru">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Конструктор ИД</title>
-  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <!-- Видно, пока панель не запустилась: белая панель без этой надписи — страница не загрузилась (сервер не запущен). -->
-  <div id="root"><p class="banner" id="boot">Загрузка панели «Конструктор ИД»…</p></div>
-  <script>
-    // Ошибка запуска — текстом в панели, а не белым экраном.
-    window.addEventListener("error", function (e) {
-      var b = document.getElementById("boot");
-      if (b) b.textContent = "Панель не запустилась: " + (e.message || (e.target && e.target.src ? "не загружен " + e.target.src : "ошибка"));
-    }, true);
-  </script>
-  <script src="main.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Конструктор ИД</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Видно, пока панель не запустилась: белая панель без этой надписи — страница не загрузилась (сервер не запущен). -->
+    <div id="root"><p class="banner" id="boot">Загрузка панели «Конструктор ИД»…</p></div>
+    <script>
+      // Ошибка запуска — текстом в панели, а не белым экраном.
+      window.addEventListener(
+        "error",
+        function (e) {
+          var b = document.getElementById("boot");
+          if (b) b.textContent = "Панель не запустилась: " + (e.message || (e.target && e.target.src ? "не загружен " + e.target.src : "ошибка"));
+        },
+        true,
+      );
+    </script>
+    <script src="main.js"></script>
+  </body>
 </html>

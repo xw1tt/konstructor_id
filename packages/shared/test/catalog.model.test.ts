@@ -8,7 +8,10 @@ import { checkCatalog, type Catalog } from "@idk/shared/catalog/model";
 const copy = (): Catalog => structuredClone(BUILTIN_CATALOG);
 
 test("встроенный справочник: 5 разделов ЭМ/ЭС/СС/АВТ/ПС, в каждом виды работ", () => {
-  assert.deepEqual(BUILTIN_CATALOG.sections.map((s) => s.code), ["ЭМ", "ЭС", "СС", "АВТ", "ПС"]);
+  assert.deepEqual(
+    BUILTIN_CATALOG.sections.map((s) => s.code),
+    ["ЭМ", "ЭС", "СС", "АВТ", "ПС"],
+  );
   for (const s of BUILTIN_CATALOG.sections) assert.ok(s.works.length >= 1, s.code);
 });
 
@@ -29,8 +32,17 @@ test("встроенный справочник v1: коды своих доку
 test("встроенный справочник: документы конструктора с видами печати", () => {
   const docs = BUILTIN_CATALOG.docs.filter((d) => d.make === "builtin");
   // план 13: протоколы и акты приёмки тоже печатает конструктор (protocols.catalog.test.ts)
-  assert.deepEqual(docs.slice(0, 6).map((d) => [d.code, d.builtin]),
-    [["АОСР", "aosr"], ["РИМ", "rim"], ["ВД", "vd"], ["АВК", "avk"], ["КЖ", "kj"], ["ПСИ", "ip"]]);
+  assert.deepEqual(
+    docs.slice(0, 6).map((d) => [d.code, d.builtin]),
+    [
+      ["АОСР", "aosr"],
+      ["РИМ", "rim"],
+      ["ВД", "vd"],
+      ["АВК", "avk"],
+      ["КЖ", "kj"],
+      ["ПСИ", "ip"],
+    ],
+  );
   assert.equal(docs.length, BUILTIN_CATALOG.docs.length);
   for (const d of docs) assert.ok(d.name.length > 0, d.code);
 });

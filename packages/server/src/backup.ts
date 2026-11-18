@@ -16,7 +16,11 @@ function linkTree(src: string, dst: string) {
       mkdirSync(d, { recursive: true });
       linkTree(s, d);
     } else {
-      try { linkSync(s, d); } catch { cpSync(s, d); }
+      try {
+        linkSync(s, d);
+      } catch {
+        cpSync(s, d);
+      }
     }
   }
 }
@@ -41,7 +45,9 @@ export function runDailyBackup(dataDir: string, now = new Date()): string | null
     mkdirSync(join(target, "files"), { recursive: true });
     linkTree(files, join(target, "files"));
   }
-  const all = readdirSync(root).filter((n) => /^\d{4}-\d{2}-\d{2}$/.test(n)).sort();
+  const all = readdirSync(root)
+    .filter((n) => /^\d{4}-\d{2}-\d{2}$/.test(n))
+    .sort();
   for (const old of all.slice(0, Math.max(0, all.length - KEEP))) rmSync(join(root, old), { recursive: true, force: true });
   return target;
 }

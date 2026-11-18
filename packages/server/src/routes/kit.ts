@@ -40,7 +40,12 @@ export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDep
   r.get("/api/kit-jobs/:job/xlsx", (c) => {
     const j = get(c.params.job);
     const { zip } = kitXlsxZip(j.q, forms);
-    c.res.writeHead(200, { "content-type": "application/zip", "content-length": zip.length, "content-disposition": attachment(kitZipName(j.name)), "cache-control": "no-store" });
+    c.res.writeHead(200, {
+      "content-type": "application/zip",
+      "content-length": zip.length,
+      "content-disposition": attachment(kitZipName(j.name)),
+      "cache-control": "no-store",
+    });
     c.res.end(zip);
   });
   // Общий реестр ИД: все комплекты объекта (задания сборки каждого комплекта) → PDF и Excel.
@@ -56,19 +61,30 @@ export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDep
   });
   const getCommon = (id: string) => {
     const j = common.get(id);
-    if (!j || now() - j.at > KIT_TTL_MS) { common.delete(id); throw new HttpError(404, "Общий реестр не найден или устарел — соберите его заново"); }
+    if (!j || now() - j.at > KIT_TTL_MS) {
+      common.delete(id);
+      throw new HttpError(404, "Общий реестр не найден или устарел — соберите его заново");
+    }
     return j;
   };
   r.get("/api/common-registry-jobs/:job/xlsx", (c) => {
     const j = getCommon(c.params.job);
-    c.res.writeHead(200, { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "content-length": j.xlsx.length,
-      "content-disposition": attachment(`${COMMON_NAME}.xlsx`), "cache-control": "no-store" });
+    c.res.writeHead(200, {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-length": j.xlsx.length,
+      "content-disposition": attachment(`${COMMON_NAME}.xlsx`),
+      "cache-control": "no-store",
+    });
     c.res.end(j.xlsx);
   });
   r.get("/api/common-registry-jobs/:job", (c) => {
     const j = getCommon(c.params.job);
-    c.res.writeHead(200, { "content-type": "application/pdf", "content-length": j.pdf.length, "cache-control": "no-store",
-      "content-disposition": `${c.query.get("download") ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(`${COMMON_NAME}.pdf`)}` });
+    c.res.writeHead(200, {
+      "content-type": "application/pdf",
+      "content-length": j.pdf.length,
+      "cache-control": "no-store",
+      "content-disposition": `${c.query.get("download") ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(`${COMMON_NAME}.pdf`)}`,
+    });
     c.res.end(j.pdf);
   });
   r.get("/api/kit-jobs/:job", (c) => {

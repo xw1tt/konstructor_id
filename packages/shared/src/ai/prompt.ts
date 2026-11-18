@@ -2,18 +2,27 @@
 import { TABLES, TABLE_NAMES } from "../workbook/schema.ts";
 import type { Book } from "../workbook/records.ts";
 export interface PromptContext {
-  today: string; sheet?: string | null; table?: string | null; row?: number | null; act?: string | null; template: string; masked: boolean;
+  today: string;
+  sheet?: string | null;
+  table?: string | null;
+  row?: number | null;
+  act?: string | null;
+  template: string;
+  masked: boolean;
   /** План 21: краткая схема книги (bookSchema) — чтобы модель не переспрашивала таблицы и столбцы. */
   schema?: string;
 }
 
 /** Краткая схема книги для подсказки: «Лист» — Таблица (строк N): столбцы; * — ключ, → — ссылка. */
 export function bookSchema(book: Book): string {
-  return TABLE_NAMES.filter((t) => !book.missing.includes(t)).map((t) => {
-    const cols = TABLES[t].columns.filter((c) => c.type !== "formula" && !(c.service && c.type !== "file"))
-      .map((c) => `${c.header}${c.isKey ? "*" : ""}${c.ref ? `→${c.ref}` : ""}`);
-    return `«${TABLES[t].sheet}» — ${t} (строк ${book.tables[t]?.length ?? 0}): ${cols.join("; ")}`;
-  }).join("\n");
+  return TABLE_NAMES.filter((t) => !book.missing.includes(t))
+    .map((t) => {
+      const cols = TABLES[t].columns
+        .filter((c) => c.type !== "formula" && !(c.service && c.type !== "file"))
+        .map((c) => `${c.header}${c.isKey ? "*" : ""}${c.ref ? `→${c.ref}` : ""}`);
+      return `«${TABLES[t].sheet}» — ${t} (строк ${book.tables[t]?.length ?? 0}): ${cols.join("; ")}`;
+    })
+    .join("\n");
 }
 
 /** Памятка по устройству книги и ИД — то, что модель не узнает из названий столбцов. */
@@ -45,7 +54,11 @@ export function systemPrompt(c: PromptContext): string {
     c.masked ? "ФИО людей заменены метками вида [ФИО-3]. Используй метки как есть — программа подставит настоящие ФИО." : "",
     "Отвечай по-русски, коротко и по делу.",
     `Сегодня ${c.today}. Шаблон книги: «${c.template}».` +
-      (c.sheet ? ` Пользователь на листе «${c.sheet}»${c.table ? `, таблица «${c.table}»` : ""}${c.row !== null && c.row !== undefined ? `, строка ${c.row + 1}` : ""}.` : "") +
+      (c.sheet
+        ? ` Пользователь на листе «${c.sheet}»${c.table ? `, таблица «${c.table}»` : ""}${c.row !== null && c.row !== undefined ? `, строка ${c.row + 1}` : ""}.`
+        : "") +
       (c.act ? ` Акт под курсором: ${c.act}.` : ""),
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

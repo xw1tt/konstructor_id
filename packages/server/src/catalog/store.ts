@@ -10,8 +10,11 @@ export class CatalogStore {
   }
 
   user(): UserCatalogType {
-    try { return UserCatalog.parse(JSON.parse(readFileSync(this.file, "utf8"))); }
-    catch { return UserCatalog.parse({}); }
+    try {
+      return UserCatalog.parse(JSON.parse(readFileSync(this.file, "utf8")));
+    } catch {
+      return UserCatalog.parse({});
+    }
   }
 
   save(u: UserCatalogType): void {

@@ -16,7 +16,7 @@ export async function writeBook(store: TableStore, rows: BookRecords, links: Boo
       const fieldIdx = t.headers.indexOf("Поле");
       for (const rec of recs) {
         const at = t.rows.findIndex((r) => cellText(r[fieldIdx]) === rec["Поле"]);
-        if (at >= 0) await store.write(name, at, { "Значение": rec["Значение"] });
+        if (at >= 0) await store.write(name, at, { Значение: rec["Значение"] });
         else {
           await store.insert(name, t.rows.length, [rec]);
           t.rows.push([rec["Поле"], rec["Значение"]]);

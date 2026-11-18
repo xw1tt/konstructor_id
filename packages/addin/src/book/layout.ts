@@ -3,7 +3,12 @@ import { TABLES, OBJECT_FIELDS, keyColumn, type ColumnDef, type TableName } from
 
 export const COLORS = {
   example: "#7F7F7F",
-  header: "#1F4E78", important: "#C00000", service: "#7F7F7F", empty: "#FFC7CE", duplicate: "#FFEB9C", headerText: "#FFFFFF",
+  header: "#1F4E78",
+  important: "#C00000",
+  service: "#7F7F7F",
+  empty: "#FFC7CE",
+  duplicate: "#FFEB9C",
+  headerText: "#FFFFFF",
 } as const;
 
 /** Буква столбца по индексу (0 → A). */
@@ -52,8 +57,7 @@ export const negativeRule = (col: string, firstRow: number) => `=AND(ISNUMBER(${
 /** Индексы видимых (не скрытых фильтром) строк данных таблицы по областям видимых ячеек выделения. */
 export function visibleTableRows(areas: { rowIndex: number; rowCount: number }[], bodyRow: number, bodyCount: number): number[] {
   const out = new Set<number>();
-  for (const a of areas)
-    for (let r = a.rowIndex; r < a.rowIndex + a.rowCount; r++) if (r >= bodyRow && r < bodyRow + bodyCount) out.add(r - bodyRow);
+  for (const a of areas) for (let r = a.rowIndex; r < a.rowIndex + a.rowCount; r++) if (r >= bodyRow && r < bodyRow + bodyCount) out.add(r - bodyRow);
   return [...out].sort((x, y) => x - y);
 }
 
@@ -82,7 +86,9 @@ export function applyValidation(body: { dataValidation: any }, col: ColumnDef, t
   if (source) {
     dv.rule = { list: { inCellDropDown: true, source } };
     dv.errorAlert = {
-      showAlert: strictList(col), style: "Stop", title: "Значение не из списка",
+      showAlert: strictList(col),
+      style: "Stop",
+      title: "Значение не из списка",
       message: "Выберите значение из списка или добавьте его на соответствующий лист.",
     };
   }
@@ -90,9 +96,7 @@ export function applyValidation(body: { dataValidation: any }, col: ColumnDef, t
 }
 
 /** Столбцы схемы, которых нет в таблице книги (книга прежней версии) — дописываются в конец таблицы. */
-export const missingColumns = (table: TableName, headers: string[]): ColumnDef[] =>
-  TABLES[table].columns.filter((c) => !headers.includes(c.header));
+export const missingColumns = (table: TableName, headers: string[]): ColumnDef[] => TABLES[table].columns.filter((c) => !headers.includes(c.header));
 
 /** Поля «Объекта», которых нет среди подписей таблицы. */
-export const missingObjectFields = (labels: string[]): string[] =>
-  OBJECT_FIELDS.map((f) => f.label).filter((l) => !labels.includes(l));
+export const missingObjectFields = (labels: string[]): string[] => OBJECT_FIELDS.map((f) => f.label).filter((l) => !labels.includes(l));

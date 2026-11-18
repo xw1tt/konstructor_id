@@ -64,7 +64,7 @@ export function useBook(port: ExcelPort): BookState {
       setSelection(s);
       const onSheet = tablesOnSheet(s.sheet);
       if (s.table) picked.current = null;
-      const name = s.table ?? (picked.current && onSheet.includes(picked.current) ? picked.current : onSheet[0] ?? null);
+      const name = s.table ?? (picked.current && onSheet.includes(picked.current) ? picked.current : (onSheet[0] ?? null));
       let data: TableData | null = null;
       if (name) {
         if (!cache.current.has(name)) cache.current.set(name, await port.read(name));
@@ -82,22 +82,28 @@ export function useBook(port: ExcelPort): BookState {
     }
   }, [port]);
 
-  const readAll = useCallback(async (all = true) => {
-    cache.current.clear();
-    const what = all ? "all" : changed.current;
-    changed.current = [];
-    try {
-      const c = books.current!;
-      setBook(what === "all" ? await c.full() : await c.refresh(what));
-      // Прочитанные таблицы — сразу и для карточки строки.
-      for (const n of TABLE_NAMES) { const t = c.table(n); if (t !== undefined) cache.current.set(n, t); }
-      setImportant(await loadImportant(port));
-      setOutdated(isOutdated(await port.setting(VERSION_SETTING)));
-    } catch (e) {
-      setError((e as Error).message);
-    }
-    await readSelection();
-  }, [port, readSelection]);
+  const readAll = useCallback(
+    async (all = true) => {
+      cache.current.clear();
+      const what = all ? "all" : changed.current;
+      changed.current = [];
+      try {
+        const c = books.current!;
+        setBook(what === "all" ? await c.full() : await c.refresh(what));
+        // Прочитанные таблицы — сразу и для карточки строки.
+        for (const n of TABLE_NAMES) {
+          const t = c.table(n);
+          if (t !== undefined) cache.current.set(n, t);
+        }
+        setImportant(await loadImportant(port));
+        setOutdated(isOutdated(await port.setting(VERSION_SETTING)));
+      } catch (e) {
+        setError((e as Error).message);
+      }
+      await readSelection();
+    },
+    [port, readSelection],
+  );
 
   const later = (key: "sel" | "all", fn: () => void) => {
     clearTimeout(timers.current[key]);
@@ -118,15 +124,33 @@ export function useBook(port: ExcelPort): BookState {
         later("all", () => void readAll(false));
       });
       if (alive) off = [a, b];
-      else { void a(); void b(); }
+      else {
+        void a();
+        void b();
+      }
     })().catch((e) => setError((e as Error).message));
-    return () => { alive = false; for (const f of off) void f(); };
+    return () => {
+      alive = false;
+      for (const f of off) void f();
+    };
   }, [port, readAll, readSelection]);
 
   return {
-    selection, table, book, important, error, lastAct, outdated,
-    pickTable: (t) => { picked.current = t; void readSelection(); },
+    selection,
+    table,
+    book,
+    important,
+    error,
+    lastAct,
+    outdated,
+    pickTable: (t) => {
+      picked.current = t;
+      void readSelection();
+    },
     refresh: () => void readAll(),
-    onCellChange: (cb) => { listeners.current.add(cb); return () => listeners.current.delete(cb); },
+    onCellChange: (cb) => {
+      listeners.current.add(cb);
+      return () => listeners.current.delete(cb);
+    },
   };
 }

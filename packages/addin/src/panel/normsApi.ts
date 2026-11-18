@@ -28,7 +28,8 @@ export function refreshText(s: RefreshState): string {
 }
 
 export function docsCount(n: number): string {
-  const m10 = n % 10, m100 = n % 100;
+  const m10 = n % 10,
+    m100 = n % 100;
   const word = m10 === 1 && m100 !== 11 ? "документ" : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? "документа" : "документов";
   return `${n} ${word}`;
 }
@@ -50,6 +51,9 @@ export type NormInsertMode = "designation" | "full";
 export const NORM_INSERT_KEY = "idk.normInsert";
 
 export function normInsertText(item: { designation: string; title: string }, mode: NormInsertMode): string {
-  const title = item.title.trim().replace(/^["«“]+|["»”]+$/g, "").trim();
+  const title = item.title
+    .trim()
+    .replace(/^["«“]+|["»”]+$/g, "")
+    .trim();
   return mode === "full" && title ? `${item.designation.trim()} "${title}"` : item.designation.trim();
 }

@@ -40,7 +40,10 @@ test("добавление и обновление по ключу; поиск; 
   const cable = all.find((x: any) => x.id === id);
   assert.equal(cable.values.manufacturer, "Завод");
   assert.ok(!("rkc" in cable.values), "строка РКЦ объекта в библиотеку не идёт");
-  assert.deepEqual((await s.req("GET", "/api/library/material?q=ГОФР")).json.map((x: any) => x.values.name), ["Труба гофрированная"]);
+  assert.deepEqual(
+    (await s.req("GET", "/api/library/material?q=ГОФР")).json.map((x: any) => x.values.name),
+    ["Труба гофрированная"],
+  );
   assert.equal((await s.req("POST", "/api/library/material", { values: { unit: "м." } })).status, 400);
   assert.equal((await s.req("DELETE", `/api/library/material/${id}`)).status, 204);
   assert.equal((await s.req("DELETE", `/api/library/material/${id}`)).status, 404);
@@ -49,7 +52,8 @@ test("добавление и обновление по ключу; поиск; 
 
 test("два хранилища на одной папке — одна запись на ключ; организация с ИНН заменяет запись по наименованию", () => {
   const dir = tmpDir();
-  const a = new LibraryStore(tmpDir()), b = new LibraryStore(tmpDir());
+  const a = new LibraryStore(tmpDir()),
+    b = new LibraryStore(tmpDir());
   a.setDir(dir);
   b.setDir(dir);
   a.upsert("org", { shortName: "ООО А" });
@@ -57,7 +61,10 @@ test("два хранилища на одной папке — одна запи
   assert.equal(a.list("org").length, 1);
   assert.equal(a.list("org")[0].values.address, "Москва");
   b.upsert("org", { shortName: "ООО А", inn: "7700000000" });
-  assert.deepEqual(a.list("org").map((o) => o.values.inn), ["7700000000"]);
+  assert.deepEqual(
+    a.list("org").map((o) => o.values.inn),
+    ["7700000000"],
+  );
   writeFileSync(join(dir, "org", "0".repeat(32) + ".json"), "{битый");
   assert.equal(a.list("org").length, 1, "недописанный файл не ломает список");
 });
@@ -68,7 +75,12 @@ test("скан: из локального файла в библиотеку и 
   const s2 = await startTestServer();
   for (const s of [s1, s2]) await s.req("PUT", "/api/library/settings", { dir });
   const pdf = await makePdf(2);
-  const f = await (await s1.raw("POST", "/api/files", { body: pdf as unknown as BodyInit, headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent("паспорт.pdf") } })).json();
+  const f = await (
+    await s1.raw("POST", "/api/files", {
+      body: pdf as unknown as BodyInit,
+      headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent("паспорт.pdf") },
+    })
+  ).json();
   let r = await s1.req("POST", "/api/library/doc", { values: { materials: "Кабель", type: "Паспорт качества", number: "№1", sheets: 2 }, fileId: f.id });
   assert.equal(r.status, 201);
   const [doc] = (await s2.req("GET", "/api/library/doc")).json;

@@ -18,12 +18,14 @@ export function panelInfo(state: BookState | null, template: { id: string; name:
     panelUrl: typeof location !== "undefined" ? location.href : "",
     userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
     template: { id: template.id, name: template.name, print: template.print },
-    book: book ? {
-      outdated: state?.outdated ?? false,
-      missing: book.missing,
-      rows: Object.fromEntries(TABLE_NAMES.filter((t) => !book.missing.includes(t)).map((t) => [t, book.tables[t]?.length ?? 0])),
-      sheet: state?.selection?.sheet ?? null,
-    } : null,
+    book: book
+      ? {
+          outdated: state?.outdated ?? false,
+          missing: book.missing,
+          rows: Object.fromEntries(TABLE_NAMES.filter((t) => !book.missing.includes(t)).map((t) => [t, book.tables[t]?.length ?? 0])),
+          sheet: state?.selection?.sheet ?? null,
+        }
+      : null,
   };
 }
 
@@ -35,10 +37,13 @@ export function ReportProblem({ state, assistant }: { state: BookState | null; a
   const [done, setDone] = useState<{ id: string; name: string; path: string | null; sent: boolean | null; sendError: string } | null>(null);
   const [error, setError] = useState("");
   const send = async () => {
-    setBusy(true); setError(""); setDone(null);
+    setBusy(true);
+    setError("");
+    setDone(null);
     try {
       const r = await apiSend<{ id: string; name: string; path: string | null; sent: boolean | null; sendError: string }>("POST", "/api/report", {
-        description: text, panel: panelInfo(state, tpl),
+        description: text,
+        panel: panelInfo(state, tpl),
         ...(withChat && assistant?.items.length ? { assistant: assistant.items.map((m) => ({ kind: m.kind, text: m.text })) } : {}),
       });
       setDone(r);
@@ -51,27 +56,51 @@ export function ReportProblem({ state, assistant }: { state: BookState | null; a
   return (
     <>
       <h3 className="tools-title">Сообщить о проблеме</h3>
-      <p className="muted">Опишите, что делали и что пошло не так. Программа соберёт отчёт (версия, настройки, шаблон, сколько строк в таблицах книги — без самих данных, последние ошибки сервера)
-        и сразу отправит его разработчику. Копия архива сохранится у вас в «Документах».</p>
+      <p className="muted">
+        Опишите, что делали и что пошло не так. Программа соберёт отчёт (версия, настройки, шаблон, сколько строк в таблицах книги — без самих данных, последние
+        ошибки сервера) и сразу отправит его разработчику. Копия архива сохранится у вас в «Документах».
+      </p>
       <textarea rows={4} placeholder="Например: печатаю КЖ по акту 19 — окно предпросмотра пустое" value={text} onChange={(e) => setText(e.target.value)} />
       <label className="setting-option">
         <input type="checkbox" checked={withChat} onChange={(e) => setWithChat(e.target.checked)} disabled={!assistant?.items.length} />
         Приложить разговор с помощником{assistant?.items.length ? "" : " (разговора нет)"}
       </label>
       <div className="row-actions">
-        <button className="btn btn-primary" disabled={busy} onClick={() => void send()}>{busy ? "Отправляю…" : "Отправить разработчику"}</button>
+        <button className="btn btn-primary" disabled={busy} onClick={() => void send()}>
+          {busy ? "Отправляю…" : "Отправить разработчику"}
+        </button>
       </div>
       {done && done.sent === true && (
-        <p className="notice" role="status">Отчёт отправлен разработчику{done.path ? <>; копия: <b>{done.path}</b></> : null}.</p>
+        <p className="notice" role="status">
+          Отчёт отправлен разработчику
+          {done.path ? (
+            <>
+              ; копия: <b>{done.path}</b>
+            </>
+          ) : null}
+          .
+        </p>
       )}
       {done && done.sent !== true && (
         <p className={done.sent === false ? "warn" : "notice"} role="status">
           {done.sent === false ? <>Отправить не удалось: {done.sendError}. </> : <>Отправка разработчику в этой установке не настроена. </>}
-          Отчёт сохранён{done.path ? <>: <b>{done.path}</b></> : null} — перешлите файл разработчику.{" "}
-          <a href={`/api/report/${done.id}`} download={done.name}>Скачать {done.name}</a>
+          Отчёт сохранён
+          {done.path ? (
+            <>
+              : <b>{done.path}</b>
+            </>
+          ) : null}{" "}
+          — перешлите файл разработчику.{" "}
+          <a href={`/api/report/${done.id}`} download={done.name}>
+            Скачать {done.name}
+          </a>
         </p>
       )}
-      {error && <p className="error" role="alert">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </>
   );
 }

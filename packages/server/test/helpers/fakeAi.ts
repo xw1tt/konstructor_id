@@ -3,7 +3,12 @@ import { createServer as createHttp, type IncomingMessage, type ServerResponse }
 import { createServer as createHttps } from "node:https";
 import { after } from "node:test";
 
-export interface Seen { path: string; headers: IncomingMessage["headers"]; body: any; raw: string }
+export interface Seen {
+  path: string;
+  headers: IncomingMessage["headers"];
+  body: any;
+  raw: string;
+}
 export type Reply = { status?: number; json: unknown; delayMs?: number } | ((s: Seen) => { status?: number; json: unknown });
 
 export async function fakeAi(routes: Record<string, Reply[]>, tls?: { key: string; cert: string }) {
@@ -14,12 +19,20 @@ export async function fakeAi(routes: Record<string, Reply[]>, tls?: { key: strin
     req.on("end", async () => {
       const raw = Buffer.concat(chunks).toString("utf8");
       let body: any = raw;
-      try { body = JSON.parse(raw); } catch { /* форма */ }
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        /* форма */
+      }
       const s: Seen = { path: req.url ?? "", headers: req.headers, body, raw };
       seen.push(s);
       const q = routes[s.path] ?? [];
       const r0 = q.length > 1 ? q.shift()! : q[0];
-      if (!r0) { res.writeHead(404); res.end("{}"); return; }
+      if (!r0) {
+        res.writeHead(404);
+        res.end("{}");
+        return;
+      }
       const r = typeof r0 === "function" ? r0(s) : r0;
       if ("delayMs" in r && r.delayMs) await new Promise<void>((x) => setTimeout(() => x(), Number((r as { delayMs?: number }).delayMs)));
       res.writeHead(r.status ?? 200, { "content-type": "application/json" });

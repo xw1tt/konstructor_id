@@ -6,7 +6,10 @@ import { makeDocx, p, r } from "./helpers/docx.ts";
 import { makePdf } from "./helpers/pdf.ts";
 
 const upload = (s: Awaited<ReturnType<typeof startTestServer>>, id: string, buf: Uint8Array, name: string) =>
-  s.raw("POST", `/api/templates/${id}/forms`, { body: buf as unknown as BodyInit, headers: { "content-type": "application/octet-stream", "x-file-name": encodeURIComponent(name) } });
+  s.raw("POST", `/api/templates/${id}/forms`, {
+    body: buf as unknown as BodyInit,
+    headers: { "content-type": "application/octet-stream", "x-file-name": encodeURIComponent(name) },
+  });
 
 test("список, копия «СБД», переименование, свой документ, удаление", async () => {
   const s = await startTestServer();
@@ -73,7 +76,14 @@ test("п.4 АОСР сохраняется в шаблоне", async () => {
   assert.deepEqual(t.print, { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
   const put = await s.req("PUT", `/api/templates/${t.id}`, { name: "П4", docs: t.docs, print: { schemeEach: true } });
   assert.equal(put.status, 200);
-  assert.deepEqual((await s.req("GET", "/api/templates")).json.find((x: any) => x.id === t.id).print, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
+  assert.deepEqual((await s.req("GET", "/api/templates")).json.find((x: any) => x.id === t.id).print, {
+    schemeEach: true,
+    formSet: "sbd",
+    forms: {},
+    kjReserve: 2,
+    kjDecimals: null,
+    blanks: {},
+  });
   const copy = await s.req("POST", "/api/templates", { name: "Копия", from: t.id });
   assert.deepEqual(copy.json.print, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} }, "копия наследует настройку");
 });

@@ -19,7 +19,12 @@ const SECTION = "КУТ03-Р-ПИР-2-26-100-АОВ1.01.00";
 
 test("HTML реестра «ТИ»: стороны, заголовок, графы, страницы без «л.», Сдал/Принял", () => {
   const h = tiRegistryHtml({
-    customer: 'ООО "СБД"', contractor: 'ООО "Велесстрой"', object: "Объект", code: SECTION, sectionName: "Раздел", number: "1",
+    customer: 'ООО "СБД"',
+    contractor: 'ООО "Велесстрой"',
+    object: "Объект",
+    code: SECTION,
+    sectionName: "Раздел",
+    number: "1",
     rows: [{ n: 1, name: "Акт освидетельствования скрытых работ", number: "№1", date: "29.05.2026 г.", sheets: 1, copies: 1, code: "", pages: "л. 9-10" }],
   });
   assert.match(h, /Заказчик: ООО &quot;СБД&quot;/);
@@ -35,10 +40,22 @@ test("HTML реестра «ТИ»: стороны, заголовок, граф
 });
 
 test("сборка комплекта по шаблону «ТИ»: реестр «ТИ», документы РМ, РП, ВД, КЖ в PDF", async () => {
-  const recs = kitRecords((r: any) => { r["Комплекты"][0]["Титул"] = "нет"; r["Комплекты"][0]["Корешки"] = "нет"; });
-  recs["РеестрИД"] = registryRows(await readBook(new MemoryWorkbook(kitRecords())), "1", BUILTIN_TI).rows.map((x) => x.values)
+  const recs = kitRecords((r: any) => {
+    r["Комплекты"][0]["Титул"] = "нет";
+    r["Комплекты"][0]["Корешки"] = "нет";
+  });
+  recs["РеестрИД"] = registryRows(await readBook(new MemoryWorkbook(kitRecords())), "1", BUILTIN_TI)
+    .rows.map((x) => x.values)
     .filter((v) => ["АОСР", "РИМ", "РП", "ВД", "КЖ"].includes(String(v["Вид"])));
-  const { request, issues } = buildKitRequest(await readBook(new MemoryWorkbook(recs)), "1", defaultImportant(), "ti", BUILTIN_TI.print, new Date("2026-10-25"), BUILTIN_TI);
+  const { request, issues } = buildKitRequest(
+    await readBook(new MemoryWorkbook(recs)),
+    "1",
+    defaultImportant(),
+    "ti",
+    BUILTIN_TI.print,
+    new Date("2026-10-25"),
+    BUILTIN_TI,
+  );
   assert.deepEqual(issues, []);
   const s = await startTestServer();
   const job = await s.req("POST", "/api/kit-jobs", request);

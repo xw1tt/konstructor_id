@@ -18,7 +18,10 @@ import { protoRecords } from "../../shared/test/fixtures/protoBook.ts";
 import { readXlsx } from "./helpers/xlsxRead.ts";
 
 const book = async () => readBook(new MemoryWorkbook(aov1Records() as any));
-const KAM = PrintOptions.parse({ formSet: "ti", blanks: { "kj:ti": { hide: ["tray", "smooth", "corrugated", "reserve"], headers: { mark: "Марка кабеля" } } } });
+const KAM = PrintOptions.parse({
+  formSet: "ti",
+  blanks: { "kj:ti": { hide: ["tray", "smooth", "corrugated", "reserve"], headers: { mark: "Марка кабеля" } } },
+});
 
 test("КЖ «ТИ» «Камчатки»: без «Способа прокладки» и строки запаса, графа «Марка кабеля» — в PDF и Excel", async () => {
   const b = buildCableBundle(await book(), AOV1, defaultImportant(), "kj", { set: "ti" }).bundle!;
@@ -41,7 +44,9 @@ test("общий заголовок над группой граф: часть �
 
 test("РИМ, ВД, ВОР «СБД»: скрытая графа пропадает, номера граф — подряд; подписи ВОР по настройке", async () => {
   const b = buildBundle(await book(), AOV1, defaultImportant()).bundle!;
-  const o = PrintOptions.parse({ blanks: { "vd:sbd": { hide: ["position", "article"] }, "vor:sbd": { hide: ["signs", "note"] }, "rim:sbd": { headers: { sheets: "Листов" } } } });
+  const o = PrintOptions.parse({
+    blanks: { "vd:sbd": { hide: ["position", "article"] }, "vor:sbd": { hide: ["signs", "note"] }, "rim:sbd": { headers: { sheets: "Листов" } } },
+  });
   const vd = renderActDoc(b, "vd", o).html;
   assert.ok(!vd.includes("№ поз по УСР") && !vd.includes("Артикул"));
   assert.match(vd, /<tr class="nums"><td>1<\/td><td>2<\/td><td>3<\/td><td>4<\/td><td>5<\/td><\/tr>/);

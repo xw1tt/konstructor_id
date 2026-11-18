@@ -12,13 +12,19 @@ import { actsOfKit, headerByNumber } from "./find.ts";
 import type { ProtoData } from "./types.ts";
 
 const txt = cellText;
-const num = (v: CellValue | undefined) => { const p = parseNumberCell(v ?? null); return p.ok ? p.value : null; };
+const num = (v: CellValue | undefined) => {
+  const p = parseNumberCell(v ?? null);
+  return p.ok ? p.value : null;
+};
 
 /** Печатное значение ячейки строки: пусто — значение столбца по умолчанию; числа — с запятой. */
 function shown(table: TableName, key: string, v: CellValue | undefined): string {
   const col = column(table, key);
   const raw = txt(v ?? null) ? (v as CellValue) : (col.default ?? null);
-  if (col.type === "number" || col.type === "int") { const n = num(raw); return n === null ? txt(raw) : formatNumber(n); }
+  if (col.type === "number" || col.type === "int") {
+    const n = num(raw);
+    return n === null ? txt(raw) : formatNumber(n);
+  }
   return txt(raw);
 }
 
@@ -59,7 +65,8 @@ export function buildProtoBundle(book: Book, number: string, important: Importan
   if (!def) return { bundle: null, issues: c.issues };
 
   // Акт-носитель пакета: акт шапки, для документа «на комплект» без акта — первый акт комплекта.
-  const act = txt(head.v.act), kit = txt(head.v.kit);
+  const act = txt(head.v.act),
+    kit = txt(head.v.kit);
   const kitActs = kit ? actsOfKit(book, kit) : [];
   if (def.scope === "act" && !act) c.push("Протоколы", head.row, column("Протоколы", "act").header, "Не заполнено");
   if (def.scope === "kit" && !act && !kit) c.push("Протоколы", head.row, column("Протоколы", "kit").header, "Укажите комплект или акт комплекта");
@@ -83,11 +90,25 @@ export function buildProtoBundle(book: Book, number: string, important: Importan
   if (issues.length || !base?.bundle) return { bundle: null, issues };
   const dflt = (key: string) => shown("Протоколы", key, head.v[key]);
   const proto: ProtoData = {
-    kind: def.kind, code: def.code, name: def.name, signer: def.signer === "lab" ? "lab" : "commission",
-    number: number.trim(), dateFrom, dateTo: (h.dateTo as string | null) ?? null,
-    subject: txt(head.v.subject), temperature: dflt("temperature"), humidity: dflt("humidity"), pressure: dflt("pressure"), purpose: dflt("purpose"),
-    normative, conclusion: txt(head.v.conclusion) || def.conclusion.replace("{нормативы}", normative),
-    city: txt(book.object.city), rows, lab: lab?.lab ?? null, instruments: lab?.instruments ?? [], commission,
+    kind: def.kind,
+    code: def.code,
+    name: def.name,
+    signer: def.signer === "lab" ? "lab" : "commission",
+    number: number.trim(),
+    dateFrom,
+    dateTo: (h.dateTo as string | null) ?? null,
+    subject: txt(head.v.subject),
+    temperature: dflt("temperature"),
+    humidity: dflt("humidity"),
+    pressure: dflt("pressure"),
+    purpose: dflt("purpose"),
+    normative,
+    conclusion: txt(head.v.conclusion) || def.conclusion.replace("{нормативы}", normative),
+    city: txt(book.object.city),
+    rows,
+    lab: lab?.lab ?? null,
+    instruments: lab?.instruments ?? [],
+    commission,
   };
   return { bundle: { ...base.bundle, proto }, issues: [] };
 }
@@ -106,8 +127,9 @@ function protoRows(c: ReturnType<typeof createChecker>, book: Book, def: ProtoDe
     const comp = computed(def, r.v);
     const result = txt(r.v.result ?? null) || resultOf(def, r.v) || "";
     if (hasResult && !result) c.push(def.table, r.row, column(def.table, "result").header, "Не заполнено");
-    return Object.fromEntries(def.columns.map((col) =>
-      [col.key, col.computed ? comp[col.key] ?? "" : col.key === "result" ? result : shown(def.table, col.key, r.v[col.key])]));
+    return Object.fromEntries(
+      def.columns.map((col) => [col.key, col.computed ? (comp[col.key] ?? "") : col.key === "result" ? result : shown(def.table, col.key, r.v[col.key])]),
+    );
   });
 }
 
@@ -119,12 +141,20 @@ function labPart(c: ReturnType<typeof createChecker>) {
   const si = c.rows("СредстваИзмерений");
   if (!si.length) c.push("СредстваИзмерений", null, column("СредстваИзмерений", "name").header, "Заполните таблицу «СредстваИзмерений»");
   return {
-    lab: labRow ? { nameAddress: txt(labRow.v.nameAddress), certificate: txt(labRow.v.certificate), head: txt(labRow.v.head), tester: txt(labRow.v.tester) } : null,
+    lab: labRow
+      ? { nameAddress: txt(labRow.v.nameAddress), certificate: txt(labRow.v.certificate), head: txt(labRow.v.head), tester: txt(labRow.v.tester) }
+      : null,
     instruments: si.map((r) => {
       const v = c.checkRow("СредстваИзмерений", r);
       return {
-        name: txt(r.v.name), type: txt(r.v.type), range: txt(r.v.range), accuracy: txt(r.v.accuracy), serial: txt(r.v.serial),
-        certificate: txt(r.v.certificate), checkedOn: (v.checkedOn as string | null) ?? null, nextCheck: (v.nextCheck as string | null) ?? null,
+        name: txt(r.v.name),
+        type: txt(r.v.type),
+        range: txt(r.v.range),
+        accuracy: txt(r.v.accuracy),
+        serial: txt(r.v.serial),
+        certificate: txt(r.v.certificate),
+        checkedOn: (v.checkedOn as string | null) ?? null,
+        nextCheck: (v.nextCheck as string | null) ?? null,
         authority: txt(r.v.authority),
       };
     }),
@@ -135,7 +165,12 @@ function labPart(c: ReturnType<typeof createChecker>) {
 function commissionOf(b: ActBundle, def: ProtoDef, date: string): ProtoData["commission"] {
   if (def.signer === "lab") return [];
   const org = (id: number) => b.organizations.find((o) => o.id === id)?.shortName ?? "";
-  return def.signer.flatMap((role) => activeRepresentatives(b.representatives, role, date).map((r) => ({
-    role: ROLE_BOOK_LABELS[role], position: r.position, org: org(r.orgId), name: r.fullName,
-  })));
+  return def.signer.flatMap((role) =>
+    activeRepresentatives(b.representatives, role, date).map((r) => ({
+      role: ROLE_BOOK_LABELS[role],
+      position: r.position,
+      org: org(r.orgId),
+      name: r.fullName,
+    })),
+  );
 }

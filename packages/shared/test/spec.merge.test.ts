@@ -8,17 +8,27 @@ import { mergeSpec, applySpec } from "@idk/shared/spec/merge";
 import type { RkcItem } from "@idk/shared/spec/rkc";
 
 const it = (number: string, name: string, quantity: number, section = "Р", unit = "шт."): RkcItem => ({ number, section, name, unit, quantity });
-const row = (n: string, name: string, q: number, source: string, note: string | null = null): Record<string, CellValue> =>
-  ({ "№ п/п": n, "Раздел": "Р", "Наименование": name, "Ед. изм.": "шт.", "Кол-во по проекту": q, "Источник": source, "Примечание": note });
+const row = (n: string, name: string, q: number, source: string, note: string | null = null): Record<string, CellValue> => ({
+  "№ п/п": n,
+  Раздел: "Р",
+  Наименование: name,
+  "Ед. изм.": "шт.",
+  "Кол-во по проекту": q,
+  Источник: source,
+  Примечание: note,
+});
 const book = async (spec: Record<string, CellValue>[], extra: Record<string, Record<string, CellValue>[]> = {}) =>
-  readBook(new MemoryWorkbook({ "Спецификация": spec, ...extra }));
+  readBook(new MemoryWorkbook({ Спецификация: spec, ...extra }));
 const nums = (rows: Record<string, CellValue>[]) => rows.map((r) => r["№ п/п"]);
 
 test("пустая книга — все позиции новые, источник «РКЦ»", async () => {
   const { rows, diff } = mergeSpec(await book([]), [it("1", "А", 1), it("2", "Б", 2), it("3", "В", 3)]);
   assert.equal(diff.added.length, 3);
-  assert.deepEqual(rows.map((r) => r["Источник"]), ["РКЦ", "РКЦ", "РКЦ"]);
-  assert.deepEqual(rows[1], { "№ п/п": "2", "Раздел": "Р", "Наименование": "Б", "Ед. изм.": "шт.", "Кол-во по проекту": 2, "Источник": "РКЦ", "Примечание": null });
+  assert.deepEqual(
+    rows.map((r) => r["Источник"]),
+    ["РКЦ", "РКЦ", "РКЦ"],
+  );
+  assert.deepEqual(rows[1], { "№ п/п": "2", Раздел: "Р", Наименование: "Б", "Ед. изм.": "шт.", "Кол-во по проекту": 2, Источник: "РКЦ", Примечание: null });
 });
 
 test("обновление по №, ручная строка остаётся на месте, новая — по порядку РКЦ", async () => {
@@ -26,7 +36,10 @@ test("обновление по №, ручная строка остаётся 
   const { rows, diff } = mergeSpec(b, [it("1.1", "Кабель", 12), it("1.2", "Лоток", 5), it("1.3", "Муфта", 1)]);
   assert.deepEqual(nums(rows), ["1.1", "доп-1", "1.2", "1.3"]);
   assert.deepEqual(diff.changed, [{ number: "1.1", fields: ["Кол-во по проекту"] }]);
-  assert.deepEqual(diff.added.map((a) => a.number), ["1.3"]);
+  assert.deepEqual(
+    diff.added.map((a) => a.number),
+    ["1.3"],
+  );
   assert.equal(diff.same, 1);
   assert.deepEqual(rows[1], row("доп-1", "Доп. кабель", 3, "вручную"));
 });
@@ -46,26 +59,40 @@ test("позиции нет в новом РКЦ — остаётся с пом�
 test("«б/н» сопоставляются по наименованию", async () => {
   const b = await book([row("б/н-1", "Датчик X", 7, "РКЦ")]);
   const { rows } = mergeSpec(b, [it("б/н-1", "Датчик Y", 1), it("б/н-2", "Датчик X", 7)]);
-  assert.deepEqual(rows.map((r) => [r["№ п/п"], r["Наименование"]]), [["б/н-1", "Датчик Y"], ["б/н-2", "Датчик X"]]);
+  assert.deepEqual(
+    rows.map((r) => [r["№ п/п"], r["Наименование"]]),
+    [
+      ["б/н-1", "Датчик Y"],
+      ["б/н-2", "Датчик X"],
+    ],
+  );
 });
 
 test("applySpec пишет только «Спецификацию»; привязки материалов не трогаются", async () => {
   const wb = new MemoryWorkbook({
-    "Спецификация": [row("1.2", "Лоток", 5, "РКЦ")],
-    "Материалы": [{ "Наименование": "Лоток 50х50", "Ед. изм.": "шт.", "№ п/п РКЦ": "1.2" }],
+    Спецификация: [row("1.2", "Лоток", 5, "РКЦ")],
+    Материалы: [{ Наименование: "Лоток 50х50", "Ед. изм.": "шт.", "№ п/п РКЦ": "1.2" }],
   });
   const diff = await applySpec(wb, await readBook(wb), [it("1.1", "Кабель", 10)]);
   assert.deepEqual(diff.missing, ["1.2"]);
   const b = await readBook(wb);
-  assert.deepEqual(b.tables["Спецификация"]!.map((r) => r.v.number), ["1.1", "1.2"]);
+  assert.deepEqual(
+    b.tables["Спецификация"]!.map((r) => r.v.number),
+    ["1.1", "1.2"],
+  );
   assert.equal(b.tables["Материалы"]![0].v.rkc, "1.2");
 });
 
 test("ошибка вставки не стирает спецификацию", async () => {
   class Failing extends MemoryWorkbook {
-    override async insert(): Promise<number> { throw new Error("Лист защищён"); }
+    override async insert(): Promise<number> {
+      throw new Error("Лист защищён");
+    }
   }
-  const wb = new Failing({ "Спецификация": [row("1.1", "Кабель", 10, "РКЦ"), row("доп-1", "Доп", 1, "вручную")] });
+  const wb = new Failing({ Спецификация: [row("1.1", "Кабель", 10, "РКЦ"), row("доп-1", "Доп", 1, "вручную")] });
   await assert.rejects(applySpec(wb, await readBook(wb), [it("1.1", "Кабель", 12)]), /Лист защищён/);
-  assert.deepEqual((await readBook(wb)).tables["Спецификация"]!.map((r) => r.v.number), ["1.1", "доп-1"]);
+  assert.deepEqual(
+    (await readBook(wb)).tables["Спецификация"]!.map((r) => r.v.number),
+    ["1.1", "доп-1"],
+  );
 });

@@ -22,7 +22,10 @@ test("имена файлов 8 документов в обоих набора�
     sbd: { aosr: `${AOV1}.АОСР`, rim: `${AOV1}.РИМ`, vd: `${AOV1}.ВД`, vor: `${AOV1}.ВОР`, kj: null, ip: `${AOV1}.Протокол`, rp: `${AOV1}.РП` },
     ti: { aosr: AOV1, rim: `${AOV1}.РМ`, vd: `${AOV1}.ВД`, vor: `${AOV1}.ВОР`, kj: `${AOV1}.КЖ`, ip: `${AOV1}.П`, rp: `${AOV1}.РП` },
   } as const;
-  for (const [set, o] of [["sbd", SBD], ["ti", TI]] as const) {
+  for (const [set, o] of [
+    ["sbd", SBD],
+    ["ti", TI],
+  ] as const) {
     for (const k of ACT_DOC_KINDS) {
       const bundle = k === "kj" || k === "ip" ? await cb(k, set) : b;
       const r = renderActDoc(bundle, k, o);

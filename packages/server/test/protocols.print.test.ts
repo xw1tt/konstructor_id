@@ -18,7 +18,7 @@ import { PrintOptions } from "@idk/shared/templates";
 
 after(() => closeBrowser());
 
-const d = (iso: string) => (Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86400000) + 25569;
+const d = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86400000 + 25569;
 type Patch = Parameters<typeof protoRecords>[0];
 const bundle = async (number: string, patch?: Patch) => {
   const r = buildProtoBundle(await readBook(new MemoryWorkbook(protoRecords(patch) as any)), number, defaultImportant());
@@ -92,10 +92,12 @@ test("PDF ПАВ на 200 строк: шапка таблицы на каждо�
 test("PDF документов этапов 2 и 4: ПОКБ (комиссия, альбомный) и ПТСКС (лаборатория)", async () => {
   const patch: Patch = (r) => {
     r["Протоколы"].push(
-      { "Документ": "ПОКБ", "№ документа": "ПОКБ-1", "Акт": AOV1, "Дата / начало": d("2026-06-04") },
-      { "Документ": "ПТСКС", "№ документа": "ПТСКС-1", "Акт": AOV1, "Дата / начало": d("2026-06-07") },
+      { Документ: "ПОКБ", "№ документа": "ПОКБ-1", Акт: AOV1, "Дата / начало": d("2026-06-04") },
+      { Документ: "ПТСКС", "№ документа": "ПТСКС-1", Акт: AOV1, "Дата / начало": d("2026-06-07") },
     );
-    r["ОсмотрБарабанов"] = [{ "№ документа": "ПОКБ-1", "№ барабана": "125", "Марка кабеля": "КПСнг(А)-FRLS 1х2х0,75", "Заключение по барабану": "годен к прокладке" }];
+    r["ОсмотрБарабанов"] = [
+      { "№ документа": "ПОКБ-1", "№ барабана": "125", "Марка кабеля": "КПСнг(А)-FRLS 1х2х0,75", "Заключение по барабану": "годен к прокладке" },
+    ];
     r["ЗамерыСКС"] = [{ "№ документа": "ПТСКС-1", "Линия (порт)": "1.01", "Длина, м": 42, "Схема разводки": "PASS", "Запас NEXT, дБ": 4.2 }];
   };
   const k = await pdf("pokb", await bundle("ПОКБ-1", patch));
@@ -113,15 +115,30 @@ test("PDF документов этапов 2 и 4: ПОКБ (комиссия, 
 
 test("сборка комплекта с ПКЛ и ПАВ: строки реестра с «л.», документы в PDF", async () => {
   const tpl: UserTemplate = {
-    id: "t-1", name: "Протоколы", print: PrintOptions.parse({ schemeEach: false }),
-    docs: [{ kind: "builtin", doc: "aosr", form: null }, { kind: "builtin", doc: "pkl", form: null }, { kind: "builtin", doc: "pav", form: null }],
+    id: "t-1",
+    name: "Протоколы",
+    print: PrintOptions.parse({ schemeEach: false }),
+    docs: [
+      { kind: "builtin", doc: "aosr", form: null },
+      { kind: "builtin", doc: "pkl", form: null },
+      { kind: "builtin", doc: "pav", form: null },
+    ],
   };
   const recs = protoRecords();
   recs["Комплекты"][0]["Титул"] = "нет";
   recs["Комплекты"][0]["Корешки"] = "нет";
-  recs["РеестрИД"] = registryRows(await readBook(new MemoryWorkbook(protoRecords() as any)), "1", tpl).rows.map((x) => x.values)
+  recs["РеестрИД"] = registryRows(await readBook(new MemoryWorkbook(protoRecords() as any)), "1", tpl)
+    .rows.map((x) => x.values)
     .filter((v) => ["АОСР", "Акт/протокол"].includes(String(v["Вид"])));
-  const { request, issues } = buildKitRequest(await readBook(new MemoryWorkbook(recs as any)), "1", defaultImportant(), "sbd", undefined, new Date("2026-10-25"), tpl);
+  const { request, issues } = buildKitRequest(
+    await readBook(new MemoryWorkbook(recs as any)),
+    "1",
+    defaultImportant(),
+    "sbd",
+    undefined,
+    new Date("2026-10-25"),
+    tpl,
+  );
   assert.deepEqual(issues, []);
   const s = await startTestServer();
   const job = await s.req("POST", "/api/kit-jobs", request);

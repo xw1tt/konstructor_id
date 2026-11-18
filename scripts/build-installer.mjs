@@ -38,7 +38,10 @@ cpSync(join(root, "packages", "addin", "dist"), join(payload, "addin"), { recurs
 await build({
   entryPoints: [join(root, "packages", "server", "src", "main.ts")],
   outfile: join(payload, "app", "server.mjs"),
-  bundle: true, platform: "node", format: "esm", target: "node22",
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node22",
   external: ["playwright-core", "pdfjs-dist"],
   banner: { js: 'import { createRequire as __cr } from "node:module"; const require = __cr(import.meta.url);' },
   logLevel: "warning",
@@ -49,7 +52,8 @@ cpSync(join(root, "packages", "server", "src", "print", "print.css"), join(paylo
 cpSync(realpathSync(join(root, "node_modules", "playwright-core")), join(payload, "app", "node_modules", "playwright-core"), { recursive: true });
 // pdf.js — текстовый слой сканов PDF (0.28): только сборка для Node, шрифты и cmaps.
 {
-  const src = realpathSync(join(root, "node_modules", "pdfjs-dist")), dst = join(payload, "app", "node_modules", "pdfjs-dist");
+  const src = realpathSync(join(root, "node_modules", "pdfjs-dist")),
+    dst = join(payload, "app", "node_modules", "pdfjs-dist");
   for (const f of ["package.json", "LICENSE", "legacy/build/pdf.mjs", "legacy/build/pdf.worker.mjs", "cmaps", "standard_fonts"])
     cpSync(join(src, f), join(dst, f), { recursive: true });
 }
@@ -63,9 +67,15 @@ cpSync(realpathSync(join(root, "node_modules", "playwright-core")), join(payload
   cpSync(join(payload, "app"), join(iso, "app"), { recursive: true });
   cpSync(join(payload, "print.css"), join(iso, "print.css"));
   const doc = await PDFDocument.create();
-  doc.addPage().drawText("Certificate of conformity No 123 valid until 01.01.2030", { x: 40, y: 700, size: 12, font: await doc.embedFont(StandardFonts.Helvetica) });
+  doc
+    .addPage()
+    .drawText("Certificate of conformity No 123 valid until 01.01.2030", { x: 40, y: 700, size: 12, font: await doc.embedFont(StandardFonts.Helvetica) });
   writeFileSync(join(iso, "t.pdf"), await doc.save());
-  const out = execFileSync(process.execPath, [join(iso, "app", "server.mjs"), "--selftest-pdf", join(iso, "t.pdf")], { cwd: iso, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  const out = execFileSync(process.execPath, [join(iso, "app", "server.mjs"), "--selftest-pdf", join(iso, "t.pdf")], {
+    cwd: iso,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
   rmSync(iso, { recursive: true, force: true });
   if (!/pages=1 chars=[1-9]/.test(out)) throw new Error(`Самопроверка pdf.js не прошла: ${out}`);
   console.log("Самопроверка pdf.js:", out.trim());
@@ -94,7 +104,8 @@ execFileSync("zip", ["-q", "-r", "-9", zip, "."], { cwd: payload, stdio: "inheri
 mkdirSync(join(root, "dist"), { recursive: true });
 const out = join(root, "dist", `KonstruktorID-Setup-${version}.exe`);
 execFileSync("go", ["build", "-trimpath", "-ldflags", `-H windowsgui -s -w -X main.version=${version}`, "-o", out, "."], {
-  cwd: join(root, "installer"), stdio: "inherit",
+  cwd: join(root, "installer"),
+  stdio: "inherit",
   env: { ...process.env, GOOS: "windows", GOARCH: "amd64", CGO_ENABLED: "0", GOFLAGS: "-mod=mod", GOPROXY: "off" },
 });
 console.log(`Установщик: ${out} (${(readFileSync(out).length / 1048576).toFixed(1)} МБ)`);

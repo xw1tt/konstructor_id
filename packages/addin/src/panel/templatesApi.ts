@@ -5,16 +5,28 @@ import type { PrintKind } from "@idk/shared/acts/schemas";
 import { PROTO_DEFS, isProtoKind } from "@idk/shared/protocols/defs";
 import { apiGet, apiSend } from "../api.ts";
 
-export interface TemplateButton { key: string; label: string; doc: PrintKind | null; code: string | null; form: boolean }
+export interface TemplateButton {
+  key: string;
+  label: string;
+  doc: PrintKind | null;
+  code: string | null;
+  form: boolean;
+}
 
 /** Кнопки печати шаблона: в карточке акта (scope "act") — документы на акт; в карточке комплекта ("kit") — протоколы и
  *  акты плана 13 «на комплект». Порядок — порядок шаблона; свой документ без формы не печатается. */
 
 export function templateButtons(t: UserTemplate, scope: "act" | "kit" = "act"): TemplateButton[] {
   const onKit = (d: UserTemplate["docs"][number]) => d.kind === "builtin" && isProtoKind(d.doc) && PROTO_DEFS[d.doc].scope === "kit";
-  return t.docs.filter((d) => (scope === "kit" ? onKit(d) : !onKit(d))).flatMap((d): TemplateButton[] => d.kind === "builtin"
-    ? [{ key: d.doc, label: BUILTIN_DOC_LABELS[d.doc], doc: d.doc, code: null, form: !!d.form }]
-    : d.form ? [{ key: d.code, label: d.name, doc: null, code: d.code, form: true }] : []);
+  return t.docs
+    .filter((d) => (scope === "kit" ? onKit(d) : !onKit(d)))
+    .flatMap((d): TemplateButton[] =>
+      d.kind === "builtin"
+        ? [{ key: d.doc, label: BUILTIN_DOC_LABELS[d.doc], doc: d.doc, code: null, form: !!d.form }]
+        : d.form
+          ? [{ key: d.code, label: d.name, doc: null, code: d.code, form: true }]
+          : [],
+    );
 }
 
 /**
@@ -69,8 +81,12 @@ export const withDecimals = (t: UserTemplate, d: number | null) => withPrint(t, 
  * «<имя> (копия)», изменение сохраняется в неё. Возвращает сохранённый шаблон.
  */
 export async function applyChange(
-  t: UserTemplate, change: (t: UserTemplate) => UserTemplate,
-  api: { create(name: string, from?: string): Promise<UserTemplate>; save(t: UserTemplate): Promise<UserTemplate> } = { create: createTemplate, save: saveTemplateDocs },
+  t: UserTemplate,
+  change: (t: UserTemplate) => UserTemplate,
+  api: { create(name: string, from?: string): Promise<UserTemplate>; save(t: UserTemplate): Promise<UserTemplate> } = {
+    create: createTemplate,
+    save: saveTemplateDocs,
+  },
 ): Promise<UserTemplate> {
   if (!isBuiltinTemplate(t.id)) return api.save(change(t));
   const copy = await api.create(`${t.name} (копия)`, t.id);

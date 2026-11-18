@@ -9,13 +9,18 @@ export const LIB_KINDS = ["org", "rep", "material", "doc"] as const;
 export type LibKind = (typeof LIB_KINDS)[number];
 
 export const LIB_TABLE: Record<LibKind, TableName> = {
-  org: "Организации", rep: "Представители", material: "Материалы", doc: "ДокументыКачества",
+  org: "Организации",
+  rep: "Представители",
+  material: "Материалы",
+  doc: "ДокументыКачества",
 };
 export const LIB_LABELS: Record<LibKind, string> = {
-  org: "Организации", rep: "Представители", material: "Материалы", doc: "Документы качества",
+  org: "Организации",
+  rep: "Представители",
+  material: "Материалы",
+  doc: "Документы качества",
 };
-export const libKindOf = (t: TableName): LibKind | null =>
-  (Object.entries(LIB_TABLE) as [LibKind, TableName][]).find(([, n]) => n === t)?.[0] ?? null;
+export const libKindOf = (t: TableName): LibKind | null => (Object.entries(LIB_TABLE) as [LibKind, TableName][]).find(([, n]) => n === t)?.[0] ?? null;
 
 /** Столбцы объекта (строка спецификации, порядок подписей) и файлы, кроме скана документа, в библиотеку не идут. */
 // Материал (план 31): в строке «Материалов» ещё позиция РКЦ и группы «Док.N» — в библиотеку идёт только сам материал,
@@ -39,25 +44,37 @@ export const LibRecord = z.object({
 });
 export type LibRecord = z.infer<typeof LibRecord>;
 
-const norm = (v: CellValue | undefined) => cellText(v ?? null).trim().replace(/\s+/g, " ").toLowerCase();
+const norm = (v: CellValue | undefined) =>
+  cellText(v ?? null)
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 
 /** Ключ записи: повтор ключа — та же запись (обновление, не дубль). */
 export function libKey(kind: LibKind, v: Record<string, CellValue | undefined>): string {
   switch (kind) {
-    case "org": return norm(v.inn) ? `inn:${norm(v.inn)}` : `name:${norm(v.shortName)}`;
-    case "rep": return `${norm(v.fullName)}|${norm(v.org)}`;
-    case "material": return `${norm(v.name)}|${norm(v.mark)}`;
-    default: return `${norm(v.type)}|${norm(v.number)}`;
+    case "org":
+      return norm(v.inn) ? `inn:${norm(v.inn)}` : `name:${norm(v.shortName)}`;
+    case "rep":
+      return `${norm(v.fullName)}|${norm(v.org)}`;
+    case "material":
+      return `${norm(v.name)}|${norm(v.mark)}`;
+    default:
+      return `${norm(v.type)}|${norm(v.number)}`;
   }
 }
 
 /** Пустая запись (нет ключевого значения) в библиотеку не попадает. */
 export function libKeyFilled(kind: LibKind, v: Record<string, CellValue | undefined>): boolean {
   switch (kind) {
-    case "org": return !!(norm(v.inn) || norm(v.shortName));
-    case "rep": return !!norm(v.fullName);
-    case "material": return !!norm(v.name);
-    default: return !!(norm(v.type) && norm(v.number));
+    case "org":
+      return !!(norm(v.inn) || norm(v.shortName));
+    case "rep":
+      return !!norm(v.fullName);
+    case "material":
+      return !!norm(v.name);
+    default:
+      return !!(norm(v.type) && norm(v.number));
   }
 }
 
@@ -77,7 +94,9 @@ export interface AddPlan {
 export function planAdd(book: Book, picked: LibRecord[], all: LibRecord[]): AddPlan {
   const inBook = new Map<LibKind, Set<string>>(LIB_KINDS.map((k) => [k, new Set((book.tables[LIB_TABLE[k]] ?? []).map((r) => libKey(k, r.v)))]));
   const chosen = new Map<string, LibRecord>();
-  const take = (r: LibRecord) => { if (!chosen.has(r.id)) chosen.set(r.id, r); };
+  const take = (r: LibRecord) => {
+    if (!chosen.has(r.id)) chosen.set(r.id, r);
+  };
   for (const r of picked) {
     take(r);
     if (r.kind === "material") {
@@ -89,14 +108,18 @@ export function planAdd(book: Book, picked: LibRecord[], all: LibRecord[]): AddP
       if (org) take(org);
     }
   }
-  const add: LibRecord[] = [], skipped: LibRecord[] = [];
+  const add: LibRecord[] = [],
+    skipped: LibRecord[] = [];
   for (const k of LIB_KINDS) {
     const seen = inBook.get(k)!;
     for (const r of chosen.values()) {
       if (r.kind !== k) continue;
       const key = libKey(k, r.values);
       if (seen.has(key)) skipped.push(r);
-      else { seen.add(key); add.push(r); }
+      else {
+        seen.add(key);
+        add.push(r);
+      }
     }
   }
   return { add, skipped };
@@ -104,7 +127,8 @@ export function planAdd(book: Book, picked: LibRecord[], all: LibRecord[]): AddP
 
 /** Записи → строки книги по заголовкам; scanLink(record) — адрес скана в локальном хранилище (или null). */
 export function toBookRows(records: LibRecord[], scanLink: (r: LibRecord) => string | null): { rows: BookRecords; links: BookLinks } {
-  const rows: BookRecords = {}, links: BookLinks = {};
+  const rows: BookRecords = {},
+    links: BookLinks = {};
   for (const r of records) {
     const t = LIB_TABLE[r.kind];
     const rec: Record<string, CellValue> = Object.fromEntries(libColumns(r.kind).map((c) => [c.header, r.values[c.key] ?? null]));

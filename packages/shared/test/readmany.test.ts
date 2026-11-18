@@ -10,10 +10,19 @@ import { aov1Records } from "./fixtures/aov1Book.ts";
 test("readBook через readMany = через read; одно обращение readMany", async () => {
   const wb = new MemoryWorkbook(aov1Records() as any);
   const plain = await readBook(wb);
-  let many = 0, single = 0;
+  let many = 0,
+    single = 0;
   const store = Object.assign(Object.create(wb), {
-    read: (n: TableName) => { single++; return wb.read(n); },
-    readMany: async (names: readonly TableName[]) => { many++; const m = new Map<TableName, TableData | null>(); for (const n of names) m.set(n, await wb.read(n)); return m; },
+    read: (n: TableName) => {
+      single++;
+      return wb.read(n);
+    },
+    readMany: async (names: readonly TableName[]) => {
+      many++;
+      const m = new Map<TableName, TableData | null>();
+      for (const n of names) m.set(n, await wb.read(n));
+      return m;
+    },
   });
   assert.deepEqual(await readBook(store), plain);
   assert.equal(many, 1);

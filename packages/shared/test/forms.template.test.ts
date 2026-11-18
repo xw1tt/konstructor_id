@@ -7,8 +7,19 @@ test("встроенный «СБД»: все встроенные докуме�
   assert.equal(BUILTIN_SBD.id, SBD_ID);
   assert.equal(SBD_ID, "sbd");
   assert.equal(BUILTIN_SBD.name, "СБД");
-  assert.deepEqual(BUILTIN_SBD.docs.map((d) => d.kind === "builtin" && d.doc), ["aosr", "rim", "vd", "vor", "avk", "kj", "ip"]);
-  assert.deepEqual(Object.fromEntries(Object.entries(BUILTIN_DOC_LABELS).slice(0, 7)), { aosr: "АОСР", rim: "РИМ", vd: "ВД", vor: "ВОР", avk: "АВК", kj: "КЖ", ip: "Протокол" });
+  assert.deepEqual(
+    BUILTIN_SBD.docs.map((d) => d.kind === "builtin" && d.doc),
+    ["aosr", "rim", "vd", "vor", "avk", "kj", "ip"],
+  );
+  assert.deepEqual(Object.fromEntries(Object.entries(BUILTIN_DOC_LABELS).slice(0, 7)), {
+    aosr: "АОСР",
+    rim: "РИМ",
+    vd: "ВД",
+    vor: "ВОР",
+    avk: "АВК",
+    kj: "КЖ",
+    ip: "Протокол",
+  });
   assert.equal(BUILTIN_DOC_LABELS.pav, "ПАВ", "протоколы плана 13 — по кодам справочника");
   assert.ok(UserTemplate.safeParse(BUILTIN_SBD).success);
 });
@@ -26,5 +37,12 @@ test("п.4 АОСР — настройка шаблона: у «СБД» пер�
   assert.deepEqual(BUILTIN_SBD.print, { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
   const old = UserTemplate.parse({ id: "t-1", name: "Старый", docs: [] });
   assert.deepEqual(old.print, { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
-  assert.deepEqual(UserTemplate.parse({ id: "t-1", name: "Т", docs: [], print: { schemeEach: true } }).print, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
+  assert.deepEqual(UserTemplate.parse({ id: "t-1", name: "Т", docs: [], print: { schemeEach: true } }).print, {
+    schemeEach: true,
+    formSet: "sbd",
+    forms: {},
+    kjReserve: 2,
+    kjDecimals: null,
+    blanks: {},
+  });
 });

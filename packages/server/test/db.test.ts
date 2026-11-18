@@ -16,9 +16,7 @@ test("db: миграции применяются один раз", () => {
 
 test("db: внешние ключи включены", () => {
   const db = openDb(join(tmpDir(), "db.sqlite"));
-  assert.throws(() =>
-    db.prepare("INSERT INTO representatives (role, full_name, org_id) VALUES ('builder','X',999)").run(),
-  );
+  assert.throws(() => db.prepare("INSERT INTO representatives (role, full_name, org_id) VALUES ('builder','X',999)").run());
 });
 
 test("config: значения по умолчанию и переопределение", () => {

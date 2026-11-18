@@ -15,7 +15,10 @@ import type { OjrRequest } from "./ojrPrint.ts";
 import { isHoliday } from "./holidays.ts";
 
 const txt = cellText;
-const iso = (v: CellValue) => { const p = parseDateCell(v); return p.ok ? p.value : null; };
+const iso = (v: CellValue) => {
+  const p = parseDateCell(v);
+  return p.ok ? p.value : null;
+};
 const H3 = (k: string) => column("ОЖР3", k).header;
 const H5 = (k: string) => column("ОЖР5", k).header;
 
@@ -37,10 +40,22 @@ function reps(book: Book): Representative[] {
     const role = roleFromBook(txt(r.v.role));
     if (!role) return [];
     const n = parseNumberCell(r.v.sortOrder);
-    return [{
-      id: r.row + 1, role, position: txt(r.v.position), fullName: txt(r.v.fullName), orgId: 1, authorityDoc: "", nrsNumber: "",
-      nrsDate: null, validFrom: iso(r.v.validFrom), validTo: iso(r.v.validTo), sortOrder: n.ok ? Math.round(n.value ?? 0) : 0, actText: "",
-    }];
+    return [
+      {
+        id: r.row + 1,
+        role,
+        position: txt(r.v.position),
+        fullName: txt(r.v.fullName),
+        orgId: 1,
+        authorityDoc: "",
+        nrsNumber: "",
+        nrsDate: null,
+        validFrom: iso(r.v.validFrom),
+        validTo: iso(r.v.validTo),
+        sortOrder: n.ok ? Math.round(n.value ?? 0) : 0,
+        actText: "",
+      },
+    ];
   });
 }
 
@@ -60,9 +75,10 @@ export function ojrRows(book: Book): OjrRows {
   const bookReps = reps(book);
   // Представители текущего акта (0.30: выбранные в «Подписантах» акта заменяют подписантов роли по датам).
   let all = bookReps;
-  const forAct = (a: BookRow) => { all = actRepresentatives(bookReps, splitRefs(a.v.signers ?? null), iso(a.v.date)); };
-  const byName = (name: string, role?: RoleCode) =>
-    all.find((r) => r.fullName === name && (!role || r.role === role)) ?? all.find((r) => r.fullName === name);
+  const forAct = (a: BookRow) => {
+    all = actRepresentatives(bookReps, splitRefs(a.v.signers ?? null), iso(a.v.date));
+  };
+  const byName = (name: string, role?: RoleCode) => all.find((r) => r.fullName === name && (!role || r.role === role)) ?? all.find((r) => r.fullName === name);
   const active = (role: RoleCode, date: string) => activeRepresentatives(all, role, date);
   const acts = rows("Акты");
 
@@ -71,15 +87,20 @@ export function ojrRows(book: Book): OjrRows {
   for (const a of acts) {
     forAct(a);
     const n = txt(a.v.baseNumber);
-    const from = iso(a.v.dateStart), to = iso(a.v.dateEnd);
+    const from = iso(a.v.dateStart),
+      to = iso(a.v.dateEnd);
     if (!from || !to) {
       issues.push({ table: "Акты", row: a.row, column: column("Акты", "dateStart").header, message: `Нет дат работ — акт «${n}» не попал в раздел 3 журнала` });
       continue;
     }
     if (from > to) {
       const dmy = (x: string) => x.split("-").reverse().join(".");
-      issues.push({ table: "Акты", row: a.row, column: column("Акты", "dateStart").header,
-        message: `Начало работ ${dmy(from)} позже окончания ${dmy(to)} — акт «${n}» не попал в раздел 3 журнала` });
+      issues.push({
+        table: "Акты",
+        row: a.row,
+        column: column("Акты", "dateStart").header,
+        message: `Начало работ ${dmy(from)} позже окончания ${dmy(to)} — акт «${n}» не попал в раздел 3 журнала`,
+      });
       continue;
     }
     const works = txt(a.v.works);
@@ -94,13 +115,15 @@ export function ojrRows(book: Book): OjrRows {
     }
   }
   const conditions = txt(book.object.workConditions);
-  const s3 = [...days.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([day, e]) => ({
-    [H3("date")]: isoToExcelSerial(day),
-    [H3("conditions")]: conditions || null,
-    [H3("works")]: uniq(e.works).join("\n"),
-    [H3("signer")]: uniq(e.signers).join("\n") || null,
-    [H3("acts")]: joinRefs(uniq(e.acts)),
-  }));
+  const s3 = [...days.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, e]) => ({
+      [H3("date")]: isoToExcelSerial(day),
+      [H3("conditions")]: conditions || null,
+      [H3("works")]: uniq(e.works).join("\n"),
+      [H3("signer")]: uniq(e.signers).join("\n") || null,
+      [H3("acts")]: joinRefs(uniq(e.acts)),
+    }));
 
   // ---- Раздел 5: исполнительная документация актов, по дате подписания.
   const docs: { date: string; seq: number; name: string; signers: string[]; act: string }[] = [];
@@ -119,12 +142,23 @@ export function ojrRows(book: Book): OjrRows {
     const appx = hasMats
       ? `, приложения: ${DOC_NAMES["РИМ"]!.toLowerCase()} ${withNo(docNumber(n, "rim"))}, ${DOC_NAMES["ВД"]!.toLowerCase()} ${withNo(docNumber(n, "vd"))}`
       : "";
-    add(date, `${DOC_NAMES["АОСР"]} ${withNo(docNumber(n, "aosr"))} ${txt(a.v.works)}${appx}`, roles.flatMap((r) => active(r, at).map(who)), n);
+    add(
+      date,
+      `${DOC_NAMES["АОСР"]} ${withNo(docNumber(n, "aosr"))} ${txt(a.v.works)}${appx}`,
+      roles.flatMap((r) => active(r, at).map(who)),
+      n,
+    );
     // 0.30.1: ведомость смонтированного оборудования — отдельной строкой (подписи — как в самой ВД).
-    if (hasMats) add(date, `${DOC_NAMES["ВД"]} ${withNo(docNumber(n, "vd"))}`,
-      (["developer_control", "builder", "builder_control", "performer"] as RoleCode[]).flatMap((r) => active(r, at).map(who)), n);
+    if (hasMats)
+      add(
+        date,
+        `${DOC_NAMES["ВД"]} ${withNo(docNumber(n, "vd"))}`,
+        (["developer_control", "builder", "builder_control", "performer"] as RoleCode[]).flatMap((r) => active(r, at).map(who)),
+        n,
+      );
     for (const s of of("Схемы")) {
-      const name = txt(s.v.kind) === "Прочее" ? `${txt(s.v.name)} ${withNo(txt(s.v.number))}` : `Исполнительная схема ${withNo(txt(s.v.number))} ${txt(s.v.name)}`;
+      const name =
+        txt(s.v.kind) === "Прочее" ? `${txt(s.v.name)} ${withNo(txt(s.v.number))}` : `Исполнительная схема ${withNo(txt(s.v.number))} ${txt(s.v.name)}`;
       const sd = iso(s.v.date) ?? at;
       add(sd, name, [...active("performer", sd).map(who), ...active("builder_control", sd).map(who)], n);
     }
@@ -139,12 +173,19 @@ export function ojrRows(book: Book): OjrRows {
       const jd = doc ? iso(doc.v.journalDate) : null;
       const code = doc ? txt(doc.v.journalCode) : "";
       const kjDate = jd ?? at;
-      add(kjDate, `${KJ_NAME}${code ? ` ${code.startsWith("№") ? code : `№ ${code}`}` : ""}`,
-        [...active("performer", kjDate).reverse().map(who), ...active("developer_control", kjDate).map(who)], n);
+      add(
+        kjDate,
+        `${KJ_NAME}${code ? ` ${code.startsWith("№") ? code : `№ ${code}`}` : ""}`,
+        [...active("performer", kjDate).reverse().map(who), ...active("developer_control", kjDate).map(who)],
+        n,
+      );
       if (doc && txt(doc.v.protocolNumber)) {
-        add(iso(doc.v.dateTo) ?? iso(doc.v.dateFrom) ?? kjDate,
+        add(
+          iso(doc.v.dateTo) ?? iso(doc.v.dateFrom) ?? kjDate,
           `Протокол ${withNo(txt(doc.v.protocolNumber))} ${PROTOCOL_NAME.replace(/^Протокол /, "")}`,
-          lab ? [`Руководитель электролаборатории ${txt(lab.v.head)}`, `Испытания провёл ${txt(lab.v.tester)}`] : [], n);
+          lab ? [`Руководитель электролаборатории ${txt(lab.v.head)}`, `Испытания провёл ${txt(lab.v.tester)}`] : [],
+          n,
+        );
       }
     }
   }
@@ -169,7 +210,10 @@ export async function fillOjr(store: TableStore, book: Book): Promise<OjrRows> {
     const day = iso(r[H3("date")]);
     if (day && kept.has(day)) r[H3("conditions")] = kept.get(day)!;
   }
-  for (const [t, recs] of [["ОЖР3", res.s3], ["ОЖР5", res.s5]] as const) {
+  for (const [t, recs] of [
+    ["ОЖР3", res.s3],
+    ["ОЖР5", res.s5],
+  ] as const) {
     const old = (book.tables[t] ?? []).map((r) => r.row);
     if (old.length) await store.remove(t, old);
     const data = await store.read(t);
@@ -184,7 +228,12 @@ export function ojrPrintRequest(book: Book, section: 3 | 5): OjrRequest | null {
   if (section === 3) {
     const rows = (book.tables["ОЖР3"] ?? []).map((r) => {
       const day = iso(r.v.date);
-      return { date: day ? day.split("-").reverse().join(".") : txt(r.v.date), conditions: txt(r.v.conditions), works: txt(r.v.works), signer: txt(r.v.signer) };
+      return {
+        date: day ? day.split("-").reverse().join(".") : txt(r.v.date),
+        conditions: txt(r.v.conditions),
+        works: txt(r.v.works),
+        signer: txt(r.v.signer),
+      };
     });
     return rows.length ? { section: 3, objectName: name, rows } : null;
   }

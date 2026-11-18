@@ -7,8 +7,14 @@ import { aov1Bundle } from "./helpers/aov1.ts";
 const b = await aov1Bundle();
 const buildDocData = <K extends "aosr" | "rim" | "vd" | "vor">(k: K) => buildDocDataFromBundle(b, k);
 const text = (kind: "aosr" | "rim" | "vd" | "vor") =>
-  renderHtml(kind, buildDocData(kind)).replace(/<style[\s\S]*?<\/style>/g, "").replace(/<[^>]+>/g, " ")
-    .replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ");
+  renderHtml(kind, buildDocData(kind))
+    .replace(/<style[\s\S]*?<\/style>/g, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ");
 
 test("aosr: шапка с полными реквизитами застройщика", () => {
   const t = text("aosr");
@@ -45,7 +51,10 @@ test("aosr: подписи — 6 фамилий в порядке ролей", (
   const t = text("aosr");
   const tail = t.slice(t.lastIndexOf("Приложения"));
   const order = ["Валерьянов А.А.", "Аксенов А.М.", "Филиппов М.И.", "Смирнов М.А.", "Королев Д.М.", "Востров В.П."].map((n) => tail.indexOf(n));
-  assert.ok(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), String(order));
+  assert.ok(
+    order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])),
+    String(order),
+  );
 });
 
 test("rim: 24 строки, первая — паспорт №3/405", () => {
@@ -69,13 +78,15 @@ test("vor: 98 пронумерованных строк, 5 групп", () => {
   assert.equal((html.match(/<tr class="group">/g) ?? []).length, 5);
   const t = text("vor");
   assert.ok(t.includes("Итого по этажам П5, П4, П3, П2"));
-  assert.ok(t.includes("Представитель заказчика: Ведущий инженер по автоматике и слаботочным системам ООО \"СБД\" Валерьянов А.А."));
+  assert.ok(t.includes('Представитель заказчика: Ведущий инженер по автоматике и слаботочным системам ООО "СБД" Валерьянов А.А.'));
 });
 
 test("html: экранирование", async () => {
   const { escapeHtml } = await import("@idk/server/print/templates/common");
   assert.equal(escapeHtml(`<test & "x">`), "&lt;test &amp; &quot;x&quot;&gt;");
-  const bad = await aov1Bundle((r) => { r["Акты"][0]["Работы (п.1)"] = `<script>alert(1)</script> & "x"`; });
+  const bad = await aov1Bundle((r) => {
+    r["Акты"][0]["Работы (п.1)"] = `<script>alert(1)</script> & "x"`;
+  });
   const html = renderHtml("aosr", buildDocDataFromBundle(bad, "aosr"));
   assert.ok(!html.includes("<script>alert"));
   assert.ok(html.includes("&lt;script&gt;"));

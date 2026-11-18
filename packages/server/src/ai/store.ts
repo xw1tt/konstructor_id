@@ -9,18 +9,31 @@ import { HttpError } from "../http/router.ts";
 const File = z.object({ active: z.string().nullable().default(null), providers: z.array(Provider).default([]) });
 type File = z.infer<typeof File>;
 
-export interface UsageTotal { provider: string; name: string; requests: number; prompt: number; completion: number }
+export interface UsageTotal {
+  provider: string;
+  name: string;
+  requests: number;
+  prompt: number;
+  completion: number;
+}
 
 export class AiStore {
   private file: string;
   private usageFile: string;
-  constructor(private dataDir: string, private now: () => Date = () => new Date()) {
+  constructor(
+    private dataDir: string,
+    private now: () => Date = () => new Date(),
+  ) {
     this.file = join(dataDir, "ai.json");
     this.usageFile = join(dataDir, "ai-usage.jsonl");
   }
 
   private read(): File {
-    try { return File.parse(JSON.parse(readFileSync(this.file, "utf8"))); } catch { return File.parse({}); }
+    try {
+      return File.parse(JSON.parse(readFileSync(this.file, "utf8")));
+    } catch {
+      return File.parse({});
+    }
   }
   private write(f: File) {
     mkdirSync(this.dataDir, { recursive: true });
@@ -89,16 +102,25 @@ export class AiStore {
     const month = this.now().toISOString().slice(0, 7);
     const by = new Map<string, UsageTotal>();
     let text = "";
-    try { text = readFileSync(this.usageFile, "utf8"); } catch { /* журнала ещё нет */ }
+    try {
+      text = readFileSync(this.usageFile, "utf8");
+    } catch {
+      /* журнала ещё нет */
+    }
     for (const line of text.split("\n")) {
       if (!line.trim()) continue;
       try {
         const r = JSON.parse(line);
         if (!String(r.at).startsWith(month)) continue;
         const t = by.get(r.provider) ?? { provider: r.provider, name: r.name, requests: 0, prompt: 0, completion: 0 };
-        t.requests++; t.prompt += Number(r.prompt) || 0; t.completion += Number(r.completion) || 0; t.name = r.name;
+        t.requests++;
+        t.prompt += Number(r.prompt) || 0;
+        t.completion += Number(r.completion) || 0;
+        t.name = r.name;
         by.set(r.provider, t);
-      } catch { /* битая строка */ }
+      } catch {
+        /* битая строка */
+      }
     }
     return { month, totals: [...by.values()] };
   }

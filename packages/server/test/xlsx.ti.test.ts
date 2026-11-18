@@ -24,14 +24,16 @@ const flat = (s: string) => s.replace(/\s+/g, " ");
 const has = (text: string, v: string | number) => assert.ok(flat(text).includes(flat(String(v))), String(v));
 
 test("у каждой встроенной формы PDF есть форма Excel", () => {
-  for (const [kind, forms] of Object.entries(ACT_DOC_RENDER))
-    for (const f of Object.keys(forms)) assert.ok((ACT_DOC_XLSX as any)[kind][f], `${kind}/${f}`);
+  for (const [kind, forms] of Object.entries(ACT_DOC_RENDER)) for (const f of Object.keys(forms)) assert.ok((ACT_DOC_XLSX as any)[kind][f], `${kind}/${f}`);
 });
 
 test("доли → столбцы сетки: сумма равна сетке, каждой графе не меньше одного", () => {
   assert.deepEqual(gridSpans([6, 42, 20, 8, 8, 16], 36), [2, 15, 7, 3, 3, 6]);
   const s = gridSpans([1, 1, 98], 10);
-  assert.equal(s.reduce((a, b) => a + b, 0), 10);
+  assert.equal(
+    s.reduce((a, b) => a + b, 0),
+    10,
+  );
   assert.ok(s.every((x) => x >= 1));
 });
 
@@ -43,7 +45,10 @@ test("ВД «ТИ»: шапка (подрядчик, заказчик, дата)
   const s = readXlsx(xlsx).sheets[0];
   for (const v of [d.header.contractor, d.header.customer, "(подрядная организация)", "(заказчик)", `ВЕДОМОСТЬ № ${d.vdNumber}`]) has(s.text, v);
   for (const r of d.vd) has(s.text, r.name);
-  assert.equal((s.text.match(/\(фамилия, инициалы, подпись\)/g) ?? []).length, d.signs.reduce((n, x) => n + x.names.length, 0));
+  assert.equal(
+    (s.text.match(/\(фамилия, инициалы, подпись\)/g) ?? []).length,
+    d.signs.reduce((n, x) => n + x.names.length, 0),
+  );
 });
 
 test("РМ «ТИ»: документы (серые) перед материалом, материал — один раз", async () => {
@@ -91,8 +96,12 @@ test("ни в одном документе объединения не пере
   const b = await bundle();
   const cells = (ref: string) => {
     const [a, z = a] = ref.split(":");
-    const p = (x: string) => { const m = /^([A-Z]+)(\d+)$/.exec(x)!; return [[...m[1]].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0), Number(m[2])]; };
-    const [c1, r1] = p(a), [c2, r2] = p(z);
+    const p = (x: string) => {
+      const m = /^([A-Z]+)(\d+)$/.exec(x)!;
+      return [[...m[1]].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0), Number(m[2])];
+    };
+    const [c1, r1] = p(a),
+      [c2, r2] = p(z);
     const out: string[] = [];
     for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) out.push(`${r}:${c}`);
     return out;
@@ -102,7 +111,11 @@ test("ни в одном документе объединения не пере
     const o = PrintOptions.parse({ formSet: set });
     for (const kind of Object.keys(ACT_DOC_XLSX)) {
       const bb = kind === "kj" || kind === "ip" ? buildCableBundle(await book(), AOV1, defaultImportant(), kind, { set }).bundle! : b;
-      try { files.push([`${set}/${kind}`, renderActXlsx(bb, kind as any, o).xlsx]); } catch { /* формы нет в наборе */ }
+      try {
+        files.push([`${set}/${kind}`, renderActXlsx(bb, kind as any, o).xlsx]);
+      } catch {
+        /* формы нет в наборе */
+      }
     }
   }
   const pb = await readBook(new MemoryWorkbook(protoRecords() as any));
@@ -113,9 +126,10 @@ test("ни в одном документе объединения не пере
   assert.ok(files.length >= 13);
   for (const [name, buf] of files) {
     const seen = new Set<string>();
-    for (const m of readXlsx(buf).sheets[0].merges) for (const c of cells(m)) {
-      assert.ok(!seen.has(c), `${name}: ${m}`);
-      seen.add(c);
-    }
+    for (const m of readXlsx(buf).sheets[0].merges)
+      for (const c of cells(m)) {
+        assert.ok(!seen.has(c), `${name}: ${m}`);
+        seen.add(c);
+      }
   }
 });

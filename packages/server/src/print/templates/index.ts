@@ -14,9 +14,13 @@ export function renderCableHtml<K extends keyof CableDocData>(kind: K, data: Cab
 
 export function renderHtml<K extends DocKind>(kind: K, data: DocData[K]): string {
   switch (kind) {
-    case "aosr": return aosrHtml(data as DocData["aosr"]);
-    case "rim": return rimHtml(data as DocData["rim"]);
-    case "vd": return vdHtml(data as DocData["vd"]);
-    default: return vorHtml(data as DocData["vor"]);
+    case "aosr":
+      return aosrHtml(data as DocData["aosr"]);
+    case "rim":
+      return rimHtml(data as DocData["rim"]);
+    case "vd":
+      return vdHtml(data as DocData["vd"]);
+    default:
+      return vorHtml(data as DocData["vor"]);
   }
 }

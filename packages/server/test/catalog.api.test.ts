@@ -36,7 +36,11 @@ test("API: конфликт кода и битые ссылки — 422, доп�
   assert.equal(bad.json.error, "Код «АОСР» занят встроенным документом");
   assert.deepEqual((await s.req("GET", "/api/catalog")).json.own, []);
 
-  const bad2 = await s.req("PUT", "/api/catalog/user", { docs: [], sections: [{ code: "ЭМ", name: "x", works: [{ code: "w", name: "w", docs: ["НЕТ"] }] }], hidden: [] });
+  const bad2 = await s.req("PUT", "/api/catalog/user", {
+    docs: [],
+    sections: [{ code: "ЭМ", name: "x", works: [{ code: "w", name: "w", docs: ["НЕТ"] }] }],
+    hidden: [],
+  });
   assert.equal(bad2.status, 422);
   assert.equal(bad2.json.error, "Вид работ «w» ссылается на неизвестный документ «НЕТ»");
 });
@@ -58,7 +62,8 @@ test("шаблон: выгрузка со своим документом спр
   assert.equal(put.status, 200);
   const t = await s.req("POST", "/api/templates", { name: "СЭЛ" });
   const save = await s.req("PUT", `/api/templates/${t.json.id}`, {
-    name: "СЭЛ", docs: [{ kind: "custom", code: "ПИК", name: "Протокол испытания кабеля", form: null }],
+    name: "СЭЛ",
+    docs: [{ kind: "custom", code: "ПИК", name: "Протокол испытания кабеля", form: null }],
   });
   assert.equal(save.status, 200, JSON.stringify(save.json));
   const exp = await s.raw("GET", `/api/templates/${t.json.id}/export`);
@@ -81,7 +86,8 @@ test("шаблон: свой вид работ переживает выгруз
   });
   const t = await s.req("POST", "/api/templates", { name: "Т" });
   const save = await s.req("PUT", `/api/templates/${t.json.id}`, {
-    name: "Т", docs: [{ kind: "custom", code: "ПИК", name: "Протокол", form: null, catalog: "ПИК", works: ["w1"] }],
+    name: "Т",
+    docs: [{ kind: "custom", code: "ПИК", name: "Протокол", form: null, catalog: "ПИК", works: ["w1"] }],
   });
   assert.equal(save.status, 200, JSON.stringify(save.json));
   const exp = await s.raw("GET", `/api/templates/${t.json.id}/export`);
@@ -103,10 +109,14 @@ test("шаблон: конфликтный catalog.json пропускается
   const t = await s.req("POST", "/api/templates", { name: "Т" });
   const exp = await s.raw("GET", `/api/templates/${t.json.id}/export`);
   const files = [...openZip(new Uint8Array(await exp.arrayBuffer()))].map(([k, fn]) => [k, fn()] as [string, Buffer | string]);
-  files.push(["catalog.json", JSON.stringify({
-    docs: [{ code: "АОСР", name: "Конфликт", clause344: 3, source: "", make: "form", scope: "act" }],
-    sections: [], hidden: [],
-  })]);
+  files.push([
+    "catalog.json",
+    JSON.stringify({
+      docs: [{ code: "АОСР", name: "Конфликт", clause344: 3, source: "", make: "form", scope: "act" }],
+      sections: [],
+      hidden: [],
+    }),
+  ]);
   const bad = writeZip(files);
 
   const s2 = await startTestServer();

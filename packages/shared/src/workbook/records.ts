@@ -27,9 +27,9 @@ export function tableToRows(name: TableName, t: TableData): BookRow[] {
     const link: Record<string, string | null> = {};
     let filled = false;
     cols.forEach((c, i) => {
-      const val = idx[i] >= 0 ? r[idx[i]] ?? null : null;
+      const val = idx[i] >= 0 ? (r[idx[i]] ?? null) : null;
       v[c.key] = val;
-      link[c.key] = idx[i] >= 0 ? t.links[row]?.[idx[i]] ?? null : null;
+      link[c.key] = idx[i] >= 0 ? (t.links[row]?.[idx[i]] ?? null) : null;
       // Строка из одних значений по умолчанию («Порядок» = 1, «Вид» = «Схема») — ещё не данные.
       const isDefault = c.default !== undefined && cellText(val) === String(c.default);
       if (c.type !== "formula" && cellText(val) !== "" && !isDefault) filled = true;
@@ -52,7 +52,10 @@ export function bookFromTables(tables: ReadonlyMap<TableName, TableData | null>)
   const book: Book = { tables: {}, object: Object.fromEntries(OBJECT_FIELDS.map((f) => [f.key, null])), missing: [] };
   for (const name of TABLE_NAMES) {
     const t = tables.get(name);
-    if (!t) { book.missing.push(name); continue; }
+    if (!t) {
+      book.missing.push(name);
+      continue;
+    }
     const rows = tableToRows(name, t);
     if (name === "Объект") {
       for (const r of rows) {

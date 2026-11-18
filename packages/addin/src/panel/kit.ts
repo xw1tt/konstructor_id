@@ -13,19 +13,22 @@ import type { IssueLine } from "./print.ts";
 
 /** Комплект, к которому относится строка таблицы комплекта, «актов комплектов» или реестра. */
 export function kitOfRow(table: TableName, headers: string[], row: CellValue[]): string {
-  const key = table === "Комплекты" ? column("Комплекты", "number").header
-    : table === "АктыКомплектов" || table === "РеестрИД" ? column(table, "kit").header : null;
+  const key =
+    table === "Комплекты" ? column("Комплекты", "number").header : table === "АктыКомплектов" || table === "РеестрИД" ? column(table, "kit").header : null;
   if (!key) return "";
   const v = row[headers.indexOf(key)] ?? null;
   return isExampleValue(v) ? "" : cellText(v);
 }
 
-export const kitRegistryCount = (book: Book, kit: string) =>
-  (book.tables["РеестрИД"] ?? []).filter((r) => cellText(r.v.kit) === kit).length;
+export const kitRegistryCount = (book: Book, kit: string) => (book.tables["РеестрИД"] ?? []).filter((r) => cellText(r.v.kit) === kit).length;
 
 export const previewUrl = (src: string, origin: string) => `${origin}/addin/preview.html?src=${encodeURIComponent(src)}`;
 
-export interface ServerKitIssue { row: number | null; column: string; message: string }
+export interface ServerKitIssue {
+  row: number | null;
+  column: string;
+  message: string;
+}
 
 /** Ошибки файлов от сервера: строка реестра (offset — строка листа первой строки данных) или логотип организации. */
 export function kitIssueLines(issues: ServerKitIssue[], offset: number | undefined): IssueLine[] {
@@ -40,13 +43,17 @@ export function kitIssueLines(issues: ServerKitIssue[], offset: number | undefin
 }
 
 export type KitOutcome =
-  | { kind: "issues"; issues: Issue[] }
-  | { kind: "files"; issues: ServerKitIssue[] }
-  | { kind: "ok"; id: string; pages: number; name: string };
+  { kind: "issues"; issues: Issue[] } | { kind: "files"; issues: ServerKitIssue[] } | { kind: "ok"; id: string; pages: number; name: string };
 
 /** Проверяет комплект в книге и отправляет задание сборки на сервер. */
-export async function assembleKit(book: Book, kit: string, important: ImportantMap, template: TemplateCode, options: PrintOptions,
-  tpl?: UserTemplate): Promise<KitOutcome> {
+export async function assembleKit(
+  book: Book,
+  kit: string,
+  important: ImportantMap,
+  template: TemplateCode,
+  options: PrintOptions,
+  tpl?: UserTemplate,
+): Promise<KitOutcome> {
   const { request, issues } = buildKitRequest(book, kit, important, template, options, new Date(), tpl);
   if (!request) return { kind: "issues", issues };
   let res: Response;
@@ -68,25 +75,33 @@ export function kitsWithRegistry(book: Book): string[] {
 }
 
 export type CommonOutcome =
-  | { kind: "issues"; issues: Issue[] }
-  | { kind: "empty" }
-  | { kind: "ok"; id: string; kits: number; docs: number; sheets: number; warnings: string[] };
+  { kind: "issues"; issues: Issue[] } | { kind: "empty" } | { kind: "ok"; id: string; kits: number; docs: number; sheets: number; warnings: string[] };
 
 /** Общий реестр ИД: задания всех комплектов с реестром → один реестр на сервере (PDF и Excel). */
-export async function assembleCommonRegistry(book: Book, important: ImportantMap, template: TemplateCode, options: PrintOptions,
-  tpl?: UserTemplate): Promise<CommonOutcome> {
+export async function assembleCommonRegistry(
+  book: Book,
+  important: ImportantMap,
+  template: TemplateCode,
+  options: PrintOptions,
+  tpl?: UserTemplate,
+): Promise<CommonOutcome> {
   const kits = kitsWithRegistry(book);
   if (!kits.length) return { kind: "empty" };
   const requests = [];
   const issues: Issue[] = [];
   for (const k of kits) {
     const r = buildKitRequest(book, k, important, template, options, new Date(), tpl);
-    if (r.request) requests.push(r.request); else issues.push(...r.issues);
+    if (r.request) requests.push(r.request);
+    else issues.push(...r.issues);
   }
   if (issues.length) return { kind: "issues", issues };
   let res: Response;
   try {
-    res = await fetch("/api/common-registry-jobs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kits: requests }) });
+    res = await fetch("/api/common-registry-jobs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kits: requests }),
+    });
   } catch {
     throw new ServerUnavailableError();
   }

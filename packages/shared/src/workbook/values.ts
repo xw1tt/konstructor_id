@@ -55,7 +55,10 @@ export function parseNumberCell(v: CellValue): Parsed<number | null> {
 
 /** Список значений через «;» (края обрезаны, пустые выброшены). */
 export function splitRefs(v: CellValue): string[] {
-  return cellText(v).split(";").map((s) => s.trim()).filter(Boolean);
+  return cellText(v)
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export const joinRefs = (list: string[]): string => list.join("; ");

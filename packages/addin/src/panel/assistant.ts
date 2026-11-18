@@ -11,7 +11,10 @@ import type { TableStore } from "@idk/shared/workbook/store";
 import type { Catalog } from "@idk/shared/catalog/model";
 import type { UserTemplate } from "@idk/shared/forms/template";
 
-export interface ChatItem { kind: "user" | "assistant" | "tool" | "note" | "error"; text: string }
+export interface ChatItem {
+  kind: "user" | "assistant" | "tool" | "note" | "error";
+  text: string;
+}
 
 /** Дополнительный набор инструментов (план 20: справочник, формы). exec → null, если вызов не его. */
 export interface ToolKit {
@@ -22,7 +25,11 @@ export interface ToolKit {
 }
 
 export interface AskContext {
-  book: Book; important: ImportantMap; catalog: Catalog | null; template: UserTemplate; masked: boolean;
+  book: Book;
+  important: ImportantMap;
+  catalog: Catalog | null;
+  template: UserTemplate;
+  masked: boolean;
   prompt: Omit<PromptContext, "masked" | "template">;
 }
 
@@ -39,18 +46,39 @@ export class AssistantSession {
   applied: { ids: number[]; undo: Undo; extra: (() => Promise<void>)[] } | null = null;
   constructor(private deps: SessionDeps) {}
 
-  reset() { this.history = []; this.items = []; this.pending = []; this.applied = null; }
+  reset() {
+    this.history = [];
+    this.items = [];
+    this.pending = [];
+    this.applied = null;
+  }
 
-  private note(text: string) { this.history.push({ role: "user", content: `[${text}]` }); }
+  private note(text: string) {
+    this.history.push({ role: "user", content: `[${text}]` });
+  }
 
   async ask(text: string, c: AskContext, onUpdate: () => void = () => {}): Promise<void> {
-    if (this.pending.length) { this.note("Пользователь не стал применять прежние предложения"); this.pending = []; }
-    const system: ChatMessage = { role: "system", content: systemPrompt({ ...c.prompt, template: c.template.name, masked: c.masked, schema: bookSchema(c.book) }) };
-    if (this.history[0]?.role === "system") this.history[0] = system; else this.history.unshift(system);
+    if (this.pending.length) {
+      this.note("Пользователь не стал применять прежние предложения");
+      this.pending = [];
+    }
+    const system: ChatMessage = {
+      role: "system",
+      content: systemPrompt({ ...c.prompt, template: c.template.name, masked: c.masked, schema: bookSchema(c.book) }),
+    };
+    if (this.history[0]?.role === "system") this.history[0] = system;
+    else this.history.unshift(system);
     this.history.push({ role: "user", content: text });
     this.items.push({ kind: "user", text });
     onUpdate();
-    const ctx: ToolContext = { book: c.book, important: c.important, catalog: c.catalog, template: c.template, mask: new NameMask(c.book, c.masked), proposals: [] };
+    const ctx: ToolContext = {
+      book: c.book,
+      important: c.important,
+      catalog: c.catalog,
+      template: c.template,
+      mask: new NameMask(c.book, c.masked),
+      proposals: [],
+    };
     const kits = this.deps.kits ?? [];
     const tools = [...BOOK_TOOLS, ...kits.flatMap((k) => k.tools)];
     try {
@@ -59,10 +87,16 @@ export class AssistantSession {
         exec: async (call) => {
           const own = execBookTool(ctx, call);
           if (own !== null) return own;
-          for (const k of kits) { const out = await k.exec(call, ctx); if (out !== null) return out; }
+          for (const k of kits) {
+            const out = await k.exec(call, ctx);
+            if (out !== null) return out;
+          }
           return JSON.stringify({ error: `Нет инструмента ${call.name}` });
         },
-        onTool: (call) => { this.items.push({ kind: "tool", text: toolLabel(call) }); onUpdate(); },
+        onTool: (call) => {
+          this.items.push({ kind: "tool", text: toolLabel(call) });
+          onUpdate();
+        },
       });
       this.history.push(...r.added);
       this.items.push({ kind: r.stopped ? "error" : "assistant", text: r.text || (ctx.proposals.length ? "Предлагаю изменения ниже." : "…") });
@@ -85,7 +119,13 @@ export class AssistantSession {
     const undo = await applyChanges(this.deps.store, changes);
     const extra: (() => Promise<void>)[] = [];
     for (const p of chosen.filter((x) => !book.includes(x))) {
-      for (const k of this.deps.kits ?? []) { const u = await k.apply?.(p); if (u) { extra.push(u); break; } }
+      for (const k of this.deps.kits ?? []) {
+        const u = await k.apply?.(p);
+        if (u) {
+          extra.push(u);
+          break;
+        }
+      }
     }
     this.applied = { ids: chosen.map((p) => p.id), undo, extra };
     const skipped = this.pending.filter((p) => !ids.includes(p.id)).map((p) => p.id);

@@ -25,7 +25,10 @@ export function formType(buf: Uint8Array): "docx" | "xlsx" | null {
 
 export class TemplateStore {
   private root: string;
-  constructor(dataDir: string, private catalog?: { user(): UserCatalogType; save(u: UserCatalogType): void }) {
+  constructor(
+    dataDir: string,
+    private catalog?: { user(): UserCatalogType; save(u: UserCatalogType): void },
+  ) {
     this.root = join(dataDir, "templates");
     mkdirSync(this.root, { recursive: true });
   }
@@ -36,9 +39,14 @@ export class TemplateStore {
   }
 
   list(): UserTemplate[] {
-    const own = readdirSync(this.root, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name.startsWith("t-"))
+    const own = readdirSync(this.root, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name.startsWith("t-"))
       .flatMap((d) => {
-        try { return [upgradeTemplate(UserTemplate.parse(JSON.parse(readFileSync(join(this.root, d.name, "template.json"), "utf8"))))]; } catch { return []; }
+        try {
+          return [upgradeTemplate(UserTemplate.parse(JSON.parse(readFileSync(join(this.root, d.name, "template.json"), "utf8"))))];
+        } catch {
+          return [];
+        }
       })
       .sort((a, b) => a.name.localeCompare(b.name, "ru"));
     return [...BUILTIN_TEMPLATES, ...own];
@@ -83,7 +91,8 @@ export class TemplateStore {
     const t = UserTemplate.parse({ id, ...body, print: body.print ?? this.get(id).print });
     const errors = validateTemplate(t);
     if (errors.length) throw new HttpError(422, errors[0]);
-    for (const d of t.docs) if (d.form && !existsSync(join(this.dir(id), "forms", d.form.file))) throw new HttpError(422, `Нет файла формы «${d.form.original}»`);
+    for (const d of t.docs)
+      if (d.form && !existsSync(join(this.dir(id), "forms", d.form.file))) throw new HttpError(422, `Нет файла формы «${d.form.original}»`);
     this.write(t);
     return t;
   }
@@ -150,7 +159,9 @@ export class TemplateStore {
           const imported = UserCatalog.parse(JSON.parse(raw));
           const { errors } = mergeCatalog(BUILTIN_CATALOG, imported);
           if (!errors.length) this.catalog.save(mergeUserCatalog(this.catalog.user(), imported));
-        } catch { /* битый catalog.json не мешает загрузке шаблона */ }
+        } catch {
+          /* битый catalog.json не мешает загрузке шаблона */
+        }
       }
     }
     this.write(t);

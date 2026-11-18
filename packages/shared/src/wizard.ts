@@ -7,9 +7,28 @@ import type { RoleCode } from "./roles.ts";
 
 export const WIZARD_STEPS = ["Объект", "Участники", "Шифр раздела", "Материалы", "Акт"] as const;
 
-export interface WizOrg { shortName: string; fullName: string; inn: string; ogrn: string; address: string }
-export interface WizRep { role: RoleCode; fullName: string; position: string; org: string; authorityDoc: string; nrsNumber: string }
-export interface WizMaterial { name: string; mark: string; unit: string; manufacturer: string; quantity: string }
+export interface WizOrg {
+  shortName: string;
+  fullName: string;
+  inn: string;
+  ogrn: string;
+  address: string;
+}
+export interface WizRep {
+  role: RoleCode;
+  fullName: string;
+  position: string;
+  org: string;
+  authorityDoc: string;
+  nrsNumber: string;
+}
+export interface WizMaterial {
+  name: string;
+  mark: string;
+  unit: string;
+  manufacturer: string;
+  quantity: string;
+}
 export type OrgRole = "developer" | "builder" | "designer" | "performer";
 export const ORG_ROLES: readonly { key: OrgRole; label: string }[] = [
   { key: "developer", label: "Застройщик (технический заказчик)" },
@@ -51,7 +70,9 @@ const num = (s: string) => Number(s.replace(",", ".").replace(/\s/g, ""));
 /** Ошибки шага: ключ поля → текст. Пусто — шаг заполнен. */
 export function stepErrors(step: number, d: WizardData, book?: Book): Record<string, string> {
   const e: Record<string, string> = {};
-  const req = (key: string, v: string) => { if (!v.trim()) e[key] = NEED; };
+  const req = (key: string, v: string) => {
+    if (!v.trim()) e[key] = NEED;
+  };
   if (step === 0) req("object.name", d.object.name);
   if (step === 1) {
     for (const r of ["developer", "builder", "designer"] as const) {
@@ -95,7 +116,10 @@ export function stepErrors(step: number, d: WizardData, book?: Book): Record<str
 export const allErrors = (d: WizardData, book?: Book) => Object.assign({}, ...WIZARD_STEPS.map((_, i) => stepErrors(i, d, book))) as Record<string, string>;
 
 const H = (t: TableName, key: string) => column(t, key).header;
-const norm = (v: CellValue | undefined) => cellText(v ?? null).trim().toLowerCase();
+const norm = (v: CellValue | undefined) =>
+  cellText(v ?? null)
+    .trim()
+    .toLowerCase();
 const date = (iso: string) => (iso ? isoToExcelSerial(iso) : null);
 
 /** Строки книги из данных мастера; организации, представители, шифр и материалы, уже имеющиеся в книге, не повторяются. */
@@ -107,7 +131,7 @@ export function wizardRecords(book: Book, d: WizardData): BookRecords {
 
   const field = (key: string, value: string) => {
     const f = OBJECT_FIELDS.find((x) => x.key === key)!;
-    if (value.trim()) push("Объект", { "Поле": f.label, "Значение": value.trim() });
+    if (value.trim()) push("Объект", { Поле: f.label, Значение: value.trim() });
   };
   field("name", d.object.name);
   field("address", d.object.address);
@@ -123,8 +147,11 @@ export function wizardRecords(book: Book, d: WizardData): BookRecords {
     if (!k || seenOrg.has(k) || has("Организации", "shortName", o.shortName)) continue;
     seenOrg.add(k);
     push("Организации", {
-      [H("Организации", "shortName")]: o.shortName.trim(), [H("Организации", "fullName")]: o.fullName.trim(),
-      [H("Организации", "inn")]: o.inn.trim(), [H("Организации", "ogrn")]: o.ogrn.trim(), [H("Организации", "address")]: o.address.trim(),
+      [H("Организации", "shortName")]: o.shortName.trim(),
+      [H("Организации", "fullName")]: o.fullName.trim(),
+      [H("Организации", "inn")]: o.inn.trim(),
+      [H("Организации", "ogrn")]: o.ogrn.trim(),
+      [H("Организации", "address")]: o.address.trim(),
     });
   }
   const repsInBook = new Set((book.tables["Представители"] ?? []).map((r) => `${norm(r.v.fullName)}|${norm(r.v.org)}`));
@@ -134,27 +161,41 @@ export function wizardRecords(book: Book, d: WizardData): BookRecords {
     if (repsInBook.has(k)) continue;
     repsInBook.add(k);
     push("Представители", {
-      [H("Представители", "role")]: ROLE_BOOK_LABELS[r.role], [H("Представители", "position")]: r.position.trim(),
-      [H("Представители", "fullName")]: r.fullName.trim(), [H("Представители", "org")]: r.org.trim(),
-      [H("Представители", "authorityDoc")]: r.authorityDoc.trim(), [H("Представители", "nrsNumber")]: r.nrsNumber.trim() || null,
+      [H("Представители", "role")]: ROLE_BOOK_LABELS[r.role],
+      [H("Представители", "position")]: r.position.trim(),
+      [H("Представители", "fullName")]: r.fullName.trim(),
+      [H("Представители", "org")]: r.org.trim(),
+      [H("Представители", "authorityDoc")]: r.authorityDoc.trim(),
+      [H("Представители", "nrsNumber")]: r.nrsNumber.trim() || null,
     });
   }
   if (!has("Шифры", "code", d.section.code)) {
-    push("Шифры", { [H("Шифры", "code")]: d.section.code.trim(), [H("Шифры", "name")]: d.section.name.trim(), [H("Шифры", "designer")]: d.orgs.designer.shortName.trim() });
+    push("Шифры", {
+      [H("Шифры", "code")]: d.section.code.trim(),
+      [H("Шифры", "name")]: d.section.name.trim(),
+      [H("Шифры", "designer")]: d.orgs.designer.shortName.trim(),
+    });
   }
   const mats = d.materials.filter((m) => m.name.trim());
   for (const m of mats) {
     if (has("Материалы", "name", m.name)) continue;
     push("Материалы", {
-      [H("Материалы", "name")]: m.name.trim(), [H("Материалы", "mark")]: m.mark.trim(), [H("Материалы", "unit")]: m.unit.trim(),
+      [H("Материалы", "name")]: m.name.trim(),
+      [H("Материалы", "mark")]: m.mark.trim(),
+      [H("Материалы", "unit")]: m.unit.trim(),
       [H("Материалы", "manufacturer")]: m.manufacturer.trim(),
     });
   }
   const a = d.act;
   push("Акты", {
-    [H("Акты", "baseNumber")]: a.number.trim(), [H("Акты", "date")]: date(a.date), [H("Акты", "section")]: d.section.code.trim(),
-    [H("Акты", "works")]: a.works.trim(), [H("Акты", "dateStart")]: date(a.dateStart), [H("Акты", "dateEnd")]: date(a.dateEnd),
-    [H("Акты", "normative")]: a.normative.trim(), [H("Акты", "nextWorks")]: a.nextWorks.trim(),
+    [H("Акты", "baseNumber")]: a.number.trim(),
+    [H("Акты", "date")]: date(a.date),
+    [H("Акты", "section")]: d.section.code.trim(),
+    [H("Акты", "works")]: a.works.trim(),
+    [H("Акты", "dateStart")]: date(a.dateStart),
+    [H("Акты", "dateEnd")]: date(a.dateEnd),
+    [H("Акты", "normative")]: a.normative.trim(),
+    [H("Акты", "nextWorks")]: a.nextWorks.trim(),
     [H("Акты", "performerOrg")]: performer.shortName.trim(),
   });
   for (const m of mats) {

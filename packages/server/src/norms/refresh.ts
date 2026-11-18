@@ -69,7 +69,11 @@ export function createRefresher(db: Db, deps: RefresherDeps = {}) {
             break;
           }
           const before = rows.length;
-          for (const r of parsed.rows) if (!seen.has(r.url)) { seen.add(r.url); rows.push(r); }
+          for (const r of parsed.rows)
+            if (!seen.has(r.url)) {
+              seen.add(r.url);
+              rows.push(r);
+            }
           if (state.pages !== null && page >= state.pages) break;
           // Портал вернул уже виденные строки (номер страницы вне диапазона) — раздел кончился.
           if (rows.length === before) break;

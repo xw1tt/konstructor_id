@@ -28,7 +28,7 @@ export function exampleRows(): Partial<Record<TableName, Record<string, CellValu
     // Виртуальные таблицы (план 31) — из «Материалов»: их пример — в строке-примере материала.
     if (TABLES[name].virtual) continue;
     if (name === "Объект") {
-      out[name] = OBJECT_FIELDS.map((f) => ({ "Поле": f.label, "Значение": f.example }));
+      out[name] = OBJECT_FIELDS.map((f) => ({ Поле: f.label, Значение: f.example }));
       continue;
     }
     const rec: Record<string, CellValue> = {};

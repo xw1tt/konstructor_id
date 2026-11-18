@@ -4,7 +4,11 @@ import { cellText, splitRefs, joinRefs } from "./values.ts";
 import type { Book } from "./records.ts";
 import type { TableStore } from "./store.ts";
 
-export interface RefHit { table: TableName; row: number; column: string }
+export interface RefHit {
+  table: TableName;
+  row: number;
+  column: string;
+}
 export type RenameResult = { ok: true; updated: number } | { ok: false; message: string };
 
 const OBJECT_REF_LABELS = new Set<string>(OBJECT_FIELDS.filter((f) => f.type === "ref").map((f) => f.label));
@@ -24,8 +28,7 @@ export function findReferences(book: Book, table: TableName, key: string): RefHi
   }
   if (table === "Организации") {
     for (const r of book.tables["Объект"] ?? []) {
-      if (OBJECT_REF_LABELS.has(cellText(r.v.field)) && cellText(r.v.value) === k)
-        hits.push({ table: "Объект", row: r.row, column: "Значение" });
+      if (OBJECT_REF_LABELS.has(cellText(r.v.field)) && cellText(r.v.value) === k) hits.push({ table: "Объект", row: r.row, column: "Значение" });
     }
   }
   return hits;

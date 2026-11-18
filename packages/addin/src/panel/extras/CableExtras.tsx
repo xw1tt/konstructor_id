@@ -20,12 +20,24 @@ export function CableExtras({ port, state, act }: { port: ExcelPort; state: Book
   };
   return (
     <div className="extras">
-      {act && <p className="muted">Длина кабеля по акту {act}: {String(cableTotal(state.book, act)).replace(".", ",")} м</p>}
+      {act && (
+        <p className="muted">
+          Длина кабеля по акту {act}: {String(cableTotal(state.book, act)).replace(".", ",")} м
+        </p>
+      )}
       <div className="row-actions">
-        <button className="btn" onClick={() => void port.activateSheet("Изоляция")}>Изоляция</button>
-        <button className="btn" onClick={() => void collect()}>Собрать марки из журнала</button>
+        <button className="btn" onClick={() => void port.activateSheet("Изоляция")}>
+          Изоляция
+        </button>
+        <button className="btn" onClick={() => void collect()}>
+          Собрать марки из журнала
+        </button>
       </div>
-      {note && <p className={note.error ? "error" : "notice"} role="status">{note.text}</p>}
+      {note && (
+        <p className={note.error ? "error" : "notice"} role="status">
+          {note.text}
+        </p>
+      )}
     </div>
   );
 }

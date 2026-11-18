@@ -12,8 +12,10 @@ const someDoc = BUILTIN_CATALOG.docs[0].code;
 test("вид работ в существующий раздел со своим документом; новый раздел; итог проходит слияние", () => {
   const r = validateCatalogProposal(BUILTIN_CATALOG, EMPTY, {
     docs: [{ code: "АПК", name: "Акт проверки контроллеров СКУД", clause344: 7, make: "form", scope: "act" }],
-    works: [{ section: sec.code, code: "СКУД-1", name: "Монтаж СКУД", docs: ["апк", someDoc] },
-      { section: "СКУД", sectionName: "Системы контроля доступа", code: "СКУД-2", name: "Пусконаладка СКУД", docs: ["АПК"] }],
+    works: [
+      { section: sec.code, code: "СКУД-1", name: "Монтаж СКУД", docs: ["апк", someDoc] },
+      { section: "СКУД", sectionName: "Системы контроля доступа", code: "СКУД-2", name: "Пусконаладка СКУД", docs: ["АПК"] },
+    ],
   });
   assert.ok(r.ok, JSON.stringify(r));
   if (!r.ok) return;
@@ -27,7 +29,11 @@ test("вид работ в существующий раздел со своим
 });
 
 test("ошибки: занятый код, неизвестный документ, новый раздел без названия, встроенный документ, пусто", () => {
-  const e = (args: any) => { const r = validateCatalogProposal(BUILTIN_CATALOG, EMPTY, args); assert.equal(r.ok, false); return (r as any).error as string; };
+  const e = (args: any) => {
+    const r = validateCatalogProposal(BUILTIN_CATALOG, EMPTY, args);
+    assert.equal(r.ok, false);
+    return (r as any).error as string;
+  };
   assert.match(e({ docs: [{ code: someDoc, name: "x", clause344: 1, make: "scan", scope: "act" }] }), /уже есть/);
   assert.match(e({ works: [{ section: sec.code, code: sec.works[0].code, name: "x", docs: [] }] }), /уже есть/);
   assert.match(e({ works: [{ section: sec.code, code: "Н1", name: "x", docs: ["НЕТ-ТАКОГО"] }] }), /Нет документов с кодами: НЕТ-ТАКОГО/);

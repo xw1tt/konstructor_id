@@ -13,7 +13,8 @@ async function seeded(patch?: (r: any) => void) {
 }
 const pdf = async (s: Awaited<ReturnType<typeof startTestServer>>, b: ActBundle, doc: string) => {
   const r = await s.raw("POST", `/api/print/${doc}`, {
-    headers: { "content-type": "application/json" }, body: JSON.stringify(b),
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(b),
   });
   assert.equal(r.status, 200, await r.clone().text());
   assert.equal(r.headers.get("content-type"), "application/pdf");
@@ -33,7 +34,8 @@ test("pdf: АОСР контрольного примера — 2 страниц
 test("pdf: РИМ на 40 строк — 2 страницы, шапка повторяется", async () => {
   const { s, b } = await seeded((r) => {
     const first = r["МатериалыАктов"][0]["Материал"];
-    for (let i = 0; i < 16; i++) r["ДокументыКачества"].push({ "Материалы": first, "Тип": "Прочее", "Номер": `X-${i}`, "Дата": r["ДокументыКачества"][0]["Дата"], "Листов": 1 });
+    for (let i = 0; i < 16; i++)
+      r["ДокументыКачества"].push({ Материалы: first, Тип: "Прочее", Номер: `X-${i}`, Дата: r["ДокументыКачества"][0]["Дата"], Листов: 1 });
   });
   const { pages } = await pdf(s, b, "rim");
   assert.equal(pages.length, 2);

@@ -35,21 +35,33 @@ export const KitRow = z.object({
   /** Документ конструктора: акт и вид печати. */
   /** Документ конструктора: акт и вид встроенной печати; form — печать по своей форме шаблона (вид встроенного — null
    *  для своего документа). */
-  doc: z.object({
-    act: z.string(), kind: z.enum(PRINT_KINDS).nullable(),
-    form: z.object({ template: z.string(), doc: z.string() }).optional(),
-    /** Протокол или акт плана 13: № документа — пакет в KitRequest.protos. */
-    proto: z.string().optional(),
-  }).nullable().default(null),
+  doc: z
+    .object({
+      act: z.string(),
+      kind: z.enum(PRINT_KINDS).nullable(),
+      form: z.object({ template: z.string(), doc: z.string() }).optional(),
+      /** Протокол или акт плана 13: № документа — пакет в KitRequest.protos. */
+      proto: z.string().optional(),
+    })
+    .nullable()
+    .default(null),
   file: FileRef.nullable().default(null),
 });
 export type KitRow = z.infer<typeof KitRow>;
 
 export const KitHeader = z.object({
-  number: z.string(), volume: z.string().default(""), part: z.string().default(""), building: z.string().default(""),
-  works: z.string().default(""), city: z.string().default(""), year: z.string().default(""),
-  cover: z.boolean().default(true), spine: z.boolean().default(true), parts: z.number().int().min(1).max(30).default(1),
-  code: z.string(), sectionName: z.string().default(""),
+  number: z.string(),
+  volume: z.string().default(""),
+  part: z.string().default(""),
+  building: z.string().default(""),
+  works: z.string().default(""),
+  city: z.string().default(""),
+  year: z.string().default(""),
+  cover: z.boolean().default(true),
+  spine: z.boolean().default(true),
+  parts: z.number().int().min(1).max(30).default(1),
+  code: z.string(),
+  sectionName: z.string().default(""),
 });
 export type KitHeader = z.infer<typeof KitHeader>;
 
@@ -72,16 +84,28 @@ export const KitRequest = z.object({
 export type KitRequest = z.infer<typeof KitRequest>;
 
 /** Вид строки реестра → документ конструктора. */
-export const PRINTED_KINDS: Partial<Record<RegistryKind, PrintKind>> =
-  Object.fromEntries(["vor", "aosr", "rim", "rp", "vd", "kj", "ip", "avk"].map((k) => [ACT_DOC_DEFS[k as ActDocKind].registry, k]));
+export const PRINTED_KINDS: Partial<Record<RegistryKind, PrintKind>> = Object.fromEntries(
+  ["vor", "aosr", "rim", "rp", "vd", "kj", "ip", "avk"].map((k) => [ACT_DOC_DEFS[k as ActDocKind].registry, k]),
+);
 
 const txt = cellText;
 const H = (t: TableName, key: string) => column(t, key).header;
 
-const orgOf = (r: BookRow | undefined): Organization | null => r ? {
-  id: r.row + 1, shortName: txt(r.v.shortName), fullName: txt(r.v.fullName), ogrn: txt(r.v.ogrn), inn: txt(r.v.inn),
-  address: txt(r.v.address), phone: txt(r.v.phone), sroName: txt(r.v.sroName), sroOgrn: txt(r.v.sroOgrn), sroInn: txt(r.v.sroInn),
-} : null;
+const orgOf = (r: BookRow | undefined): Organization | null =>
+  r
+    ? {
+        id: r.row + 1,
+        shortName: txt(r.v.shortName),
+        fullName: txt(r.v.fullName),
+        ogrn: txt(r.v.ogrn),
+        inn: txt(r.v.inn),
+        address: txt(r.v.address),
+        phone: txt(r.v.phone),
+        sroName: txt(r.v.sroName),
+        sroOgrn: txt(r.v.sroOgrn),
+        sroInn: txt(r.v.sroInn),
+      }
+    : null;
 
 const fileOf = (r: BookRow | undefined, key = "file"): FileRef | null => {
   if (!r) return null;
@@ -92,8 +116,13 @@ const fileOf = (r: BookRow | undefined, key = "file"): FileRef | null => {
 
 /** Собирает задание сборки комплекта; при ошибках книги — null и список ошибок (как у печати акта). */
 export function buildKitRequest(
-  book: Book, kit: string, important: ImportantMap, template: TemplateCode = DEFAULT_TEMPLATE,
-  options: PrintOptions = PrintOptions.parse({}), now = new Date(), tpl?: UserTemplate,
+  book: Book,
+  kit: string,
+  important: ImportantMap,
+  template: TemplateCode = DEFAULT_TEMPLATE,
+  options: PrintOptions = PrintOptions.parse({}),
+  now = new Date(),
+  tpl?: UserTemplate,
 ): { request: KitRequest | null; issues: Issue[] } {
   /** Своя форма документа в шаблоне: ключ задания печати формы (вид встроенного или код своего). */
   const formOf = (kind: PrintKind | null, code: string | null): { template: string; doc: string } | undefined => {
@@ -119,11 +148,16 @@ export function buildKitRequest(
     c.rows(t).find((r) => withNo(txt(r.v[key])) === withNo(number) && (!act || !("act" in r.v) || txt(r.v.act) === act));
   const fallback = (kind: RegistryKind, number: string, act: string): FileRef | null => {
     switch (kind) {
-      case "Схема": return fileOf(byNumber("Схемы", "number", number, act || undefined));
-      case "Документ качества": return fileOf(byNumber("ДокументыКачества", "number", number));
-      case "Поверка": return fileOf(byNumber("СредстваИзмерений", "certificate", number));
-      case "Лаборатория": return fileOf(c.rows("Электролаборатория")[0]);
-      default: return null;
+      case "Схема":
+        return fileOf(byNumber("Схемы", "number", number, act || undefined));
+      case "Документ качества":
+        return fileOf(byNumber("ДокументыКачества", "number", number));
+      case "Поверка":
+        return fileOf(byNumber("СредстваИзмерений", "certificate", number));
+      case "Лаборатория":
+        return fileOf(c.rows("Электролаборатория")[0]);
+      default:
+        return null;
     }
   };
 
@@ -154,22 +188,33 @@ export function buildKitRequest(
       const sheets = parseNumberCell(r.v.sheets as CellValue);
       const form = formOf(pk, null);
       rows.push({
-        row: r.row, kind, number: txt(r.v.number), name: txt(r.v.name), date: txt(r.v.date),
-        copies: Math.max(0, Math.round((v.copies as number | null) ?? 1)), code: txt(r.v.code),
+        row: r.row,
+        kind,
+        number: txt(r.v.number),
+        name: txt(r.v.name),
+        date: txt(r.v.date),
+        copies: Math.max(0, Math.round((v.copies as number | null) ?? 1)),
+        code: txt(r.v.code),
         sheets: sheets.ok && sheets.value !== null ? Math.max(0, Math.round(sheets.value)) : null,
-        doc: { act: res.bundle?.act.baseNumber ?? txt(r.v.act), kind: pk, proto: number, ...(form ? { form } : {}) }, file: null,
+        doc: { act: res.bundle?.act.baseNumber ?? txt(r.v.act), kind: pk, proto: number, ...(form ? { form } : {}) },
+        file: null,
       });
       continue;
     }
     const act = txt(r.v.act);
     const own = kind === "Свой документ";
     // Номер своего документа: «№<акт>.<код>» (на акт) или «<код>» (на комплект, без акта).
-    const ownCode = own ? withNo(txt(r.v.number)).replace(/^№\s*/, "").slice(act ? act.length + 1 : 0) : null;
+    const ownCode = own
+      ? withNo(txt(r.v.number))
+          .replace(/^№\s*/, "")
+          .slice(act ? act.length + 1 : 0)
+      : null;
     const printed = PRINTED_KINDS[kind];
     let file: FileRef | null = null;
     // Скан из шаблона (план 12): нужен файл, форма — нет; конструктор его не печатает.
     const scan = own && !!tpl?.docs.some((x) => x.kind === "custom" && x.scan && x.code.toUpperCase() === (ownCode ?? "").toUpperCase());
-    if (own && !scan && !formOf(null, ownCode)) c.push("РеестрИД", r.row, H("РеестрИД", "kind"), `Своего документа «${ownCode}» нет в шаблоне или у него нет формы`);
+    if (own && !scan && !formOf(null, ownCode))
+      c.push("РеестрИД", r.row, H("РеестрИД", "kind"), `Своего документа «${ownCode}» нет в шаблоне или у него нет формы`);
     if (scan) {
       file = fileOf(r);
       if (!file) c.push("РеестрИД", r.row, H("РеестрИД", "file"), "Нет скана: укажите файл в столбце «Скан»");
@@ -183,10 +228,16 @@ export function buildKitRequest(
     }
     const sheets = parseNumberCell(r.v.sheets as CellValue);
     rows.push({
-      row: r.row, kind, number: txt(r.v.number), name: txt(r.v.name), date: txt(r.v.date),
-      copies: Math.max(0, Math.round((v.copies as number | null) ?? 1)), code: txt(r.v.code),
+      row: r.row,
+      kind,
+      number: txt(r.v.number),
+      name: txt(r.v.name),
+      date: txt(r.v.date),
+      copies: Math.max(0, Math.round((v.copies as number | null) ?? 1)),
+      code: txt(r.v.code),
       sheets: sheets.ok && sheets.value !== null ? Math.max(0, Math.round(sheets.value)) : null,
-      doc: (printed || own) && !scan && act ? docRef(act, printed ?? null, ownCode) : null, file,
+      doc: (printed || own) && !scan && act ? docRef(act, printed ?? null, ownCode) : null,
+      file,
     });
   }
 
@@ -219,16 +270,26 @@ export function buildKitRequest(
   if (uniq.length) return { request: null, issues: uniq };
 
   const request: KitRequest = {
-    template, options,
+    template,
+    options,
     kit: {
-      number: kit, volume: txt(kitRow.v.volume), part: txt(kitRow.v.part), building: txt(kitRow.v.building), works: txt(kitRow.v.works),
-      city: txt(kitRow.v.city) || txt(book.object.city), year: txt(kitRow.v.year) || String(now.getFullYear()),
-      cover: txt(kitRow.v.cover) !== "нет", spine: txt(kitRow.v.spine) !== "нет",
+      number: kit,
+      volume: txt(kitRow.v.volume),
+      part: txt(kitRow.v.part),
+      building: txt(kitRow.v.building),
+      works: txt(kitRow.v.works),
+      city: txt(kitRow.v.city) || txt(book.object.city),
+      year: txt(kitRow.v.year) || String(now.getFullYear()),
+      cover: txt(kitRow.v.cover) !== "нет",
+      spine: txt(kitRow.v.spine) !== "нет",
       parts: Math.min(30, Math.max(1, Math.round((k.parts as number | null) ?? 1))),
-      code: sectionKey, sectionName: txt(sectionRow?.v.name ?? null),
+      code: sectionKey,
+      sectionName: txt(sectionRow?.v.name ?? null),
     },
     object: { name: txt(book.object.name), contractNumber: txt(book.object.contractNumber) },
-    developer: orgOf(developerRow), contractor: orgOf(contractorRow), designer: orgOf(designerRow),
+    developer: orgOf(developerRow),
+    contractor: orgOf(contractorRow),
+    designer: orgOf(designerRow),
     logos: { contractor: fileOf(contractorRow, "logo"), developer: fileOf(developerRow, "logo") },
     scanFolder: txt(book.object.scanFolder),
     acts: bundles,

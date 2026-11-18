@@ -21,18 +21,34 @@ export function trackWidth(win: Window, storage: Storage | null): () => void {
     timer = setTimeout(() => {
       const w = win.innerWidth;
       if (w < MIN) return;
-      try { storage?.setItem(WIDTH_KEY, String(w)); } catch { /* недоступно — не страшно */ }
+      try {
+        storage?.setItem(WIDTH_KEY, String(w));
+      } catch {
+        /* недоступно — не страшно */
+      }
     }, 500);
   };
   win.addEventListener("resize", onResize);
-  return () => { clearTimeout(timer); win.removeEventListener("resize", onResize); };
+  return () => {
+    clearTimeout(timer);
+    win.removeEventListener("resize", onResize);
+  };
 }
 
 /** План 21: версия Excel и умеет ли она восстанавливать ширину панели (TaskPaneApi 1.1 — Excel 2507 и новее). */
 export function widthSupport(office: any): { version: string | null; supported: boolean } {
-  let version: string | null = null, supported = false;
-  try { version = office?.context?.diagnostics?.version ?? null; } catch { /* нет сведений */ }
-  try { supported = !!office?.context?.requirements?.isSetSupported?.("TaskPaneApi", "1.1"); } catch { /* нет API */ }
+  let version: string | null = null,
+    supported = false;
+  try {
+    version = office?.context?.diagnostics?.version ?? null;
+  } catch {
+    /* нет сведений */
+  }
+  try {
+    supported = !!office?.context?.requirements?.isSetSupported?.("TaskPaneApi", "1.1");
+  } catch {
+    /* нет API */
+  }
   return { version, supported };
 }
 

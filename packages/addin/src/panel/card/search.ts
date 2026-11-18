@@ -7,7 +7,10 @@ export function searchOptions(options: readonly string[], query: string, limit =
   const q = norm(query);
   if (!q) return options.slice(0, limit);
   const words = q.split(" ");
-  const hits = options.filter((o) => { const n = norm(o); return words.every((w) => n.includes(w)); });
+  const hits = options.filter((o) => {
+    const n = norm(o);
+    return words.every((w) => n.includes(w));
+  });
   const starts = hits.filter((o) => norm(o).startsWith(q));
   return [...starts, ...hits.filter((o) => !starts.includes(o))].slice(0, limit);
 }

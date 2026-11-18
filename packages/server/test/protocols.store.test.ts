@@ -10,9 +10,14 @@ test("get и list: свой «ПАВ»-скан плана 12 → встроен
   const dir = tmpDir();
   const id = "t-00000000-0000-0000-0000-000000000001";
   mkdirSync(join(dir, "templates", id), { recursive: true });
-  writeFileSync(join(dir, "templates", id, "template.json"), JSON.stringify({
-    id, name: "Старый", docs: [{ kind: "custom", code: "ПАВ", name: "Протокол", form: null, catalog: "ПАВ", scope: "kit", scan: true }],
-  }));
+  writeFileSync(
+    join(dir, "templates", id, "template.json"),
+    JSON.stringify({
+      id,
+      name: "Старый",
+      docs: [{ kind: "custom", code: "ПАВ", name: "Протокол", form: null, catalog: "ПАВ", scope: "kit", scan: true }],
+    }),
+  );
   const store = new TemplateStore(dir);
   assert.deepEqual(store.get(id).docs, [{ kind: "builtin", doc: "pav", form: null, catalog: "ПАВ" }]);
   assert.deepEqual(store.list().find((t) => t.id === id)!.docs, [{ kind: "builtin", doc: "pav", form: null, catalog: "ПАВ" }]);

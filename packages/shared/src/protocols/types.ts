@@ -12,15 +12,31 @@ export const ProtoData = z.object({
   number: z.string(),
   dateFrom: z.string().nullable(),
   dateTo: z.string().nullable(),
-  subject: s, temperature: s, humidity: s, pressure: s, purpose: s, normative: s, conclusion: s,
+  subject: s,
+  temperature: s,
+  humidity: s,
+  pressure: s,
+  purpose: s,
+  normative: s,
+  conclusion: s,
   /** Город объекта — для актов комиссии. */
   city: s,
   /** Строки таблицы: ключ столбца описания → печатное значение (с результатом). */
   rows: z.array(z.record(z.string())),
   lab: z.object({ nameAddress: s, certificate: s, head: s, tester: s }).nullable(),
-  instruments: z.array(z.object({
-    name: s, type: s, range: s, accuracy: s, serial: s, certificate: s, checkedOn: z.string().nullable(), nextCheck: z.string().nullable(), authority: s,
-  })),
+  instruments: z.array(
+    z.object({
+      name: s,
+      type: s,
+      range: s,
+      accuracy: s,
+      serial: s,
+      certificate: s,
+      checkedOn: z.string().nullable(),
+      nextCheck: z.string().nullable(),
+      authority: s,
+    }),
+  ),
   commission: z.array(z.object({ role: s, position: s, org: s, name: s })),
 });
 export type ProtoData = z.infer<typeof ProtoData>;

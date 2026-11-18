@@ -25,7 +25,7 @@ writeFileSync(join(scans, "лого.png"), PNG_WIDE);
 /** Задание сборки комплекта АОВ1: сканы — PDF по 1–3 страницы с меткой. */
 async function request(patch: (r: any) => void = () => {}): Promise<KitRequest> {
   const r = kitRecords();
-  r["Объект"].push({ "Поле": "Папка сканов", "Значение": scans });
+  r["Объект"].push({ Поле: "Папка сканов", Значение: scans });
   r["Организации"][2]["Логотип"] = "лого.png";
   r["Комплекты"][0]["Частей в томе"] = 3;
   const book0 = await readBook(new MemoryWorkbook(r));
@@ -86,16 +86,24 @@ test("комплект АОВ1: титул, корешки, реестр с «л
   // ВОР — л. 1-2, первые листы после реестра; АОСР — л. 3-4
   assert.match(reg, /1 б\/н Ведомость объемов выполненных работ 28\.07\.2026 г\. 2 1 КУТ03-Р-ПИР-2-26-100-АОВ1\.01\.00 л\. 1-2/);
   assert.match(at(1), /Ведомость|ВЕДОМОСТЬ|Наименование работ/);
-  assert.match(reg, /2 №К32\.В\.СТ\.АОВ1\.01\.00\.1\.АОСР Акт освидетельствования скрытых работ Монтаж .* 28\.07\.2026 г\. 2 1 КУТ03-Р-ПИР-2-26-100-АОВ1\.01\.00 л\. 3-4/);
+  assert.match(
+    reg,
+    /2 №К32\.В\.СТ\.АОВ1\.01\.00\.1\.АОСР Акт освидетельствования скрытых работ Монтаж .* 28\.07\.2026 г\. 2 1 КУТ03-Р-ПИР-2-26-100-АОВ1\.01\.00 л\. 3-4/,
+  );
   assert.match(at(3), /Объект капитального строительства/);
   // первая схема — л. 8, и это её скан
-  assert.match(reg, /5 №К32\.В\.СТ\.АОВ1\.01\.00\.1 Исполнительная схема Монтаж кабельных линий на этаже П5 в осях 27-13\/У-К 06\.06\.2026 г\. 1 1 КУТ03-Р-ПИР-2-26-100-АОВ1\.01\.00 л\. 8/);
+  assert.match(
+    reg,
+    /5 №К32\.В\.СТ\.АОВ1\.01\.00\.1 Исполнительная схема Монтаж кабельных линий на этаже П5 в осях 27-13\/У-К 06\.06\.2026 г\. 1 1 КУТ03-Р-ПИР-2-26-100-АОВ1\.01\.00 л\. 8/,
+  );
   assert.match(at(8), /SCAN4/);
   // номер листа документа совпадает с «л.» реестра; титул, корешки и реестр — без номера
   for (const l of [1, 2, 3, 8]) assert.match(at(l), new RegExp(` ${l}$`), `лист ${l}`);
   assert.doesNotMatch(pages[0], / 1$/);
   // поверка — скан из двух листов
-  const m = reg.match(/13 №С-АМ\/01-04-2024\/328195310 Свидетельство о поверке: Измеритель параметров электроустановок Ml3102Н CL от 15\.05\.2026 г\. до 14\.05\.2028 г\. 2 1 КУТ03-Р-ПИР-2-26-100-АОВ1\.01\.00 л\. (\d+)-(\d+)/);
+  const m = reg.match(
+    /13 №С-АМ\/01-04-2024\/328195310 Свидетельство о поверке: Измеритель параметров электроустановок Ml3102Н CL от 15\.05\.2026 г\. до 14\.05\.2028 г\. 2 1 КУТ03-Р-ПИР-2-26-100-АОВ1\.01\.00 л\. (\d+)-(\d+)/,
+  );
   assert.ok(m, reg);
   assert.match(at(Number(m![1])), /p0 SCAN12/);
   assert.match(at(Number(m![2])), /p1 SCAN12/);
@@ -165,22 +173,41 @@ test("План 11: свой документ шаблона — в компле�
   const { makeDocx, p: para, r: run } = await import("./helpers/docx.ts");
   const s = await startTestServer({ officeRunner: async () => false });
   const { json: t } = await s.req("POST", "/api/templates", { name: "ПИК", from: "sbd" });
-  const f = await (await s.raw("POST", `/api/templates/${t.id}/forms`, {
-    body: makeDocx(para(run("АКТ ГИДРОИСПЫТАНИЙ {Акт.Номер документа}"))) as unknown as BodyInit, headers: { "x-file-name": "agi.docx" },
-  })).json();
-  const { json: tpl } = await s.req("PUT", `/api/templates/${t.id}`, { name: "ПИК", docs: [...t.docs, { kind: "custom", code: "АГИ", name: "Акт гидравлических испытаний", form: f }] });
+  const f = await (
+    await s.raw("POST", `/api/templates/${t.id}/forms`, {
+      body: makeDocx(para(run("АКТ ГИДРОИСПЫТАНИЙ {Акт.Номер документа}"))) as unknown as BodyInit,
+      headers: { "x-file-name": "agi.docx" },
+    })
+  ).json();
+  const { json: tpl } = await s.req("PUT", `/api/templates/${t.id}`, {
+    name: "ПИК",
+    docs: [...t.docs, { kind: "custom", code: "АГИ", name: "Акт гидравлических испытаний", form: f }],
+  });
   const r = kitRecords();
-  r["Объект"].push({ "Поле": "Папка сканов", "Значение": scans });
+  r["Объект"].push({ Поле: "Папка сканов", Значение: scans });
   const book0 = await readBook(new MemoryWorkbook(r));
-  r["РеестрИД"] = registryRows(book0, "1", tpl).rows.map((x) => x.values).filter((v) => !["Схема", "Поверка", "Лаборатория", "Документ качества"].includes(String(v["Вид"])));
+  r["РеестрИД"] = registryRows(book0, "1", tpl)
+    .rows.map((x) => x.values)
+    .filter((v) => !["Схема", "Поверка", "Лаборатория", "Документ качества"].includes(String(v["Вид"])));
   r["Комплекты"][0]["Титул"] = "нет";
   r["Комплекты"][0]["Корешки"] = "нет";
-  const { request: q, issues } = buildKitRequest(await readBook(new MemoryWorkbook(r)), "1", defaultImportant(), tpl.id, undefined, new Date("2026-10-24"), tpl);
+  const { request: q, issues } = buildKitRequest(
+    await readBook(new MemoryWorkbook(r)),
+    "1",
+    defaultImportant(),
+    tpl.id,
+    undefined,
+    new Date("2026-10-24"),
+    tpl,
+  );
   assert.deepEqual(issues, []);
   const res = await s.req("POST", "/api/kit-jobs", q);
   assert.equal(res.status, 201, JSON.stringify(res.json));
   const pages = await pdfPages(new Uint8Array(await (await s.raw("GET", `/api/kit-jobs/${res.json.id}`)).arrayBuffer()));
-  const reg = pages.slice(0, pages.findIndex((x) => /Сдал:.*Принял:/.test(x)) + 1).join(" ").replace(/- /g, "-");
+  const reg = pages
+    .slice(0, pages.findIndex((x) => /Сдал:.*Принял:/.test(x)) + 1)
+    .join(" ")
+    .replace(/- /g, "-");
   const m = reg.match(/№[^ ]+\.АГИ Акт гидравлических испытаний .*? л\. (\d+)/);
   assert.ok(m, reg);
   const front = pages.findIndex((x) => /Сдал:.*Принял:/.test(x)) + 1;
@@ -202,7 +229,10 @@ test("Excel комплекта: архив — по файлу .xlsx на каж
   const names = [...openZip(new Uint8Array(await res.arrayBuffer())).keys()];
   const docs = q.rows.filter((x) => x.doc);
   assert.equal(names.length, docs.length, names.join(", "));
-  assert.ok(names.every((n, i) => n.startsWith(String(i + 1).padStart(2, "0") + " ") && n.endsWith(".xlsx")), names.join(", "));
+  assert.ok(
+    names.every((n, i) => n.startsWith(String(i + 1).padStart(2, "0") + " ") && n.endsWith(".xlsx")),
+    names.join(", "),
+  );
   assert.equal((await s.req("GET", "/api/kit-jobs/нет/xlsx")).status, 404);
 });
 
@@ -231,7 +261,10 @@ test("общий реестр: комплекты подряд группами,
   const { readXlsx } = await import("./helpers/xlsxRead.ts");
   const sheet = readXlsx(new Uint8Array(await x.arrayBuffer())).sheets[0];
   // Номера строк — сквозные: последняя строка второго комплекта — 2×N.
-  assert.ok(sheet.rows.some((row) => row.startsWith(`${q1.rows.length * 2} `)), "сквозная нумерация");
+  assert.ok(
+    sheet.rows.some((row) => row.startsWith(`${q1.rows.length * 2} `)),
+    "сквозная нумерация",
+  );
   assert.ok(sheet.text.includes("Сдал:") && sheet.text.includes("Принял:"));
   assert.equal((await s.req("GET", "/api/common-registry-jobs/нет")).status, 404);
 });

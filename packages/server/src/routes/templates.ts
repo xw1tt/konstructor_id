@@ -26,11 +26,17 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
   const marks = new Map<string, { buf: Buffer; type: "docx" | "xlsx"; name: string; at: number }>();
   const mark = (token: string) => {
     const m = marks.get(token);
-    if (!m || now() - m.at > MARKUP_TTL_MS) { marks.delete(token); throw new HttpError(404, "Разметка устарела — загрузите образец заново"); }
+    if (!m || now() - m.at > MARKUP_TTL_MS) {
+      marks.delete(token);
+      throw new HttpError(404, "Разметка устарела — загрузите образец заново");
+    }
     return m;
   };
   r.post("/api/templates/:id/markup", async (c) => {
-    const q = await c.body(z.object({ bundle: ActBundle, file: z.string(), name: z.string().default("образец"), code: z.string().optional() }), 40 * 1024 * 1024);
+    const q = await c.body(
+      z.object({ bundle: ActBundle, file: z.string(), name: z.string().default("образец"), code: z.string().optional() }),
+      40 * 1024 * 1024,
+    );
     store.get(c.params.id);
     const buf = Buffer.from(q.file, "base64");
     const type = formType(buf);
@@ -59,10 +65,19 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
     const m = mark(c.params.token);
     // План 20: выбор вариантов помощника — в ?choices={"id":"Поле"}.
     let choices: Record<number, string> = {};
-    try { choices = Object.fromEntries(Object.entries(JSON.parse(c.query.get("choices") ?? "{}") as Record<string, string>).map(([k, v]) => [Number(k), String(v)])); } catch { /* без выбора */ }
+    try {
+      choices = Object.fromEntries(
+        Object.entries(JSON.parse(c.query.get("choices") ?? "{}") as Record<string, string>).map(([k, v]) => [Number(k), String(v)]),
+      );
+    } catch {
+      /* без выбора */
+    }
     const buf = applyChoices(m.buf, m.type, choices);
-    c.res.writeHead(200, { "content-type": "application/octet-stream", "content-length": buf.length,
-      "content-disposition": disposition(m.name.replace(/\.(docx|xlsx)$/i, "") + ` (с метками).${m.type}`) });
+    c.res.writeHead(200, {
+      "content-type": "application/octet-stream",
+      "content-length": buf.length,
+      "content-disposition": disposition(m.name.replace(/\.(docx|xlsx)$/i, "") + ` (с метками).${m.type}`),
+    });
     c.res.end(buf);
   });
   r.post("/api/templates/:id/markup/:token", async (c) => {
@@ -77,7 +92,8 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
     const buf = protoSampleDocx(c.params.kind);
     c.res.writeHead(200, {
       "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "content-length": buf.length, "content-disposition": disposition(`${PROTO_DEFS[c.params.kind].code}.docx`),
+      "content-length": buf.length,
+      "content-disposition": disposition(`${PROTO_DEFS[c.params.kind].code}.docx`),
     });
     c.res.end(buf);
   });
@@ -91,10 +107,16 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
     const q = await c.body(z.object({ name: z.string(), docs: z.array(TemplateDoc), print: PrintOptions.optional() }));
     return store.save(c.params.id, q);
   });
-  r.delete("/api/templates/:id", (c) => { store.remove(c.params.id); });
+  r.delete("/api/templates/:id", (c) => {
+    store.remove(c.params.id);
+  });
   r.post("/api/templates/:id/forms", async (c) => {
     let name = "форма";
-    try { name = decodeURIComponent(String(c.req.headers["x-file-name"] ?? name)); } catch { /* имя по умолчанию */ }
+    try {
+      name = decodeURIComponent(String(c.req.headers["x-file-name"] ?? name));
+    } catch {
+      /* имя по умолчанию */
+    }
     return new Reply(201, store.addForm(c.params.id, await readRaw(c.req, FORM_LIMIT), name));
   });
   r.get("/api/templates/:id/forms/:file", (c) => {

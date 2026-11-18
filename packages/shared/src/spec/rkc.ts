@@ -2,7 +2,13 @@
 // Цены и суммы не читаются.
 import { cellText, type CellValue } from "../workbook/values.ts";
 
-export interface RkcItem { number: string; section: string; name: string; unit: string; quantity: number }
+export interface RkcItem {
+  number: string;
+  section: string;
+  name: string;
+  unit: string;
+  quantity: number;
+}
 
 export class RkcError extends Error {}
 
@@ -35,7 +41,10 @@ export function parseRkc(grid: CellValue[][]): { items: RkcItem[]; warnings: str
     const cells = (grid[r] ?? []).map(norm);
     const find = (k: keyof typeof HEAD) => cells.findIndex(HEAD[k]);
     const c = { number: find("number"), name: find("name"), unit: find("unit"), quantity: find("quantity") };
-    if (Object.values(c).every((i) => i >= 0)) { headAt = r; col = c; }
+    if (Object.values(c).every((i) => i >= 0)) {
+      headAt = r;
+      col = c;
+    }
   }
   if (headAt < 0) throw new RkcError("Не найдена шапка РКЦ: нужны столбцы «№ п/п», «Наименование», «Ед. изм.», «Кол-во»");
 
@@ -52,7 +61,10 @@ export function parseRkc(grid: CellValue[][]): { items: RkcItem[]; warnings: str
     if (!name || SKIP.test(name)) continue;
     const unit = cellText(at(col.unit)).trim();
     const q = quantity(at(col.quantity));
-    if (!unit && q === null) { section = name; continue; }
+    if (!unit && q === null) {
+      section = name;
+      continue;
+    }
     if (!unit) continue; // строка-подитог без единицы
     let number = numberText(at(col.number));
     if (!number) {

@@ -7,8 +7,7 @@ import type { ImportantMap } from "@idk/shared/workbook/important";
 import type { TableStore } from "@idk/shared/workbook/store";
 
 /** Пишет данные мастера в книгу. Ошибки полей — ничего не пишется; иначе — замечания сборки АОСР (пусто — можно печатать). */
-export async function createAct(store: TableStore, d: WizardData, important: ImportantMap):
-  Promise<{ fieldErrors: Record<string, string>; issues: Issue[] }> {
+export async function createAct(store: TableStore, d: WizardData, important: ImportantMap): Promise<{ fieldErrors: Record<string, string>; issues: Issue[] }> {
   const before = await readBook(store);
   const fieldErrors = allErrors(d, before);
   if (Object.keys(fieldErrors).length) return { fieldErrors, issues: [] };

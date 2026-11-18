@@ -51,16 +51,22 @@ test("длина текстом «48,5» читается, пустая длин
 });
 
 test("нет кабелей акта / нет строки документов — сообщения", async () => {
-  const noCables = await book((r) => { r["КабельныйЖурнал"] = []; });
+  const noCables = await book((r) => {
+    r["КабельныйЖурнал"] = [];
+  });
   assert.ok(msgs(buildCableBundle(noCables, AOV1, defaultImportant(), "kj")).includes(`В кабельном журнале нет кабелей акта «${AOV1}»`));
-  const noDoc = await book((r) => { r["ДокументыКабелей"] = []; });
+  const noDoc = await book((r) => {
+    r["ДокументыКабелей"] = [];
+  });
   const r = buildCableBundle(noDoc, AOV1, defaultImportant(), "kj");
   assert.equal(r.bundle, null);
   assert.ok(msgs(r).includes(`Нет строки акта «${AOV1}» в таблице «ДокументыКабелей»`));
 });
 
 test("протокол: марки нет в «ИзмеренияМарок»", async () => {
-  const b = await book((r) => { r["ИзмеренияМарок"] = []; });
+  const b = await book((r) => {
+    r["ИзмеренияМарок"] = [];
+  });
   const m = msgs(buildCableBundle(b, AOV1, defaultImportant(), "ip"));
   assert.ok(m.includes("Нет в таблице «ИзмеренияМарок»: СегментКИ-485-ПсЭнг(А)-HF  1х2х0,78-300 В"), m.join(" | "));
 });
@@ -77,7 +83,11 @@ test("протокол без лаборатории и приборов (тол
 });
 
 test("журнал не требует марок, лаборатории и приборов", async () => {
-  const b = await book((r) => { r["ИзмеренияМарок"] = []; r["Электролаборатория"] = []; r["СредстваИзмерений"] = []; });
+  const b = await book((r) => {
+    r["ИзмеренияМарок"] = [];
+    r["Электролаборатория"] = [];
+    r["СредстваИзмерений"] = [];
+  });
   assert.deepEqual(buildCableBundle(b, AOV1, defaultImportant(), "kj").issues, []);
 });
 
@@ -97,7 +107,9 @@ test("Собрать марки из журнала", async () => {
 test("ревью: журнал не требует полей протокола в «ДокументыКабелей»", async () => {
   const b = await book((r) => {
     const d = r["ДокументыКабелей"][0];
-    d["№ протокола"] = null; d["Измерения с"] = null; d["Измерения по"] = null;
+    d["№ протокола"] = null;
+    d["Измерения с"] = null;
+    d["Измерения по"] = null;
   });
   assert.deepEqual(buildCableBundle(b, AOV1, defaultImportant(), "kj").issues, []);
   const ip = msgs(buildCableBundle(b, AOV1, defaultImportant(), "ip"));
@@ -105,7 +117,11 @@ test("ревью: журнал не требует полей протокола
 });
 
 test("ревью: протокол не требует шифра и даты журнала", async () => {
-  const b = await book((r) => { const d = r["ДокументыКабелей"][0]; d["Шифр журнала"] = null; d["Дата журнала"] = null; });
+  const b = await book((r) => {
+    const d = r["ДокументыКабелей"][0];
+    d["Шифр журнала"] = null;
+    d["Дата журнала"] = null;
+  });
   assert.deepEqual(buildCableBundle(b, AOV1, defaultImportant(), "ip").issues, []);
   assert.equal(msgs(buildCableBundle(b, AOV1, defaultImportant(), "kj")).filter((m) => m === "Не заполнено").length, 2);
 });

@@ -16,8 +16,13 @@ export const markKey = (mark: string) => mark.trim().replace(/\s+/g, " ").toUppe
 const txt = cellText;
 
 /** opts.set — набор форм шаблона: в «ТИ» номер журнала и протокола — от номера акта, строка «ДокументыКабелей» не обязательна. */
-export function buildCableBundle(book: Book, actNumber: string, important: ImportantMap, kind: CableDocKind, opts: { set?: FormSet } = {}):
-  { bundle: ActBundle | null; issues: Issue[] } {
+export function buildCableBundle(
+  book: Book,
+  actNumber: string,
+  important: ImportantMap,
+  kind: CableDocKind,
+  opts: { set?: FormSet } = {},
+): { bundle: ActBundle | null; issues: Issue[] } {
   const ti = opts.set === "ti";
   const base = buildBundle(book, actNumber, important);
   const n = actNumber.trim();
@@ -31,9 +36,10 @@ export function buildCableBundle(book: Book, actNumber: string, important: Impor
   const docRow = ofAct("ДокументыКабелей")[0];
   if (!docRow && !ti) c.push("ДокументыКабелей", null, "Акт", `Нет строки акта «${n}» в таблице «ДокументыКабелей»`);
   // Важные поля строки документов — только те, что нужны печатаемому документу.
-  const KJ_ONLY = ["journalCode", "journalDate"], IP_ONLY = ["protocolNumber", "dateFrom", "dateTo"];
+  const KJ_ONLY = ["journalCode", "journalDate"],
+    IP_ONLY = ["protocolNumber", "dateFrom", "dateTo"];
   const skip = new Set((ti ? [...KJ_ONLY, ...IP_ONLY] : kind === "kj" ? IP_ONLY : KJ_ONLY).map((k) => column("ДокументыКабелей", k).header));
-  const docImportant: ImportantMap = { ...important, "ДокументыКабелей": (important["ДокументыКабелей"] ?? []).filter((h) => !skip.has(h)) };
+  const docImportant: ImportantMap = { ...important, ДокументыКабелей: (important["ДокументыКабелей"] ?? []).filter((h) => !skip.has(h)) };
   const dc = createChecker(book, docImportant);
   const doc = docRow ? dc.checkRow("ДокументыКабелей", docRow) : null;
   for (const i of dc.issues) c.push(i.table, i.row, i.column, i.message);
@@ -52,7 +58,10 @@ export function buildCableBundle(book: Book, actNumber: string, important: Impor
       const m = markRows.get(markKey(mark));
       if (!m) c.push("КабельныйЖурнал", x.r.row, column("КабельныйЖурнал", "cableMark").header, `Нет в таблице «ИзмеренияМарок»: ${mark}`);
       else if (notMeasured(m)) continue;
-      else { used.set(markKey(mark), m); measured++; }
+      else {
+        used.set(markKey(mark), m);
+        measured++;
+      }
     }
     for (const m of used.values()) c.checkRow("ИзмеренияМарок", m);
     if (cables.length && !measured && !c.issues.length)
@@ -68,37 +77,67 @@ export function buildCableBundle(book: Book, actNumber: string, important: Impor
   const issues = [...base.issues, ...c.issues];
   if (issues.length || !base.bundle) return { bundle: null, issues };
 
-  const num = (v: CellValue) => { const p = parseNumberCell(v); return p.ok ? p.value : null; };
+  const num = (v: CellValue) => {
+    const p = parseNumberCell(v);
+    return p.ok ? p.value : null;
+  };
   const or = (v: CellValue, key: string) => txt(v) || String(column("ДокументыКабелей", key).default ?? "");
   const data: CablesData = {
     rows: cables.map(({ r, v }): CableRow => ({
-      group: txt(r.v.group), designation: txt(r.v.designation), from: txt(r.v.from), to: txt(r.v.to), direction: txt(r.v.direction),
-      cableMark: txt(r.v.cableMark), cableLength: (v.cableLength as number | null) ?? null, pipeMark: txt(r.v.pipeMark),
-      pipeLength: (v.pipeLength as number | null) ?? null, note: txt(r.v.note),
-      projectLength: (v.projectLength as number | null) ?? null, tray: (v.tray as number | null) ?? null,
-      smoothPipe: (v.smoothPipe as number | null) ?? null, corrugatedPipe: (v.corrugatedPipe as number | null) ?? null,
+      group: txt(r.v.group),
+      designation: txt(r.v.designation),
+      from: txt(r.v.from),
+      to: txt(r.v.to),
+      direction: txt(r.v.direction),
+      cableMark: txt(r.v.cableMark),
+      cableLength: (v.cableLength as number | null) ?? null,
+      pipeMark: txt(r.v.pipeMark),
+      pipeLength: (v.pipeLength as number | null) ?? null,
+      note: txt(r.v.note),
+      projectLength: (v.projectLength as number | null) ?? null,
+      tray: (v.tray as number | null) ?? null,
+      smoothPipe: (v.smoothPipe as number | null) ?? null,
+      corrugatedPipe: (v.corrugatedPipe as number | null) ?? null,
     })),
     marks: [...markRows.values()].map((r): MarkMeasure => ({
-      mark: txt(r.v.mark), purpose: txt(r.v.purpose),
+      mark: txt(r.v.mark),
+      purpose: txt(r.v.purpose),
       voltage: num(r.v.voltage) ?? Number(column("ИзмеренияМарок", "voltage").default),
       allowed: num(r.v.allowed) ?? Number(column("ИзмеренияМарок", "allowed").default),
       values: MEASURE_KEYS.map((k) => txt(r.v[k])),
       inProtocol: !notMeasured(r),
     })),
-    doc: docRow && doc ? {
-      journalCode: txt(docRow.v.journalCode), journalDate: doc.journalDate ?? null, protocolNumber: txt(docRow.v.protocolNumber),
-      dateFrom: doc.dateFrom ?? null, dateTo: doc.dateTo ?? null,
-      temperature: doc.temperature ?? Number(column("ДокументыКабелей", "temperature").default),
-      humidity: doc.humidity ?? Number(column("ДокументыКабелей", "humidity").default),
-      purpose: or(docRow.v.purpose, "purpose"), normative: or(docRow.v.normative, "normative"),
-      integrity: or(docRow.v.integrity, "integrity"), conclusion: or(docRow.v.conclusion, "conclusion"),
-    } : null,
-    lab: labRow ? { nameAddress: txt(labRow.v.nameAddress), certificate: txt(labRow.v.certificate), head: txt(labRow.v.head), tester: txt(labRow.v.tester) } : null,
+    doc:
+      docRow && doc
+        ? {
+            journalCode: txt(docRow.v.journalCode),
+            journalDate: doc.journalDate ?? null,
+            protocolNumber: txt(docRow.v.protocolNumber),
+            dateFrom: doc.dateFrom ?? null,
+            dateTo: doc.dateTo ?? null,
+            temperature: doc.temperature ?? Number(column("ДокументыКабелей", "temperature").default),
+            humidity: doc.humidity ?? Number(column("ДокументыКабелей", "humidity").default),
+            purpose: or(docRow.v.purpose, "purpose"),
+            normative: or(docRow.v.normative, "normative"),
+            integrity: or(docRow.v.integrity, "integrity"),
+            conclusion: or(docRow.v.conclusion, "conclusion"),
+          }
+        : null,
+    lab: labRow
+      ? { nameAddress: txt(labRow.v.nameAddress), certificate: txt(labRow.v.certificate), head: txt(labRow.v.head), tester: txt(labRow.v.tester) }
+      : null,
     instruments: instrumentRows.map((r) => {
       const v = c.checkRow("СредстваИзмерений", r);
       return {
-        name: txt(r.v.name), type: txt(r.v.type), range: txt(r.v.range), accuracy: txt(r.v.accuracy), serial: txt(r.v.serial),
-        certificate: txt(r.v.certificate), checkedOn: v.checkedOn ?? null, nextCheck: v.nextCheck ?? null, authority: txt(r.v.authority),
+        name: txt(r.v.name),
+        type: txt(r.v.type),
+        range: txt(r.v.range),
+        accuracy: txt(r.v.accuracy),
+        serial: txt(r.v.serial),
+        certificate: txt(r.v.certificate),
+        checkedOn: v.checkedOn ?? null,
+        nextCheck: v.nextCheck ?? null,
+        authority: txt(r.v.authority),
       };
     }),
   };

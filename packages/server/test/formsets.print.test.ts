@@ -44,18 +44,28 @@ test("ВД «ТИ»: шапка, номер, графы, марка (иначе 
 });
 
 test("РМ «ТИ»: строки документов, под ними их материалы с номерами; документ без даты — «б/д»", async () => {
-  const b = await bundle((r) => { r["ДокументыКачества"][0]["Дата"] = null; r["ДокументыКачества"][0]["Действует до"] = null; });
+  const b = await bundle((r) => {
+    r["ДокументыКачества"][0]["Дата"] = null;
+    r["ДокументыКачества"][0]["Действует до"] = null;
+  });
   const d = tiDocData(b);
   assert.ok(d.rm.length > 0);
   assert.ok(d.rm.every((g) => g.items.length > 0));
   const nums = d.rm.flatMap((g) => g.items.map((i) => i.n));
-  assert.deepEqual(nums, nums.map((_, i) => i + 1), "материалы пронумерованы подряд");
+  assert.deepEqual(
+    nums,
+    nums.map((_, i) => i + 1),
+    "материалы пронумерованы подряд",
+  );
   assert.ok(d.rm.some((g) => g.docs.some((x) => x.date === "б/д")));
   const h = tiRmHtml(d);
   assert.match(h, /применённых материалов/);
   assert.match(h, new RegExp(`№${AOV1.replace(/\./g, "\\.")}\\.РМ`));
   assert.match(h, new RegExp(`к АОСР ${AOV1.replace(/\./g, "\\.")} от 28\\.07\\.2026г\\.`));
-  assert.equal((h.match(/class="ti-doc"/g) ?? []).length, d.rm.reduce((n, g) => n + g.docs.length, 0));
+  assert.equal(
+    (h.match(/class="ti-doc"/g) ?? []).length,
+    d.rm.reduce((n, g) => n + g.docs.length, 0),
+  );
 });
 
 test("РП «ТИ»: документы качества акта с листами", async () => {
@@ -82,7 +92,11 @@ test("печать по опциям: ВД и РИМ — форма набора
   const aosr = await renderBundlePdf(b, "aosr", "ti", TI);
   assert.equal(aosr.name, `${AOV1}.pdf`);
   const sbdVd = await renderBundlePdf(b, "vd", "ti", PrintOptions.parse({ formSet: "ti", forms: { vd: "sbd" } }));
-  assert.match((await pdfPages(sbdVd.pdf)).join(" "), /Ведомость смонтированного оборудования, технических средств и материалов/, "форма ВД «СБД» в наборе «ТИ»");
+  assert.match(
+    (await pdfPages(sbdVd.pdf)).join(" "),
+    /Ведомость смонтированного оборудования, технических средств и материалов/,
+    "форма ВД «СБД» в наборе «ТИ»",
+  );
 });
 
 test("КЖ «ТИ»: шапка, номер по набору, графы способов прокладки; 120 кабелей — шапка таблицы на страницах; протокол — №акт.П", async () => {
@@ -90,7 +104,12 @@ test("КЖ «ТИ»: шапка, номер по набору, графы спо
   const recs: any = aov1Records();
   recs["ДокументыКабелей"] = [];
   const first = recs["КабельныйЖурнал"][0];
-  recs["КабельныйЖурнал"] = Array.from({ length: 120 }, (_, i) => ({ ...first, "Обозначение кабеля, жгута, трубы": `N-${i + 1}`, "Труба гладкая, м": 5, "Труба гофрированная, м": 2 }));
+  recs["КабельныйЖурнал"] = Array.from({ length: 120 }, (_, i) => ({
+    ...first,
+    "Обозначение кабеля, жгута, трубы": `N-${i + 1}`,
+    "Труба гладкая, м": 5,
+    "Труба гофрированная, м": 2,
+  }));
   const b = buildCableBundle(await readBook(new MemoryWorkbook(recs)), AOV1, defaultImportant(), "kj", { set: "ti" }).bundle!;
   const kj = await renderBundlePdf(b, "kj", "ti", TI);
   assert.equal(kj.name, `${AOV1}.КЖ.pdf`);
@@ -114,7 +133,12 @@ test("КЖ «ТИ»: шапка, номер по набору, графы спо
 test("РМ «ТИ»: несколько документов одного материала — сначала документы, затем материал один раз", () => {
   const d = (id: string, m: number[]) => ({ id, materialIds: m });
   const g = rmGroups([d("п1", [1]), d("с1", [1]), d("п2", [2]), d("общий", [1, 2])], [{ materialId: 1 }, { materialId: 2 }]);
-  assert.deepEqual(g.map((x) => [x.docs.map((y) => y.id), x.mats.map((m) => m.materialId)]), [
-    [["п1", "с1"], [1]], [["п2"], [2]], [["общий"], [1, 2]],
-  ]);
+  assert.deepEqual(
+    g.map((x) => [x.docs.map((y) => y.id), x.mats.map((m) => m.materialId)]),
+    [
+      [["п1", "с1"], [1]],
+      [["п2"], [2]],
+      [["общий"], [1, 2]],
+    ],
+  );
 });

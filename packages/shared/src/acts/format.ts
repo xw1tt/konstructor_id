@@ -3,7 +3,20 @@ import type { DocKind } from "./schemas.ts";
 import { ACT_DOC_DEFS } from "../docs/defs.ts";
 
 /** Месяцы в родительном падеже («15 октября»). */
-export const MONTHS_GEN: readonly string[] = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+export const MONTHS_GEN: readonly string[] = [
+  "января",
+  "февраля",
+  "марта",
+  "апреля",
+  "мая",
+  "июня",
+  "июля",
+  "августа",
+  "сентября",
+  "октября",
+  "ноября",
+  "декабря",
+];
 
 /** "2026-07-28" → "28 июля 2026 г." */
 export function formatDateLong(iso: string | null): string {
@@ -38,8 +51,7 @@ export function docNumberFor(base: string, kind: NumberedDoc, set: FormSet = "sb
 }
 
 /** Форма документа: своя для документа (forms) или набора (formSet); без опций — «СБД». */
-export const formOf = (o: Partial<Pick<PrintOptions, "formSet" | "forms">> | undefined, doc: FormDoc): FormSet =>
-  o?.forms?.[doc] ?? o?.formSet ?? "sbd";
+export const formOf = (o: Partial<Pick<PrintOptions, "formSet" | "forms">> | undefined, doc: FormDoc): FormSet => o?.forms?.[doc] ?? o?.formSet ?? "sbd";
 
 /** Номер со знаком «№» (не дублирует, если пользователь уже ввёл «№»). */
 export const withNo = (n: string) => {

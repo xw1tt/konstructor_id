@@ -28,7 +28,17 @@ test("буква столбца", () => {
 test("видимые строки таблицы из областей выделения (фильтр скрывает часть строк)", async () => {
   const { visibleTableRows } = await import("@idk/addin/book/layout");
   // данные таблицы с 5-й строки листа (rowIndex 4), 10 строк; видимы 4–5 и 8 строки листа (с 0)
-  assert.deepEqual(visibleTableRows([{ rowIndex: 4, rowCount: 2 }, { rowIndex: 8, rowCount: 1 }], 4, 10), [0, 1, 4]);
+  assert.deepEqual(
+    visibleTableRows(
+      [
+        { rowIndex: 4, rowCount: 2 },
+        { rowIndex: 8, rowCount: 1 },
+      ],
+      4,
+      10,
+    ),
+    [0, 1, 4],
+  );
   assert.deepEqual(visibleTableRows([{ rowIndex: 0, rowCount: 6 }], 4, 1), [0]);
 });
 
@@ -69,13 +79,24 @@ test("правило оформления примеров — по ячейке
 test("ревью: подсказка не стирается очисткой правила списка", () => {
   // Модель dataValidation Office.js: clear() убирает и правило, и подсказку.
   const fake = () => {
-    const dv: any = { rule: null, prompt: null, errorAlert: null, clear() { this.rule = null; this.prompt = null; this.errorAlert = null; } };
+    const dv: any = {
+      rule: null,
+      prompt: null,
+      errorAlert: null,
+      clear() {
+        this.rule = null;
+        this.prompt = null;
+        this.errorAlert = null;
+      },
+    };
     return { dataValidation: dv };
   };
-  const ref = fake(); applyValidation(ref, column("Акты", "section"), "Акты");
+  const ref = fake();
+  applyValidation(ref, column("Акты", "section"), "Акты");
   assert.equal(ref.dataValidation.prompt.message, column("Акты", "section").hint);
   assert.ok(ref.dataValidation.rule.list.source.includes("Шифры"));
-  const text = fake(); applyValidation(text, column("Акты", "works"), "Акты");
+  const text = fake();
+  applyValidation(text, column("Акты", "works"), "Акты");
   assert.equal(text.dataValidation.prompt.title, "Работы (п.1)");
   assert.equal(text.dataValidation.rule, null);
   // Столбец, дописанный в конец таблицы, наследует список соседа («ВОР: от монтажников») — его нужно снять.
@@ -90,8 +111,7 @@ test("«Объект»: розовая подсветка пустого зна�
   const { objectImportantRule } = await import("../src/book/layout.ts");
   const { OBJECT_REQUIRED_LABELS, isObjectFieldRequired } = await import("@idk/shared/workbook/schema");
   assert.deepEqual(OBJECT_REQUIRED_LABELS, ["Наименование объекта", "Застройщик (технический заказчик)", "Лицо, осуществляющее строительство"]);
-  assert.equal(objectImportantRule("A", "B", 5, ["Наименование объекта", 'Поле "x"']),
-    '=AND(OR($A5="Наименование объекта",$A5="Поле ""x"""),LEN(TRIM(B5))=0)');
+  assert.equal(objectImportantRule("A", "B", 5, ["Наименование объекта", 'Поле "x"']), '=AND(OR($A5="Наименование объекта",$A5="Поле ""x"""),LEN(TRIM(B5))=0)');
   assert.equal(isObjectFieldRequired("Договор №"), false);
   assert.equal(isObjectFieldRequired("Дата договора"), false);
   assert.equal(isObjectFieldRequired("Застройщик (технический заказчик)"), true);
@@ -100,7 +120,10 @@ test("«Объект»: розовая подсветка пустого зна�
 test("обновление разметки: недостающие столбцы и поля «Объекта»", async () => {
   const { missingColumns, missingObjectFields } = await import("../src/book/layout.ts");
   const orgs = TABLES["Организации"].columns.map((c) => c.header).filter((h) => h !== "Логотип");
-  assert.deepEqual(missingColumns("Организации", orgs).map((c) => c.header), ["Логотип"]);
+  assert.deepEqual(
+    missingColumns("Организации", orgs).map((c) => c.header),
+    ["Логотип"],
+  );
   assert.deepEqual(missingColumns("Организации", [...orgs, "Логотип", "Свой столбец"]), []);
   assert.deepEqual(missingObjectFields(["Наименование объекта", "Адрес"]).slice(-2), ["Папка сканов", "Условия производства работ"]);
   assert.equal(missingObjectFields(["Наименование объекта"]).includes("Адрес"), true);
@@ -108,7 +131,7 @@ test("обновление разметки: недостающие столбц
 
 test("План 10: отрицательный остаток спецификации — правило подсветки", async () => {
   const { negativeRule } = await import("@idk/addin/book/layout");
-  assert.equal(negativeRule("G", 5), '=AND(ISNUMBER(G5),G5<0)');
+  assert.equal(negativeRule("G", 5), "=AND(ISNUMBER(G5),G5<0)");
 });
 
 test("план 12: «Вид работ» — список из диапазона «ВидыРабот», не строгий; новые столбцы v8 дописываются в конец", async () => {
@@ -120,5 +143,8 @@ test("план 12: «Вид работ» — список из диапазон�
   const headers = TABLES["Акты"].columns.map((c) => c.header);
   const v7 = headers.filter((h) => h !== "Вид работ" && h !== "Без документов" && h !== "Подписанты");
   assert.deepEqual(headers.slice(-3), ["Вид работ", "Без документов", "Подписанты"]);
-  assert.deepEqual(missingColumns("Акты", v7).map((c) => c.header), ["Вид работ", "Без документов", "Подписанты"]);
+  assert.deepEqual(
+    missingColumns("Акты", v7).map((c) => c.header),
+    ["Вид работ", "Без документов", "Подписанты"],
+  );
 });

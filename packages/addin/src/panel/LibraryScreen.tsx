@@ -11,10 +11,14 @@ import { addToBook, loadAll } from "./library.ts";
 const t = (r: LibRecord, k: string) => cellText(r.values[k] ?? null);
 const line = (r: LibRecord): [string, string] => {
   switch (r.kind) {
-    case "org": return [t(r, "shortName"), [t(r, "inn") && `ИНН ${t(r, "inn")}`, t(r, "address")].filter(Boolean).join(", ")];
-    case "rep": return [t(r, "fullName"), [t(r, "position"), t(r, "org")].filter(Boolean).join(", ")];
-    case "material": return [[t(r, "name"), t(r, "mark")].filter(Boolean).join(" "), [t(r, "manufacturer"), t(r, "unit")].filter(Boolean).join(", ")];
-    default: return [`${t(r, "type")} ${t(r, "number")}`, [t(r, "materials"), r.scan ? "скан есть" : "без скана"].filter(Boolean).join(" · ")];
+    case "org":
+      return [t(r, "shortName"), [t(r, "inn") && `ИНН ${t(r, "inn")}`, t(r, "address")].filter(Boolean).join(", ")];
+    case "rep":
+      return [t(r, "fullName"), [t(r, "position"), t(r, "org")].filter(Boolean).join(", ")];
+    case "material":
+      return [[t(r, "name"), t(r, "mark")].filter(Boolean).join(" "), [t(r, "manufacturer"), t(r, "unit")].filter(Boolean).join(", ")];
+    default:
+      return [`${t(r, "type")} ${t(r, "number")}`, [t(r, "materials"), r.scan ? "скан есть" : "без скана"].filter(Boolean).join(" · ")];
   }
 };
 
@@ -30,22 +34,48 @@ export function LibraryScreen({ port, state }: { port: ExcelPort; state: BookSta
   useEffect(() => {
     let alive = true;
     setError("");
-    const timer = setTimeout(() => {
-      libraryApi.list(kind, q).then((l) => { if (alive) setItems(l); }).catch((e) => { if (alive) { setItems([]); setError((e as Error).message); } });
-    }, q ? 250 : 0);
-    return () => { alive = false; clearTimeout(timer); };
+    const timer = setTimeout(
+      () => {
+        libraryApi
+          .list(kind, q)
+          .then((l) => {
+            if (alive) setItems(l);
+          })
+          .catch((e) => {
+            if (alive) {
+              setItems([]);
+              setError((e as Error).message);
+            }
+          });
+      },
+      q ? 250 : 0,
+    );
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [kind, q]);
 
-  const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggle = (id: string) =>
+    setPicked((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   const add = async () => {
     if (!state.book) return;
-    setBusy(true); setError(""); setNote("");
+    setBusy(true);
+    setError("");
+    setNote("");
     try {
       const all = await loadAll(libraryApi);
       const chosen = all.filter((r) => picked.has(r.id));
       const r = await addToBook(port, state.book, chosen, all, libraryApi, location.origin);
-      setNote(`Добавлено в книгу: ${r.added}${r.skipped ? `, уже были: ${r.skipped}` : ""}. Материалы — вместе с документами качества, представители — с организацией.`);
+      setNote(
+        `Добавлено в книгу: ${r.added}${r.skipped ? `, уже были: ${r.skipped}` : ""}. Материалы — вместе с документами качества, представители — с организацией.`,
+      );
       setPicked(new Set());
       state.refresh();
     } catch (e) {
@@ -61,12 +91,30 @@ export function LibraryScreen({ port, state }: { port: ExcelPort; state: BookSta
       <p className="muted">Общие для всех объектов записи. Пополняется кнопкой «В библиотеку» в «Функционале таблицы»; папка — в «Настройках».</p>
       <div className="stamp" role="tablist" aria-label="Разделы библиотеки">
         {LIB_KINDS.map((k) => (
-          <button key={k} role="tab" aria-selected={k === kind} onClick={() => { setKind(k); setItems(null); }}>{LIB_LABELS[k]}</button>
+          <button
+            key={k}
+            role="tab"
+            aria-selected={k === kind}
+            onClick={() => {
+              setKind(k);
+              setItems(null);
+            }}
+          >
+            {LIB_LABELS[k]}
+          </button>
         ))}
       </div>
       <input className="lib-search" type="search" placeholder="Поиск" aria-label="Поиск в библиотеке" value={q} onChange={(e) => setQ(e.target.value)} />
-      {error && <p className="error" role="alert">{error}</p>}
-      {items === null ? <p className="notice">Загружаю…</p> : !items.length ? <p className="muted">Пусто{q ? " — ничего не найдено" : ""}.</p> : (
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      {items === null ? (
+        <p className="notice">Загружаю…</p>
+      ) : !items.length ? (
+        <p className="muted">Пусто{q ? " — ничего не найдено" : ""}.</p>
+      ) : (
         <ul className="lib-list">
           {items.map((r) => {
             const [main, sub] = line(r);
@@ -74,7 +122,10 @@ export function LibraryScreen({ port, state }: { port: ExcelPort; state: BookSta
               <li key={r.id}>
                 <label>
                   <input type="checkbox" checked={picked.has(r.id)} onChange={() => toggle(r.id)} />
-                  <span><b>{main}</b>{sub && <span className="muted"> — {sub}</span>}</span>
+                  <span>
+                    <b>{main}</b>
+                    {sub && <span className="muted"> — {sub}</span>}
+                  </span>
                 </label>
               </li>
             );

@@ -18,7 +18,11 @@ async function call<T>(path: string, init: RequestInit): Promise<T> {
   const text = await res.text();
   let data: any = undefined;
   if (text) {
-    try { data = JSON.parse(text); } catch { data = undefined; }
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = undefined;
+    }
   }
   if (!res.ok) throw new Error(data?.error ?? `Ошибка сервера (${res.status})`);
   return data as T;
@@ -27,9 +31,7 @@ async function call<T>(path: string, init: RequestInit): Promise<T> {
 export const apiGet = <T>(path: string) => call<T>(path, { method: "GET" });
 
 export const apiSend = <T>(method: "POST" | "PUT" | "DELETE", path: string, body?: unknown) =>
-  call<T>(path, body === undefined
-    ? { method }
-    : { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  call<T>(path, body === undefined ? { method } : { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 
 export const apiUpload = (file: Blob, name: string) =>
   call<FileRow>("/api/files", {

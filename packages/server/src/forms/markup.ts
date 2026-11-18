@@ -7,17 +7,33 @@ import { openZip, writeZip } from "../zip/zip.ts";
 import { editParagraph, paragraphText, xmlEscape, FormError, elements, mapElements, docxText } from "./docx.ts";
 import { ROW as XROW, CELL as XCELL, attr as xattr, texts as xtexts } from "./xlsx.ts";
 
-export interface MarkupPlace { id: number; text: string; context: string; options: string[]; chosen: string }
-export interface MarkupResult { buf: Buffer; found: number; ambiguous: MarkupPlace[] }
+export interface MarkupPlace {
+  id: number;
+  text: string;
+  context: string;
+  options: string[];
+  chosen: string;
+}
+export interface MarkupResult {
+  buf: Buffer;
+  found: number;
+  ambiguous: MarkupPlace[];
+}
 
 /** Порядок выбора по умолчанию для совпадающих значений; остальные — в порядке словаря. */
 const PRIORITY = ["Акт.Номер АОСР", "Акт.Номер", "Акт.Дата", "Акт.Окончание", "Акт.Начало"];
 /** Списки со строкой-повтором: поле, по которому строка узнаётся, и можно ли ему стоять в ячейке вместе с другим текстом
  *  (наименование материала — да; номер схемы — нет: он бывает частью номера акта). */
-const LISTS: [string, string, boolean][] = [["Материалы", "Материал.Наименование", true], ["Схемы", "Схема.Номер", false]];
+const LISTS: [string, string, boolean][] = [
+  ["Материалы", "Материал.Наименование", true],
+  ["Схемы", "Схема.Номер", false],
+];
 const RE_ESC = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const searchable = (v: string) => { const t = v.trim(); return !t.includes("\n") && (/\d/.test(t) ? t.length >= 3 : t.length >= 5); };
+const searchable = (v: string) => {
+  const t = v.trim();
+  return !t.includes("\n") && (/\d/.test(t) ? t.length >= 3 : t.length >= 5);
+};
 
 /** Значение → поля с этим значением (по приоритету), от длинных значений к коротким. */
 function candidates(data: FormData): [string, string[]][] {
@@ -28,10 +44,12 @@ function candidates(data: FormData): [string, string[]][] {
     by.set(t, [...(by.get(t) ?? []), k]);
   }
   const rank = (k: string) => (PRIORITY.includes(k) ? PRIORITY.indexOf(k) : PRIORITY.length);
-  return [...by.entries()].map(([v, keys]): [string, string[]] => {
-    const ks = keys.length > 1 ? keys.filter((k) => k !== "Акт.Номер документа") : keys;
-    return [v, [...ks].sort((a, b) => rank(a) - rank(b))];
-  }).sort((a, b) => b[0].length - a[0].length);
+  return [...by.entries()]
+    .map(([v, keys]): [string, string[]] => {
+      const ks = keys.length > 1 ? keys.filter((k) => k !== "Акт.Номер документа") : keys;
+      return [v, [...ks].sort((a, b) => rank(a) - rank(b))];
+    })
+    .sort((a, b) => b[0].length - a[0].length);
 }
 
 class Marker {
@@ -47,11 +65,15 @@ class Marker {
     for (const [value, keys] of this.cands) {
       const re = new RegExp(`(?<![\\p{L}\\p{N}])${RE_ESC(value)}(?![\\p{L}\\p{N}])`, "gu");
       for (const m of text.matchAll(re)) {
-        const a = m.index!, b = a + value.length;
+        const a = m.index!,
+          b = a + value.length;
         if (!free(a, b)) continue;
         taken.push([a, b]);
         this.found++;
-        if (keys.length === 1) { out.push([a, b, `{${keys[0]}}`]); continue; }
+        if (keys.length === 1) {
+          out.push([a, b, `{${keys[0]}}`]);
+          continue;
+        }
         const id = this.places.length + 1;
         this.places.push({ id, text: value, context: text.slice(Math.max(0, a - 30), Math.min(text.length, b + 30)), options: keys, chosen: keys[0] });
         out.push([a, b, `{${keys[0]}#${id}}`]);
@@ -67,17 +89,26 @@ function itemEdits(text: string, item: Record<string, string>, score: Record<str
   const t = text.trim();
   const sc = (k: string) => score[k] ?? 0;
   const num = Object.keys(item).find((k) => k.endsWith(".№"));
-  if (num && sc(num) > 0 && Object.keys(score).every((k) => sc(k) <= sc(num)) && /^\d+$/.test(t)) { const a = text.indexOf(t); return [[a, a + t.length, `{${num}}`]]; }
-  const fields = Object.entries(item).filter(([, v]) => v.trim()).sort((a, b) => b[1].trim().length - a[1].trim().length || sc(b[0]) - sc(a[0]));
+  if (num && sc(num) > 0 && Object.keys(score).every((k) => sc(k) <= sc(num)) && /^\d+$/.test(t)) {
+    const a = text.indexOf(t);
+    return [[a, a + t.length, `{${num}}`]];
+  }
+  const fields = Object.entries(item)
+    .filter(([, v]) => v.trim())
+    .sort((a, b) => b[1].trim().length - a[1].trim().length || sc(b[0]) - sc(a[0]));
   const exact = fields.find(([, v]) => v.trim() === t);
-  if (exact) { const a = text.indexOf(t); return [[a, a + t.length, `{${exact[0]}}`]]; }
+  if (exact) {
+    const a = text.indexOf(t);
+    return [[a, a + t.length, `{${exact[0]}}`]];
+  }
   const out: [number, number, string][] = [];
   const taken: [number, number][] = [];
   for (const [k, v] of fields) {
     if (v.trim().length < 3) continue;
     const re = new RegExp(`(?<![\\p{L}\\p{N}])${RE_ESC(v.trim())}(?![\\p{L}\\p{N}])`, "gu");
     for (const m of text.matchAll(re)) {
-      const a = m.index!, b = a + m[0].length;
+      const a = m.index!,
+        b = a + m[0].length;
       if (taken.some(([x, y]) => a < y && b > x)) continue;
       taken.push([a, b]);
       out.push([a, b, `{${k}}`]);
@@ -124,7 +155,8 @@ function columnScores(block: (string | null)[][], items: Record<string, string>[
     const score: Record<string, number> = {};
     for (const k of Object.keys(items[0])) {
       score[k] = block.reduce((n, cells, r) => {
-        const t = cells[c]?.trim(), v = k.endsWith(".№") ? String(r + 1) : items[r][k]?.trim();
+        const t = cells[c]?.trim(),
+          v = k.endsWith(".№") ? String(r + 1) : items[r][k]?.trim();
         if (!t || !v) return n;
         return n + (t === v ? 2 : !k.endsWith(".№") && v.length >= 3 && wholeWord(v).test(t) ? 1 : 0);
       }, 0);
@@ -136,7 +168,10 @@ function columnScores(block: (string | null)[][], items: Record<string, string>[
 /** Текст ячейки без вложенных таблиц. */
 const cellTextOf = (cell: string) => {
   const flat = mapElements(cell, "tbl", () => "");
-  return elements(flat, "p").map(({ start, end }) => paragraphText(flat.slice(start, end))).join("\n").trim();
+  return elements(flat, "p")
+    .map(({ start, end }) => paragraphText(flat.slice(start, end)))
+    .join("\n")
+    .trim();
 };
 
 /** Строка-повтор: ячейки первого элемента → метки; {#Список} в начало первого непустого абзаца, {/Список} в конец
@@ -149,7 +184,8 @@ function repeatRow(row: string, list: string, item: Record<string, string>, scor
   });
   const paras = elements(out, "p").filter(({ start, end }) => paragraphText(out.slice(start, end)).length);
   if (!paras.length) return out;
-  const first = paras[0], last = paras[paras.length - 1];
+  const first = paras[0],
+    last = paras[paras.length - 1];
   const put = (el: { start: number; end: number }, edits: [number, number, string][]) => {
     out = out.slice(0, el.start) + editParagraph(out.slice(el.start, el.end), edits) + out.slice(el.end);
   };
@@ -182,7 +218,10 @@ function markupTable(tbl: string, data: FormData, mk: Marker): string {
     const its = block.items.map((i) => items[i]);
     const scores = columnScores(cells.slice(block.start, block.end), its);
     const row = tbl.slice(rows[block.start].start, rows[block.start].end);
-    tbl = tbl.slice(0, rows[block.start].start) + repeatRow(row, list, its[0], scores) + tbl.slice(block.end < rows.length ? rows[block.end].start : rows[rows.length - 1].end);
+    tbl =
+      tbl.slice(0, rows[block.start].start) +
+      repeatRow(row, list, its[0], scores) +
+      tbl.slice(block.end < rows.length ? rows[block.end].start : rows[rows.length - 1].end);
   }
   return tbl;
 }
@@ -202,12 +241,16 @@ function markupXlsx(buf: Uint8Array, data: FormData, mk: Marker): Buffer {
     const v = body.match(/<v>([\s\S]*?)<\/v>/)?.[1];
     return v !== undefined && t !== "e" && t !== "b" && !/<f\b/.test(body) ? v : null;
   };
-  const setText = (head: string, text: string) => `<c${head.replace(/\st="[^"]*"/, "")} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(text)}</t></is></c>`;
+  const setText = (head: string, text: string) =>
+    `<c${head.replace(/\st="[^"]*"/, "")} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(text)}</t></is></c>`;
   const apply = (text: string, edits: [number, number, string][]) =>
     [...edits].sort((a, b) => b[0] - a[0]).reduce((s, [a, b, rep]) => s.slice(0, a) + rep + s.slice(b), text);
   const out: [string, Buffer | string][] = [];
   for (const [name, get] of files) {
-    if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) { out.push([name, get()]); continue; }
+    if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) {
+      out.push([name, get()]);
+      continue;
+    }
     let xml = get().toString("utf8");
     const deleted: number[] = [];
     for (const [list, key, partial] of LISTS) {
@@ -216,11 +259,17 @@ function markupXlsx(buf: Uint8Array, data: FormData, mk: Marker): Buffer {
       if (!names.some(Boolean)) continue;
       // Строки листа (номер и ячейки по столбцам); ячейки строк выравниваются по столбцам первой строки элементов.
       const col = (head: string) => xattr(head, "r")?.replace(/\d+/g, "") ?? "";
-      const sheetRows = [...xml.matchAll(XROW)].filter((m) => m[2] !== undefined).map((m) => ({
-        rnum: Number(xattr(m[1], "r")),
-        cells: [...m[2]!.matchAll(XCELL)].map((c) => ({ col: col(c[1]), text: cellText(c[1], c[2] ?? "") })),
-      }));
-      const block = findBlock(sheetRows.map((r) => r.cells.map((c) => c.text)), names, partial);
+      const sheetRows = [...xml.matchAll(XROW)]
+        .filter((m) => m[2] !== undefined)
+        .map((m) => ({
+          rnum: Number(xattr(m[1], "r")),
+          cells: [...m[2]!.matchAll(XCELL)].map((c) => ({ col: col(c[1]), text: cellText(c[1], c[2] ?? "") })),
+        }));
+      const block = findBlock(
+        sheetRows.map((r) => r.cells.map((c) => c.text)),
+        names,
+        partial,
+      );
       if (!block) continue;
       const tplRow = sheetRows[block.start];
       const its = block.items.map((i) => items[i]);
@@ -230,7 +279,10 @@ function markupXlsx(buf: Uint8Array, data: FormData, mk: Marker): Buffer {
       xml = xml.replace(XROW, (row, rh: string, rb: string | undefined) => {
         if (rb === undefined) return row;
         const rnum = Number(xattr(rh, "r"));
-        if (drop.has(rnum)) { deleted.push(rnum); return ""; }
+        if (drop.has(rnum)) {
+          deleted.push(rnum);
+          return "";
+        }
         if (rnum !== tplRow.rnum) return row;
         mk.found++;
         const cells = [...rb.matchAll(XCELL)].map((c) => ({ raw: c[0], head: c[1], text: cellText(c[1], c[2] ?? "") }));
@@ -250,13 +302,17 @@ function markupXlsx(buf: Uint8Array, data: FormData, mk: Marker): Buffer {
     if (deleted.length) {
       // Строки ниже удалённых поднимаются: номера строк, адреса ячеек, объединения, размер листа.
       const map = (r: number) => r - deleted.filter((d) => d < r).length;
-      xml = xml.replace(/<row\b([^>]*?)\sr="(\d+)"/g, (_, pre: string, r: string) => `<row${pre} r="${map(Number(r))}"`)
+      xml = xml
+        .replace(/<row\b([^>]*?)\sr="(\d+)"/g, (_, pre: string, r: string) => `<row${pre} r="${map(Number(r))}"`)
         .replace(/(<c\b[^>]*?\sr="[A-Z]+)(\d+)"/g, (_, pre: string, r: string) => `${pre}${map(Number(r))}"`)
         // объединения целиком в удалённых строках убираются, остальные сдвигаются
         .replace(/<mergeCell ref="([^"]+)"\/>/g, (whole, ref: string) =>
-          [...ref.matchAll(/(\d+)/g)].every((x) => deleted.includes(Number(x[1]))) ? "" : whole)
-        .replace(/<(mergeCell|dimension) ref="([^"]+)"\/>/g, (_, tag: string, ref: string) =>
-          `<${tag} ref="${ref.replace(/([A-Z]+)(\d+)/g, (__, c: string, r: string) => `${c}${map(Number(r))}`)}"/>`);
+          [...ref.matchAll(/(\d+)/g)].every((x) => deleted.includes(Number(x[1]))) ? "" : whole,
+        )
+        .replace(
+          /<(mergeCell|dimension) ref="([^"]+)"\/>/g,
+          (_, tag: string, ref: string) => `<${tag} ref="${ref.replace(/([A-Z]+)(\d+)/g, (__, c: string, r: string) => `${c}${map(Number(r))}`)}"/>`,
+        );
       xml = xml.replace(/<mergeCells count="\d+"/, `<mergeCells count="${(xml.match(/<mergeCell ref=/g) ?? []).length}"`);
     }
     xml = xml.replace(XCELL, (c, head: string, body: string | undefined) => {
@@ -276,7 +332,8 @@ export function markupForm(buf: Uint8Array, type: "docx" | "xlsx", data: FormDat
   const files = openZip(buf);
   if (!files.has("word/document.xml")) throw new FormError("Это не файл Word (.docx)");
   const out: [string, Buffer | string][] = [...files].map(([name, get]) =>
-    /^word\/(document|header\d*|footer\d*)\.xml$/.test(name) ? [name, markupDocxPart(get().toString("utf8"), data, mk)] : [name, get()]);
+    /^word\/(document|header\d*|footer\d*)\.xml$/.test(name) ? [name, markupDocxPart(get().toString("utf8"), data, mk)] : [name, get()],
+  );
   return { buf: writeZip(out), found: mk.found, ambiguous: mk.places };
 }
 
@@ -304,9 +361,17 @@ export function markupText(buf: Uint8Array, type: "docx" | "xlsx", limit = 20000
     for (const [name, get] of files) {
       if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) continue;
       for (const m of get().toString("utf8").matchAll(XCELL)) {
-        const head = m[1], body = m[2] ?? "";
+        const head = m[1],
+          body = m[2] ?? "";
         const t = xattr(head, "t");
-        const v = t === "s" ? shared[Number(body.match(/<v>([\s\S]*?)<\/v>/)?.[1])] : t === "inlineStr" ? xtexts(body) : t === "str" ? body.match(/<v>([\s\S]*?)<\/v>/)?.[1] : null;
+        const v =
+          t === "s"
+            ? shared[Number(body.match(/<v>([\s\S]*?)<\/v>/)?.[1])]
+            : t === "inlineStr"
+              ? xtexts(body)
+              : t === "str"
+                ? body.match(/<v>([\s\S]*?)<\/v>/)?.[1]
+                : null;
         if (v && v.trim()) lines.push(`${xattr(head, "r")}: ${v}`);
       }
     }
@@ -315,7 +380,10 @@ export function markupText(buf: Uint8Array, type: "docx" | "xlsx", limit = 20000
   return text.length > limit ? text.slice(0, limit) + "\n…(обрезано)" : text;
 }
 
-export interface Pair { text: string; field: string }
+export interface Pair {
+  text: string;
+  field: string;
+}
 
 /** Каждое вхождение text заменяется меткой {field} (в Word — и когда текст разбит на несколько кусков). Тексты, которых в
  *  документе нет, — в missing. Длинные тексты заменяются раньше коротких. */
@@ -330,7 +398,12 @@ export function applyPairs(buf: Uint8Array, type: "docx" | "xlsx", pairs: Pair[]
       let i = text.indexOf(p.text);
       while (i >= 0) {
         const j = i + p.text.length;
-        if (!taken.some(([a, b]) => i < b && j > a)) { taken.push([i, j]); out.push([i, j, `{${p.field.trim()}}`]); used.add(p.text); applied++; }
+        if (!taken.some(([a, b]) => i < b && j > a)) {
+          taken.push([i, j]);
+          out.push([i, j, `{${p.field.trim()}}`]);
+          used.add(p.text);
+          applied++;
+        }
         i = text.indexOf(p.text, j);
       }
     }
@@ -346,11 +419,31 @@ export function applyPairs(buf: Uint8Array, type: "docx" | "xlsx", pairs: Pair[]
     const fix = (inner: string) => {
       const text = xtexts(inner);
       const e = editsOf(text);
-      return e.length ? `<t xml:space="preserve">${xmlEscape([...e].sort((a, b) => b[0] - a[0]).reduce((s, [a, b, r]) => s.slice(0, a) + r + s.slice(b), text))}</t>` : null;
+      return e.length
+        ? `<t xml:space="preserve">${xmlEscape([...e].sort((a, b) => b[0] - a[0]).reduce((s, [a, b, r]) => s.slice(0, a) + r + s.slice(b), text))}</t>`
+        : null;
     };
     for (const [name, get] of files) {
-      if (name === "xl/sharedStrings.xml") out.push([name, get().toString("utf8").replace(/<si>([\s\S]*?)<\/si>/g, (m, inner) => { const r = fix(inner); return r ? `<si>${r}</si>` : m; })]);
-      else if (/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) out.push([name, get().toString("utf8").replace(/<is>([\s\S]*?)<\/is>/g, (m, inner) => { const r = fix(inner); return r ? `<is>${r}</is>` : m; })]);
+      if (name === "xl/sharedStrings.xml")
+        out.push([
+          name,
+          get()
+            .toString("utf8")
+            .replace(/<si>([\s\S]*?)<\/si>/g, (m, inner) => {
+              const r = fix(inner);
+              return r ? `<si>${r}</si>` : m;
+            }),
+        ]);
+      else if (/^xl\/worksheets\/sheet\d+\.xml$/.test(name))
+        out.push([
+          name,
+          get()
+            .toString("utf8")
+            .replace(/<is>([\s\S]*?)<\/is>/g, (m, inner) => {
+              const r = fix(inner);
+              return r ? `<is>${r}</is>` : m;
+            }),
+        ]);
       else out.push([name, get()]);
     }
   }

@@ -4,11 +4,15 @@
 // одинаково попадает в АОСР, приложения, АВК, КЖ, протоколы и ОЖР.
 import type { RoleCode } from "../roles.ts";
 
-interface RepLike { role: RoleCode; fullName: string; validFrom: string | null; validTo: string | null }
+interface RepLike {
+  role: RoleCode;
+  fullName: string;
+  validFrom: string | null;
+  validTo: string | null;
+}
 
 const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
-const activeOn = (r: RepLike, date: string | null) =>
-  !date || ((r.validFrom === null || r.validFrom <= date) && (r.validTo === null || date <= r.validTo));
+const activeOn = (r: RepLike, date: string | null) => !date || ((r.validFrom === null || r.validFrom <= date) && (r.validTo === null || date <= r.validTo));
 
 /** Роли, по которым на акте выбраны подписанты. */
 export function chosenRoles<T extends RepLike>(reps: readonly T[], chosen: readonly string[]): Set<RoleCode> {
@@ -29,9 +33,8 @@ export function actRepresentatives<T extends RepLike>(reps: readonly T[], chosen
     if (!roles.has(r.role) || !names.has(norm(r.fullName))) continue;
     const k = `${r.role}|${norm(r.fullName)}`;
     const prev = picked.get(k);
-    const better = !prev
-      || (activeOn(r, date) && !activeOn(prev, date))
-      || (activeOn(r, date) === activeOn(prev, date) && (r.validFrom ?? "") > (prev.validFrom ?? ""));
+    const better =
+      !prev || (activeOn(r, date) && !activeOn(prev, date)) || (activeOn(r, date) === activeOn(prev, date) && (r.validFrom ?? "") > (prev.validFrom ?? ""));
     if (better) picked.set(k, r);
   }
   const keep = new Set(picked.values());

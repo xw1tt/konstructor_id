@@ -43,8 +43,16 @@ test("даты: числа, короткий год, словами; мусор 
 });
 
 test("ответ нейросети: JSON в тексте, вид из списка, «№», даты; правила дополняют пропуски", () => {
-  const ai = parseDocFieldsAnswer('Вот: {"type":"Декларация о соответствии","number":"ЕАЭС N RU Д-RU.РА01.В.12345/24","issueDate":"01.02.2024","validUntil":null,"manufacturer":"null"}');
-  assert.deepEqual(ai, { type: "Декларация о соответствии", number: "№ЕАЭС N RU Д-RU.РА01.В.12345/24", issueDate: "2024-02-01", validUntil: null, manufacturer: null });
+  const ai = parseDocFieldsAnswer(
+    'Вот: {"type":"Декларация о соответствии","number":"ЕАЭС N RU Д-RU.РА01.В.12345/24","issueDate":"01.02.2024","validUntil":null,"manufacturer":"null"}',
+  );
+  assert.deepEqual(ai, {
+    type: "Декларация о соответствии",
+    number: "№ЕАЭС N RU Д-RU.РА01.В.12345/24",
+    issueDate: "2024-02-01",
+    validUntil: null,
+    manufacturer: null,
+  });
   assert.equal(parseDocFieldsAnswer('{"type":"Справка"}')!.type, null);
   assert.equal(parseDocFieldsAnswer("не знаю"), null);
   assert.equal(mergeFields(ai, docFieldsByRules(CERT)).validUntil, "2026-06-10");
@@ -53,7 +61,9 @@ test("ответ нейросети: JSON в тексте, вид из спис�
 });
 
 test("декларация: дата регистрации важнее начала периода", () => {
-  const f = docFieldsByRules(`ДЕКЛАРАЦИЯ О СООТВЕТСТВИИ ЕАЭС N RU Д-RU.РА01.В.12345/24\nДата регистрации декларации о соответствии: 01.02.2024\nДекларация о соответствии действительна с 05.02.2024 по 04.02.2029 включительно`);
+  const f = docFieldsByRules(
+    `ДЕКЛАРАЦИЯ О СООТВЕТСТВИИ ЕАЭС N RU Д-RU.РА01.В.12345/24\nДата регистрации декларации о соответствии: 01.02.2024\nДекларация о соответствии действительна с 05.02.2024 по 04.02.2029 включительно`,
+  );
   assert.equal(f.type, "Декларация о соответствии");
   assert.equal(f.number, "№ЕАЭС RU Д-RU.РА01.В.12345/24");
   assert.equal(f.issueDate, "2024-02-01");
@@ -65,7 +75,10 @@ test("0.29: запрос со списком материалов; ответ �
   const q = docIdentifyPrompt("текст", [{ name: "Кабель ВВГ", mark: "ВВГнг 3х2,5" }, { name: "Труба" }], true);
   assert.match(q.user, /1\. Кабель ВВГ \| ВВГнг 3х2,5\n2\. Труба/);
   assert.match(q.system, /изображения страниц/);
-  const r = parseIdentifyAnswer('{"type":"Сертификат соответствия","number":"№1","issueDate":"2025-01-01","validUntil":"2030-01-01","manufacturer":null,"materials":[2, 2, 5, "1"]}', 2)!;
+  const r = parseIdentifyAnswer(
+    '{"type":"Сертификат соответствия","number":"№1","issueDate":"2025-01-01","validUntil":"2030-01-01","manufacturer":null,"materials":[2, 2, 5, "1"]}',
+    2,
+  )!;
   assert.deepEqual(r.materials, [1, 0], "дубли и номера вне списка отброшены");
   assert.equal(r.fields.number, "№1");
   assert.deepEqual(saneDates({ ...r.fields, issueDate: "2027-01-01", validUntil: "2026-01-01" }, "2026-10-28").warnings.length, 2);

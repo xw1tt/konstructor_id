@@ -13,12 +13,17 @@ import { bundleOf, pageRange, rowPdf, type KitDeps } from "./assemble.ts";
 import { resolveScan, loadScan } from "./files.ts";
 import type { RegistryLine } from "./templates.ts";
 
-export interface CommonGroup { title: string; lines: RegistryLine[]; sheets: number }
+export interface CommonGroup {
+  title: string;
+  lines: RegistryLine[];
+  sheets: number;
+}
 export interface CommonRegistry {
   objectLine: string;
   parties: { label: string; value: string }[];
   groups: CommonGroup[];
-  docs: number; sheets: number;
+  docs: number;
+  sheets: number;
   /** Строки, листы которых не посчитаны (нет скана, ошибка печати): лист оставлен по графе «Листов» или пустым. */
   warnings: string[];
 }
@@ -60,7 +65,13 @@ export async function commonRegistry(qs: KitRequest[], deps: KitDeps): Promise<C
       }
       const sheets = row.sheets ?? count ?? 0;
       lines.push({
-        n: ++n, number: row.number, name: row.name, date: row.date, sheets, copies: row.copies, code: row.code,
+        n: ++n,
+        number: row.number,
+        name: row.name,
+        date: row.date,
+        sheets,
+        copies: row.copies,
+        code: row.code,
         pages: count ? pageRange(next, count) : "",
       });
       next += count ?? row.sheets ?? 0;
@@ -71,21 +82,32 @@ export async function commonRegistry(qs: KitRequest[], deps: KitDeps): Promise<C
   const full = (o: Organization | null | undefined) => (o ? orgFullForm(o) : "");
   const building = first?.kit.building ?? "";
   return {
-    objectLine: building ? `${building} в составе объекта ${first.object.name}` : first?.object.name ?? "",
-    parties: first ? [
-      { label: "Заказчик:", value: full(first.developer) },
-      { label: "Разработчик рабочей документации:", value: full(first.designer) },
-      { label: "Подрядчик:", value: full(first.contractor) },
-      ...(first.object.contractNumber ? [{ label: "Основание для выполнения работ:", value: `Договор подряда №${first.object.contractNumber}` }] : []),
-    ].filter((p) => p.value) : [],
-    groups, docs: n, sheets: groups.reduce((s, g) => s + g.sheets, 0), warnings,
+    objectLine: building ? `${building} в составе объекта ${first.object.name}` : (first?.object.name ?? ""),
+    parties: first
+      ? [
+          { label: "Заказчик:", value: full(first.developer) },
+          { label: "Разработчик рабочей документации:", value: full(first.designer) },
+          { label: "Подрядчик:", value: full(first.contractor) },
+          ...(first.object.contractNumber ? [{ label: "Основание для выполнения работ:", value: `Договор подряда №${first.object.contractNumber}` }] : []),
+        ].filter((p) => p.value)
+      : [],
+    groups,
+    docs: n,
+    sheets: groups.reduce((s, g) => s + g.sheets, 0),
+    warnings,
   };
 }
 
-const HEAD = ["№ п/п", "Номер документа",
+const HEAD = [
+  "№ п/п",
+  "Номер документа",
   "Тип документа (акт, лабораторное заключение, исполнительная схема, сертификат) с указанием наименования работ, осей, отметок и т.д.",
-  "Дата составления документа или период", "Количество листов (включая приложения), шт.", "Количество экземпляров, шт.",
-  "Шифр чертежа с указанием листов", "Примечание (страницы в реестре комплекта)"];
+  "Дата составления документа или период",
+  "Количество листов (включая приложения), шт.",
+  "Количество экземпляров, шт.",
+  "Шифр чертежа с указанием листов",
+  "Примечание (страницы в реестре комплекта)",
+];
 const WIDTHS = [4, 15, 37, 10, 8, 7, 12, 7];
 
 const STYLE = `<style>
@@ -110,11 +132,18 @@ export function commonRegistryHtml(d: CommonRegistry): string {
   const row = (l: RegistryLine) =>
     `<tr class="row"><td class="c">${l.n}</td><td class="c">${e(l.number)}</td><td class="l">${e(l.name)}</td><td class="c">${e(l.date)}</td>` +
     `<td class="c">${l.sheets || ""}</td><td class="c">${l.copies}</td><td class="c">${e(l.code)}</td><td class="c">${e(l.pages)}</td></tr>`;
-  const body = d.groups.map((g) => `<tbody class="grp"><tr class="grp"><td colspan="8">${e(g.title)} (документов ${g.lines.length}, листов ${g.sheets})</td></tr>${g.lines.map(row).join("")}</tbody>`).join("");
+  const body = d.groups
+    .map(
+      (g) =>
+        `<tbody class="grp"><tr class="grp"><td colspan="8">${e(g.title)} (документов ${g.lines.length}, листов ${g.sheets})</td></tr>${g.lines.map(row).join("")}</tbody>`,
+    )
+    .join("");
   const sign = (label: string) =>
     `<div class="reg-sign"><div>${label}</div><div></div><div class="line"></div><div></div><div class="line"></div>` +
     `<div class="cap">(подпись)</div><div class="cap2">(дата)</div></div>`;
-  return page(COMMON_TITLE, `${STYLE}
+  return page(
+    COMMON_TITLE,
+    `${STYLE}
     <div class="reg-title">${COMMON_TITLE}</div>
     <div class="reg-object">Объект: ${e(d.objectLine)}</div>
     <div class="reg-parties">${d.parties.map((p) => `<div>${e(p.label)}</div><div>${e(p.value)}</div>`).join("")}</div>
@@ -125,7 +154,9 @@ export function commonRegistryHtml(d: CommonRegistry): string {
       ${body}
       <tbody><tr class="tot"><td colspan="4" class="l">Всего: комплектов ${d.groups.length}, документов ${d.docs}</td><td class="c">${d.sheets}</td><td colspan="3"></td></tr></tbody>
     </table>
-    ${sign("Сдал:")}${sign("Принял:")}`, "creg");
+    ${sign("Сдал:")}${sign("Принял:")}`,
+    "creg",
+  );
 }
 
 /** Тот же реестр на листе Excel (альбомный, поля как в PDF). */
@@ -135,22 +166,47 @@ export function commonRegistrySheet(d: CommonRegistry): Layout {
   L.para(COMMON_TITLE, { b: true, h: "center", size: 10 });
   L.para(`Объект: ${d.objectLine}`, { b: true, h: "center", size: 9 });
   L.gap(4);
-  for (const p of d.parties) L.line([{ c1: 1, c2: 2, text: p.label, style: { border: { b: true } } }, { c1: 3, c2: 8, text: p.value, style: { border: { b: true } } }], S);
+  for (const p of d.parties)
+    L.line(
+      [
+        { c1: 1, c2: 2, text: p.label, style: { border: { b: true } } },
+        { c1: 3, c2: 8, text: p.value, style: { border: { b: true } } },
+      ],
+      S,
+    );
   L.gap(4);
   const C: CellStyle = { h: "center" };
   const body: TCell[][] = [];
   for (const g of d.groups) {
     body.push([{ text: `${g.title} (документов ${g.lines.length}, листов ${g.sheets})`, span: 8, style: { b: true, fill: "EEEEEE" } }]);
-    for (const l of g.lines) body.push([
-      { text: l.n, style: C }, { text: l.number, style: C }, { text: l.name }, { text: l.date, style: C },
-      { text: l.sheets || "", style: C }, { text: l.copies, style: C }, { text: l.code, style: C }, { text: l.pages, style: C },
-    ]);
+    for (const l of g.lines)
+      body.push([
+        { text: l.n, style: C },
+        { text: l.number, style: C },
+        { text: l.name },
+        { text: l.date, style: C },
+        { text: l.sheets || "", style: C },
+        { text: l.copies, style: C },
+        { text: l.code, style: C },
+        { text: l.pages, style: C },
+      ]);
   }
-  body.push([{ text: `Всего: комплектов ${d.groups.length}, документов ${d.docs}`, span: 4, style: { b: true } }, { text: d.sheets, style: { b: true, h: "center" } }, { text: "", span: 3 }]);
+  body.push([
+    { text: `Всего: комплектов ${d.groups.length}, документов ${d.docs}`, span: 4, style: { b: true } },
+    { text: d.sheets, style: { b: true, h: "center" } },
+    { text: "", span: 3 },
+  ]);
   L.table([HEAD.map((h) => ({ header: h })), HEAD.map((_, i) => ({ header: String(i + 1) }))], body, { size: S, headSize: 7 });
   for (const label of ["Сдал:", "Принял:"]) {
     L.gap(12);
-    L.line([{ c1: 1, c2: 1, text: label }, { c1: 3, c2: 4, text: "", under: true, caption: "(подпись)" }, { c1: 6, c2: 7, text: "", under: true, caption: "(дата)" }], 8);
+    L.line(
+      [
+        { c1: 1, c2: 1, text: label },
+        { c1: 3, c2: 4, text: "", under: true, caption: "(подпись)" },
+        { c1: 6, c2: 7, text: "", under: true, caption: "(дата)" },
+      ],
+      8,
+    );
   }
   return L;
 }

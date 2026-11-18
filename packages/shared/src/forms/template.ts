@@ -19,13 +19,21 @@ export type FormRef = z.infer<typeof FormRef>;
 
 export const TemplateDoc = z.discriminatedUnion("kind", [
   z.object({
-    kind: z.literal("builtin"), doc: z.enum(PRINT_KINDS), form: FormRef.nullable().default(null),
-    catalog: z.string().optional(), works: z.array(z.string()).optional(),
+    kind: z.literal("builtin"),
+    doc: z.enum(PRINT_KINDS),
+    form: FormRef.nullable().default(null),
+    catalog: z.string().optional(),
+    works: z.array(z.string()).optional(),
   }),
   z.object({
-    kind: z.literal("custom"), code: z.string(), name: z.string().trim().min(1, "Укажите название документа"), form: FormRef.nullable().default(null),
-    catalog: z.string().optional(), works: z.array(z.string()).optional(),
-    scope: z.enum(["act", "kit"]).optional(), scan: z.boolean().optional(),
+    kind: z.literal("custom"),
+    code: z.string(),
+    name: z.string().trim().min(1, "Укажите название документа"),
+    form: FormRef.nullable().default(null),
+    catalog: z.string().optional(),
+    works: z.array(z.string()).optional(),
+    scope: z.enum(["act", "kit"]).optional(),
+    scan: z.boolean().optional(),
   }),
 ]);
 export type TemplateDoc = z.infer<typeof TemplateDoc>;
@@ -35,14 +43,18 @@ export const UserTemplate = z.object({ id: z.string().min(1), name: z.string(), 
 export type UserTemplate = z.infer<typeof UserTemplate>;
 
 export const BUILTIN_SBD: UserTemplate = {
-  id: SBD_ID, name: "СБД", print: { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} },
+  id: SBD_ID,
+  name: "СБД",
+  print: { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} },
   docs: (["aosr", "rim", "vd", "vor", "avk", "kj", "ip"] as const).map((doc) => ({ kind: "builtin" as const, doc, form: null })),
 };
 
 /** Встроенный шаблон «ТИ» (план 14): формы и нумерация по образцам ООО «Техноинжиниринг». */
 export const TI_ID = "ti";
 export const BUILTIN_TI: UserTemplate = {
-  id: TI_ID, name: "ТИ", print: { schemeEach: false, formSet: "ti", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} },
+  id: TI_ID,
+  name: "ТИ",
+  print: { schemeEach: false, formSet: "ti", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} },
   docs: (["aosr", "rim", "rp", "vd", "kj", "ip"] as const).map((doc) => ({ kind: "builtin" as const, doc, form: null })),
 };
 /** Встроенные шаблоны (только чтение). */
@@ -75,9 +87,15 @@ export const docLabel = (d: TemplateDoc) => (d.kind === "builtin" ? BUILTIN_DOC_
 export function upgradeTemplate(t: UserTemplate): UserTemplate {
   const docs: TemplateDoc[] = [];
   for (const d of t.docs) {
-    if (d.kind !== "custom") { docs.push(d); continue; }
+    if (d.kind !== "custom") {
+      docs.push(d);
+      continue;
+    }
     const kind = PROTO_KINDS.find((k) => PROTO_DEFS[k].code.toUpperCase() === (d.catalog ?? d.code).trim().toUpperCase());
-    if (!kind) { docs.push(d); continue; }
+    if (!kind) {
+      docs.push(d);
+      continue;
+    }
     if (t.docs.some((x) => x.kind === "builtin" && x.doc === kind) || docs.some((x) => x.kind === "builtin" && x.doc === kind)) continue;
     docs.push({ kind: "builtin", doc: kind, form: d.form, ...(d.catalog ? { catalog: d.catalog } : {}), ...(d.works ? { works: d.works } : {}) });
   }

@@ -17,7 +17,11 @@ import { protoXlsx } from "../print/xlsx/proto.ts";
 /** Тело запроса печати: пакет акта и код шаблона (форма заказчика); без кода — СБД. */
 export const PrintRequest = ActBundle.extend({ template: z.string().default(DEFAULT_TEMPLATE), options: PrintOptions.default({}) });
 
-interface PrintJob { bundle: ActBundle; template: TemplateCode; options: PrintOptions }
+interface PrintJob {
+  bundle: ActBundle;
+  template: TemplateCode;
+  options: PrintOptions;
+}
 
 const readRequest = (b: z.infer<typeof PrintRequest>): PrintJob => {
   const { template, options, ...bundle } = b;
@@ -39,7 +43,10 @@ export function createPrintJobs(now: () => number = Date.now) {
     get(id: string): PrintJob | undefined {
       const j = jobs.get(id);
       if (!j) return undefined;
-      if (now() - j.at > JOB_TTL_MS) { jobs.delete(id); return undefined; }
+      if (now() - j.at > JOB_TTL_MS) {
+        jobs.delete(id);
+        return undefined;
+      }
       return j.job;
     },
   };
@@ -51,8 +58,12 @@ const kindOf = (doc: string): PrintKind => {
 };
 
 /** PDF документа пакета и имя файла (как у прежней печати из базы). */
-export async function renderBundlePdf(b: ActBundle, kind: PrintKind, _template: TemplateCode = DEFAULT_TEMPLATE, options: Partial<PrintOptions> = {}):
-  Promise<{ pdf: Buffer; name: string }> {
+export async function renderBundlePdf(
+  b: ActBundle,
+  kind: PrintKind,
+  _template: TemplateCode = DEFAULT_TEMPLATE,
+  options: Partial<PrintOptions> = {},
+): Promise<{ pdf: Buffer; name: string }> {
   // Набор форм и нумерация — из опций шаблона (план 14); код шаблона сам по себе не влияет на печать.
   // Документы акта — по описаниям (план 15, print/docs.ts); протоколы плана 13 — по PROTO_DEFS.
   let html: string, name: string;
@@ -82,8 +93,13 @@ export const attachment = (name: string) =>
   `attachment; filename*=UTF-8''${encodeURIComponent(name.replace(/[\\/:*?"<>|]/g, "_")).replace(/['()*]/g, (ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase())}`;
 
 /** PDF документа пакета в ответ. */
-export async function sendBundlePdf(res: ServerResponse, b: ActBundle, kind: PrintKind, template: TemplateCode = DEFAULT_TEMPLATE,
-  options: Partial<PrintOptions> = {}) {
+export async function sendBundlePdf(
+  res: ServerResponse,
+  b: ActBundle,
+  kind: PrintKind,
+  template: TemplateCode = DEFAULT_TEMPLATE,
+  options: Partial<PrintOptions> = {},
+) {
   const { pdf, name } = await renderBundlePdf(b, kind, template, options);
   res.writeHead(200, {
     "content-type": "application/pdf",

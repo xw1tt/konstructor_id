@@ -3,15 +3,16 @@
  * Корневой сертификат ограничен nameConstraints: только localhost и 127.0.0.1,
  * поэтому даже при утечке ключа им нельзя подписать сертификат для другого сайта.
  */
-import {
-  generateKeyPairSync, randomBytes, sign, createHash, createPrivateKey, X509Certificate, type KeyObject,
-} from "node:crypto";
+import { generateKeyPairSync, randomBytes, sign, createHash, createPrivateKey, X509Certificate, type KeyObject } from "node:crypto";
 
 // ---- DER ----
 const len = (n: number): Buffer => {
   if (n < 0x80) return Buffer.from([n]);
   const bytes: number[] = [];
-  while (n > 0) { bytes.unshift(n & 0xff); n >>= 8; }
+  while (n > 0) {
+    bytes.unshift(n & 0xff);
+    n >>= 8;
+  }
   return Buffer.from([0x80 | bytes.length, ...bytes]);
 };
 const tlv = (tag: number, ...content: Buffer[]) => {
@@ -34,16 +35,17 @@ function oid(s: string): Buffer {
   for (const v of p.slice(2)) {
     const stack = [v & 0x7f];
     let x = v >> 7;
-    while (x > 0) { stack.unshift((x & 0x7f) | 0x80); x >>= 7; }
+    while (x > 0) {
+      stack.unshift((x & 0x7f) | 0x80);
+      x >>= 7;
+    }
     out.push(...stack);
   }
   return tlv(0x06, Buffer.from(out));
 }
 function time(d: Date): Buffer {
   const iso = d.toISOString().replace(/[-:T]/g, "").slice(0, 14); // YYYYMMDDHHMMSS
-  return d.getUTCFullYear() < 2050
-    ? tlv(0x17, Buffer.from(iso.slice(2) + "Z"))
-    : tlv(0x18, Buffer.from(iso + "Z"));
+  return d.getUTCFullYear() < 2050 ? tlv(0x17, Buffer.from(iso.slice(2) + "Z")) : tlv(0x18, Buffer.from(iso + "Z"));
 }
 const ipBytes = (ip: string) => Buffer.from(ip.split(".").map(Number));
 
@@ -57,26 +59,35 @@ export function serialBytes(): Buffer {
 // ---- X.509 ----
 const SHA256_RSA = seq(oid("1.2.840.113549.1.1.11"), nul());
 const name = (cn: string) => seq(set(seq(oid("2.5.4.3"), utf8(cn))));
-const ext = (id: string, critical: boolean, value: Buffer) =>
-  critical ? seq(oid(id), bool(true), octet(value)) : seq(oid(id), octet(value));
+const ext = (id: string, critical: boolean, value: Buffer) => (critical ? seq(oid(id), bool(true), octet(value)) : seq(oid(id), octet(value)));
 /** Идентификатор ключа: SHA-1 от SPKI (RFC 5280 допускает любой однозначный способ). */
-const keyId = (pub: KeyObject) => createHash("sha1").update(pub.export({ type: "spki", format: "der" })).digest();
+const keyId = (pub: KeyObject) =>
+  createHash("sha1")
+    .update(pub.export({ type: "spki", format: "der" }))
+    .digest();
 
-export interface Pem { certPem: string; keyPem: string }
-export interface Names { dns: string[]; ips: string[] }
+export interface Pem {
+  certPem: string;
+  keyPem: string;
+}
+export interface Names {
+  dns: string[];
+  ips: string[];
+}
 const LOCAL: Names = { dns: ["localhost"], ips: ["127.0.0.1"] };
 
 function build(opts: {
-  subject: string; issuer: string; days: number;
-  pub: KeyObject; signKey: KeyObject; issuerPub: KeyObject; extensions: Buffer[];
+  subject: string;
+  issuer: string;
+  days: number;
+  pub: KeyObject;
+  signKey: KeyObject;
+  issuerPub: KeyObject;
+  extensions: Buffer[];
 }): string {
   const now = new Date(Date.now() - 5 * 60_000);
   const notAfter = new Date(now.getTime() + opts.days * 86400_000);
-  const exts = [
-    ...opts.extensions,
-    ext("2.5.29.14", false, octet(keyId(opts.pub))),
-    ext("2.5.29.35", false, seq(tlv(0x80, keyId(opts.issuerPub)))),
-  ];
+  const exts = [...opts.extensions, ext("2.5.29.14", false, octet(keyId(opts.pub))), ext("2.5.29.35", false, seq(tlv(0x80, keyId(opts.issuerPub))))];
   const tbs = seq(
     ctx(0, intN(2)),
     int(serialBytes()),
@@ -93,10 +104,7 @@ function build(opts: {
   return `-----BEGIN CERTIFICATE-----\n${b64}\n-----END CERTIFICATE-----\n`;
 }
 
-const generalNames = (n: Names) => [
-  ...n.dns.map((d) => tlv(0x82, Buffer.from(d, "ascii"))),
-  ...n.ips.map((ip) => tlv(0x87, ipBytes(ip))),
-];
+const generalNames = (n: Names) => [...n.dns.map((d) => tlv(0x82, Buffer.from(d, "ascii"))), ...n.ips.map((ip) => tlv(0x87, ipBytes(ip)))];
 
 export const CA_NAME = "Konstruktor ID Local CA";
 
@@ -107,7 +115,12 @@ export function createCa(): Pem {
     ...LOCAL.ips.map((ip) => seq(tlv(0x87, Buffer.concat([ipBytes(ip), Buffer.from([255, 255, 255, 255])])))),
   ];
   const certPem = build({
-    subject: CA_NAME, issuer: CA_NAME, days: 3650, pub: publicKey, signKey: privateKey, issuerPub: publicKey,
+    subject: CA_NAME,
+    issuer: CA_NAME,
+    days: 3650,
+    pub: publicKey,
+    signKey: privateKey,
+    issuerPub: publicKey,
     extensions: [
       ext("2.5.29.19", true, seq(bool(true), intN(0))),
       ext("2.5.29.15", true, bitString(Buffer.from([0x06]), 1)),
@@ -122,7 +135,12 @@ export function createLeaf(ca: Pem, names: Names = LOCAL, days = 825): Pem {
   const caKey = createPrivateKey(ca.keyPem);
   const caPub = new X509Certificate(ca.certPem).publicKey;
   const certPem = build({
-    subject: names.dns[0] ?? names.ips[0], issuer: CA_NAME, days, pub: publicKey, signKey: caKey, issuerPub: caPub,
+    subject: names.dns[0] ?? names.ips[0],
+    issuer: CA_NAME,
+    days,
+    pub: publicKey,
+    signKey: caKey,
+    issuerPub: caPub,
     extensions: [
       ext("2.5.29.19", true, seq()),
       ext("2.5.29.15", true, bitString(Buffer.from([0xa0]), 5)),

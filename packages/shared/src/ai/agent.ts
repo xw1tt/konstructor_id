@@ -10,8 +10,12 @@ export interface AgentDeps {
 
 export const MAX_STEPS = 8;
 
-export async function runTurn(history: ChatMessage[], tools: ToolDef[], deps: AgentDeps, maxSteps = MAX_STEPS):
-  Promise<{ added: ChatMessage[]; text: string; usage: Usage; stopped: boolean }> {
+export async function runTurn(
+  history: ChatMessage[],
+  tools: ToolDef[],
+  deps: AgentDeps,
+  maxSteps = MAX_STEPS,
+): Promise<{ added: ChatMessage[]; text: string; usage: Usage; stopped: boolean }> {
   const added: ChatMessage[] = [];
   const usage: Usage = { prompt: 0, completion: 0 };
   for (let step = 0; step < maxSteps; step++) {
@@ -23,7 +27,11 @@ export async function runTurn(history: ChatMessage[], tools: ToolDef[], deps: Ag
     for (const call of reply.message.toolCalls) {
       deps.onTool?.(call);
       let content: string;
-      try { content = await deps.exec(call); } catch (e) { content = JSON.stringify({ error: (e as Error).message }); }
+      try {
+        content = await deps.exec(call);
+      } catch (e) {
+        content = JSON.stringify({ error: (e as Error).message });
+      }
       added.push({ role: "tool", toolCallId: call.id, name: call.name, content });
     }
   }
@@ -34,20 +42,35 @@ export async function runTurn(history: ChatMessage[], tools: ToolDef[], deps: Ag
 export function toolLabel(c: ToolCall): string {
   const a = c.arguments ?? {};
   switch (c.name) {
-    case "list_tables": return "Смотрю таблицы книги";
-    case "read_rows": return `Читаю «${String(a.table ?? "")}»${a.contains ? `: «${String(a.contains)}»` : ""}`;
-    case "check_act": return `Проверяю акт ${String(a.act ?? "")}`;
-    case "get_catalog": return "Смотрю справочник";
-    case "get_template": return "Смотрю шаблон книги";
-    case "propose_add_rows": return `Готовлю добавление строк в «${String(a.table ?? "")}»`;
-    case "propose_update": return `Готовлю изменение «${String(a.table ?? "")}»`;
-    case "propose_delete": return `Готовлю удаление из «${String(a.table ?? "")}»`;
-    case "search_book": return `Ищу в книге «${String(a.text ?? "")}»`;
-    case "check_ojr": return `Сверяю раздел ${String(a.section ?? "")} ОЖР с актами`;
-    case "propose_replace": return `Готовлю замену «${String(a.find ?? "")}» → «${String(a.replace ?? "")}»`;
-    case "propose_catalog": return "Готовлю дополнение справочника";
-    case "read_form": return "Размечаю приложенную форму";
-    case "propose_form": return "Готовлю метки формы";
-    default: return c.name;
+    case "list_tables":
+      return "Смотрю таблицы книги";
+    case "read_rows":
+      return `Читаю «${String(a.table ?? "")}»${a.contains ? `: «${String(a.contains)}»` : ""}`;
+    case "check_act":
+      return `Проверяю акт ${String(a.act ?? "")}`;
+    case "get_catalog":
+      return "Смотрю справочник";
+    case "get_template":
+      return "Смотрю шаблон книги";
+    case "propose_add_rows":
+      return `Готовлю добавление строк в «${String(a.table ?? "")}»`;
+    case "propose_update":
+      return `Готовлю изменение «${String(a.table ?? "")}»`;
+    case "propose_delete":
+      return `Готовлю удаление из «${String(a.table ?? "")}»`;
+    case "search_book":
+      return `Ищу в книге «${String(a.text ?? "")}»`;
+    case "check_ojr":
+      return `Сверяю раздел ${String(a.section ?? "")} ОЖР с актами`;
+    case "propose_replace":
+      return `Готовлю замену «${String(a.find ?? "")}» → «${String(a.replace ?? "")}»`;
+    case "propose_catalog":
+      return "Готовлю дополнение справочника";
+    case "read_form":
+      return "Размечаю приложенную форму";
+    case "propose_form":
+      return "Готовлю метки формы";
+    default:
+      return c.name;
   }
 }

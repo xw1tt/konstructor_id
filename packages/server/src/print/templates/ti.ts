@@ -25,7 +25,8 @@ table.grid.ti-t tr.ti-doc td { background: #d9d9d9; }
 .ti-sign .cap { font-size: 6pt; }
 </style>`;
 
-const cell = (value: string, caption: string) => `<div class="ti-cell"><div class="ti-val">${e(value) || "&nbsp;"}</div><div class="ti-cap">${e(caption)}</div></div>`;
+const cell = (value: string, caption: string) =>
+  `<div class="ti-cell"><div class="ti-val">${e(value) || "&nbsp;"}</div><div class="ti-cap">${e(caption)}</div></div>`;
 
 /** Шапка ВД и КЖ: подрядчик и город, участок и заказчик, объект, дата. */
 export function tiHeaderHtml(h: TiHeader): string {
@@ -37,24 +38,36 @@ export function tiHeaderHtml(h: TiHeader): string {
   </div>`;
 }
 
-export const tiSignsHtml = (signs: TiSign[]) => `<div class="ti-signs">${signs.map((s) =>
-  `<div class="ti-sign"><div class="lbl">${e(s.label)}</div>${s.names.map((n) => `<div class="name">${e(n) || "&nbsp;"}</div><div class="cap">(фамилия, инициалы, подпись)</div>`).join("")}</div>`).join("")}</div>`;
+export const tiSignsHtml = (signs: TiSign[]) =>
+  `<div class="ti-signs">${signs
+    .map(
+      (s) =>
+        `<div class="ti-sign"><div class="lbl">${e(s.label)}</div>${s.names.map((n) => `<div class="name">${e(n) || "&nbsp;"}</div><div class="cap">(фамилия, инициалы, подпись)</div>`).join("")}</div>`,
+    )
+    .join("")}</div>`;
 
-export const tiVdRows = (d: TiData): BodyRow[] => d.vd.map((r) => ({ cls: "row", cells: { n: r.n, name: r.name, type: r.type, quantity: r.quantity, unit: r.unit, note: "" } }));
+export const tiVdRows = (d: TiData): BodyRow[] =>
+  d.vd.map((r) => ({ cls: "row", cells: { n: r.n, name: r.name, type: r.type, quantity: r.quantity, unit: r.unit, note: "" } }));
 
 /** РМ: строки документов (серые), под ними материалы этих документов — наименование до конца строки. */
-export const tiRmRows = (d: TiData): BodyRow[] => d.rm.flatMap((g) => [
-  ...g.docs.map((x): BodyRow => ({ cls: "ti-doc", style: { fill: "D9D9D9" }, cells: { n: "", name: x.type, date: x.date, number: x.number } })),
-  ...g.items.map((i): BodyRow => ({ cls: "row", cells: { n: `${i.n}.`, name: { text: i.name, rest: true } } })),
-]);
+export const tiRmRows = (d: TiData): BodyRow[] =>
+  d.rm.flatMap((g) => [
+    ...g.docs.map((x): BodyRow => ({ cls: "ti-doc", style: { fill: "D9D9D9" }, cells: { n: "", name: x.type, date: x.date, number: x.number } })),
+    ...g.items.map((i): BodyRow => ({ cls: "row", cells: { n: `${i.n}.`, name: { text: i.name, rest: true } } })),
+  ]);
 
-export const tiRpRows = (d: TiData): BodyRow[] => d.rp.map((r) => ({ cls: "row", cells: { n: r.n, type: r.type, date: r.date, number: r.number, sheets: r.sheets || "" } }));
+export const tiRpRows = (d: TiData): BodyRow[] =>
+  d.rp.map((r) => ({ cls: "row", cells: { n: r.n, type: r.type, date: r.date, number: r.number, sheets: r.sheets || "" } }));
 
 export function tiVdHtml(d: TiData, view: BlankView = blankView("vd:ti")): string {
-  return page(`ВД ${d.vdNumber}`, `${TI_STYLE}${tiHeaderHtml(d.header)}
+  return page(
+    `ВД ${d.vdNumber}`,
+    `${TI_STYLE}${tiHeaderHtml(d.header)}
     <div class="ti-title">ВЕДОМОСТЬ № ${e(d.vdNumber)}</div>
     <div class="ti-title" style="margin-top:0">СМОНТИРОВАННОГО ЭЛЕКТРООБОРУДОВАНИЯ И МАТЕРИАЛОВ</div>
-    ${htmlBlankTable(view, tiVdRows(d), { cls: "ti-t", nums: true, style: "margin-top:6pt" })}${tiSignsHtml(d.signs)}`, "ti");
+    ${htmlBlankTable(view, tiVdRows(d), { cls: "ti-t", nums: true, style: "margin-top:6pt" })}${tiSignsHtml(d.signs)}`,
+    "ti",
+  );
 }
 
 const appendixHead = (title: string, sub: string, number: string, d: TiData) =>
@@ -63,13 +76,21 @@ const appendixHead = (title: string, sub: string, number: string, d: TiData) =>
    <div class="ti-sub">к АОСР ${e(d.aosrNumber)} от ${e(d.actDate)}г.</div>`;
 
 export function tiRmHtml(d: TiData, view: BlankView = blankView("rim:ti")): string {
-  return page(`РМ ${d.rmNumber}`, `${TI_STYLE}${appendixHead("РЕЕСТР", "применённых материалов", d.rmNumber, d)}
-    ${htmlBlankTable(view, tiRmRows(d), { cls: "ti-t" })}${tiSignsHtml(d.signs)}`, "ti");
+  return page(
+    `РМ ${d.rmNumber}`,
+    `${TI_STYLE}${appendixHead("РЕЕСТР", "применённых материалов", d.rmNumber, d)}
+    ${htmlBlankTable(view, tiRmRows(d), { cls: "ti-t" })}${tiSignsHtml(d.signs)}`,
+    "ti",
+  );
 }
 
 export function tiRpHtml(d: TiData, view: BlankView = blankView("rp:ti")): string {
-  return page(`РП ${d.rpNumber}`, `${TI_STYLE}${appendixHead("РЕЕСТР", "документов, подтверждающих соответствие работ", d.rpNumber, d)}
-    ${htmlBlankTable(view, tiRpRows(d), { cls: "ti-t" })}${tiSignsHtml(d.signs)}`, "ti");
+  return page(
+    `РП ${d.rpNumber}`,
+    `${TI_STYLE}${appendixHead("РЕЕСТР", "документов, подтверждающих соответствие работ", d.rpNumber, d)}
+    ${htmlBlankTable(view, tiRpRows(d), { cls: "ti-t" })}${tiSignsHtml(d.signs)}`,
+    "ti",
+  );
 }
 
 const KJ_STYLE = `<style>
@@ -85,25 +106,52 @@ table.grid.ti-kj tr.tot td { font-weight: bold; }
 
 /** Строки КЖ «ТИ»: кабели по группам, итоги (по настройке бланка). Подпись итога — в графе «Марка», без неё — в первой. */
 export function tiKjRows(j: TiJournal, view: BlankView): BodyRow[] {
-  const rows: BodyRow[] = j.lines.map((l) => l.kind === "group"
-    ? { full: l.title, cls: "grp", style: { b: true } }
-    : { cls: "row", cells: { designation: l.designation, from: l.from, to: l.to, mark: l.mark, project: l.project, fact: l.fact, tray: l.tray, smooth: l.smooth, corrugated: l.corrugated } });
+  const rows: BodyRow[] = j.lines.map((l) =>
+    l.kind === "group"
+      ? { full: l.title, cls: "grp", style: { b: true } }
+      : {
+          cls: "row",
+          cells: {
+            designation: l.designation,
+            from: l.from,
+            to: l.to,
+            mark: l.mark,
+            project: l.project,
+            fact: l.fact,
+            tray: l.tray,
+            smooth: l.smooth,
+            corrugated: l.corrugated,
+          },
+        },
+  );
   const label = view.shown("mark") ? "mark" : "designation";
   const tot = (cells: Record<string, string>): BodyRow => ({ cls: "tot", style: { b: true }, cells });
   if (view.shown("total")) rows.push(tot({ [label]: "Итого всего", tray: j.total.tray, smooth: j.total.smooth, corrugated: j.total.corrugated }));
   // 0.28.1: запас — в строке каждой марки (фактическая длина × кф, вверх до целого), а не отдельной строкой.
   const withReserve = view.shown("reserve") && j.reserve.pct !== "0" && j.reserve.pct !== "";
-  if (view.shown("byMark")) for (const m of j.byMark) rows.push(tot(withReserve
-    ? { [label]: `в т.ч. ${m.mark} с учетом кф запаса ${j.reserve.pct}%`, project: m.project, fact: m.factReserve }
-    : { [label]: `в т.ч. ${m.mark}`, project: m.project, fact: m.fact }));
+  if (view.shown("byMark"))
+    for (const m of j.byMark)
+      rows.push(
+        tot(
+          withReserve
+            ? { [label]: `в т.ч. ${m.mark} с учетом кф запаса ${j.reserve.pct}%`, project: m.project, fact: m.factReserve }
+            : { [label]: `в т.ч. ${m.mark}`, project: m.project, fact: m.fact },
+        ),
+      );
   return rows;
 }
 
 /** Кабельный журнал «ТИ»: шапка, таблица по образцу (графы — по настройке бланка), итоги, запас, «Сдал/Принял». */
 export function tiKjHtml(d: { header: TiHeader; number: string; journal: TiJournal }, view: BlankView = blankView("kj:ti")): string {
-  const sign = (label: string) => `<div class="kj-sign"><div>${label}</div><div class="line"></div><div></div><div class="line"></div><div></div><div class="line"></div>
+  const sign = (
+    label: string,
+  ) => `<div class="kj-sign"><div>${label}</div><div class="line"></div><div></div><div class="line"></div><div></div><div class="line"></div>
     <div></div><div></div><div></div><div class="cap">Подпись</div><div></div><div class="cap">Дата</div></div>`;
-  return page(`КЖ ${d.number}`, `${TI_STYLE}${KJ_STYLE}${tiHeaderHtml(d.header)}
+  return page(
+    `КЖ ${d.number}`,
+    `${TI_STYLE}${KJ_STYLE}${tiHeaderHtml(d.header)}
     <div class="ti-title" style="font-size:12pt">Кабельный журнал ${e(withNo(String(d.number ?? "")))}</div>
-    ${htmlBlankTable(view, tiKjRows(d.journal, view), { cls: "ti-kj", style: "margin-top:6pt" })}${view.shown("signs") ? `<div class="kj-signs">${sign("Сдал:")}${sign("Принял:")}</div>` : ""}`, "ti");
+    ${htmlBlankTable(view, tiKjRows(d.journal, view), { cls: "ti-kj", style: "margin-top:6pt" })}${view.shown("signs") ? `<div class="kj-signs">${sign("Сдал:")}${sign("Принял:")}</div>` : ""}`,
+    "ti",
+  );
 }

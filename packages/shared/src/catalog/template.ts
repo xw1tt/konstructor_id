@@ -16,8 +16,7 @@ export function addWork(t: UserTemplate, c: Catalog, work: string): UserTemplate
   for (const code of w.docs) {
     const doc = c.docs.find((d) => d.code === code);
     if (!doc) continue;
-    const existing = docs.find((d) =>
-      doc.make === "builtin" && d.kind === "builtin" && d.doc === doc.builtin ? true : d.catalog === code);
+    const existing = docs.find((d) => (doc.make === "builtin" && d.kind === "builtin" && d.doc === doc.builtin ? true : d.catalog === code));
     if (existing) {
       existing.works = [...(existing.works ?? []), ...(existing.works?.includes(work) ? [] : [work])];
       if (doc.make === "builtin" && !existing.catalog) existing.catalog = code;
@@ -35,7 +34,10 @@ export function removeWork(t: UserTemplate, work: string): { template: UserTempl
   const docs: TemplateDoc[] = [];
   for (const d of t.docs) {
     const without = (d.works ?? []).filter((w) => w !== work);
-    if (d.catalog && without.length === 0) { removed.push(docLabel(d)); continue; }
+    if (d.catalog && without.length === 0) {
+      removed.push(docLabel(d));
+      continue;
+    }
     docs.push(without.length === (d.works ?? []).length ? d : { ...d, works: without });
   }
   return { template: { ...t, docs }, removed };

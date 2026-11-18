@@ -9,5 +9,11 @@ test("поиск материала: слова в любом порядке, р
   assert.deepEqual(searchOptions(M, "гоф"), ["Гофра ПВХ 16", "Труба гофрированная ПНД 20"], "начинающиеся с запроса — первыми");
   assert.deepEqual(searchOptions(M, "  "), M);
   assert.deepEqual(searchOptions(M, "нет такого"), []);
-  assert.equal(searchOptions(Array.from({ length: 80 }, (_, i) => `М${i}`), "м").length, 50);
+  assert.equal(
+    searchOptions(
+      Array.from({ length: 80 }, (_, i) => `М${i}`),
+      "м",
+    ).length,
+    50,
+  );
 });

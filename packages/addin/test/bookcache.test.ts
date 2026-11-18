@@ -10,8 +10,16 @@ import { aov1Records } from "../../shared/test/fixtures/aov1Book.ts";
 const counted = (wb: MemoryWorkbook) => {
   const reads: string[] = [];
   const store = Object.assign(Object.create(wb), {
-    read: (n: TableName) => { reads.push(n); return wb.read(n); },
-    readMany: async (names: readonly TableName[]) => { reads.push(`many:${names.length}`); const m = new Map(); for (const n of names) m.set(n, await wb.read(n)); return m; },
+    read: (n: TableName) => {
+      reads.push(n);
+      return wb.read(n);
+    },
+    readMany: async (names: readonly TableName[]) => {
+      reads.push(`many:${names.length}`);
+      const m = new Map();
+      for (const n of names) m.set(n, await wb.read(n));
+      return m;
+    },
   });
   return { store, reads };
 };
@@ -24,13 +32,13 @@ test("полное чтение — один readMany; правка одной �
   assert.equal(reads.length, 1);
   assert.match(reads[0], /^many:/);
   reads.length = 0;
-  await wb.write("Материалы", 0, { "Наименование": "Новый материал" });
+  await wb.write("Материалы", 0, { Наименование: "Новый материал" });
   let b = await c.refresh(["Материалы"]);
   assert.deepEqual(reads, ["Материалы"]);
   assert.deepEqual(b, await readBook(wb));
   reads.length = 0;
   await wb.insert("Акты", 0, [{ "Номер акта": "X-1" }]);
-  await wb.write("Объект", 0, { "Значение": "Другой объект" });
+  await wb.write("Объект", 0, { Значение: "Другой объект" });
   b = await c.refresh(["Акты", "Объект"]);
   assert.deepEqual(reads.sort(), ["Акты", "Объект"]);
   assert.deepEqual(b, await readBook(wb));
@@ -47,7 +55,9 @@ test("неизвестная таблица, пустой кеш или ошиб
   await c.refresh([null]);
   assert.match(reads[0], /^many:/, "изменение вне наших таблиц");
   reads.length = 0;
-  store.read = async () => { throw new Error("сбой"); };
+  store.read = async () => {
+    throw new Error("сбой");
+  };
   assert.deepEqual(await c.refresh(["Акты"]), await readBook(wb));
   assert.ok(reads.some((r) => r.startsWith("many:")));
 });

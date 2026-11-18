@@ -26,16 +26,18 @@ export function showValue(col: ColumnDef | undefined, v: CellValue): string {
 /** Значение от модели → значение ячейки по типу столбца; ошибка — текстом для модели. */
 export function toCell(t: TableName, col: ColumnDef, raw: unknown): { ok: true; value: CellValue } | { ok: false; error: string } {
   const where = `«${t}» / «${col.header}»`;
-  if (col.type === "formula" || col.service && col.type !== "file") return { ok: false, error: `${where}: столбец вычисляется программой, его нельзя заполнять` };
+  if (col.type === "formula" || (col.service && col.type !== "file"))
+    return { ok: false, error: `${where}: столбец вычисляется программой, его нельзя заполнять` };
   if (col.type === "file") return { ok: false, error: `${where}: скан прикладывается вручную в карточке строки` };
   if (raw === null || raw === undefined || raw === "") return { ok: true, value: null };
   const v = typeof raw === "number" || typeof raw === "boolean" ? raw : String(raw);
   switch (col.type) {
     case "date": {
-      const p = parseDateCell(typeof v === "number" ? String(v) : v as CellValue);
+      const p = parseDateCell(typeof v === "number" ? String(v) : (v as CellValue));
       return p.ok && p.value ? { ok: true, value: isoToExcelSerial(p.value) } : { ok: false, error: `${where}: дата в формате ДД.ММ.ГГГГ` };
     }
-    case "number": case "int": {
+    case "number":
+    case "int": {
       const p = parseNumberCell(v as CellValue);
       if (!p.ok || p.value === null) return { ok: false, error: `${where}: нужно число` };
       if (col.type === "int" && !Number.isInteger(p.value)) return { ok: false, error: `${where}: нужно целое число` };
@@ -69,7 +71,11 @@ const rowExists = (book: Book, t: TableName, row: number) => (book.tables[t] ?? 
 const rowNumber = (x: unknown): number | null => (typeof x === "number" && Number.isInteger(x) && x >= 1 ? x - 1 : null);
 
 /** Проверка предложения модели. Строки — с 1. */
-export function validateChange(book: Book, kind: BookChange["kind"], args: Record<string, unknown>): { ok: true; change: BookChange } | { ok: false; error: string } {
+export function validateChange(
+  book: Book,
+  kind: BookChange["kind"],
+  args: Record<string, unknown>,
+): { ok: true; change: BookChange } | { ok: false; error: string } {
   const t = args.table;
   if (!isTable(t)) return { ok: false, error: `Нет таблицы «${String(t)}». Таблицы: ${TABLE_NAMES.join(", ")}` };
   if (book.missing.includes(t)) return { ok: false, error: `В книге нет таблицы «${t}» — нужно «Обновить разметку»` };
@@ -93,7 +99,8 @@ export function validateChange(book: Book, kind: BookChange["kind"], args: Recor
     return { ok: true, change: { kind, table: t, row, values: c.values } };
   }
   const list = Array.isArray(args.rows) ? args.rows.map(rowNumber) : [];
-  if (!list.length || list.some((r) => r === null || !rowExists(book, t, r))) return { ok: false, error: `rows — номера существующих строк таблицы «${t}» (как в read_rows)` };
+  if (!list.length || list.some((r) => r === null || !rowExists(book, t, r)))
+    return { ok: false, error: `rows — номера существующих строк таблицы «${t}» (как в read_rows)` };
   return { ok: true, change: { kind: "delete", table: t, rows: [...new Set(list as number[])].sort((a, b) => a - b) } };
 }
 
@@ -108,7 +115,13 @@ const show = (t: TableName, h: string, v: CellValue) => showValue(columnByHeader
 export function describeChange(book: Book, c: BookChange): string[] {
   const sheet = TABLES[c.table].sheet;
   if (c.kind === "add")
-    return c.rows.map((r) => `Добавить на лист «${sheet}» (${c.table}): ${Object.entries(r).filter(([, v]) => cellText(v) !== "").map(([h, v]) => `${h}: ${show(c.table, h, v)}`).join("; ")}`);
+    return c.rows.map(
+      (r) =>
+        `Добавить на лист «${sheet}» (${c.table}): ${Object.entries(r)
+          .filter(([, v]) => cellText(v) !== "")
+          .map(([h, v]) => `${h}: ${show(c.table, h, v)}`)
+          .join("; ")}`,
+    );
   if (c.kind === "delete")
     return c.rows.map((r) => `Удалить с листа «${sheet}» (${c.table}) строку ${r + 1}${keyText(book, c.table, r) ? ` — ${keyText(book, c.table, r)}` : ""}`);
   const old = (book.tables[c.table] ?? []).find((x) => x.row === c.row);
@@ -127,7 +140,9 @@ type UndoOp =
   /** План 31: добавленные строки виртуальной таблицы — по значениям (индексы документов не постоянны). */
   | { kind: "removeMatch"; table: TableName; match: Record<string, CellValue>[] }
   | { kind: "remove"; table: TableName; rows: number[] };
-export interface Undo { ops: UndoOp[] }
+export interface Undo {
+  ops: UndoOp[];
+}
 
 /** Ключ строки виртуальной таблицы для отмены: документ — вид и номер, позиция — № п/п. */
 function matchOf(table: TableName, r: Record<string, CellValue>): Record<string, CellValue> {
@@ -156,7 +171,10 @@ export async function applyChanges(store: TableStore, changes: BookChange[]): Pr
       const links = Object.fromEntries(t.headers.map((h, i) => [h, t.links[r]?.[i] ?? null]).filter(([, l]) => l));
       ops.push({ kind: "reinsert", table, at: r, values, links });
     }
-    await store.remove(table, rows.filter((r) => !!t.rows[r]));
+    await store.remove(
+      table,
+      rows.filter((r) => !!t.rows[r]),
+    );
   }
   for (const c of changes.filter((x): x is Extract<BookChange, { kind: "add" }> => x.kind === "add")) {
     const t = await store.read(c.table);
@@ -179,8 +197,16 @@ export async function undoChanges(store: TableStore, undo: Undo): Promise<void> 
   for (const op of ops.filter((o): o is Extract<UndoOp, { kind: "removeMatch" }> => o.kind === "removeMatch")) {
     const t = await store.read(op.table);
     if (!t) continue;
-    const eq = (a: CellValue | undefined, b: CellValue) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
-    const rows = t.rows.map((r, i) => (op.match.some((m) => Object.entries(m).every(([h, v]) => eq(r[t.headers.indexOf(h)], v))) ? i : -1)).filter((i) => i >= 0);
+    const eq = (a: CellValue | undefined, b: CellValue) =>
+      String(a ?? "")
+        .trim()
+        .toLowerCase() ===
+      String(b ?? "")
+        .trim()
+        .toLowerCase();
+    const rows = t.rows
+      .map((r, i) => (op.match.some((m) => Object.entries(m).every(([h, v]) => eq(r[t.headers.indexOf(h)], v))) ? i : -1))
+      .filter((i) => i >= 0);
     if (rows.length) await store.remove(op.table, rows);
   }
   const re = ops.filter((o): o is Extract<UndoOp, { kind: "reinsert" }> => o.kind === "reinsert").sort((a, b) => a.at - b.at);

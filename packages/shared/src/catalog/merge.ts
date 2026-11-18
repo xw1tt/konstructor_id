@@ -17,12 +17,16 @@ export function mergeCatalog(builtin: Catalog, user: UserCatalog): { catalog: Me
   const ownDocs: CatalogDoc[] = [];
   for (const d of user.docs) {
     if (builtinCodes.has(d.code)) errors.push(`Код «${d.code}» занят встроенным документом`);
-    else { docs.push(d); ownDocs.push(d); }
+    else {
+      docs.push(d);
+      ownDocs.push(d);
+    }
   }
 
   // Разделы: встроенные (виды работ без скрытых, документы-ссылки без скрытых) + свои по коду раздела.
   const sections: CatalogSection[] = builtin.sections.map((s) => ({
-    code: s.code, name: s.name,
+    code: s.code,
+    name: s.name,
     works: s.works.filter((w) => !hidden.has(w.code)).map((w) => ({ ...w, docs: w.docs.filter((d) => !hidden.has(d)) })),
   }));
   const byCode = new Map(sections.map((s) => [s.code, s]));
@@ -31,7 +35,11 @@ export function mergeCatalog(builtin: Catalog, user: UserCatalog): { catalog: Me
     const works = s.works.filter((w) => !hidden.has(w.code)).map((w) => ({ ...w, docs: w.docs.filter((d) => !hidden.has(d)) }));
     const target = byCode.get(s.code);
     if (target) target.works.push(...works);
-    else { const ns = { code: s.code, name: s.name, works }; sections.push(ns); byCode.set(s.code, ns); }
+    else {
+      const ns = { code: s.code, name: s.name, works };
+      sections.push(ns);
+      byCode.set(s.code, ns);
+    }
     ownWorks.push(...works.map((w) => w.code));
   }
 
@@ -49,8 +57,16 @@ export function mergeUserCatalog(a: UserCatalog, b: UserCatalog): UserCatalog {
   const workCodes = new Set(sections.flatMap((s) => s.works.map((w) => w.code)));
   for (const s of b.sections) {
     let target = byCode.get(s.code);
-    if (!target) { target = { code: s.code, name: s.name, works: [] }; sections.push(target); byCode.set(s.code, target); }
-    for (const w of s.works) if (!workCodes.has(w.code)) { workCodes.add(w.code); target.works.push(structuredClone(w)); }
+    if (!target) {
+      target = { code: s.code, name: s.name, works: [] };
+      sections.push(target);
+      byCode.set(s.code, target);
+    }
+    for (const w of s.works)
+      if (!workCodes.has(w.code)) {
+        workCodes.add(w.code);
+        target.works.push(structuredClone(w));
+      }
   }
   return { docs, sections, hidden: [...new Set([...a.hidden, ...b.hidden])] };
 }

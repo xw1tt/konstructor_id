@@ -36,10 +36,15 @@ export const ACT_DOC_RENDER: Record<ActDocKind, Partial<Record<FormSet, Render>>
   avk: { sbd: (b, o) => avkHtml(buildAvkData(b), view("avk:sbd", o)) },
   kj: {
     sbd: (b, _o, set) => renderCableHtml("kj", cableDocData(b, "kj", set)),
-    ti: (b, o, set) => tiKjHtml({
-      header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date), number: docNumberFor(b.act.baseNumber, "kj", set),
-      journal: tiJournal(cables(b).rows, o.kjReserve ?? 2, o.kjDecimals ?? null),
-    }, view("kj:ti", o)),
+    ti: (b, o, set) =>
+      tiKjHtml(
+        {
+          header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date),
+          number: docNumberFor(b.act.baseNumber, "kj", set),
+          journal: tiJournal(cables(b).rows, o.kjReserve ?? 2, o.kjDecimals ?? null),
+        },
+        view("kj:ti", o),
+      ),
   },
   ip: { sbd: (b, o, set) => ipHtml(cableDocData(b, "ip", set), view("ip:sbd", o)) },
   rp: { ti: (b, o) => tiRpHtml(tiDocData(b), view("rp:ti", o)) },

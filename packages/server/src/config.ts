@@ -7,8 +7,6 @@ export interface Config {
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
-  const dataDir =
-    env.IDK_DATA_DIR ||
-    (env.LOCALAPPDATA ? join(env.LOCALAPPDATA, "KonstruktorID") : join(homedir(), ".konstruktor-id"));
+  const dataDir = env.IDK_DATA_DIR || (env.LOCALAPPDATA ? join(env.LOCALAPPDATA, "KonstruktorID") : join(homedir(), ".konstruktor-id"));
   return { dataDir, port: Number(env.IDK_PORT) || 3443 };
 }

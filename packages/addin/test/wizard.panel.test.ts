@@ -16,7 +16,10 @@ test("мастер: пустые поля — ничего не записано
   const ok = await createAct(wb, filled(), defaultImportant());
   assert.deepEqual(ok, { fieldErrors: {}, issues: [] });
   const b = await readBook(wb);
-  assert.deepEqual(b.tables["Акты"]!.map((r) => r.v.baseNumber), ["ЭОМ-1"]);
+  assert.deepEqual(
+    b.tables["Акты"]!.map((r) => r.v.baseNumber),
+    ["ЭОМ-1"],
+  );
   assert.equal(b.tables["МатериалыАктов"]!.length, 1);
   const again = await createAct(wb, filled(), defaultImportant());
   assert.equal(again.fieldErrors["act.number"], "Такой акт уже есть в книге");

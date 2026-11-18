@@ -9,26 +9,46 @@ import type { ChatMessage, ChatReply } from "@idk/shared/ai/model";
 import { AssistantSession, type AskContext } from "@idk/addin/panel/assistant";
 import { aov1Records, AOV1 } from "../../shared/test/fixtures/aov1Book.ts";
 
-const reply = (content: string, calls: { name: string; arguments: Record<string, unknown> }[] = []): ChatReply =>
-  ({ message: { role: "assistant", content, toolCalls: calls.map((c, i) => ({ id: `c${i}`, ...c })) }, usage: { prompt: 1, completion: 1 }, provider: "Тест" });
+const reply = (content: string, calls: { name: string; arguments: Record<string, unknown> }[] = []): ChatReply => ({
+  message: { role: "assistant", content, toolCalls: calls.map((c, i) => ({ id: `c${i}`, ...c })) },
+  usage: { prompt: 1, completion: 1 },
+  provider: "Тест",
+});
 
 test("ход с предложениями → применить отмеченные → отменить; модель знает о применении", async () => {
   const wb = new MemoryWorkbook(aov1Records() as any);
   const queue: ChatReply[] = [
     reply("", [{ name: "read_rows", arguments: { table: "Акты" } }]),
-    reply("", [{ name: "propose_update", arguments: { table: "Акты", row: 1, values: { "Листы": "0210-0240" } } },
-      { name: "propose_add_rows", arguments: { table: "Материалы", rows: [{ "Наименование": "Лоток", "Ед. изм.": "м." }] } }]),
+    reply("", [
+      { name: "propose_update", arguments: { table: "Акты", row: 1, values: { Листы: "0210-0240" } } },
+      { name: "propose_add_rows", arguments: { table: "Материалы", rows: [{ Наименование: "Лоток", "Ед. изм.": "м." }] } },
+    ]),
     reply("Предлагаю поправить листы и добавить лоток."),
     reply("Понял."),
   ];
   const seen: ChatMessage[][] = [];
-  const s = new AssistantSession({ store: wb, chat: async (m) => { seen.push(m); return queue.shift()!; } });
+  const s = new AssistantSession({
+    store: wb,
+    chat: async (m) => {
+      seen.push(m);
+      return queue.shift()!;
+    },
+  });
   const before = await readBook(wb);
-  const ctx = async (): Promise<AskContext> => ({ book: await readBook(wb), important: defaultImportant(), catalog: null, template: BUILTIN_SBD, masked: false,
-    prompt: { today: "25.10.2026", sheet: "База актов", table: "Акты", row: 0, act: AOV1 } });
+  const ctx = async (): Promise<AskContext> => ({
+    book: await readBook(wb),
+    important: defaultImportant(),
+    catalog: null,
+    template: BUILTIN_SBD,
+    masked: false,
+    prompt: { today: "25.10.2026", sheet: "База актов", table: "Акты", row: 0, act: AOV1 },
+  });
   await s.ask("Поправь листы и добавь лоток", await ctx());
   assert.equal(seen[0][0].role, "system");
-  assert.deepEqual(s.items.map((i) => i.kind), ["user", "tool", "tool", "tool", "assistant"]);
+  assert.deepEqual(
+    s.items.map((i) => i.kind),
+    ["user", "tool", "tool", "tool", "assistant"],
+  );
   assert.equal(s.pending.length, 2);
   assert.equal(await s.apply([1]), 1, "только отмеченное");
   const b = await readBook(wb);
@@ -43,8 +63,20 @@ test("ход с предложениями → применить отмечен
 
 test("ошибка подключения — сообщение в чате, вопрос не остаётся без ответа в истории", async () => {
   const wb = new MemoryWorkbook(aov1Records() as any);
-  const s = new AssistantSession({ store: wb, chat: async () => { throw new Error("Не выбрана нейросеть: «Настройки» → «Нейросети»"); } });
-  await s.ask("Привет", { book: await readBook(wb), important: defaultImportant(), catalog: null, template: BUILTIN_SBD, masked: false, prompt: { today: "25.10.2026" } });
+  const s = new AssistantSession({
+    store: wb,
+    chat: async () => {
+      throw new Error("Не выбрана нейросеть: «Настройки» → «Нейросети»");
+    },
+  });
+  await s.ask("Привет", {
+    book: await readBook(wb),
+    important: defaultImportant(),
+    catalog: null,
+    template: BUILTIN_SBD,
+    masked: false,
+    prompt: { today: "25.10.2026" },
+  });
   assert.deepEqual(s.items.at(-1), { kind: "error", text: "Не выбрана нейросеть: «Настройки» → «Нейросети»" });
   assert.equal(s.history.filter((m) => m.role === "user").length, 0);
 });
@@ -53,10 +85,25 @@ test("план 21: замена текста — одно предложение
   const wb = new MemoryWorkbook(aov1Records() as any);
   const before = await readBook(wb);
   const seen: ChatMessage[][] = [];
-  const queue: ChatReply[] = [reply("", [{ name: "propose_replace", arguments: { find: "Востров В.П.", replace: "Антрохин И.В." } }]), reply("Предлагаю замену.")];
-  const s = new AssistantSession({ store: wb, chat: async (m) => { seen.push(m); return queue.shift()!; } });
-  await s.ask("поменяй Вострова на Антрохина", { book: before, important: defaultImportant(), catalog: null, template: BUILTIN_SBD, masked: false,
-    prompt: { today: "25.10.2026", sheet: "База актов", table: "Акты", row: 0, act: AOV1 } });
+  const queue: ChatReply[] = [
+    reply("", [{ name: "propose_replace", arguments: { find: "Востров В.П.", replace: "Антрохин И.В." } }]),
+    reply("Предлагаю замену."),
+  ];
+  const s = new AssistantSession({
+    store: wb,
+    chat: async (m) => {
+      seen.push(m);
+      return queue.shift()!;
+    },
+  });
+  await s.ask("поменяй Вострова на Антрохина", {
+    book: before,
+    important: defaultImportant(),
+    catalog: null,
+    template: BUILTIN_SBD,
+    masked: false,
+    prompt: { today: "25.10.2026", sheet: "База актов", table: "Акты", row: 0, act: AOV1 },
+  });
   assert.match(String(seen[0][0].content), /«Представители» — Представители/);
   assert.equal(s.pending.length, 1);
   assert.equal(await s.apply([1]), 1);

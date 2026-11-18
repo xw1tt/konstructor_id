@@ -20,8 +20,14 @@ test("набор, форма документа, запас — новый print
 test("изменение встроенного: копия «<имя> (копия)» с изменением; встроенный не меняется", async () => {
   const calls: string[] = [];
   const api = {
-    create: async (name: string, from?: string) => { calls.push(`create ${name} ${from}`); return { ...structuredClone(BUILTIN_TI), id: "t-9", name }; },
-    save: async (t: UserTemplate) => { calls.push(`save ${t.id} ${t.print.forms.vd ?? "-"}`); return t; },
+    create: async (name: string, from?: string) => {
+      calls.push(`create ${name} ${from}`);
+      return { ...structuredClone(BUILTIN_TI), id: "t-9", name };
+    },
+    save: async (t: UserTemplate) => {
+      calls.push(`save ${t.id} ${t.print.forms.vd ?? "-"}`);
+      return t;
+    },
   };
   const before = structuredClone(BUILTIN_TI);
   const r = await applyChange(BUILTIN_TI, (t) => withDocForm(t, "vd", "sbd"), api);

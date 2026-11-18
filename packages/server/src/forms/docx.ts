@@ -14,18 +14,24 @@ const LABEL = /\{([^{}]+)\}/g;
 export function elements(xml: string, tag: string): { start: number; end: number }[] {
   const re = new RegExp(`<(/?)w:${tag}(?=[\\s>/])[^>]*?(/?)>`, "g");
   const out: { start: number; end: number }[] = [];
-  let depth = 0, start = -1;
+  let depth = 0,
+    start = -1;
   for (const m of xml.matchAll(re)) {
-    if (m[2] === "/") { if (depth === 0) out.push({ start: m.index!, end: m.index! + m[0].length }); continue; }
-    if (m[1] !== "/") { if (depth++ === 0) start = m.index!; }
-    else if (--depth === 0) out.push({ start, end: m.index! + m[0].length });
+    if (m[2] === "/") {
+      if (depth === 0) out.push({ start: m.index!, end: m.index! + m[0].length });
+      continue;
+    }
+    if (m[1] !== "/") {
+      if (depth++ === 0) start = m.index!;
+    } else if (--depth === 0) out.push({ start, end: m.index! + m[0].length });
   }
   return out;
 }
 
 /** Замена каждого внешнего элемента <w:tag> результатом fn. */
 export function mapElements(xml: string, tag: string, fn: (el: string) => string): string {
-  let res = "", last = 0;
+  let res = "",
+    last = 0;
   for (const { start, end } of elements(xml, tag)) {
     res += xml.slice(last, start) + fn(xml.slice(start, end));
     last = end;
@@ -37,15 +43,21 @@ const TEXT = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:t\s*\/>/g;
 const PARTS = /^word\/(document|header\d*|footer\d*)\.xml$/;
 
 export const xmlEscape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-export const xmlUnescape = (s: string) => s
-  .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-  .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
-  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+export const xmlUnescape = (s: string) =>
+  s
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
 
 /** Текст абзаца (тексты всех <w:t>, <w:br/> → перевод строки). */
 export function paragraphText(p: string): string {
   return [...p.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:br\s*\/>|<w:tab\s*\/>/g)]
-    .map((m) => (m[0].startsWith("<w:br") ? "\n" : m[0].startsWith("<w:tab") ? "\t" : xmlUnescape(m[1] ?? ""))).join("");
+    .map((m) => (m[0].startsWith("<w:br") ? "\n" : m[0].startsWith("<w:tab") ? "\t" : xmlUnescape(m[1] ?? "")))
+    .join("");
 }
 
 /**
@@ -56,17 +68,24 @@ export function editParagraph(p: string, edits: [number, number, string][]): str
   if (!edits.length) return p;
   const pieces = [...p.matchAll(TEXT)].map((m) => ({ at: m.index!, raw: m[0], text: xmlUnescape(m[1] ?? "") }));
   let off = 0;
-  const spans = pieces.map((x) => { const s = { start: off, end: off + x.text.length }; off = s.end; return s; });
+  const spans = pieces.map((x) => {
+    const s = { start: off, end: off + x.text.length };
+    off = s.end;
+    return s;
+  });
   const out = pieces.map((x) => x.text);
   const touched = new Set<number>();
   for (const [a, b, rep] of [...edits].sort((x, y) => y[0] - x[0])) {
-    const i = spans.findIndex((s) => a >= s.start && a < s.end || (a === s.end && a === b && s.start === s.end));
+    const i = spans.findIndex((s) => (a >= s.start && a < s.end) || (a === s.end && a === b && s.start === s.end));
     const j = spans.findIndex((s) => b > s.start && b <= s.end);
     if (i < 0 || j < 0) continue;
     if (i === j) out[i] = out[i].slice(0, a - spans[i].start) + rep + out[i].slice(b - spans[i].start);
     else {
       out[i] = out[i].slice(0, a - spans[i].start) + rep;
-      for (let k = i + 1; k < j; k++) { out[k] = ""; touched.add(k); }
+      for (let k = i + 1; k < j; k++) {
+        out[k] = "";
+        touched.add(k);
+      }
       out[j] = out[j].slice(b - spans[j].start);
       touched.add(j);
     }
@@ -110,7 +129,9 @@ function makeLookup(data: FormData, warnings: Set<string>, item?: Record<string,
 function fillTable(tbl: string, data: FormData, warnings: Set<string>): string {
   const rows = mapElements(tbl, "tr", (row0) => {
     const row = mapElements(row0, "tc", (cell) => mapElements(cell, "tbl", (inner) => fillTable(inner, data, warnings)));
-    const name = paragraphText(withoutTables(row)).match(/\{#([^{}]+)\}/)?.[1]?.trim();
+    const name = paragraphText(withoutTables(row))
+      .match(/\{#([^{}]+)\}/)?.[1]
+      ?.trim();
     if (!name) return row;
     const list = data.lists[name];
     if (!list) warnings.add(`Нет списка «${name}»`);
@@ -149,5 +170,7 @@ export function fillDocx(buf: Uint8Array, data: FormData): { buf: Buffer; warnin
 /** Текст документа по абзацам (через перевод строки). */
 export function docxText(buf: Uint8Array): string {
   const xml = openDocx(buf).get("word/document.xml")!().toString("utf8");
-  return elements(xml, "p").map(({ start, end }) => paragraphText(xml.slice(start, end))).join("\n");
+  return elements(xml, "p")
+    .map(({ start, end }) => paragraphText(xml.slice(start, end)))
+    .join("\n");
 }

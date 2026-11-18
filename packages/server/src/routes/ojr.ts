@@ -22,7 +22,8 @@ export function ojrRoutes(r: Router, now: () => number = Date.now) {
     const pdf = await htmlToPdf(ojrHtml(j.q), { pageNumbers: true });
     const name = `ОЖР Раздел ${j.q.section}.pdf`;
     c.res.writeHead(200, {
-      "content-type": "application/pdf", "content-length": pdf.length,
+      "content-type": "application/pdf",
+      "content-length": pdf.length,
       "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(name)}`,
     });
     c.res.end(pdf);

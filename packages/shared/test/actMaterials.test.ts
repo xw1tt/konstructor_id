@@ -21,14 +21,20 @@ test("выбор материалов акта: снять, добавить, и
   assert.equal(describeActMaterials(ch), "добавлено 1, изменено 1, убрано 1");
   const undo = await applyChanges(wb, ch);
   const after = actMaterialRows(await readBook(wb), AOV1);
-  assert.deepEqual(after.map((r) => r.material), [...cur.slice(1).map((r) => r.material), "Новый материал"]);
+  assert.deepEqual(
+    after.map((r) => r.material),
+    [...cur.slice(1).map((r) => r.material), "Новый материал"],
+  );
   assert.equal(after[0].quantity, 99);
   assert.equal(after[0].position, "П-1");
   assert.equal(after.at(-1)!.position, "б/н");
   // Повтор того же выбора — без изменений.
   assert.equal(planActMaterials(await readBook(wb), AOV1, picks).length, 0);
   await undoChanges(wb, undo);
-  assert.deepEqual(actMaterialRows(await readBook(wb), AOV1).map((r) => [r.material, r.quantity]), cur.map((r) => [r.material, r.quantity]));
+  assert.deepEqual(
+    actMaterialRows(await readBook(wb), AOV1).map((r) => [r.material, r.quantity]),
+    cur.map((r) => [r.material, r.quantity]),
+  );
 });
 
 test("повтор материала в акте убирается, регистр не важен", async () => {
@@ -37,14 +43,25 @@ test("повтор материала в акте убирается, регис
   r["МатериалыАктов"].push({ ...first });
   const book = await readBook(new MemoryWorkbook(r));
   const cur = actMaterialRows(book, AOV1);
-  const picks = [...new Map(cur.map((x) => [x.material.toUpperCase(), { material: x.material.toUpperCase(), quantity: x.quantity, position: x.position }])).values()];
+  const picks = [
+    ...new Map(cur.map((x) => [x.material.toUpperCase(), { material: x.material.toUpperCase(), quantity: x.quantity, position: x.position }])).values(),
+  ];
   const ch = planActMaterials(book, AOV1, picks);
-  assert.deepEqual(ch.map((c) => c.kind), ["delete"]);
+  assert.deepEqual(
+    ch.map((c) => c.kind),
+    ["delete"],
+  );
 });
 
 test("документ качества из карточки материала; привязка общего сертификата и отвязка", () => {
-  assert.deepEqual(newQualityDoc(" Кабель ", { type: "Паспорт качества", number: " П-1 ", date: 46000, validUntil: null, sheets: 2 }),
-    { "Материалы": "Кабель", "Тип": "Паспорт качества", "Номер": "П-1", "Дата": 46000, "Действует до": null, "Листов": 2 });
+  assert.deepEqual(newQualityDoc(" Кабель ", { type: "Паспорт качества", number: " П-1 ", date: 46000, validUntil: null, sheets: 2 }), {
+    Материалы: "Кабель",
+    Тип: "Паспорт качества",
+    Номер: "П-1",
+    Дата: 46000,
+    "Действует до": null,
+    Листов: 2,
+  });
   assert.equal(docMaterials("Кабель; Труба", "Лоток", true), "Кабель; Труба; Лоток");
   assert.equal(docMaterials("Кабель; Труба", "кабель", true), "Труба; кабель");
   assert.equal(docMaterials("Кабель; Труба", "Кабель", false), "Труба");

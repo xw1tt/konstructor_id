@@ -11,7 +11,6 @@ import { resolveScan, loadScan } from "@idk/server/kit/files";
 import { tmpDir } from "./helpers/tmp.ts";
 import { makePdf, PNG_WIDE } from "./helpers/pdf.ts";
 
-
 const dir = tmpDir();
 const scans = join(dir, "Сканы");
 mkdirSync(scans);
@@ -24,8 +23,11 @@ const ctx = { db, dataDir: dir, scanFolder: scans };
 
 test("имя в папке сканов, полный путь, ссылка на файл сервера", async () => {
   assert.deepEqual(resolveScan({ name: "схема 1.pdf", link: null }, ctx), { ok: true, path: join(scans, "схема 1.pdf"), mime: "application/pdf" });
-  assert.deepEqual(resolveScan({ name: join(scans, "лого.png"), link: null }, { ...ctx, scanFolder: "" }),
-    { ok: true, path: join(scans, "лого.png"), mime: "image/png" });
+  assert.deepEqual(resolveScan({ name: join(scans, "лого.png"), link: null }, { ...ctx, scanFolder: "" }), {
+    ok: true,
+    path: join(scans, "лого.png"),
+    mime: "image/png",
+  });
   const f = await saveFile(db, dir, Readable.from([Buffer.from(await makePdf(3))]), { name: "a.pdf", mime: "application/pdf" }, 1e7);
   const r = resolveScan({ name: "a.pdf", link: `https://localhost:3443/api/files/${f.id}` }, { ...ctx, scanFolder: "" });
   assert.equal(r.ok, true);
@@ -50,7 +52,9 @@ test("страницы: PDF как есть, картинка — альбомн
   // PDF с шифрованием: в словаре trailer есть /Encrypt
   const plain = await PDFDocument.create();
   plain.addPage();
-  const bytes = Buffer.from(await plain.save({ useObjectStreams: false })).toString("latin1").replace("trailer\n<<", "trailer\n<<\n/Encrypt 1 0 R");
+  const bytes = Buffer.from(await plain.save({ useObjectStreams: false }))
+    .toString("latin1")
+    .replace("trailer\n<<", "trailer\n<<\n/Encrypt 1 0 R");
   writeFileSync(join(scans, "защищён.pdf"), Buffer.from(bytes, "latin1"));
   await assert.rejects(loadScan({ path: join(scans, "защищён.pdf"), mime: "application/pdf" }), /PDF защищён паролем/);
 });

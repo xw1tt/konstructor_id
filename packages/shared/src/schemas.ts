@@ -10,15 +10,24 @@ const id = z.number().int().positive();
 export const OrganizationInput = z.object({
   shortName: req("Укажите краткое наименование"),
   fullName: req("Укажите полное наименование"),
-  ogrn: str, inn: str, address: str, phone: str,
-  sroName: str, sroOgrn: str, sroInn: str,
+  ogrn: str,
+  inn: str,
+  address: str,
+  phone: str,
+  sroName: str,
+  sroOgrn: str,
+  sroInn: str,
 });
 export const Organization = OrganizationInput.extend({ id });
 export type OrganizationInput = z.infer<typeof OrganizationInput>;
 export type Organization = z.infer<typeof Organization>;
 
 export const ObjectInfo = z.object({
-  name: str, address: str, contractNumber: str, contractDate: optDate, city: str,
+  name: str,
+  address: str,
+  contractNumber: str,
+  contractDate: optDate,
+  city: str,
   roles: z.object(
     Object.fromEntries(ORG_ROLE_CODES.map((r) => [r, id.nullable().default(null)])) as Record<
       (typeof ORG_ROLE_CODES)[number],
@@ -57,7 +66,10 @@ export type Representative = z.infer<typeof Representative>;
 
 export const MaterialInput = z.object({
   name: req("Укажите наименование"),
-  mark: str, article: str, manufacturer: str, unit: str,
+  mark: str,
+  article: str,
+  manufacturer: str,
+  unit: str,
 });
 export const Material = MaterialInput.extend({ id });
 export type MaterialInput = z.infer<typeof MaterialInput>;
@@ -79,7 +91,11 @@ export type QualityDocInput = z.infer<typeof QualityDocInput>;
 export type QualityDoc = z.infer<typeof QualityDoc>;
 
 export const FileRow = z.object({
-  id, sha256: z.string(), name: z.string(), mime: z.string(),
-  size: z.number().int(), pages: z.number().int(),
+  id,
+  sha256: z.string(),
+  name: z.string(),
+  mime: z.string(),
+  size: z.number().int(),
+  pages: z.number().int(),
 });
 export type FileRow = z.infer<typeof FileRow>;

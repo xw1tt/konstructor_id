@@ -15,7 +15,10 @@ test("шаблон пользователя или неизвестный — в
   const s = await startTestServer();
   const r = await s.req("POST", "/api/print-jobs", { ...(await bundle()), template: "t-00000000-0000-0000-0000-000000000000" });
   assert.equal(r.status, 201);
-  const p = await s.raw("POST", "/api/print/aosr", { headers: { "content-type": "application/json" }, body: JSON.stringify({ ...(await bundle()), template: "abc" }) });
+  const p = await s.raw("POST", "/api/print/aosr", {
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...(await bundle()), template: "abc" }),
+  });
   assert.equal(p.status, 200);
   await p.arrayBuffer();
 });

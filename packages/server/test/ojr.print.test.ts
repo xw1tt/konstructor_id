@@ -14,7 +14,7 @@ after(() => closeBrowser());
 
 async function book(days = ["2026-10-03", "2026-10-15"]) {
   const r: any = aov1Records();
-  r["Объект"].push({ "Поле": "Условия производства работ", "Значение": "+18 °С, в помещении" });
+  r["Объект"].push({ Поле: "Условия производства работ", Значение: "+18 °С, в помещении" });
   Object.assign(r["Акты"][0], { "Начало работ": isoToExcelSerial(days[0]), "Окончание работ": isoToExcelSerial(days[1]) });
   const wb = new MemoryWorkbook(r);
   await fillOjr(wb, await readBook(wb));

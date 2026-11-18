@@ -5,8 +5,14 @@ import { cellText, splitRefs, type CellValue } from "../workbook/values.ts";
 import type { Book } from "../workbook/records.ts";
 import type { BookChange } from "../ai/changes.ts";
 
-export interface ActMaterialPick { material: string; quantity: number | null; position: string }
-export interface ActMaterialRow extends ActMaterialPick { row: number }
+export interface ActMaterialPick {
+  material: string;
+  quantity: number | null;
+  position: string;
+}
+export interface ActMaterialRow extends ActMaterialPick {
+  row: number;
+}
 
 const H = (k: string) => column("МатериалыАктов", k).header;
 const norm = (s: string) => s.trim().toLowerCase();
@@ -18,9 +24,14 @@ const num = (v: CellValue): number | null => {
 
 /** Материалы акта по порядку строк «Материалов в актах». */
 export function actMaterialRows(book: Book, act: string): ActMaterialRow[] {
-  return (book.tables["МатериалыАктов"] ?? []).filter((r) => cellText(r.v.act) === act).map((r) => ({
-    row: r.row, material: cellText(r.v.material), quantity: num(r.v.quantity ?? null), position: cellText(r.v.position),
-  }));
+  return (book.tables["МатериалыАктов"] ?? [])
+    .filter((r) => cellText(r.v.act) === act)
+    .map((r) => ({
+      row: r.row,
+      material: cellText(r.v.material),
+      quantity: num(r.v.quantity ?? null),
+      position: cellText(r.v.position),
+    }));
 }
 
 /**
@@ -58,7 +69,8 @@ export function planActMaterials(book: Book, act: string, picks: ActMaterialPick
 
 /** Итог для пользователя: «добавлено 2, изменено 1, убрано 3». */
 export function describeActMaterials(changes: BookChange[]): string {
-  const n = (k: BookChange["kind"]) => changes.filter((c) => c.kind === k).reduce((s, c) => s + (c.kind === "add" ? c.rows.length : c.kind === "delete" ? c.rows.length : 1), 0);
+  const n = (k: BookChange["kind"]) =>
+    changes.filter((c) => c.kind === k).reduce((s, c) => s + (c.kind === "add" ? c.rows.length : c.kind === "delete" ? c.rows.length : 1), 0);
   const parts = [n("add") && `добавлено ${n("add")}`, n("update") && `изменено ${n("update")}`, n("delete") && `убрано ${n("delete")}`].filter(Boolean);
   return parts.length ? parts.join(", ") : "без изменений";
 }
@@ -66,10 +78,17 @@ export function describeActMaterials(changes: BookChange[]): string {
 const DH = (k: string) => column("ДокументыКачества", k).header;
 
 /** Строка нового документа качества материала (ячейки по заголовкам; даты — как ввёл пользователь, ДД.ММ.ГГГГ). */
-export function newQualityDoc(material: string, d: { type: string; number: string; date: CellValue; validUntil: CellValue; sheets: number | null }): Record<string, CellValue> {
+export function newQualityDoc(
+  material: string,
+  d: { type: string; number: string; date: CellValue; validUntil: CellValue; sheets: number | null },
+): Record<string, CellValue> {
   return {
-    [DH("materials")]: material.trim(), [DH("type")]: d.type, [DH("number")]: d.number.trim(),
-    [DH("issueDate")]: d.date ?? null, [DH("validUntil")]: d.validUntil ?? null, [DH("sheets")]: d.sheets,
+    [DH("materials")]: material.trim(),
+    [DH("type")]: d.type,
+    [DH("number")]: d.number.trim(),
+    [DH("issueDate")]: d.date ?? null,
+    [DH("validUntil")]: d.validUntil ?? null,
+    [DH("sheets")]: d.sheets,
   };
 }
 

@@ -17,15 +17,24 @@ export async function startTestServer(opts: Partial<AppOptions> = {}): Promise<T
   const db = openDb(join(dataDir, "db.sqlite"));
   const server: Server = createServer(createApp({ db, dataDir, ...opts }));
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
-  after(() => { server.close(); db.close(); });
+  after(() => {
+    server.close();
+    db.close();
+  });
   const addr = server.address();
   const url = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
   const raw = (method: string, path: string, init: RequestInit = {}) => fetch(url + path, { method, ...init });
   const req = async (method: string, path: string, body?: unknown) => {
-    const res = await raw(method, path, body === undefined ? {} : {
-      headers: { "content-type": "application/json" },
-      body: typeof body === "string" ? body : JSON.stringify(body),
-    });
+    const res = await raw(
+      method,
+      path,
+      body === undefined
+        ? {}
+        : {
+            headers: { "content-type": "application/json" },
+            body: typeof body === "string" ? body : JSON.stringify(body),
+          },
+    );
     const text = await res.text();
     return { status: res.status, json: text ? JSON.parse(text) : null };
   };

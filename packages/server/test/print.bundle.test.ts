@@ -17,7 +17,8 @@ const bookBundle = async () => buildBundle(await readBook(aov1Book()), AOV1, def
 test("POST /api/print/aosr → PDF с номером акта", async () => {
   const s = await startTestServer();
   const r = await s.raw("POST", "/api/print/aosr", {
-    headers: { "content-type": "application/json" }, body: JSON.stringify(await bookBundle()),
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(await bookBundle()),
   });
   assert.equal(r.status, 200, await r.clone().text());
   assert.ok((r.headers.get("content-disposition") ?? "").includes(encodeURIComponent(`${AOV1}.АОСР.pdf`)));

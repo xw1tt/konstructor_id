@@ -13,8 +13,7 @@ test("номера по наборам — как в плане 14", () => {
     sbd: { aosr: "A.АОСР", rim: "A.РИМ", vd: "A.ВД", rp: "A.РП", kj: "A.КЖ", ip: "A.Протокол" },
     ti: { aosr: "A", rim: "A.РМ", vd: "A.ВД", rp: "A.РП", kj: "A.КЖ", ip: "A.П" },
   } as const;
-  for (const set of ["sbd", "ti"] as const)
-    for (const [k, v] of Object.entries(exp[set])) assert.equal(docNumberFor(" A ", k as any, set), v, `${set} ${k}`);
+  for (const set of ["sbd", "ti"] as const) for (const [k, v] of Object.entries(exp[set])) assert.equal(docNumberFor(" A ", k as any, set), v, `${set} ${k}`);
 });
 
 test("наименования реестра и виды реестра — прежние", () => {
@@ -27,13 +26,21 @@ test("наименования реестра и виды реестра — п�
   assert.equal(n("rp", "sbd"), "Реестр приложений к АОСР №A от 01.01.2026 г.");
   assert.equal(n("vd", "ti"), "Ведомость смонтированного электрооборудования и материалов");
   assert.equal(n("ip", "ti"), "Протокол сопротивления изоляции");
-  assert.deepEqual(PRINTED_KINDS, { "ВОР": "vor", "АОСР": "aosr", "РИМ": "rim", "РП": "rp", "ВД": "vd", "КЖ": "kj", "Протокол": "ip", "АВК": "avk" });
+  assert.deepEqual(PRINTED_KINDS, { ВОР: "vor", АОСР: "aosr", РИМ: "rim", РП: "rp", ВД: "vd", КЖ: "kj", Протокол: "ip", АВК: "avk" });
   for (const k of ACT_DOC_KINDS) assert.ok((REGISTRY_KINDS as readonly string[]).includes(ACT_DOC_DEFS[k].registry), k);
 });
 
 test("подписи шаблона, виды печати, таблицы, формы", () => {
-  assert.deepEqual(Object.fromEntries(ACT_DOC_KINDS.map((k) => [k, BUILTIN_DOC_LABELS[k]])),
-    { aosr: "АОСР", rim: "РИМ", vd: "ВД", vor: "ВОР", avk: "АВК", kj: "КЖ", ip: "Протокол", rp: "РП" });
+  assert.deepEqual(Object.fromEntries(ACT_DOC_KINDS.map((k) => [k, BUILTIN_DOC_LABELS[k]])), {
+    aosr: "АОСР",
+    rim: "РИМ",
+    vd: "ВД",
+    vor: "ВОР",
+    avk: "АВК",
+    kj: "КЖ",
+    ip: "Протокол",
+    rp: "РП",
+  });
   assert.deepEqual([...PRINT_KINDS].filter((k) => !(PROTO_KINDS as readonly string[]).includes(k)).sort(), [...ACT_DOC_KINDS].sort());
   for (const k of ACT_DOC_KINDS) for (const t of ACT_DOC_DEFS[k].tables) assert.ok(t in TABLES, `${k}: ${t}`);
   assert.equal(actDocForm("aosr", "ti"), "sbd");

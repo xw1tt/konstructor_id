@@ -42,11 +42,12 @@ test("списки: материалы как в ВД, схемы, ВОР", asyn
 test("каждое поле дерева есть в значениях; номер своего документа", async () => {
   const b = await bundle();
   const d = formData(b, { code: "АГИ" });
-  for (const g of FIELD_TREE) for (const f of g.fields) {
-    const key = `${g.group}.${f}`;
-    if (g.list) assert.ok(key in (d.lists[g.list][0] ?? Object.fromEntries(g.fields.map((x) => [`${g.group}.${x}`, ""]))), key);
-    else assert.ok(key in d.values, key);
-  }
+  for (const g of FIELD_TREE)
+    for (const f of g.fields) {
+      const key = `${g.group}.${f}`;
+      if (g.list) assert.ok(key in (d.lists[g.list][0] ?? Object.fromEntries(g.fields.map((x) => [`${g.group}.${x}`, ""]))), key);
+      else assert.ok(key in d.values, key);
+    }
   assert.equal(d.values["Акт.Номер документа"], `${AOV1}.АГИ`);
   assert.equal(formData(b).values["Акт.Номер документа"], docNumber(AOV1, "aosr"));
 });

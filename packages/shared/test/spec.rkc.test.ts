@@ -6,9 +6,10 @@ import { rkcSample } from "./fixtures/rkcSample.ts";
 
 test("позиции, номера, разделы", () => {
   const { items } = parseRkc(rkcSample);
-  assert.deepEqual(items.map((i) => i.number), [
-    "1.1.1.1", "1.1.1.10", "б/н-1", "1.1.6.2.1", "1.2.3.2.7.2", "1.2.4.4.1", "1.1.2.30", "3.1.", "1.1.1.1-2", "1.1",
-  ]);
+  assert.deepEqual(
+    items.map((i) => i.number),
+    ["1.1.1.1", "1.1.1.10", "б/н-1", "1.1.6.2.1", "1.2.3.2.7.2", "1.2.4.4.1", "1.1.2.30", "3.1.", "1.1.1.1-2", "1.1"],
+  );
   assert.equal(items[0].section, "ОСНОВНОЕ ОБОРУДОВАНИЕ");
   assert.equal(items[3].section, "КАБЕЛИ И ПРОВОДА");
   assert.equal(items.find((i) => i.number === "3.1.")!.section, "Корректировка рабочей документации");
@@ -40,10 +41,15 @@ test("итоги и нумерация столбцов не попадают в
 test("номер-число: 2 → «2», 1.1 → «1.1»", () => {
   const head = ["№ п/п", "Наименование", "Ед. изм.", "Кол-во"];
   const { items } = parseRkc([head, [2, "А", "шт", 1], [1.1, "Б", "шт", 1]]);
-  assert.deepEqual(items.map((i) => i.number), ["2", "1.1"]);
+  assert.deepEqual(
+    items.map((i) => i.number),
+    ["2", "1.1"],
+  );
 });
 
 test("нет шапки — RkcError", () => {
-  assert.throws(() => parseRkc([["a", "b"]]), (e: unknown) => e instanceof RkcError &&
-    e.message === "Не найдена шапка РКЦ: нужны столбцы «№ п/п», «Наименование», «Ед. изм.», «Кол-во»");
+  assert.throws(
+    () => parseRkc([["a", "b"]]),
+    (e: unknown) => e instanceof RkcError && e.message === "Не найдена шапка РКЦ: нужны столбцы «№ п/п», «Наименование», «Ед. изм.», «Кол-во»",
+  );
 });

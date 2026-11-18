@@ -12,11 +12,19 @@ export type VirtualTable = (typeof VIRTUAL_TABLES)[number];
 export const isVirtual = (t: string): t is VirtualTable => (VIRTUAL_TABLES as readonly string[]).includes(t);
 
 const M = (k: string) => column("Материалы", k).header;
-const norm = (v: CellValue | undefined) => cellText(v ?? null).trim().toLowerCase();
+const norm = (v: CellValue | undefined) =>
+  cellText(v ?? null)
+    .trim()
+    .toLowerCase();
 const empty = (v: CellValue | undefined) => cellText(v ?? null).trim() === "";
 
 /** Строки «Материалов» по заголовкам; example — строка-пример новой книги. */
-interface Phys { row: number; v: Record<string, CellValue>; link: Record<string, string | null>; example: boolean }
+interface Phys {
+  row: number;
+  v: Record<string, CellValue>;
+  link: Record<string, string | null>;
+  example: boolean;
+}
 function physRows(t: TableData): Phys[] {
   return t.rows.map((r, row) => ({
     row,
@@ -27,16 +35,29 @@ function physRows(t: TableData): Phys[] {
 }
 
 /** Слот документа в строке материала. */
-export interface Slot { row: number; slot: number }
+export interface Slot {
+  row: number;
+  slot: number;
+}
 /** Документ: слоты с одинаковыми видом и номером — один документ на несколько материалов. */
-export interface DocGroup { key: string; slots: Slot[] }
+export interface DocGroup {
+  key: string;
+  slots: Slot[];
+}
 /** Позиция спецификации: строки «Материалов» с одним № п/п РКЦ. */
-export interface SpecGroup { number: string; rows: number[] }
+export interface SpecGroup {
+  number: string;
+  rows: number[];
+}
 
 const slotFilled = (p: Phys, k: number) => !empty(p.v[M(slotKey(k, "type"))]) || !empty(p.v[M(slotKey(k, "number"))]);
 /** Номер «без номера»: пусто, «б/н», «бн», «б.н.», «-», «нет» — такие документы не объединяются между собой. */
 export const isBlankNumber = (v: CellValue | undefined) =>
-  /^(|б\s*[/.\\]?\s*н\.?|без\s+номера|нет|[-–—]+)$/i.test(cellText(v ?? null).trim().replace(/^№\s*/, ""));
+  /^(|б\s*[/.\\]?\s*н\.?|без\s+номера|нет|[-–—]+)$/i.test(
+    cellText(v ?? null)
+      .trim()
+      .replace(/^№\s*/, ""),
+  );
 /** Скан слота для сравнения: адрес ссылки или имя файла. */
 const scanOf = (p: Phys, k: number) => (p.link[M(slotKey(k, "file"))] ?? "") || norm(p.v[M(slotKey(k, "file"))]);
 
@@ -50,25 +71,29 @@ export function docGroups(t: TableData): DocGroup[] {
   const out: DocGroup[] = [];
   const byKey = new Map<string, { g: DocGroup; rows: Set<number>; scan: string }[]>();
   // Строки-примеры новой книги — не данные: документов и позиций из них нет.
-  for (const p of physRows(t)) for (const k of DOC_SLOTS) {
-    if (p.example || !slotFilled(p, k)) continue;
-    const num = p.v[M(slotKey(k, "number"))];
-    const scan = scanOf(p, k);
-    const blank = isBlankNumber(num);
-    // «б/н» без скана — отдельный документ; «б/н» с одним и тем же сканом у нескольких материалов — один документ.
-    if (blank && !scan) { out.push({ key: `@${p.row}:${k}`, slots: [{ row: p.row, slot: k }] }); continue; }
-    const key = blank ? `${norm(p.v[M(slotKey(k, "type"))])}|б/н|${scan}` : `${norm(p.v[M(slotKey(k, "type"))])}|${norm(num)}`;
-    const list = byKey.get(key) ?? (byKey.set(key, []).get(key)!);
-    let hit = list.find((x) => !x.rows.has(p.row) && (!x.scan || !scan || x.scan === scan));
-    if (!hit) {
-      hit = { g: { key: list.length ? `${key}#${list.length}` : key, slots: [] }, rows: new Set(), scan: "" };
-      list.push(hit);
-      out.push(hit.g);
+  for (const p of physRows(t))
+    for (const k of DOC_SLOTS) {
+      if (p.example || !slotFilled(p, k)) continue;
+      const num = p.v[M(slotKey(k, "number"))];
+      const scan = scanOf(p, k);
+      const blank = isBlankNumber(num);
+      // «б/н» без скана — отдельный документ; «б/н» с одним и тем же сканом у нескольких материалов — один документ.
+      if (blank && !scan) {
+        out.push({ key: `@${p.row}:${k}`, slots: [{ row: p.row, slot: k }] });
+        continue;
+      }
+      const key = blank ? `${norm(p.v[M(slotKey(k, "type"))])}|б/н|${scan}` : `${norm(p.v[M(slotKey(k, "type"))])}|${norm(num)}`;
+      const list = byKey.get(key) ?? byKey.set(key, []).get(key)!;
+      let hit = list.find((x) => !x.rows.has(p.row) && (!x.scan || !scan || x.scan === scan));
+      if (!hit) {
+        hit = { g: { key: list.length ? `${key}#${list.length}` : key, slots: [] }, rows: new Set(), scan: "" };
+        list.push(hit);
+        out.push(hit.g);
+      }
+      hit.g.slots.push({ row: p.row, slot: k });
+      hit.rows.add(p.row);
+      if (!hit.scan) hit.scan = scan;
     }
-    hit.g.slots.push({ row: p.row, slot: k });
-    hit.rows.add(p.row);
-    if (!hit.scan) hit.scan = scan;
-  }
   return out;
 }
 
@@ -78,7 +103,7 @@ export function specGroups(t: TableData): SpecGroup[] {
   for (const p of physRows(t)) {
     const n = cellText(p.v[M("rkc")]).trim();
     if (!n || p.example) continue;
-    const g = by.get(n) ?? (by.set(n, { number: n, rows: [] }).get(n)!);
+    const g = by.get(n) ?? by.set(n, { number: n, rows: [] }).get(n)!;
     if (!g.rows.length) out.push(g);
     g.rows.push(p.row);
   }
@@ -89,7 +114,17 @@ const DOC_FIELDS = ["type", "number", "issueDate", "validUntil", "sheets", "regi
 const docHeader = (key: string) => column("ДокументыКачества", key).header;
 const specHeader = (key: string) => column("Спецификация", key).header;
 /** Поле спецификации → столбец «Материалов». */
-const SPEC_TO_MAT: Record<string, string> = { number: "rkc", section: "section", name: "name", unit: "unit", quantity: "quantity", closed: "closed", rest: "rest", source: "source", note: "note" };
+const SPEC_TO_MAT: Record<string, string> = {
+  number: "rkc",
+  section: "section",
+  name: "name",
+  unit: "unit",
+  quantity: "quantity",
+  closed: "closed",
+  rest: "rest",
+  source: "source",
+  note: "note",
+};
 
 /** Виртуальная таблица из «Материалов». */
 export function deriveTable(name: VirtualTable, t: TableData): TableData {
@@ -97,10 +132,14 @@ export function deriveTable(name: VirtualTable, t: TableData): TableData {
   const at = new Map(ps.map((p) => [p.row, p]));
   if (name === "ДокументыКачества") {
     const headers = TABLES["ДокументыКачества"].columns.map((c) => c.header);
-    const rows: CellValue[][] = [], links: (string | null)[][] = [];
+    const rows: CellValue[][] = [],
+      links: (string | null)[][] = [];
     for (const g of docGroups(t)) {
       const first = (f: (typeof DOC_FIELDS)[number]) => {
-        for (const s of g.slots) { const v = at.get(s.row)!.v[M(slotKey(s.slot, f))]; if (!empty(v)) return v; }
+        for (const s of g.slots) {
+          const v = at.get(s.row)!.v[M(slotKey(s.slot, f))];
+          if (!empty(v)) return v;
+        }
         return null;
       };
       const link = g.slots.map((s) => at.get(s.row)!.link[M(slotKey(s.slot, "file"))]).find(Boolean) ?? null;
@@ -120,8 +159,15 @@ export function deriveTable(name: VirtualTable, t: TableData): TableData {
     const quantity = firstOf("quantity");
     const closed = rs.reduce((s, p) => s + num(p.v[M("closed")] ?? 0), 0);
     const rec: Record<string, CellValue> = {
-      number: g.number, section: firstOf("section"), name: rs[0].v[M("name")] ?? null, unit: firstOf("unit"), quantity,
-      closed, rest: quantity === null ? null : num(quantity) - closed, source: firstOf("source"), note: firstOf("note"),
+      number: g.number,
+      section: firstOf("section"),
+      name: rs[0].v[M("name")] ?? null,
+      unit: firstOf("unit"),
+      quantity,
+      closed,
+      rest: quantity === null ? null : num(quantity) - closed,
+      source: firstOf("source"),
+      note: firstOf("note"),
     };
     return TABLES["Спецификация"].columns.map((c) => rec[c.key] ?? null);
   });
@@ -139,7 +185,7 @@ function slotValues(k: number, values: Record<string, CellValue>): Record<string
   return out;
 }
 const slotLinks = (k: number, links: Record<string, string | null>) =>
-  (docHeader("file") in links ? { [M(slotKey(k, "file"))]: links[docHeader("file")] } : {});
+  docHeader("file") in links ? { [M(slotKey(k, "file"))]: links[docHeader("file")] } : {};
 const clearSlot = (k: number) => Object.fromEntries(DOC_FIELDS.map((f) => [M(slotKey(k, f)), null]));
 
 /** Ячейка «Материалов» для строки и столбца виртуальной таблицы (переход к ячейке, ошибки проверки). */
@@ -175,7 +221,9 @@ function hasMaterialData(p: Phys) {
  * таблица «Спецификация» или «ДокументыКачества» (книга прежней версии до «Обновить разметку», тесты), она
  * используется как есть.
  */
-export function withVirtualTables<S extends TableStore>(raw: S): TableStore & {
+export function withVirtualTables<S extends TableStore>(
+  raw: S,
+): TableStore & {
   isVirtual(name: TableName): Promise<boolean>;
   physical(name: TableName, row: number, header: string | null): Promise<{ table: TableName; row: number; column: string | null } | null>;
 } {
@@ -186,7 +234,9 @@ export function withVirtualTables<S extends TableStore>(raw: S): TableStore & {
     return t;
   };
   const store = {
-    async isVirtual(name: TableName) { return own(name); },
+    async isVirtual(name: TableName) {
+      return own(name);
+    },
     async physical(name: TableName, row: number, header: string | null) {
       if (!(await own(name))) return { table: name, row, column: header };
       const c = physicalCell(name as VirtualTable, await mats(), row, header);
@@ -204,7 +254,10 @@ export function withVirtualTables<S extends TableStore>(raw: S): TableStore & {
       const got = raw.readMany ? await raw.readMany(phys) : new Map(await Promise.all(phys.map(async (n) => [n, await raw.read(n)] as const)));
       const out = new Map<TableName, TableData | null>();
       for (const n of names) {
-        if (!isVirtual(n)) { out.set(n, got.get(n) ?? null); continue; }
+        if (!isVirtual(n)) {
+          out.set(n, got.get(n) ?? null);
+          continue;
+        }
         const real = got.get(n);
         const m = got.get("Материалы");
         out.set(n, real ?? (m ? deriveTable(n, m) : null));
@@ -243,9 +296,11 @@ export function withVirtualTables<S extends TableStore>(raw: S): TableStore & {
         const at = new Map(ps.map((p) => [p.row, p]));
         const have = g.slots.map((s) => ({ ...s, name: norm(at.get(s.row)!.v[M("name")]) }));
         // Отвязать: материал убран из списка — слот очищается.
-        for (const h of have) if (!want.some((w) => norm(w) === h.name)) await raw.write("Материалы", h.row, clearSlot(h.slot), { [M(slotKey(h.slot, "file"))]: null });
+        for (const h of have)
+          if (!want.some((w) => norm(w) === h.name)) await raw.write("Материалы", h.row, clearSlot(h.slot), { [M(slotKey(h.slot, "file"))]: null });
         // Привязать: новый материал — свободный слот его строки с полями документа (как у первого слота).
-        const src = at.get(g.slots[0].row)!, k0 = g.slots[0].slot;
+        const src = at.get(g.slots[0].row)!,
+          k0 = g.slots[0].slot;
         const fields = Object.fromEntries(DOC_FIELDS.map((f) => [M(slotKey(k0, f)), src.v[M(slotKey(k0, f))] ?? null]));
         for (const w of want) {
           if (have.some((h) => h.name === norm(w))) continue;
@@ -253,9 +308,12 @@ export function withVirtualTables<S extends TableStore>(raw: S): TableStore & {
           if (!p) throw new Error(`Материала «${w}» нет в таблице «Материалы»`);
           const k = freeSlot(p);
           if (!k) throw new Error(`У материала «${w}» уже ${DOC_SLOTS.length} документа — освободите столбцы «Док.N»`);
-          await raw.write("Материалы", p.row,
+          await raw.write(
+            "Материалы",
+            p.row,
             Object.fromEntries(DOC_FIELDS.map((f) => [M(slotKey(k, f)), fields[M(slotKey(k0, f))]])),
-            src.link[M(slotKey(k0, "file"))] ? { [M(slotKey(k, "file"))]: src.link[M(slotKey(k0, "file"))] } : {});
+            src.link[M(slotKey(k0, "file"))] ? { [M(slotKey(k, "file"))]: src.link[M(slotKey(k0, "file"))] } : {},
+          );
         }
       }
     },
@@ -263,11 +321,16 @@ export function withVirtualTables<S extends TableStore>(raw: S): TableStore & {
       if (!(await own(name))) return raw.insert(name, at, rows);
       if (!rows.length) return at;
       if (name === "Спецификация") {
-        const recs = rows.map((r) => Object.fromEntries(Object.entries(SPEC_TO_MAT)
-          .filter(([k]) => specHeader(k) in r && k !== "closed" && k !== "rest").map(([k, mk]) => [M(mk), r[specHeader(k)]])));
+        const recs = rows.map((r) =>
+          Object.fromEntries(
+            Object.entries(SPEC_TO_MAT)
+              .filter(([k]) => specHeader(k) in r && k !== "closed" && k !== "rest")
+              .map(([k, mk]) => [M(mk), r[specHeader(k)]]),
+          ),
+        );
         const t = await mats();
         await raw.insert("Материалы", t.rows.length, recs);
-        const groups = specGroups((await mats()));
+        const groups = specGroups(await mats());
         const first = cellText(recs[0][M("rkc")] ?? null).trim();
         const i = groups.findIndex((g) => g.number === first);
         return i >= 0 ? i : groups.length - rows.length;
@@ -304,8 +367,8 @@ export function withVirtualTables<S extends TableStore>(raw: S): TableStore & {
       const t = await mats();
       if (name === "ДокументыКачества") {
         const gs = docGroups(t);
-        for (const r of rows) for (const s of gs[r]?.slots ?? [])
-          await raw.write("Материалы", s.row, clearSlot(s.slot), { [M(slotKey(s.slot, "file"))]: null });
+        for (const r of rows)
+          for (const s of gs[r]?.slots ?? []) await raw.write("Материалы", s.row, clearSlot(s.slot), { [M(slotKey(s.slot, "file"))]: null });
         return;
       }
       // Позиция спецификации: строка без своих данных материала удаляется, у остальных очищаются поля позиции.
@@ -316,11 +379,13 @@ export function withVirtualTables<S extends TableStore>(raw: S): TableStore & {
       const am = await raw.read("МатериалыАктов");
       const ai = am ? am.headers.indexOf(column("МатериалыАктов", "material").header) : -1;
       const used = new Set(ai >= 0 ? am!.rows.map((r) => norm(r[ai] ?? null)) : []);
-      for (const r of rows) for (const pr of gs[r]?.rows ?? []) {
-        const p = ps.get(pr)!;
-        if (hasMaterialData(p) || used.has(norm(p.v[M("name")]))) await raw.write("Материалы", pr, { [M("rkc")]: null, [M("section")]: null, [M("quantity")]: null, [M("source")]: null });
-        else drop.push(pr);
-      }
+      for (const r of rows)
+        for (const pr of gs[r]?.rows ?? []) {
+          const p = ps.get(pr)!;
+          if (hasMaterialData(p) || used.has(norm(p.v[M("name")])))
+            await raw.write("Материалы", pr, { [M("rkc")]: null, [M("section")]: null, [M("quantity")]: null, [M("source")]: null });
+          else drop.push(pr);
+        }
       if (drop.length) await raw.remove("Материалы", drop);
     },
     setting: (k: string) => raw.setting(k),

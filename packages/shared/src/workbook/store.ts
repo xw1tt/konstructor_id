@@ -29,10 +29,20 @@ export interface TableStore {
 
 /** Отчётный лист: значения по строкам, жирные строки, ячейки с отрицательным значением, ширины столбцов (символы),
  *  текстовые столбцы (формат «@»: Excel не превращает «1.10» в число и «=…» в формулу). */
-export interface Report { sheet: string; rows: CellValue[][]; bold: number[]; negative: [number, number][]; widths: number[]; text: number[] }
+export interface Report {
+  sheet: string;
+  rows: CellValue[][];
+  bold: number[];
+  negative: [number, number][];
+  widths: number[];
+  text: number[];
+}
 
 /** Строка для «Функционала листа»: значения и адреса гиперссылок (по позициям). */
-export interface RowData { values: CellValue[]; links: (string | null)[] }
+export interface RowData {
+  values: CellValue[];
+  links: (string | null)[];
+}
 
 /** Строки, с которыми работает «Функционал листа»: строки таблицы или строки листа. */
 export interface RowsTarget {
@@ -63,12 +73,19 @@ export function tableRows(store: TableStore, name: TableName): RowsTarget {
         links: headers.map((h) => t.links[row]?.[at(h)] ?? null),
       };
     },
-    write: (row, d) => store.write(
-      name, row,
-      Object.fromEntries(headers.map((h, i) => [h, d.values[i] ?? null])),
-      Object.fromEntries(cols.flatMap((c, i) => (c.type === "file" ? [[c.header, d.links[i] ?? null]] : []))),
-    ),
-    insertBlank: (at, n) => store.insert(name, at, Array.from({ length: n }, () => ({}))),
+    write: (row, d) =>
+      store.write(
+        name,
+        row,
+        Object.fromEntries(headers.map((h, i) => [h, d.values[i] ?? null])),
+        Object.fromEntries(cols.flatMap((c, i) => (c.type === "file" ? [[c.header, d.links[i] ?? null]] : []))),
+      ),
+    insertBlank: (at, n) =>
+      store.insert(
+        name,
+        at,
+        Array.from({ length: n }, () => ({})),
+      ),
     remove: (rows) => store.remove(name, rows),
   };
 }

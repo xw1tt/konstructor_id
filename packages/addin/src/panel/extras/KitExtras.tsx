@@ -37,7 +37,11 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
   const [confirm, setConfirm] = useState(false);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);
-  useEffect(() => { setConfirm(false); setLines([]); setNote(null); }, [kit]);
+  useEffect(() => {
+    setConfirm(false);
+    setLines([]);
+    setNote(null);
+  }, [kit]);
   if (!kit || !state.book) return null;
   const count = kitRegistryCount(state.book, kit);
   // Сводка «не хватает документов» — предупреждение, сборку не блокирует.
@@ -49,7 +53,10 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
 
   const fill = async () => {
     if (!tplState.ready) {
-      setNote({ text: "Шаблоны ещё не загружены с сервера — реестр заполнится по шаблону книги, когда сервер ответит. Попробуйте через несколько секунд.", error: true });
+      setNote({
+        text: "Шаблоны ещё не загружены с сервера — реестр заполнится по шаблону книги, когда сервер ответит. Попробуйте через несколько секунд.",
+        error: true,
+      });
       setConfirm(false);
       return;
     }
@@ -82,7 +89,9 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
       if (r?.issues.length) await showIssues(r.issues);
       if (r?.job?.warnings.length) setNote({ text: `${r.job.name}: ${r.job.warnings.join(". ")}`, error: true });
     } else {
-      const issues = await guard(printAct(state.book!, "", state.important, b.doc as PrintKind, template, options, where), (m) => setNote({ text: m, error: true }));
+      const issues = await guard(printAct(state.book!, "", state.important, b.doc as PrintKind, template, options, where), (m) =>
+        setNote({ text: m, error: true }),
+      );
       if (issues?.length) await showIssues(issues);
     }
     setBusy(null);
@@ -113,7 +122,8 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     if (r?.kind === "issues") await showIssues(r.issues);
     if (r?.kind === "ok") {
       setNote({
-        text: `Общий реестр: комплектов ${r.kits}, документов ${r.docs}, листов ${r.sheets}.` +
+        text:
+          `Общий реестр: комплектов ${r.kits}, документов ${r.docs}, листов ${r.sheets}.` +
           (r.warnings.length ? ` Листы не посчитаны (взяты из графы «Листов» или пусто): ${r.warnings.join("; ")}` : ""),
         error: r.warnings.length > 0,
       });
@@ -127,8 +137,12 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     <div className="extras">
       <h3 className="tools-title">Комплект {kit}</h3>
       <div className="row-actions">
-        <button className="btn" onClick={() => void port.filterBy("АктыКомплектов", "Комплект", kit)}>Акты комплекта</button>
-        <button className="btn" onClick={() => void port.filterBy("РеестрИД", "Комплект", kit)}>Реестр: {count}</button>
+        <button className="btn" onClick={() => void port.filterBy("АктыКомплектов", "Комплект", kit)}>
+          Акты комплекта
+        </button>
+        <button className="btn" onClick={() => void port.filterBy("РеестрИД", "Комплект", kit)}>
+          Реестр: {count}
+        </button>
       </div>
       <div className="row-actions">
         <button className="btn" disabled={busy !== null} onClick={() => (count ? setConfirm(true) : void fill())}>
@@ -139,8 +153,12 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
         </button>
       </div>
       <div className="row-actions">
-        <button className="btn" disabled={busy !== null || !allKits.length} onClick={() => void common()}
-          title="Все комплекты книги одним реестром: документы подряд по комплектам, сквозная нумерация, PDF и Excel">
+        <button
+          className="btn"
+          disabled={busy !== null || !allKits.length}
+          onClick={() => void common()}
+          title="Все комплекты книги одним реестром: документы подряд по комплектам, сквозная нумерация, PDF и Excel"
+        >
           {busy === "common" ? "Собираю общий реестр…" : `Общий реестр (комплектов: ${allKits.length})`}
         </button>
       </div>
@@ -150,7 +168,8 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
           <div className="row-actions" aria-label="Печать документов комплекта">
             {kitButtons.map((b) => (
               <button key={b.key} className="btn" disabled={busy !== null} onClick={() => void print(b)} title={b.form ? "По своей форме шаблона" : undefined}>
-                {busy === b.key ? "Готовлю…" : b.label}{b.form ? " ✎" : ""}
+                {busy === b.key ? "Готовлю…" : b.label}
+                {b.form ? " ✎" : ""}
               </button>
             ))}
           </div>
@@ -158,10 +177,16 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
       )}
       {confirm && (
         <div className="confirm" role="alertdialog" aria-label="Заполнение реестра">
-          <p>Строки комплекта {kit} в реестре ({count}) будут заменены строками из актов; ручные правки этих строк пропадут.</p>
+          <p>
+            Строки комплекта {kit} в реестре ({count}) будут заменены строками из актов; ручные правки этих строк пропадут.
+          </p>
           <div className="row-actions">
-            <button className="btn btn-danger" onClick={() => void fill()}>Заменить</button>
-            <button className="btn" onClick={() => setConfirm(false)}>Отмена</button>
+            <button className="btn btn-danger" onClick={() => void fill()}>
+              Заменить
+            </button>
+            <button className="btn" onClick={() => setConfirm(false)}>
+              Отмена
+            </button>
           </div>
         </div>
       )}
@@ -172,8 +197,12 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
             {shortage.map((s, i) => (
               <li key={i}>
                 {s.act ? (
-                  <button className="btn btn-link" onClick={() => void port.filterBy("РеестрИД", "Акт", s.act!)}>акт {s.act}</button>
-                ) : <span>комплект</span>}
+                  <button className="btn btn-link" onClick={() => void port.filterBy("РеестрИД", "Акт", s.act!)}>
+                    акт {s.act}
+                  </button>
+                ) : (
+                  <span>комплект</span>
+                )}
                 <span>{statusText(s.status, s.label)}</span>
               </li>
             ))}
@@ -183,7 +212,11 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
       <PreDelivery port={port} state={state} acts={kitActs(state.book!, kit).acts} what="комплект" />
       {busy === "build" && <p className="notice">Печатаю документы и склеиваю комплект — это может занять минуту.</p>}
       <IssueList port={port} lines={lines} title="Перед сборкой исправьте:" />
-      {note && <p className={note.error ? "error" : "notice"} role="status">{note.text}</p>}
+      {note && (
+        <p className={note.error ? "error" : "notice"} role="status">
+          {note.text}
+        </p>
+      )}
     </div>
   );
 }

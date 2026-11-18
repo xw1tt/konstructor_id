@@ -38,7 +38,7 @@ export async function sendTelegram(cfg: TgConfig, text: string, file: { name: st
         ...(json ? { headers: { "content-type": "application/json" } } : {}),
       });
     } catch (e) {
-      throw new Error(`нет связи с Телеграмом (${(e as Error).message}) — возможно, он недоступен в сети компании`);
+      throw new Error(`нет связи с Телеграмом (${(e as Error).message}) — возможно, он недоступен в сети компании`, { cause: e });
     }
     const o = await res.json().catch(() => ({})) as { ok?: boolean; description?: string };
     if (!res.ok || !o.ok) throw new Error(`Телеграм ответил: ${o.description ?? res.status}`);

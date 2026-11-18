@@ -2,7 +2,7 @@
 import type { TiData, TiHeader } from "../tiData.ts";
 import type { TiJournal } from "@idk/shared/acts/cableDocs";
 import type { CellStyle } from "../../xlsx/book.ts";
-import { Layout, gridSpans, wrapLines, lineHeight, type TCell, type Col } from "../../xlsx/layout.ts";
+import { Layout, wrapLines, lineHeight } from "../../xlsx/layout.ts";
 import { PORTRAIT } from "./aosr.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { xlsxBlankTable } from "../blankTable.ts";
@@ -10,7 +10,6 @@ import { tiVdRows, tiRmRows, tiRpRows, tiKjRows } from "../templates/ti.ts";
 import { withNo } from "@idk/shared/acts/format";
 
 const S = 8.5;
-const C: CellStyle = { h: "center" };
 const N = 36;
 
 /** Шапка ВД и КЖ: слева подрядчик и участок, справа город, заказчик, объект, дата — значение на линии, подпись под ним.

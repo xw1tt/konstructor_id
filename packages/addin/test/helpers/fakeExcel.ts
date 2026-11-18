@@ -104,7 +104,7 @@ function range(wb: FakeWorkbook, s: FakeSheet, r: number, c: number, nr: number,
     set values(v: unknown[][]) { v.forEach((row, i) => row.forEach((x, j) => s.put(r + i, c + j, { ...s.get(r + i, c + j), v: x ?? "" }))); },
     get formulas() { return self.values; },
     set formulas(v: unknown[][]) { self.values = v; },
-    get hyperlink() { const l = s.get(r, c).link; return l ? { address: l } : null; },
+    get hyperlink(): { address: string; textToDisplay?: string } { const l = s.get(r, c).link; return (l ? { address: l } : null) as unknown as { address: string }; },
     set hyperlink(h: { address: string; textToDisplay?: string }) {
       const cur = s.get(r, c);
       s.put(r, c, { v: h.textToDisplay ?? cur.v, link: h.address });

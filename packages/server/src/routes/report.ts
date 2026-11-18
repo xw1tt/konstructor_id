@@ -45,7 +45,7 @@ export function reportRoutes(r: Router, deps: {
     const q = await c.body(ReportRequest, 5 * 1024 * 1024);
     const now = (deps.now ?? (() => new Date()))();
     const errors = recentErrors();
-    let templates: unknown = [];
+    let templates: unknown;
     try { templates = deps.templates.list().map((t) => ({ id: t.id, name: t.name, docs: t.docs.length, print: t.print })); } catch (e) { templates = `не прочитаны: ${(e as Error).message}`; }
     let ai: unknown = null;
     try { const l = deps.ai.list(); ai = { active: l.active, providers: l.providers.map((p) => ({ id: p.id, name: p.name, kind: p.kind, model: p.model })) }; } catch { /* нет подключений */ }
@@ -77,7 +77,7 @@ export function reportRoutes(r: Router, deps: {
       ...(q.assistant?.length ? [["помощник.json", JSON.stringify(q.assistant, null, 2)] as [string, string]] : []),
     ]);
     // Копия — в «Документы\Конструктор ИД — отчёты» (её проще найти и переслать); не вышло — только скачивание.
-    let path: string | null = null;
+    let path: string | null;
     try {
       const dir = deps.reportsDir ?? defaultReportsDir();
       mkdirSync(dir, { recursive: true });

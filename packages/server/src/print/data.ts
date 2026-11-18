@@ -1,5 +1,4 @@
 // Данные документов акта для HTML-шаблонов печати.
-import type { DocKind } from "@idk/shared/acts/schemas";
 import type { RimRow, VdRow, VorRow, SignBlock, AvkRow } from "@idk/shared/acts/rows";
 
 export interface AosrData {

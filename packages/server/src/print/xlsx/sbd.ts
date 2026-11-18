@@ -5,7 +5,7 @@ import type { JournalLine } from "@idk/shared/acts/cableDocs";
 import { JOURNAL_LINES_PER_SHEET } from "@idk/shared/acts/cableDocs";
 import { formatNumber } from "@idk/shared/acts/format";
 import { Sheet, type CellStyle } from "../../xlsx/book.ts";
-import { Layout, pctCols, wrapLines, type TCell } from "../../xlsx/layout.ts";
+import { Layout, pctCols, wrapLines } from "../../xlsx/layout.ts";
 import { fitFont } from "../templates/kj.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { xlsxBlankTable } from "../blankTable.ts";
@@ -18,9 +18,7 @@ import { PORTRAIT } from "./aosr.ts";
 import { withNo } from "@idk/shared/acts/format";
 
 const W = 180;
-const c = (text: string | number, style?: CellStyle): TCell => ({ text, style });
 const C: CellStyle = { h: "center" };
-const nums = (n: number) => Array.from({ length: n }, (_, i) => ({ header: String(i + 1) }));
 /** Шапка «Приложение №…» справа и заголовок по центру. */
 function appendixHead(L: Layout, appx: string[], head: string[]) {
   for (const t of appx) L.para(t, { h: "right" });
@@ -98,7 +96,6 @@ export function avkSheet(d: AvkData, view: BlankView = blankView("avk:sbd")): La
   return L;
 }
 
-const PAIRS = ["А-В", "В-С", "С-А", "A-N (PEN)", "B-N (PEN)", "C-N (PEN)", "A-PE", "B-PE", "C-PE", "N-PE"];
 
 export function ipSheet(d: IpData, view: BlankView = blankView("ip:sbd")): Layout {
   // Альбомный лист, поля 10 мм: 277 мм; столбцы — как графы таблицы результатов (видимые по настройке бланка).

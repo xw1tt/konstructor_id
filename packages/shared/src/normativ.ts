@@ -75,7 +75,7 @@ function containsDesignation(text: string, designation: string): boolean {
     const after = t[i + d.length] ?? "";
     const next = t[i + d.length + 1] ?? "";
     // «.» после обозначения — конец предложения, если за ней не цифра (иначе это продолжение номера).
-    const continues = /[\p{L}\d/\-]/u.test(after) || (after === "." && /\d/.test(next));
+    const continues = /[\p{L}\d/-]/u.test(after) || (after === "." && /\d/.test(next));
     if (!/[\p{L}\d]/u.test(before) && !continues) return true;
   }
   return false;

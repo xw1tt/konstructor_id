@@ -1,0 +1,13 @@
+# 0.31: форматтер — только код. Документация, данные и сгенерированное не трогаются.
+node_modules/
+dist/
+build/
+installer/
+docs/
+*.md
+*.xml
+*.xlsx
+package-lock.json
+packages/*/test/fixtures/
+packages/shared/src/**/*.json
+.superpowers/

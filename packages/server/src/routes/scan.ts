@@ -28,7 +28,7 @@ export function scanRoutes(r: Router, db: Db, dataDir: string, ai: AiStore, deps
     const rules = docFieldsByRules(scan.text);
     let via: "ai" | "rules" = "rules", provider = "";
     let fields = rules;
-    let p: ReturnType<AiStore["active"]> | null = null;
+    let p: ReturnType<AiStore["active"]> | null;
     try { p = ai.active(); } catch { p = null; }
     if (p && hasText(scan.text)) {
       try {

@@ -1,7 +1,6 @@
 // Дополнение карточки комплекта (строки «Комплектов», «Актов комплектов», «Реестра ИД»):
 // заполнение реестра из актов, переходы к строкам комплекта, сборка комплекта в один PDF.
 import { useContext, useEffect, useState } from "react";
-import type { TableName } from "@idk/shared/workbook/schema";
 import type { Issue } from "@idk/shared/workbook/bundle";
 import { fillRegistry, kitActs } from "@idk/shared/kit/registry";
 import type { ExcelPort } from "../../book/excelPort.ts";

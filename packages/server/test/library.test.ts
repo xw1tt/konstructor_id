@@ -78,7 +78,7 @@ test("скан: из локального файла в библиотеку и 
   assert.equal(r.status, 200, JSON.stringify(r.json));
   const got = new Uint8Array(await (await s2.raw("GET", `/api/files/${r.json.fileId}`)).arrayBuffer());
   assert.deepEqual(got, new Uint8Array(pdf));
-  r = await s1.req("POST", "/api/library/doc", { values: { materials: "Кабель", type: "Паспорт качества", number: "№1", sheets: 3 } });
+  await s1.req("POST", "/api/library/doc", { values: { materials: "Кабель", type: "Паспорт качества", number: "№1", sheets: 3 } });
   assert.equal((await s1.req("GET", "/api/library/doc")).json[0].scan.sha256, f.sha256, "без нового скана — прежний");
   assert.equal(readdirSync(join(dir, "files")).length, 1);
   assert.equal((await s2.req("POST", `/api/library/files/${"0".repeat(64)}/import`, {})).status, 404);

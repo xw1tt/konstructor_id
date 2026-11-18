@@ -3,11 +3,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readBook } from "@idk/shared/workbook/records";
 import { MemoryWorkbook } from "@idk/shared/workbook/memory";
-import { isoToExcelSerial } from "@idk/shared/workbook/values";
+import { isoToExcelSerial, type CellValue } from "@idk/shared/workbook/values";
 import { specClosed, positionOfMaterial, unboundMaterials, closedReport, CLOSED_SHEET } from "@idk/shared/spec/closed";
 
 const d = isoToExcelSerial;
-const records = () => ({
+const records = (): Record<string, Record<string, CellValue>[]> => ({
   "Акты": [{ "Номер акта": "А1", "Дата акта": d("2026-10-01") }, { "Номер акта": "А2", "Дата акта": d("2026-10-10") }],
   "Спецификация": [
     { "№ п/п": "1.1", "Раздел": "Кабели", "Наименование": "Кабель", "Ед. изм.": "м", "Кол-во по проекту": 100 },

@@ -4,7 +4,7 @@ import { PROTO_DEFS } from "@idk/shared/protocols/defs";
 import type { ProtoData } from "@idk/shared/protocols/types";
 import { formatDateShort } from "@idk/shared/acts/format";
 import { HttpError } from "../../http/router.ts";
-import { writeBook, type CellStyle } from "../../xlsx/book.ts";
+import { writeBook } from "../../xlsx/book.ts";
 import { Layout } from "../../xlsx/layout.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { xlsxBlankTable } from "../blankTable.ts";
@@ -14,7 +14,6 @@ import { ipHead, instruments } from "./sbd.ts";
 import { withNo } from "@idk/shared/acts/format";
 
 const S = 9.5;
-const C: CellStyle = { h: "center" };
 const dates = (p: ProtoData) => [formatDateShort(p.dateFrom), formatDateShort(p.dateTo)].filter(Boolean).join(" - ");
 const subtitle = (name: string) => name.replace(/^(Протокол|Акт)\s+/, "");
 const plainDate = (iso: string | null) => formatDateShort(iso).replace(/ г\.$/, "");

@@ -45,8 +45,8 @@ export async function loadScan(r: { path: string; mime: ScanMime }): Promise<PDF
     try {
       return await PDFDocument.load(bytes, { updateMetadata: false });
     } catch (e) {
-      if (/encrypt/i.test(String((e as Error).message))) throw new Error(`PDF защищён паролем — снимите защиту: ${r.path}`);
-      throw new Error(`PDF повреждён или не читается: ${r.path}`);
+      if (/encrypt/i.test(String((e as Error).message))) throw new Error(`PDF защищён паролем — снимите защиту: ${r.path}`, { cause: e });
+      throw new Error(`PDF повреждён или не читается: ${r.path}`, { cause: e });
     }
   }
   const doc = await PDFDocument.create();

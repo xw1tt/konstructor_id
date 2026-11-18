@@ -31,7 +31,7 @@ test("ход с предложениями → применить отмечен
   assert.deepEqual(s.items.map((i) => i.kind), ["user", "tool", "tool", "tool", "assistant"]);
   assert.equal(s.pending.length, 2);
   assert.equal(await s.apply([1]), 1, "только отмеченное");
-  let b = await readBook(wb);
+  const b = await readBook(wb);
   assert.equal(b.tables["Акты"]![0].v.sheets, "0210-0240");
   assert.equal(b.tables["Материалы"]!.length, before.tables["Материалы"]!.length);
   assert.match(String(s.history.at(-1)!.content), /применил предложения №1; не применил №2/);

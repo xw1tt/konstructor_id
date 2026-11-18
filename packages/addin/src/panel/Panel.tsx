@@ -43,8 +43,6 @@ export interface PanelSlots {
 }
 
 export function Panel({ port, slots = {} }: { port: ExcelPort; slots?: PanelSlots }) {
-  // Итог переноса книги до 0.27 (план 31) — пока пользователь не закроет.
-  const [, setMergeShown] = useState(0);
   const host = port.host();
   if (host !== "ok") {
     return (
@@ -71,6 +69,9 @@ function Header() {
 
 function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const state = useBook(port);
+  // Итог переноса книги до 0.27 (план 31) — пока пользователь не закроет. 0.31: состояние было объявлено в Panel,
+  // а использовалось здесь — закрытие заметки падало с ReferenceError.
+  const [, setMergeShown] = useState(0);
   const [serverDown, setServerDown] = useState(false);
   const [creating, setCreating] = useState(false);
   const [screen, setScreen] = useState<ScreenId>("home");
@@ -136,7 +137,7 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
   const needed = { on: neededOn, set: async (v: boolean) => { await port.setSetting(NEEDED_SHEETS_SETTING, v ? "1" : "0"); setNeededOn(v); await applySheets(v); } };
   // Пересчёт листов при смене шаблона или его документов.
   const tplKey = `${resolved.template.id}:${resolved.template.docs.map((d) => (d.kind === "builtin" ? d.doc : d.code)).join(",")}`;
-  useEffect(() => { if (neededOn && state.book) void applySheets(true).catch(() => undefined); }, [tplKey, neededOn, !!state.book]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (neededOn && state.book) void applySheets(true).catch(() => undefined); }, [tplKey, neededOn, !!state.book]);
   const flow: CreateFlow = { start: () => setCreating(true), finish: () => { setCreating(false); state.refresh(); } };
   const { book, selection } = state;
   const active = selection ? sectionForSheet(selection.sheet) : null;

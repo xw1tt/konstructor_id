@@ -15,6 +15,7 @@ import { PreDelivery } from "./PreDelivery.tsx";
 import { ActMaterials } from "./ActMaterials.tsx";
 import { ActSigners } from "./ActSigners.tsx";
 import { unboundMaterials } from "@idk/shared/spec/closed";
+import type { Issue } from "@idk/shared/workbook/bundle";
 
 const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | "vor" }[] = [
   { table: "Схемы", label: "Схемы", key: "schemes" },

@@ -11,13 +11,24 @@
     "test": "tsx --test \"packages/*/test/**/*.test.ts\"",
     "build": "node packages/addin/build.mjs",
     "start": "tsx packages/server/src/main.ts",
-    "catalog:table": "tsx scripts/catalog-table.ts"
+    "catalog:table": "tsx scripts/catalog-table.ts",
+    "typecheck": "tsc --noEmit -p packages/shared && tsc --noEmit -p packages/server && tsc --noEmit -p packages/addin",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.2.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "esbuild": "0.28.2",
+    "eslint": "10.15.0",
+    "globals": "17.14.0",
+    "prettier": "3.10.1",
     "tsx": "4.23.12",
     "typescript": "6.0.3",
-    "@types/node": "26.2.0"
+    "typescript-eslint": "8.73.0"
   },
   "engines": {
     "node": ">=22.13"

@@ -51,7 +51,7 @@ export function stampNumber(page: PDFPage, n: number, font: PDFFont) {
   const size = 9, padX = 2, padY = 1.5, margin = 10, bottom = 1;
   const box = page.getCropBox();
   const rot = ((page.getRotation().angle % 360) + 360) % 360;
-  const [W, H] = rot === 90 || rot === 270 ? [box.height, box.width] : [box.width, box.height];
+  const W = rot === 90 || rot === 270 ? box.height : box.width;
   const tw = font.widthOfTextAtSize(text, size);
   // Левый нижний угол подложки в видимых координатах.
   const vx = W - margin - tw - padX * 2, vy = bottom;

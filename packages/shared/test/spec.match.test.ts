@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readBook } from "@idk/shared/workbook/records";
 import { MemoryWorkbook } from "@idk/shared/workbook/memory";
+import type { CellValue } from "@idk/shared/workbook/values";
 import { normalizeName, matchSpec, applyMatches } from "@idk/shared/spec/match";
 
 const SPEC = [
@@ -10,7 +11,7 @@ const SPEC = [
   { "№ п/п": "1.1.6.13.1", "Наименование": "Кабель силовой, не распространяющий горение, безгалогеный, -50...+50 С ППГнг(А)-НF 3x2.5", "Источник": "РКЦ" },
   { "№ п/п": "1.1.1.1", "Наименование": "Термостат защиты от замораживания накладной, 5...65С", "Источник": "РКЦ" },
 ];
-const MATS = [
+const MATS: Record<string, CellValue>[] = [
   { "Наименование": "Кабель силовой ППГнг(А)-HF 3х1,5", "Марка": "ППГнг(А)-HF 3х1,5", "Ед. изм.": "м" },
   { "Наименование": "Термостат накладной", "Ед. изм.": "шт." },
   { "Наименование": "Огнезащитная пена", "Ед. изм.": "шт." },

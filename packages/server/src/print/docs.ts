@@ -1,8 +1,8 @@
 // План 15: печать документов акта по описаниям ACT_DOC_DEFS — форма по набору и шаблону, HTML и имя файла.
 import type { ActBundle } from "@idk/shared/workbook/bundle";
 import type { FormSet, PrintOptions } from "@idk/shared/templates";
-import { ACT_DOC_DEFS, type ActDocKind } from "@idk/shared/docs/defs";
-import { docNumberFor, formOf } from "@idk/shared/acts/format";
+import type { ActDocKind } from "@idk/shared/docs/defs";
+import { docNumberFor } from "@idk/shared/acts/format";
 import { tiJournal } from "@idk/shared/acts/cableDocs";
 import { HttpError } from "../http/router.ts";
 import { buildDocDataFromBundle, buildAvkData } from "./fromBundle.ts";

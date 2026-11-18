@@ -9,7 +9,7 @@ const HOMO: Record<string, string> = { а: "a", в: "b", е: "e", к: "k", м: "
 export function flat(s: string): string {
   return s.toLowerCase().replace(/[авекмнорстухё]/g, (c) => HOMO[c] ?? c).replace(/[×*]/g, "x").replace(/,/g, ".").replace(/[«»"“”„]/g, "");
 }
-const compact = (s: string) => flat(s).replace(/[\s\-–—_()\[\]]/g, "");
+const compact = (s: string) => flat(s).replace(/[\s\-–—_()[\]]/g, "");
 const STOP = new Set(["для", "или", "при", "мм", "шт", "из", "на", "по", "с", "и", "в", "тип", "марки", "марка", "ooo", "ооо", "зао", "оао", "пао", "ао"].map(flat));
 const words = (s: string, min = 3) => flat(s).split(/[^a-zа-я0-9./]+/i).filter((w) => w.length >= min && !STOP.has(w) && !/^\d{1,2}$/.test(w));
 

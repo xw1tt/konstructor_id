@@ -1,6 +1,5 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { buildDocDataFromBundle } from "@idk/server/print/fromBundle";
 import { createPrintJobs } from "@idk/server/routes/print";
 import { closeBrowser } from "@idk/server/print/browser";
 import { readBook } from "@idk/shared/workbook/records";

@@ -6,7 +6,7 @@ export type SectionId = "requisites" | "reps" | "acts" | "materials" | "schemes"
 export const SECTIONS: readonly { id: SectionId; label: string; sheets: SheetName[] }[] = [
   { id: "requisites", label: "Реквизиты", sheets: ["Реквизиты"] },
   { id: "reps", label: "Представители", sheets: ["Представители"] },
-  { id: "acts", label: "Акты", sheets: ["База актов", "Исполнительные схемы", "Материалы в актах", "ВОР"] },
+  { id: "acts", label: "Акты", sheets: ["База актов", "Исполнительные схемы", "ВОР"] },
   { id: "materials", label: "Материалы", sheets: ["Материалы"] },
   { id: "schemes", label: "Схемы", sheets: ["Исполнительные схемы"] },
   { id: "cables", label: "Кабельный журнал", sheets: ["Кабельный журнал", "Изоляция"] },

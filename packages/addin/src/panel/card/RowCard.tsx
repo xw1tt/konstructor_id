@@ -198,7 +198,10 @@ function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState;
           Это строка-пример: замените значения своими или удалите строку.
         </p>
       )}
-      <div className="form">{TABLES[table].columns.filter((c) => !isSlotColumn(table, c.key)).map((c) => renderField(c))}</div>
+      {/* 0.32: «Подписанты» акта — отдельным блоком с галочками (ActSigners), не текстовым полем. */}
+      <div className="form">
+        {TABLES[table].columns.filter((c) => !isSlotColumn(table, c.key) && !(table === "Акты" && c.key === "signers")).map((c) => renderField(c))}
+      </div>
       {table === "Материалы" && (
         // Столбцы «Док.1…3» — свёрнуты: документы ведутся в блоке «Документы качества» ниже.
         <details className="slot-fields">

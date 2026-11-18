@@ -1,5 +1,5 @@
 // Общий журнал работ (приказ Минстроя России от 02.12.2022 № 1026/пр): разделы 3 и 5 из актов книги.
-import { column, roleFromBook, type TableName } from "./workbook/schema.ts";
+import { TABLES, column, roleFromBook, type TableName } from "./workbook/schema.ts";
 import { cellText, isoToExcelSerial, joinRefs, splitRefs, parseDateCell, parseNumberCell, type CellValue } from "./workbook/values.ts";
 import type { Book, BookRow } from "./workbook/records.ts";
 import type { TableStore } from "./workbook/store.ts";
@@ -220,6 +220,30 @@ export async function fillOjr(store: TableStore, book: Book): Promise<OjrRows> {
     if (recs.length) await store.insert(t, data?.rows.length ?? 0, recs);
   }
   return res;
+}
+
+/**
+ * 0.32: журнал собирается сам — перед печатью разделы сверяются с актами (даты раздела 3, документы раздела 5);
+ * не совпали — листы строятся заново (условия производства работ сохраняются). changed=false — лист не трогается.
+ */
+export async function syncOjr(store: TableStore, book: Book): Promise<{ changed: boolean; rows: OjrRows }> {
+  const res = ojrRows(book);
+  if (ojrSame(book, "ОЖР3", res.s3, ["conditions"]) && ojrSame(book, "ОЖР5", res.s5, [])) return { changed: false, rows: res };
+  return { changed: true, rows: await fillOjr(store, book) };
+}
+
+/** Строки листа совпадают с собранными из актов (по столбцам, значения как текст; skip — ручные столбцы). */
+function ojrSame(book: Book, t: "ОЖР3" | "ОЖР5", recs: Record<string, CellValue>[], skip: string[]): boolean {
+  const rows = book.tables[t] ?? [];
+  if (rows.length !== recs.length) return false;
+  return rows.every((r, i) =>
+    TABLES[t].columns.every((c) => {
+      if (skip.includes(c.key)) return true;
+      const a = r.v[c.key] ?? null;
+      const b = recs[i][c.header] ?? null;
+      return c.type === "date" ? (iso(a) ?? "") === (iso(b) ?? "") : txt(a) === txt(b);
+    }),
+  );
 }
 
 /** Задание печати раздела из листа книги (строки как на листе, по порядку). null — лист пуст. */

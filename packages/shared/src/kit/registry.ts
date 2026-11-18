@@ -273,5 +273,61 @@ export async function fillRegistry(store: TableStore, book: Book, kit: string, t
   return { count: rows.length, issues: [] };
 }
 
+/** 0.32: ключ документа реестра — вид, акт, номер, наименование (сверка листа с актами). */
+const regKey = (v: Record<string, CellValue>) => [H("kind"), H("act"), H("number"), H("name")].map((h) => txt(v[h] ?? null).toLowerCase()).join("|");
+
+/**
+ * 0.32: реестр комплекта собирается сам — перед сборкой комплекта сверяется с актами; если документы не те (добавили
+ * акт, документ, схему), строки комплекта строятся заново. Ручные «Экз.», «Листов» и сканы переносятся на те же
+ * документы; порядок — как у программы. changed=false — реестр уже совпадает, лист не трогается.
+ */
+export async function syncRegistry(
+  store: TableStore,
+  book: Book,
+  kit: string,
+  template?: UserTemplate,
+): Promise<{ changed: boolean; count: number; added: number; removed: number; issues: Issue[] }> {
+  const { rows, issues } = registryRows(book, kit, template);
+  if (issues.length) return { changed: false, count: 0, added: 0, removed: 0, issues };
+  const cur = (book.tables["РеестрИД"] ?? []).filter((r) => txt(r.v.kit) === kit);
+  const curKeys = cur.map((r) => regKey(Object.fromEntries(Object.entries(r.v).map(([k, v]) => [column("РеестрИД", k).header, v]))));
+  const newKeys = rows.map((r) => regKey(r.values));
+  const same = curKeys.length === newKeys.length && [...curKeys].sort().join("\n") === [...newKeys].sort().join("\n");
+  if (same) return { changed: false, count: rows.length, added: 0, removed: 0, issues: [] };
+  // Ручные правки — на те же документы.
+  const byKey = new Map(cur.map((r, i) => [curKeys[i], r] as const));
+  for (const [i, r] of rows.entries()) {
+    const old = byKey.get(newKeys[i]);
+    if (!old) continue;
+    if (old.v.copies !== null && old.v.copies !== undefined) r.values[H("copies")] = old.v.copies;
+    if (old.v.sheets !== null && old.v.sheets !== undefined) r.values[H("sheets")] = old.v.sheets;
+    if (!r.link && old.link.file) {
+      r.link = old.link.file;
+      r.values[H("file")] = old.v.file ?? null;
+    }
+  }
+  const t = await store.read("РеестрИД");
+  if (!t) throw new Error("Таблица «РеестрИД» не найдена");
+  const ki = t.headers.indexOf(H("kit"));
+  const old = t.rows.map((r, i) => (txt(r[ki] ?? null) === kit ? i : -1)).filter((i) => i >= 0);
+  const at = old.length ? old[0] : t.rows.length;
+  if (old.length) await store.remove("РеестрИД", old);
+  const first = await store.insert(
+    "РеестрИД",
+    at,
+    rows.map((r) => r.values),
+  );
+  for (const [i, r] of rows.entries()) if (r.link) await store.write("РеестрИД", first + i, {}, { [H("file")]: r.link });
+  const curSet = new Set(curKeys),
+    newSet = new Set(newKeys);
+  return {
+    changed: true,
+    count: rows.length,
+    added: newKeys.filter((k) => !curSet.has(k)).length,
+    removed: curKeys.filter((k) => !newSet.has(k)).length,
+    issues: [],
+  };
+}
+
 export const KIT_KEY = keyColumn("Комплекты")!;
 export const REGISTRY_TABLE = TABLES["РеестрИД"];

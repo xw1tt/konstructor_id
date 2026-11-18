@@ -1,8 +1,9 @@
 // Дополнение карточки комплекта (строки «Комплектов», «Актов комплектов», «Реестра ИД»):
-// заполнение реестра из актов, переходы к строкам комплекта, сборка комплекта в один PDF.
+// реестр из актов (0.32 — сверяется сам при сборке), переходы к строкам комплекта, сборка комплекта в один PDF.
 import { useContext, useEffect, useState } from "react";
 import type { Issue } from "@idk/shared/workbook/bundle";
-import { fillRegistry, kitActs } from "@idk/shared/kit/registry";
+import { kitActs, syncRegistry } from "@idk/shared/kit/registry";
+import { readBook, type Book } from "@idk/shared/workbook/records";
 import type { ExcelPort } from "../../book/excelPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
@@ -34,11 +35,9 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
   const options = useContext(PrintOptionsContext);
   const catalog = useContext(CatalogContext);
   const [busy, setBusy] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState(false);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);
   useEffect(() => {
-    setConfirm(false);
     setLines([]);
     setNote(null);
   }, [kit]);
@@ -51,26 +50,31 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     setLines(await sheetIssueLines(port, issues));
   };
 
+  /** 0.32: реестр комплекта сверяется с актами сам; перестраивается, только если документы изменились
+   *  (ручные «Листов», «Экз.» и сканы — на те же документы). Возвращает книгу после сверки. */
+  const sync = async (k: string, book: Book): Promise<{ book: Book; text: string; issues: Issue[] }> => {
+    if (!tplState.ready) return { book, text: "", issues: [] };
+    // В отфильтрованной таблице вставка задела бы скрытые строки других комплектов.
+    if (await port.isFiltered("РеестрИД")) await port.clearFilters("РеестрИД");
+    const r = await syncRegistry(port, book, k, tpl);
+    if (!r.changed) return { book, text: "", issues: r.issues };
+    const parts = [r.added && `добавлено ${r.added}`, r.removed && `убрано ${r.removed}`].filter(Boolean).join(", ");
+    return { book: await readBook(port), text: `Реестр комплекта ${k} обновлён из актов${parts ? ` (${parts})` : ""}.`, issues: [] };
+  };
+
   const fill = async () => {
     if (!tplState.ready) {
-      setNote({
-        text: "Шаблоны ещё не загружены с сервера — реестр заполнится по шаблону книги, когда сервер ответит. Попробуйте через несколько секунд.",
-        error: true,
-      });
-      setConfirm(false);
+      setNote({ text: "Шаблоны ещё не загружены с сервера — попробуйте через несколько секунд.", error: true });
       return;
     }
-    setConfirm(false);
     setBusy("fill");
     setLines([]);
     setNote(null);
     try {
-      // В отфильтрованной таблице вставка задела бы скрытые строки других комплектов.
-      if (await port.isFiltered("РеестрИД")) await port.clearFilters("РеестрИД");
-      const r = await fillRegistry(port, state.book!, kit, tpl);
+      const r = await sync(kit, state.book!);
       if (r.issues.length) await showIssues(r.issues);
-      else setNote({ text: `Реестр комплекта ${kit}: строк ${r.count}. Проверьте порядок и укажите сканы.` });
-      state.refresh();
+      else setNote({ text: r.text || `Реестр комплекта ${kit} уже совпадает с актами: строк ${kitRegistryCount(state.book!, kit)}.` });
+      if (r.text) state.refresh();
     } catch (e) {
       setNote({ text: (e as Error).message, error: true });
     } finally {
@@ -102,11 +106,20 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     setBusy("build");
     setLines([]);
     setNote(null);
-    const r = await guard(assembleKit(state.book!, kit, state.important, template, options, tpl), (m) => setNote({ text: m, error: true }));
+    let synced: Awaited<ReturnType<typeof sync>>;
+    try {
+      synced = await sync(kit, state.book!);
+    } catch (e) {
+      setNote({ text: (e as Error).message, error: true });
+      setBusy(null);
+      return;
+    }
+    if (synced.text) state.refresh();
+    const r = await guard(assembleKit(synced.book, kit, state.important, template, options, tpl), (m) => setNote({ text: m, error: true }));
     if (r?.kind === "issues") await showIssues(r.issues);
     if (r?.kind === "files") setLines(kitIssueLines(r.issues, await port.tableSheetOffset("РеестрИД").catch(() => undefined)));
     if (r?.kind === "ok") {
-      setNote({ text: `Комплект собран: ${r.name}, страниц ${r.pages}.` });
+      setNote({ text: `${synced.text ? synced.text + " " : ""}Комплект собран: ${r.name}, страниц ${r.pages}.` });
       openPreview(previewUrl(`/api/kit-jobs/${r.id}`, location.origin));
     }
     setBusy(null);
@@ -117,12 +130,27 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
     setBusy("common");
     setLines([]);
     setNote(null);
-    const r = await guard(assembleCommonRegistry(state.book!, state.important, template, options, tpl), (m) => setNote({ text: m, error: true }));
-    if (r?.kind === "empty") setNote({ text: "Ни у одного комплекта нет строк в «Реестре ИД» — сначала «Заполнить из актов».", error: true });
+    let book = state.book!;
+    let updated = 0;
+    try {
+      for (const k of kitsWithRegistry(book)) {
+        const x = await sync(k, book);
+        if (x.text) updated++;
+        book = x.book;
+      }
+    } catch (e) {
+      setNote({ text: (e as Error).message, error: true });
+      setBusy(null);
+      return;
+    }
+    if (updated) state.refresh();
+    const r = await guard(assembleCommonRegistry(book, state.important, template, options, tpl), (m) => setNote({ text: m, error: true }));
+    if (r?.kind === "empty") setNote({ text: "Ни у одного комплекта нет строк в «Реестре ИД» — добавьте акты в «Акты комплектов».", error: true });
     if (r?.kind === "issues") await showIssues(r.issues);
     if (r?.kind === "ok") {
       setNote({
         text:
+          (updated ? `Реестры комплектов обновлены из актов: ${updated}. ` : "") +
           `Общий реестр: комплектов ${r.kits}, документов ${r.docs}, листов ${r.sheets}.` +
           (r.warnings.length ? ` Листы не посчитаны (взяты из графы «Листов» или пусто): ${r.warnings.join("; ")}` : ""),
         error: r.warnings.length > 0,
@@ -145,8 +173,8 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
         </button>
       </div>
       <div className="row-actions">
-        <button className="btn" disabled={busy !== null} onClick={() => (count ? setConfirm(true) : void fill())}>
-          {busy === "fill" ? "Заполняю…" : "Заполнить из актов"}
+        <button className="btn" disabled={busy !== null} onClick={() => void fill()} title="Реестр собирается из актов сам — при сборке комплекта">
+          {busy === "fill" ? "Сверяю…" : "Обновить из актов"}
         </button>
         <button className="btn btn-primary" disabled={busy !== null} onClick={() => void build()}>
           {busy === "build" ? "Собираю…" : "Собрать комплект"}
@@ -174,21 +202,6 @@ export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookSt
             ))}
           </div>
         </>
-      )}
-      {confirm && (
-        <div className="confirm" role="alertdialog" aria-label="Заполнение реестра">
-          <p>
-            Строки комплекта {kit} в реестре ({count}) будут заменены строками из актов; ручные правки этих строк пропадут.
-          </p>
-          <div className="row-actions">
-            <button className="btn btn-danger" onClick={() => void fill()}>
-              Заменить
-            </button>
-            <button className="btn" onClick={() => setConfirm(false)}>
-              Отмена
-            </button>
-          </div>
-        </div>
       )}
       {shortage.length > 0 && (
         <div className="warn" role="status" style={{ display: "block", padding: "6px 8px" }}>

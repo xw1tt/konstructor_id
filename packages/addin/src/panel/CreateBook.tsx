@@ -1,5 +1,5 @@
 // Создание книги объекта (листы и таблицы, строки-примеры) и восстановление разметки.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
 import { writeBook } from "@idk/shared/workbook/write";
 import { loadImportant } from "@idk/shared/workbook/important";
@@ -9,6 +9,9 @@ import type { CreateFlow } from "./Panel.tsx";
 import { exampleRows } from "@idk/shared/workbook/examples";
 
 type Step = { kind: "idle" } | { kind: "busy"; text: string } | { kind: "done"; text: string };
+
+/** 0.32: разметка обновляется сама, один раз за сеанс панели (не вышло — кнопка для повтора). */
+let autoTried = false;
 
 export function CreateBook({ port, state, missing, full, flow }: { port: ExcelPort; state: BookState; missing: TableName[]; full: boolean; flow: CreateFlow }) {
   // Полное создание держит экран открытым до конца (flow); восстановление разметки — нет.
@@ -23,7 +26,10 @@ export function CreateBook({ port, state, missing, full, flow }: { port: ExcelPo
     try {
       await port.ensureBook(await loadImportant(port));
       if (!fullMode) {
-        setStep({ kind: "done", text: "Разметка обновлена." });
+        setStep({
+          kind: "done",
+          text: "Разметка книги обновлена под эту версию программы: недостающие листы, таблицы и столбцы добавлены, данные не менялись.",
+        });
         state.refresh();
         return;
       }
@@ -45,6 +51,20 @@ export function CreateBook({ port, state, missing, full, flow }: { port: ExcelPo
     }
     flow.finish();
   };
+
+  useEffect(() => {
+    if (fullMode || autoTried) return;
+    autoTried = true;
+    void create();
+  }, []);
+
+  if (!fullMode && step.kind !== "idle") {
+    return (
+      <div className="banner" role="status">
+        <p>{step.kind === "busy" ? "Обновляю разметку книги под эту версию программы — данные не меняются…" : step.text}</p>
+      </div>
+    );
+  }
 
   if (!fullMode) {
     return (

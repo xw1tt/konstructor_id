@@ -57,7 +57,7 @@ export function ActSigners({ port, state, act }: { port: ExcelPort; state: BookS
       await port.write("Акты", row.row, { Подписанты: names.length ? joinRefs([...new Set(names)]) : null });
       state.refresh();
     } catch (e) {
-      setError(state.outdated ? "В книге нет столбца «Подписанты» — нажмите «Обновить разметку» в «Настройках»." : (e as Error).message);
+      setError(state.outdated ? "В книге нет столбца «Подписанты» — разметка книги обновляется, повторите через минуту." : (e as Error).message);
     } finally {
       setBusy(false);
     }

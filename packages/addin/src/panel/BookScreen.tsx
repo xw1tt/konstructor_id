@@ -119,7 +119,7 @@ function rowView(table: TableName, r: BookRow, short: Map<string, string>): { ti
           return p.ok && p.value ? `${p.value.slice(8, 10)}.${p.value.slice(5, 7)}.${p.value.slice(0, 4)}` : "—";
         })(),
         sub: t(v.works),
-        right: t(v.signer),
+        right: "",
         mono: true,
       };
     case "ОЖР5":
@@ -200,6 +200,200 @@ function ActPreview({ state, act }: { state: BookState; act: string }) {
       </header>
       <div className="bk-sheet">{src ? <iframe title="Предпросмотр АОСР" src={src} /> : <p className="muted">{note || "Готовлю предпросмотр…"}</p>}</div>
       <p className="muted">Поля этой карточки — в документе; пустая важная ячейка подсвечена розовым и в Excel, и здесь.</p>
+    </section>
+  );
+}
+
+const num = (v: BookRow["v"][string]) => {
+  const p = parseNumberCell(v ?? null);
+  return p.ok && p.value ? p.value : 0;
+};
+const fmt = (n: number) => (Math.round(n * 100) / 100).toLocaleString("ru");
+
+/** 0.43: количество материала — по проекту, закрыто актами (по актам), остаток. */
+function MaterialQuantity({ book, material, short }: { book: BookState["book"]; material: BookRow; short: Map<string, string> }) {
+  const name = t(material.v.name);
+  const unit = t(material.v.unit);
+  const plan = num(material.v.quantity);
+  const parts = (book?.tables["МатериалыАктов"] ?? [])
+    .filter((r) => t(r.v.material) === name)
+    .map((r) => ({ act: t(r.v.act), q: num(r.v.quantity) || num(r.v.vorSum) }))
+    .filter((x) => x.q > 0);
+  const closed = parts.reduce((x, p) => x + p.q, 0);
+  if (!plan && !closed) return null;
+  const scale = Math.max(plan, closed) || 1;
+  const rest = plan - closed;
+  return (
+    <section className="bk-qty">
+      <span className="wn-cap">Количество</span>
+      <div className="bk-qty-nums">
+        <div>
+          <span className="wn-cap">По проекту</span>
+          <strong>
+            {plan ? fmt(plan) : "—"} <small>{unit}</small>
+          </strong>
+        </div>
+        <div>
+          <span className="wn-cap">Закрыто актами</span>
+          <strong>
+            {fmt(closed)} <small>{unit}</small>
+          </strong>
+        </div>
+        {plan > 0 && (
+          <div>
+            <span className="wn-cap">{rest < 0 ? "Перерасход" : "Остаток"}</span>
+            <strong className={rest < 0 ? "bk-over" : undefined}>
+              {fmt(Math.abs(rest))} <small>{unit}</small>
+            </strong>
+          </div>
+        )}
+        {t(material.v.section) && (
+          <div className="bk-qty-sec">
+            <span className="wn-cap">Раздел РКЦ</span>
+            <b>{t(material.v.section)}</b>
+          </div>
+        )}
+      </div>
+      <div className="bk-qty-bar" aria-label="Закрыто по актам">
+        {parts.map((p, i) => (
+          <span key={i} style={{ width: `${(p.q / scale) * 100}%` }} title={`Акт № ${p.act}: ${fmt(p.q)} ${unit}`}>
+            № {short.get(p.act) ?? p.act} · {fmt(p.q)} {unit}
+          </span>
+        ))}
+        {rest > 0 && (
+          <span className="bk-qty-rest" style={{ width: `${(rest / scale) * 100}%` }}>
+            остаток {fmt(rest)} {unit}
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** 0.43: дни работ ОЖР календарём — оттенок по числу актов в работе; щелчок — запись дня. */
+function OjrCalendar({ rows, onPick, picked }: { rows: BookRow[]; onPick(row: number): void; picked: number | null }) {
+  const days = new Map<string, { row: number; acts: number }>();
+  for (const r of rows) {
+    const p = parseDateCell(r.v.date ?? null);
+    if (p.ok && p.value)
+      days.set(p.value, {
+        row: r.row,
+        acts:
+          t(r.v.acts)
+            .split(/[;,]/)
+            .filter((x) => x.trim()).length || 1,
+      });
+  }
+  const keys = [...days.keys()].sort();
+  if (!keys.length) return <p className="muted bk-pad">Дней в разделе 3 пока нет — «Обновить из актов» соберёт их по датам работ.</p>;
+  const d0 = new Date(keys[0] + "T00:00:00Z");
+  d0.setUTCDate(d0.getUTCDate() - ((d0.getUTCDay() + 6) % 7));
+  const end = new Date(keys[keys.length - 1] + "T00:00:00Z");
+  const weeks: Date[][] = [];
+  for (const d = new Date(d0); d <= end;) {
+    const w: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      w.push(new Date(d));
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    weeks.push(w);
+  }
+  const MON = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+  const DOW = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
+  return (
+    <section className="ojr-cal">
+      <header>
+        <span className="wn-cap">
+          Дни работ · {keys[0].split("-").reverse().join(".")} — {keys[keys.length - 1].split("-").reverse().join(".")}
+        </span>
+        <span className="ojr-legend">
+          актов в работе: <i className="oc-1">1</i>
+          <i className="oc-2">2</i>
+          <i className="oc-3">3</i>
+          <i className="oc-4">4</i>
+          <i className="oc-5">5+</i> <i className="oc-0" /> в журнал не попадает
+        </span>
+      </header>
+      <div className="ojr-grid">
+        <div className="ojr-dow">
+          <span />
+          {DOW.map((x) => (
+            <span key={x}>{x}</span>
+          ))}
+        </div>
+        {weeks.map((w, i) => {
+          const m = w[0].getUTCMonth();
+          const newMonth = i === 0 || weeks[i - 1][0].getUTCMonth() !== m;
+          return (
+            <div key={i} className="ojr-week">
+              <span className="ojr-mon">{newMonth ? MON[m] : ""}</span>
+              {w.map((d) => {
+                const k = d.toISOString().slice(0, 10);
+                const x = days.get(k);
+                const n = x ? Math.min(x.acts, 5) : 0;
+                return (
+                  <button
+                    key={k}
+                    className={`oc-${n}${x && x.row === picked ? " oc-on" : ""}`}
+                    disabled={!x}
+                    onClick={() => x && onPick(x.row)}
+                    title={x ? `${k.split("-").reverse().join(".")}: актов в работе ${x.acts}` : undefined}
+                  >
+                    {d.getUTCDate()}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** 0.43: срок полномочий представителя и даты актов — попадают ли акты в срок. */
+function RepTimeline({ book, rep }: { book: BookState["book"]; rep: BookRow }) {
+  const iso = (v: BookRow["v"][string]) => {
+    const p = parseDateCell(v ?? null);
+    return p.ok ? (p.value ?? "") : "";
+  };
+  const from = iso(rep.v.validFrom),
+    to = iso(rep.v.validTo);
+  const dates = (book?.tables["Акты"] ?? [])
+    .map((r) => iso(r.v.date))
+    .filter(Boolean)
+    .sort();
+  if (!dates.length) return null;
+  const year = Number((dates[0] || from || "2026").slice(0, 4));
+  const y0 = Date.UTC(year, 0, 1),
+    y1 = Date.UTC(year + 1, 0, 1);
+  const pos = (d: string) => Math.min(100, Math.max(0, ((Date.parse(d + "T00:00:00Z") - y0) / (y1 - y0)) * 100));
+  const inside = dates.filter((d) => (!from || from <= d) && (!to || d <= to)).length;
+  const MON = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+  return (
+    <section className="rep-tl">
+      <p className={inside === dates.length ? "rep-ok" : "rep-bad"}>
+        <IssueIcon level={inside === dates.length ? "ok" : "warn"} />{" "}
+        {inside === dates.length
+          ? `все ${dates.length} ${word(dates.length, "акт попадает", "акта попадают", "актов попадают")} в срок`
+          : `в срок ${inside} из ${dates.length} актов — для остальных нужна строка с другими датами`}
+      </p>
+      <div className="rep-track">
+        <i className="rep-span" style={{ left: `${from ? pos(from) : 0}%`, right: `${100 - (to ? pos(to) : 100)}%` }} />
+        {dates.map((d, i) => (
+          <b
+            key={i}
+            style={{ left: `${pos(d)}%` }}
+            className={(!from || from <= d) && (!to || d <= to) ? undefined : "rep-out"}
+            title={d.split("-").reverse().join(".")}
+          />
+        ))}
+      </div>
+      <div className="rep-months">
+        {MON.map((m) => (
+          <span key={m}>{m}</span>
+        ))}
+      </div>
     </section>
   );
 }
@@ -672,6 +866,9 @@ export function BookScreen({
               </div>
             </div>
           )}
+          {current.id === "ojr" && (
+            <OjrCalendar rows={rowsOf("ОЖР3")} picked={selected?.table === "ОЖР3" ? selected.row : null} onPick={(row) => setSel({ table: "ОЖР3", row })} />
+          )}
           {selected?.table === "Объект" ? (
             <>
               <header className="bk-card-head">
@@ -699,6 +896,8 @@ export function BookScreen({
                   </button>
                 </span>
               </header>
+              {selected!.table === "Материалы" && <MaterialQuantity book={book} material={view} short={short} />}
+              {selected!.table === "Представители" && <RepTimeline book={book} rep={view} />}
               <RowCard port={port} state={state} at={{ data: selData, row: selected!.row }} onRename={setRename} title={false} />
             </>
           ) : (

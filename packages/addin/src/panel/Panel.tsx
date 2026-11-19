@@ -30,6 +30,7 @@ import { LibraryScreen } from "./LibraryScreen.tsx";
 import { DeliveryScreen } from "./DeliveryScreen.tsx";
 import { ActsScreen } from "./ActsScreen.tsx";
 import { OverviewScreen } from "./OverviewScreen.tsx";
+import { BookScreen } from "./BookScreen.tsx";
 import { WizardScreen } from "./WizardScreen.tsx";
 import { AssistantSession } from "./assistant.ts";
 import { aiApi } from "./aiApi.ts";
@@ -340,6 +341,15 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
                     <DeliveryScreen port={port} state={state} wide={win} />
                   ) : screen === "normativ" ? (
                     <NormativScreen port={port} />
+                  ) : win && screen === "home" && book && !allMissing && !creating && !state.outdated && !book.missing.length ? (
+                    <BookScreen
+                      port={port}
+                      state={state}
+                      template={resolved.template}
+                      needed={needed}
+                      onScreen={setScreen}
+                      onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))}
+                    />
                   ) : !book ? (
                     <p className="notice">Читаю книгу…</p>
                   ) : allMissing || creating ? (

@@ -39,7 +39,13 @@ function useDraft(value: string) {
 export function Field(p: FieldProps) {
   const { col } = p;
   return (
-    <label className={"field" + (p.error ? " field-error" : "")}>
+    <label
+      className={
+        "field" +
+        (p.error ? " field-error" : "") +
+        (col.important && (p.value === null || String(p.value).trim() === "") && col.type !== "file" ? " field-need" : "")
+      }
+    >
       <span className="field-label">
         {col.header}
         {col.important ? " *" : ""}

@@ -5,6 +5,7 @@ import { TABLES, OBJECT_FIELDS, SHEETS, isObjectFieldRequired, keyColumn, column
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
 import { findReferences, renameKey, type RefHit } from "@idk/shared/workbook/refs";
 import type { Book } from "@idk/shared/workbook/records";
+import type { TableData } from "@idk/shared/workbook/store";
 import type { BookPort } from "../../book/bookPort.ts";
 import { apiUpload } from "../../api.ts";
 import { useGuard } from "../../server.tsx";
@@ -24,7 +25,7 @@ import { kitOfRow } from "../kit.ts";
 import { CatalogContext, workListNames } from "../catalogApi.ts";
 import { UserTemplateContext } from "../templateContext.ts";
 
-interface PendingRename {
+export interface PendingRename {
   table: TableName;
   from: string;
   to: string;
@@ -32,7 +33,7 @@ interface PendingRename {
 }
 
 /** Для таблицы «Объект» столбец «Значение» ведёт себя по типу поля (ссылка на организацию, дата). */
-function effectiveColumn(table: TableName, col: ColumnDef, row: CellValue[], headers: string[]): ColumnDef {
+export function effectiveColumn(table: TableName, col: ColumnDef, row: CellValue[], headers: string[]): ColumnDef {
   if (table !== "Объект" || col.key !== "value") return col;
   const label = cellText(row[headers.indexOf("Поле")] ?? null);
   const f = OBJECT_FIELDS.find((x) => x.label === label);
@@ -42,7 +43,7 @@ function effectiveColumn(table: TableName, col: ColumnDef, row: CellValue[], hea
   return withHint;
 }
 
-const keysOf = (book: Book | null, t: TableName) => {
+export const keysOf = (book: Book | null, t: TableName) => {
   const k = keyColumn(t);
   if (!book || !k) return [];
   return [...new Set((book.tables[t] ?? []).map((r) => cellText(r.v[k.key])).filter(Boolean))];
@@ -123,15 +124,33 @@ export function CardArea({ port, state }: { port: BookPort; state: BookState }) 
 /** Столбцы группы «Док.N» таблицы «Материалы» (план 31). */
 const isSlotColumn = (table: TableName, key: string) => table === "Материалы" && /^d\d/.test(key);
 
-function RowCard({ port, state, onRename }: { port: BookPort; state: BookState; onRename: (p: PendingRename) => void }) {
+/** 0.42: строка, заданная явно (окно программы: таблица книги и номер строки), а не выделение в Excel. */
+export interface RowAt {
+  data: TableData;
+  row: number;
+}
+
+export function RowCard({
+  port,
+  state,
+  onRename,
+  at,
+  title = true,
+}: {
+  port: BookPort;
+  state: BookState;
+  onRename: (p: PendingRename) => void;
+  at?: RowAt;
+  title?: boolean;
+}) {
   const guard = useGuard();
   const catalog = useContext(CatalogContext);
   const { template } = useContext(UserTemplateContext);
   /** Варианты «Вида работ» — как список «ВидыРабот» книги. */
   const workOptions = catalog ? workListNames(catalog, template) : [];
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const s = state.selection;
-  const t = state.table;
+  const s = at ? { table: at.data.name, row: at.row } : state.selection;
+  const t = at ? at.data : state.table;
   useEffect(() => setErrors({}), [s?.table, s?.row]);
   if (!s || !t) return null;
   if (s.table !== t.name || s.row === null) {
@@ -190,9 +209,11 @@ function RowCard({ port, state, onRename }: { port: BookPort; state: BookState; 
   };
   return (
     <section className="card" aria-label="Карточка строки">
-      <h2 className="tools-title">
-        Строка {rowIdx + 1} · {sheet}
-      </h2>
+      {title && (
+        <h2 className="tools-title">
+          Строка {rowIdx + 1} · {sheet}
+        </h2>
+      )}
       {isExampleRow(row, table, t.headers) && (
         <p className="example-note" role="note">
           Это строка-пример: замените значения своими или удалите строку.

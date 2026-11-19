@@ -93,13 +93,18 @@ const hostOf = (u: string) => {
   }
 };
 
+/** 0.34.1: 400 похоже на отказ из-за temperature: сервис назвал её или отказал без причины («provider rejected the request»). */
+const tempRejected = (r: PostResult) =>
+  r.status === 400 && /temperature|rejected the request|unsupported (value|parameter)/i.test(r.text || JSON.stringify(r.json ?? ""));
+
 function openAIRequest(p0: Provider, req: ChatRequest) {
   const p = resolveProvider(p0);
   const headers: Record<string, string> = {};
   if (p.key) headers.authorization = `Bearer ${p.key}`;
   if (p.kind === "yandex" && p.folderId) headers["openai-project"] = p.folderId;
   // Claude (OpenAI-совместимый слой Anthropic): у новых моделей температура ниже 1 — ошибка 400, поэтому не передаётся.
-  const claude = /(^|\.)anthropic\.com$/i.test(hostOf(p.baseUrl)) || /^claude-/i.test(p.model);
+  // 0.34.1: и через посредников — «anthropic/claude-opus-5.5», «claude-opus-5.5» (OpenRouter, mozg.world и т.п.).
+  const claude = /(^|\.)anthropic\.com$/i.test(hostOf(p.baseUrl)) || /(^|[/:])claude[-_.]|^anthropic\//i.test(p.model);
   const body: Record<string, unknown> = { model: p.model, messages: req.messages.map(toOpenAI), ...(claude ? {} : { temperature: 0.2 }) };
   if (req.tools.length) {
     body.tools = req.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
@@ -110,7 +115,12 @@ function openAIRequest(p0: Provider, req: ChatRequest) {
 
 async function chatOpenAI(p0: Provider, req: ChatRequest, t: Transport): Promise<ChatOut> {
   const { p, headers, body } = openAIRequest(p0, req);
-  const r = await send(p, `${p.baseUrl}/chat/completions`, body, { headers }, t);
+  let r = await send(p, `${p.baseUrl}/chat/completions`, body, { headers }, t);
+  // 0.34.1: модель не принимает temperature (часть моделей через посредников) — один повтор без неё.
+  if (tempRejected(r) && "temperature" in body) {
+    delete body.temperature;
+    r = await send(p, `${p.baseUrl}/chat/completions`, body, { headers }, t);
+  }
   if (r.status >= 400 || !r.json?.choices?.[0]) fail(p, r);
   const msg = r.json.choices[0].message ?? {};
   const toolCalls: ToolCall[] = (msg.tool_calls ?? []).map((c: any) => ({
@@ -283,14 +293,21 @@ async function streamOpenAI(p0: Provider, req: ChatRequest, t: Transport, hooks:
     usage: usage ?? { prompt: estimateTokens(JSON.stringify(body.messages)), completion: estimateTokens(text + calls.map((c) => c.args).join("")) },
   });
   let r: PostResult;
-  try {
-    r = await send(
+  const go = () =>
+    send(
       p,
       `${p.baseUrl}/chat/completions`,
       { ...body, stream: true, stream_options: { include_usage: true } },
       { headers, onChunk: onData, signal: hooks.signal },
       t,
     );
+  try {
+    r = await go();
+    // 0.34.1: как в chatOpenAI — без temperature, если модель её не принимает (ответ ещё не начался).
+    if (tempRejected(r) && "temperature" in body && !text && !calls.length) {
+      delete body.temperature;
+      r = await go();
+    }
   } catch (e) {
     if (e instanceof AbortedError) throw new StreamAborted(out(), true, "ответ остановлен");
     // Поток оборвался посреди ответа — полученное сохраняется.

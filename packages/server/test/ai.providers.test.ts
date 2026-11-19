@@ -180,3 +180,20 @@ test("Claude через OpenAI-совместимый слой: без temperatu
   });
   assert.equal(ai.seen[1].body.temperature, 0.2);
 });
+
+test("0.34.1: Claude через посредника («anthropic/claude-opus-5.5») — без temperature; модель отвергла temperature — повтор без неё", async () => {
+  const OK = { json: { choices: [{ message: { content: "ОК" } }], usage: { prompt_tokens: 5, completion_tokens: 1 } } };
+  const ai = await fakeAi({
+    "/v1/chat/completions": [OK, OK, { status: 400, json: { error: { message: "The model provider rejected the request." } } }, OK],
+  });
+  const ask = (model: string) =>
+    chat(prov({ kind: "openai", baseUrl: `${ai.url}/v1`, key: "k", model }), { messages: [{ role: "user", content: "ОК?" }], tools: [] });
+  await ask("anthropic/claude-opus-5.5");
+  assert.ok(!("temperature" in ai.seen[0].body));
+  await ask("claude-opus-5.5");
+  assert.ok(!("temperature" in ai.seen[1].body));
+  assert.equal((await ask("vendor/strict-model")).message.content, "ОК");
+  assert.equal(ai.seen[2].body.temperature, 0.2);
+  assert.ok(!("temperature" in ai.seen[3].body), "повтор без temperature");
+  assert.equal(ai.seen.length, 4);
+});

@@ -1,77 +1,88 @@
-// 0.38: главный экран окна программы — объект, сводка по актам, комплектам, документам качества и ОЖР,
-// быстрые действия и то, что требует внимания (щелчок по замечанию — к ячейке в Excel).
-import { useContext, useEffect, useMemo, useState } from "react";
-import { objectSummary } from "@idk/shared/acts/objectSummary";
+// 0.38 / редизайн 0.40: главный экран окна программы — объект, готовность актов (квадрат на акт), «Требует внимания»
+// таблицей с местом в книге, справа — комплекты, документы качества и общий журнал работ.
+import { useEffect, useMemo, useState } from "react";
+import { objectSummary, type ObjectSummary } from "@idk/shared/acts/objectSummary";
+import { actDates, shortNumbers, statusText, type ActOverview } from "@idk/shared/acts/overview";
 import type { BookPort } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 import type { ScreenId } from "./screens.ts";
-import { UserTemplateContext } from "./templateContext.ts";
-import { sheetIssueLines, type IssueLine } from "./print.ts";
-import { IssueList } from "./extras/IssueList.tsx";
+import { sheetIssueLines } from "./print.ts";
+import { IssueTable, IssueIcon, type IssueItem } from "./IssueTable.tsx";
+import { SparkIcon } from "./icons.tsx";
+import { todayIso } from "./today.ts";
 
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+const MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 
-function Stat({ title, value, lines, onClick }: { title: string; value: number | string; lines: string[]; onClick?: () => void }) {
+function OjrBars({ weeks }: { weeks: ObjectSummary["ojrWeeks"] }) {
+  if (!weeks.length) return null;
+  const max = Math.max(...weeks.map((w) => w.days), 1);
+  let lastMonth = -1;
   return (
-    <button className="ov-stat" onClick={onClick} disabled={!onClick}>
-      <span className="wn-cap">{title}</span>
-      <strong>{value}</strong>
-      {lines.map((l) => (
-        <span key={l} className="hint">
-          {l}
-        </span>
-      ))}
-    </button>
+    <div className="ov-bars" aria-hidden="true">
+      {weeks.map((w) => {
+        const m = Number(w.week.slice(5, 7)) - 1;
+        const label = m !== lastMonth ? MONTHS[m] : "";
+        lastMonth = m;
+        return (
+          <span key={w.week} className="ov-bar" title={`неделя с ${w.week.slice(8)}.${w.week.slice(5, 7)}: ${w.days} дн.`}>
+            <i style={{ height: `${Math.round((w.days / max) * 100)}%` }} />
+            {label && <b>{label}</b>}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
-export function OverviewScreen({ port, state, bookName, onScreen }: { port: BookPort; state: BookState; bookName?: string; onScreen(s: ScreenId): void }) {
-  const tpl = useContext(UserTemplateContext);
+export function OverviewScreen({
+  port,
+  state,
+  onScreen,
+  onAct,
+}: {
+  port: BookPort;
+  state: BookState;
+  bookName?: string;
+  onScreen(s: ScreenId): void;
+  /** Открыть акт на экране «Акты». */
+  onAct?: (act: string) => void;
+}) {
   const book = state.book;
-  const s = useMemo(() => (book ? objectSummary(book, state.important, today()) : null), [book, state.important]);
-  const [critical, setCritical] = useState<IssueLine[]>([]);
-  const [warn, setWarn] = useState<IssueLine[]>([]);
+  const s = useMemo(() => (book ? objectSummary(book, state.important, todayIso()) : null), [book, state.important]);
+  const [items, setItems] = useState<IssueItem[]>([]);
+  const [tip, setTip] = useState<ActOverview | null>(null);
   useEffect(() => {
     if (!s) return;
     let alive = true;
-    const label = (x: (typeof s.attention)[number]) => ({ ...x, message: `${x.message} (акт ${x.act})` });
-    void Promise.all([
-      sheetIssueLines(port, s.attention.filter((a) => a.level === "critical").map(label)),
-      sheetIssueLines(port, s.attention.filter((a) => a.level === "warn").map(label)),
-    ])
-      .then(([c, w]) => {
-        if (alive) {
-          setCritical(c);
-          setWarn(w);
-        }
-      })
-      .catch((e) => console.error("overview", e));
+    void sheetIssueLines(port, s.attention)
+      .then((lines) => alive && setItems(lines.map((line, i) => ({ line, act: s.attention[i].act, level: s.attention[i].level }))))
+      .catch(() => undefined);
     return () => {
       alive = false;
     };
   }, [s, port]);
 
   if (!book || !s) return <p className="notice">Читаю книгу…</p>;
-  const pct = s.acts.total ? Math.round((s.acts.ready / s.acts.total) * 100) : 0;
+
+  const nCritical = s.attention.filter((x) => x.level === "critical").length;
+  const nWarn = s.attentionTotal - nCritical;
+  const period = actDates(s.period.start, s.period.end);
+  const short = shortNumbers(s.actList.map((a) => a.number));
+  const named = items.map((x) => ({ ...x, act: x.act ? (short.get(x.act) ?? x.act) : undefined }));
+  const critical = named.filter((x) => x.level === "critical");
+  const warn = named.filter((x) => x.level === "warn");
+  const kit = s.kitList[0];
   return (
     <div className="ov">
       <header className="ov-head">
-        <div>
-          <span className="wn-cap">
-            Объект{s.codes.length ? ` · шифр ${s.codes.slice(0, 3).join(", ")}${s.codes.length > 3 ? "…" : ""}` : ""} · шаблон «{tpl.template.name}»
-          </span>
-          <h2>{s.name || "Наименование объекта не заполнено"}</h2>
-          <span className="hint">
-            {s.address ? `${s.address} · ` : ""}
-            {bookName ? `книга: ${bookName}` : ""}
-          </span>
+        <div className="ov-title">
+          <span className="wn-cap">Объект</span>
+          <h1 className={s.name.length > 90 ? "ov-long" : undefined}>{s.name || "Наименование объекта не заполнено"}</h1>
+          <p className="ov-meta">{[s.city || s.address, period && `работы ${period}`, s.performer].filter(Boolean).join("  •  ")}</p>
         </div>
         <div className="ov-actions">
-          <button className="btn" onClick={() => onScreen("assistant")}>
-            Спросить помощника
+          <button className="btn btn-ghost" onClick={() => onScreen("assistant")}>
+            <SparkIcon /> Спросить помощника
           </button>
           <button className="btn" onClick={() => onScreen("acts")}>
             Проверить акты
@@ -89,48 +100,168 @@ export function OverviewScreen({ port, state, bookName, onScreen }: { port: Book
           </button>
         </p>
       )}
-      <div className="ov-stats">
-        <Stat
-          title="Акты"
-          value={s.acts.total}
-          lines={s.acts.total ? [`${s.acts.ready} готовы · ${s.acts.warn} с замечаниями`, `${s.acts.blocked} не собираются`] : ["актов пока нет"]}
-          onClick={() => onScreen("acts")}
-        />
-        <Stat
-          title="Комплекты"
-          value={s.kits.total}
-          lines={[s.kits.total ? `с реестром: ${s.kits.withRegistry}` : "комплектов пока нет"]}
-          onClick={() => onScreen("delivery")}
-        />
-        <Stat
-          title="Документы качества"
-          value={s.quality.total}
-          lines={[`без скана: ${s.quality.noScan}`, `истекают до конца работ: ${s.quality.expiring}`]}
-          onClick={() => void port.activateSheet("Материалы")}
-        />
-        <Stat
-          title="Общий журнал работ"
-          value={s.ojrDays ? `${s.ojrDays} дн.` : "—"}
-          lines={["раздел 3 собирается из актов"]}
-          onClick={() => onScreen("delivery")}
-        />
-      </div>
-      {s.acts.total > 0 && (
-        <div className="ov-progress" aria-label={`Готовы к сдаче ${pct}% актов`}>
-          <span style={{ width: `${pct}%` }} />
+
+      <section className="ov-ready">
+        <div className="ov-ready-num">
+          <span className="wn-cap">Готовность актов</span>
+          <p>
+            <strong>{s.acts.ready}</strong> <span>из {s.acts.total}</span>
+          </p>
+          <span className="ov-sub">актов готовы к печати</span>
         </div>
-      )}
-      <section className="ov-card">
-        <h3 className="tools-title">Требует внимания</h3>
-        {!s.attentionTotal && <p className="notice">Замечаний нет: все акты собираются, проверка перед сдачей чистая.</p>}
-        <IssueList port={port} lines={critical} title="Не собираются (печать покажет все ошибки):" />
-        <IssueList port={port} lines={warn} tone="warn" title="Проверка перед сдачей (печать не блокирует):" />
-        {s.attentionTotal > s.attention.length && (
-          <button className="btn btn-link" onClick={() => onScreen("acts")}>
-            Ещё {s.attentionTotal - s.attention.length} — на экране «Акты»
-          </button>
-        )}
+        <div className="ov-ready-grid">
+          <div className="ov-ready-top">
+            <span className="wn-cap">Акты по порядку — один квадрат на акт</span>
+            <button className="btn btn-link" onClick={() => onScreen("acts")}>
+              Все акты →
+            </button>
+          </div>
+          {s.actList.length ? (
+            <div className="ov-tiles" onMouseLeave={() => setTip(null)}>
+              {s.actList.map((a) => (
+                <button
+                  key={a.number}
+                  className={`ov-tile ov-tile-${a.status}${tip?.number === a.number ? " ov-tile-on" : ""}`}
+                  onMouseEnter={() => setTip(a)}
+                  onFocus={() => setTip(a)}
+                  onClick={() => (onAct ? onAct(a.number) : onScreen("acts"))}
+                  aria-label={`Акт № ${a.number}: ${statusText(a)}`}
+                >
+                  {short.get(a.number)}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">Актов пока нет — первый акт добавляется на листе «База актов» или мастером на экране «Книга».</p>
+          )}
+          <p className="ov-legend">
+            {tip ? (
+              <span className="ov-tip mono">
+                № {tip.number} · {statusText(tip)}
+                {tip.works ? ` — ${tip.works.slice(0, 90)}${tip.works.length > 90 ? "…" : ""}` : ""}
+              </span>
+            ) : (
+              <>
+                <span className="ov-key ov-key-ready" /> <b>{s.acts.ready}</b> готовы <span className="ov-key ov-key-warn" /> <b>{s.acts.warn}</b> с замечаниями
+                — печать не блокируют <span className="ov-key ov-key-blocked" /> <b>{s.acts.blocked}</b> не собираются
+              </>
+            )}
+          </p>
+        </div>
       </section>
+
+      <div className="ov-cols">
+        <section className="ov-card ov-attn">
+          <header className="ov-card-head">
+            <h3>
+              Требует внимания <sup className="mono">{s.attentionTotal || ""}</sup>
+            </h3>
+            <span className="muted">щелчок по строке — переход к ячейке в Excel</span>
+          </header>
+          {!s.attentionTotal && (
+            <p className="ov-clean">
+              <IssueIcon level="ok" /> Замечаний нет: все акты собираются, проверка перед сдачей чистая.
+            </p>
+          )}
+          {nCritical > 0 && (
+            <>
+              <div className="ov-group">
+                <IssueIcon level="critical" /> <b>Не собираются</b> <span className="mono">{nCritical}</span>
+                <span className="muted">печать покажет все ошибки</span>
+              </div>
+              <IssueTable port={port} items={critical} />
+            </>
+          )}
+          {warn.length > 0 && (
+            <>
+              <div className="ov-group">
+                <IssueIcon level="warn" /> <b>Проверка перед сдачей</b> <span className="mono">{nWarn}</span>
+                <span className="muted">печать не блокируют</span>
+              </div>
+              <IssueTable port={port} items={warn} />
+            </>
+          )}
+          {s.attentionTotal > s.attention.length && (
+            <footer className="ov-card-foot">
+              <button className="btn btn-link" onClick={() => onScreen("acts")}>
+                Ещё {s.attentionTotal - s.attention.length} — на экране «Акты» →
+              </button>
+            </footer>
+          )}
+        </section>
+
+        <aside className="ov-side">
+          <section className="ov-block">
+            <header>
+              <span className="wn-cap">Комплекты</span>
+              <button className="btn btn-link" onClick={() => onScreen("delivery")}>
+                Печать и сдача →
+              </button>
+            </header>
+            <div className="ov-big">
+              <strong>{s.kits.total}</strong>
+              <span>
+                {s.kits.total ? `с реестром — ${s.kits.withRegistry}` : "комплектов пока нет"}
+                {kit && (
+                  <>
+                    <br />
+                    Комплект {kit.number}
+                    {kit.volume ? ` · том ${kit.volume}` : ""} · {kit.registry} документов
+                  </>
+                )}
+              </span>
+            </div>
+            {kit && kit.registry > 0 && (
+              <div className="ov-docs" aria-hidden="true">
+                {Array.from({ length: Math.min(kit.registry, 24) }, (_, i) => (
+                  <i key={i} className={i === 0 ? "ov-doc-title" : i === 1 ? "ov-doc-reg" : undefined} />
+                ))}
+              </div>
+            )}
+          </section>
+          <section className="ov-block">
+            <header>
+              <span className="wn-cap">Документы качества</span>
+              <button className="btn btn-link" onClick={() => void port.activateSheet("Материалы")}>
+                Материалы →
+              </button>
+            </header>
+            <div className="ov-big">
+              <strong>{s.quality.total}</strong>
+              <span>
+                {s.quality.noScan > 0 && (
+                  <>
+                    <IssueIcon level="warn" /> без скана — {s.quality.noScan}
+                    <br />
+                  </>
+                )}
+                {s.quality.expiring > 0 && (
+                  <>
+                    <IssueIcon level="warn" /> истекают до конца работ — {s.quality.expiring}
+                  </>
+                )}
+                {!s.quality.noScan && !s.quality.expiring && s.quality.total > 0 && "все со сканами и действуют"}
+              </span>
+            </div>
+          </section>
+          <section className="ov-block">
+            <header>
+              <span className="wn-cap">Общий журнал работ</span>
+              <button className="btn btn-link" onClick={() => onScreen("delivery")}>
+                ОЖР →
+              </button>
+            </header>
+            <div className="ov-big">
+              <strong>
+                {s.ojrDays || "—"}
+                {s.ojrDays ? <small> дн.</small> : null}
+              </strong>
+              <span>раздел 3 собирается из актов, без воскресений</span>
+            </div>
+            <OjrBars weeks={s.ojrWeeks} />
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

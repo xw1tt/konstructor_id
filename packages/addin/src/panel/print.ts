@@ -20,6 +20,10 @@ export interface IssueLine {
   table: TableName;
   row: number | null;
   column: string;
+  /** 0.40: части строки — лист, строка листа и сообщение (для таблицы замечаний окна). */
+  sheet?: string;
+  sheetRow?: number | null;
+  message?: string;
 }
 
 /** Ошибки проверки как строки «лист, строка N, «столбец»: сообщение»; offsets — строка листа первой строки данных. */
@@ -28,7 +32,15 @@ export function issueLines(issues: Issue[], offsets: Partial<Record<TableName, n
     const sheet = TABLES[i.table].sheet;
     const off = offsets[i.table];
     const where = i.row !== null && off !== undefined ? `${sheet}, строка ${off + i.row}` : sheet;
-    return { text: `${where}, «${i.column}»: ${i.message}`, table: i.table, row: i.row, column: i.column };
+    return {
+      text: `${where}, «${i.column}»: ${i.message}`,
+      table: i.table,
+      row: i.row,
+      column: i.column,
+      sheet,
+      sheetRow: i.row !== null && off !== undefined ? off + i.row : null,
+      message: i.message,
+    };
   });
 }
 

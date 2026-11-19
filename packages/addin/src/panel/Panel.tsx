@@ -1,5 +1,6 @@
 // Панель «Конструктор ИД»: разделы (листы книги), «Функционал листа», «Функционал таблицы», карточка строки.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { cellText } from "@idk/shared/workbook/values";
 import { SectionIcon } from "./icons.tsx";
 import { catalogKit, catalogApi, FormKit, templateKit } from "./kits.ts";
 import { FormAttach } from "./FormAttach.tsx";
@@ -14,7 +15,9 @@ import { SheetTools } from "./SheetTools.tsx";
 import { MergeNote } from "./CreateBook.tsx";
 import { TableTools } from "./TableTools.tsx";
 import { TopBar } from "./TopBar.tsx";
-import { WindowNav } from "./WindowNav.tsx";
+import { WindowNav, WindowStatus } from "./WindowNav.tsx";
+import { actsOverview } from "@idk/shared/acts/overview";
+import { todayIso } from "./today.ts";
 import { PANEL_SCREENS, readCompact, writeCompact } from "./compact.ts";
 import type { BridgeStatus } from "@idk/shared/bridge";
 import { NormativScreen } from "./NormativScreen.tsx";
@@ -99,6 +102,7 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
   const [creating, setCreating] = useState(false);
   const [screen, setScreen] = useState<ScreenId>(shell.initialScreen ?? "home");
   const [windowNote, setWindowNote] = useState("");
+  const [focusAct, setFocusAct] = useState<string | null>(null);
   const openWindowAt = (s: ScreenId) => {
     setWindowNote("");
     shell.onOpenWindow?.(s).catch((e: Error) => setWindowNote(e.message));
@@ -241,6 +245,12 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
     },
   };
   const { book, selection } = state;
+  // 0.40: сводка для боковой панели и строки состояния окна (готовность актов, комплекты, объект, шифр).
+  const navSummary = useMemo(() => {
+    if (!win || !book) return null;
+    const kits = new Set((book.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean)).size;
+    return { acts: actsOverview(book, state.important, todayIso()), kits };
+  }, [win, book, state.important]);
   const active = selection ? sectionForSheet(selection.sheet) : null;
   const allMissing = !!book && book.missing.length === TABLE_NAMES.length;
   // Список «ВидыРабот» на листе «Списки»: при загрузке справочника, смене шаблона и после «Обновить разметку».
@@ -260,16 +270,7 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
             <CatalogContext.Provider value={catalog}>
               <div className={win ? "app app-window" : "app"}>
                 {win ? (
-                  <WindowNav
-                    screen={screen}
-                    onScreen={setScreen}
-                    template={template}
-                    templates={list}
-                    onTemplate={chooseTemplate}
-                    link={shell.link}
-                    onBook={shell.onBook}
-                    file={shell.file}
-                  />
+                  <WindowNav screen={screen} onScreen={setScreen} link={shell.link} onBook={shell.onBook} file={shell.file} summary={navSummary} />
                 ) : (
                   <TopBar
                     screen={screen}
@@ -328,9 +329,13 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
                       state={state}
                       bookName={shell.link?.books.find((b) => b.panel === shell.link?.active)?.name}
                       onScreen={setScreen}
+                      onAct={(a) => {
+                        setFocusAct(a);
+                        setScreen("acts");
+                      }}
                     />
                   ) : screen === "acts" ? (
-                    <ActsScreen port={port} state={state} />
+                    <ActsScreen port={port} state={state} focus={focusAct} onScreen={setScreen} />
                   ) : screen === "delivery" ? (
                     <DeliveryScreen port={port} state={state} wide={win} />
                   ) : screen === "normativ" ? (
@@ -388,6 +393,17 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
                     </>
                   )}
                 </div>
+                {win && (
+                  <WindowStatus
+                    book={shell.link?.books.find((b) => b.panel === shell.link?.active)?.name ?? ""}
+                    object={book ? cellText(book.object.name) : ""}
+                    code={book ? cellText((book.tables["Шифры"] ?? [])[0]?.v.code ?? null) : ""}
+                    template={template}
+                    templates={list}
+                    onTemplate={chooseTemplate}
+                    serverDown={serverDown}
+                  />
+                )}
               </div>
             </CatalogContext.Provider>
           </PrintOptionsContext.Provider>

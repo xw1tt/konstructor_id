@@ -41,3 +41,12 @@ test("статус: готовый акт, акт без обязательны�
   assert.equal(filterActs(list, { query: "аов1", status: "all", workKind: "Кабельные линии" }).length, 2);
   assert.equal(filterActs(list, { query: "нет такого", status: "all", workKind: "" }).length, 0);
 });
+
+test("короткие номера актов — без общего начала по разделителю", async () => {
+  const { shortNumbers } = await import("@idk/shared/acts/overview");
+  const m = shortNumbers(["К32.В.СТ.АОВ1.01.00.1", "К32.В.СТ.АОВ1.01.00.2", "К32.В.СТ.АОВ1.01.00.10"]);
+  assert.deepEqual([...m.values()], ["1", "2", "10"]);
+  assert.deepEqual([...shortNumbers(["7.1", "7.2", "8"]).values()], ["7.1", "7.2", "8"]);
+  assert.deepEqual([...shortNumbers(["12", "13"]).values()], ["12", "13"]);
+  assert.deepEqual([...shortNumbers(["АКТ-1"]).values()], ["АКТ-1"]);
+});

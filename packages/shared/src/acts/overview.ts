@@ -17,6 +17,8 @@ export interface ActOverview {
   dates: string;
   /** ISO-дата начала работ (для сортировки), "" — нет. */
   start: string;
+  /** ISO-дата окончания работ, "" — нет. */
+  end: string;
   kits: string[];
   workKinds: string[];
   status: ActStatus;
@@ -69,6 +71,7 @@ export function actsOverview(book: Book, important: ImportantMap, today: string)
       works: cellText(r.v.works),
       dates: actDates(start, end),
       start,
+      end,
       kits: kitsOf.get(number) ?? [],
       workKinds: splitRefs(r.v.workKinds),
       status,
@@ -104,4 +107,25 @@ export function filterActs(list: ActOverview[], f: ActFilter): ActOverview[] {
       (!f.workKind || a.workKinds.includes(f.workKind)) &&
       (!q || a.number.toLowerCase().includes(q) || a.works.toLowerCase().includes(q) || a.kits.some((k) => k.toLowerCase().includes(q))),
   );
+}
+
+/**
+ * 0.40: короткие номера актов для таблиц и мозаики — без общего начала всех номеров книги
+ * («К32.В.СТ.АОВ1.01.00.1», «…00.2» → «1», «2»). Общее начало обрезается по последнему разделителю (. - / пробел).
+ */
+export function shortNumbers(numbers: string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  if (numbers.length < 2) {
+    for (const n of numbers) out.set(n, n);
+    return out;
+  }
+  let p = numbers[0];
+  for (const n of numbers) {
+    let i = 0;
+    while (i < p.length && i < n.length && p[i] === n[i]) i++;
+    p = p.slice(0, i);
+  }
+  const cut = Math.max(p.lastIndexOf("."), p.lastIndexOf("-"), p.lastIndexOf("/"), p.lastIndexOf(" ")) + 1;
+  for (const n of numbers) out.set(n, cut > 0 && n.length > cut ? n.slice(cut) : n);
+  return out;
 }

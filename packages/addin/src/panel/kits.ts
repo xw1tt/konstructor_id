@@ -77,15 +77,27 @@ export interface FormApi {
   text(templateId: string, token: string): Promise<{ text: string }>;
   fields(bundle: unknown, templateId: string): Promise<{ values: Record<string, string>; lists: Record<string, Record<string, string>[]> }>;
   pairs(templateId: string, token: string, replacements: { text: string; field: string }[]): Promise<{ applied: number; missing: string[] }>;
+  /** 0.34.2: текст файла как есть (Word, Excel, PDF). */
+  extract?(file: FormFile): Promise<{ text: string; pages: number | null }>;
 }
 export const formApi: FormApi = {
   markup: (id, bundle, f) => apiSend("POST", `/api/templates/${id}/markup`, { bundle, file: f.base64, name: f.name }),
   text: (id, token) => apiGet(`/api/templates/${id}/markup/${token}/text`),
   fields: (bundle, template) => apiSend("POST", "/api/form-fields", { bundle, template }),
   pairs: (id, token, replacements) => apiSend("POST", `/api/templates/${id}/markup/${token}/pairs`, { replacements }),
+  extract: (f) => apiSend("POST", "/api/ai/extract", { file: f.base64, name: f.name }),
 };
 
+/** Сколько знаков текста приложенного файла отдаётся модели. */
+const FILE_TEXT_LIMIT = 30000;
+
 export const FORM_TOOLS: ToolDef[] = [
+  {
+    name: "read_file",
+    description:
+      "Текст приложенного пользователем файла как есть (Word, Excel), без разметки. Нужен, чтобы перенести данные из документа в книгу (объект, организации, представители, шифр, акт, материалы) — например, когда книга пустая или акта, по которому заполнен файл, в книге ещё нет.",
+    parameters: { type: "object", properties: {} },
+  },
   {
     name: "read_form",
     description:
@@ -148,17 +160,31 @@ export class FormKit implements ToolKit {
   }
 
   async exec(call: ToolCall, ctx: ToolContext): Promise<string | null> {
+    if (call.name === "read_file") {
+      if (!this.file) return json({ error: "Пользователь не приложил файл — попроси приложить .docx или .xlsx кнопкой «Файл формы»" });
+      const api = this.api.extract ?? formApi.extract!;
+      const r = await api(this.file);
+      const cut = r.text.length > FILE_TEXT_LIMIT;
+      return json({
+        name: this.file.name,
+        text: ctx.mask.mask(cut ? r.text.slice(0, FILE_TEXT_LIMIT) : r.text),
+        ...(cut ? { note: `Показаны первые ${FILE_TEXT_LIMIT} знаков` } : {}),
+      });
+    }
     if (call.name === "read_form") {
       if (!this.file) return json({ error: "Пользователь не приложил файл формы — попроси приложить .docx или .xlsx кнопкой «Файл формы»" });
       const act = String(call.arguments?.act ?? "").trim() || this.deps.act() || "";
-      if (!act) return json({ error: "Не указан акт, по которому заполнен файл" });
+      // 0.34.2: акта нет (книга пустая) — модель может прочитать файл и сначала перенести данные в книгу.
+      const noAct =
+        "Сначала прочитай файл (read_file) и предложи перенести его данные в книгу (propose_add_rows / propose_update): «Объект», «Организации», «Представители», «Шифры», «Акты», «Материалы»; после применения — read_form с номером нового акта.";
+      if (!act) return json({ error: `Не указан акт, по которому заполнен файл, а в книге его нет. ${noAct}` });
       const { bundle, issues } = buildBundle(ctx.book, act, ctx.important);
       if (!bundle)
         return json({
           error: `Акт «${act}» не готов: ${issues
             .slice(0, 3)
             .map((i) => `${i.table} «${i.column}»: ${i.message}`)
-            .join("; ")}`,
+            .join("; ")}. ${noAct}`,
         });
       const tid = this.deps.templateId();
       const m = await this.api.markup(tid, bundle, this.file);

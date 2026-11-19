@@ -133,3 +133,31 @@ test("формы: без файла — ошибка; read_form → места, 
   await s.revert();
   assert.equal(kit.ready, null);
 });
+
+test("0.34.2: пустая книга — read_form подсказывает read_file; read_file отдаёт текст приложенного файла", async () => {
+  const wb = new MemoryWorkbook({} as any);
+  const api: FormApi = {
+    markup: async () => {
+      throw new Error("не должна вызываться");
+    },
+    text: async () => ({ text: "" }),
+    fields: async () => ({ values: {}, lists: {} }),
+    pairs: async () => ({ applied: 0, missing: [] }),
+    extract: async (f) => ({ text: `АКТ освидетельствования скрытых работ № 7 (${f.name})`, pages: null }),
+  };
+  const kit = new FormKit({ api, templateId: () => "t-1", act: () => null });
+  kit.attach({ name: "АОСР.docx", base64: "AAAA" });
+  const queue: ChatReply[] = [reply("", [{ name: "read_form", arguments: {} }]), reply("", [{ name: "read_file", arguments: {} }]), reply("Готово.")];
+  const s = new AssistantSession({ store: wb, chat: async () => queue.shift()!, kits: [kit] });
+  await s.ask("Заполни книгу по файлу", {
+    book: await readBook(wb),
+    important: defaultImportant(),
+    catalog: null,
+    template: BUILTIN_SBD,
+    masked: false,
+    prompt: { today: "19.11.2026" },
+  });
+  const tools = s.history.filter((m) => m.role === "tool").map((m) => String(m.content));
+  assert.match(tools[0], /в книге его нет.*read_file/);
+  assert.match(tools[1], /АКТ освидетельствования скрытых работ № 7 \(АОСР\.docx\)/);
+});

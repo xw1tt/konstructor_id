@@ -68,6 +68,8 @@ export function toolLabel(c: ToolCall): string {
       return "Готовлю дополнение справочника";
     case "read_form":
       return "Размечаю приложенную форму";
+    case "read_file":
+      return "Читаю приложенный файл";
     case "propose_form":
       return "Готовлю метки формы";
     default:

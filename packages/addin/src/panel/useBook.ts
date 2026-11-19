@@ -7,7 +7,7 @@ import type { TableData } from "@idk/shared/workbook/store";
 import type { Book } from "@idk/shared/workbook/records";
 import { BookCache } from "./bookCache.ts";
 import { loadImportant, type ImportantMap } from "@idk/shared/workbook/important";
-import type { ChangeEvent, ExcelPort, Selection } from "../book/excelPort.ts";
+import type { ChangeEvent, BookPort, Selection } from "../book/bookPort.ts";
 import { tablesOnSheet } from "./tableTools.ts";
 
 export interface BookState {
@@ -35,7 +35,7 @@ export const VERSION_SETTING = "idk.version";
 /** Книга размечена прежней версией программы (нет отметки — тоже прежняя: отметку пишет «Создать/Обновить разметку»). */
 export const isOutdated = (v: string | null) => v !== null && Number(v) < SCHEMA_VERSION;
 
-export function useBook(port: ExcelPort): BookState {
+export function useBook(port: BookPort): BookState {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [table, setTable] = useState<TableData | null>(null);
   const [book, setBook] = useState<Book | null>(null);

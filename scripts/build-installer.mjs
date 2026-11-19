@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const nodeExe = process.argv[2];
-const version = process.argv[3] ?? "0.35.1";
+const version = process.argv[3] ?? "0.36";
 if (!nodeExe || !existsSync(nodeExe)) {
   console.error("Укажите путь к node.exe для Windows (Node.js 22.13 или новее).");
   process.exit(1);
@@ -91,6 +91,12 @@ for (const f of ["start-server.vbs", "restart-server.vbs"]) {
   writeFileSync(p, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(readFileSync(p, "utf8").replace(/\r?\n/g, "\r\n"), "utf16le")]));
 }
 writeFileSync(join(payload, "VERSION"), version);
+// 0.36: окно программы (WebView2) — KonstruktorID.exe; зависимости — в installer/window/vendor (сборка без сети).
+execFileSync("go", ["build", "-trimpath", "-ldflags", `-H windowsgui -s -w`, "-o", join(payload, "KonstruktorID.exe"), "."], {
+  cwd: join(root, "installer", "window"),
+  stdio: "inherit",
+  env: { ...process.env, GOOS: "windows", GOARCH: "amd64", CGO_ENABLED: "0", GOFLAGS: "-mod=vendor", GOPROXY: "off" },
+});
 // Бот Телеграма для «Сообщить о проблеме» (0.29.3): токен и чат — из переменных при сборке, в репозитории их нет.
 if (process.env.IDK_TG_TOKEN && process.env.IDK_TG_CHAT) {
   writeFileSync(join(payload, "telegram.json"), JSON.stringify({ token: process.env.IDK_TG_TOKEN, chatId: process.env.IDK_TG_CHAT }));

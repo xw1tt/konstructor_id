@@ -7,7 +7,7 @@ import { cellText } from "@idk/shared/workbook/values";
 import { QUALITY_DOC_LABELS, QUALITY_DOC_TYPES } from "@idk/shared/roles";
 import { DOC_SLOTS } from "@idk/shared/workbook/schema";
 import { docMaterials } from "@idk/shared/acts/actMaterials";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import type { BookState } from "../useBook.ts";
 import { docsOfMaterial } from "./summaries.ts";
 import { apiUpload, apiSend } from "../../api.ts";
@@ -41,7 +41,7 @@ const empty = () => ({
   also: [] as string[],
 });
 
-export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: BookState; name: string }) {
+export function MaterialExtras({ port, state, name }: { port: BookPort; state: BookState; name: string }) {
   const [error, setError] = useState("");
   const [form, setForm] = useState<ReturnType<typeof empty> | null>(null);
   const [link, setLink] = useState(false);

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ROLE_CODES, type RoleCode } from "@idk/shared/roles";
 import { roleFromBook, ROLE_BOOK_LABELS } from "@idk/shared/workbook/schema";
 import { cellText, joinRefs, parseDateCell, splitRefs } from "@idk/shared/workbook/values";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import type { BookState } from "../useBook.ts";
 
 const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
@@ -19,7 +19,7 @@ interface Person {
   active: boolean;
 }
 
-export function ActSigners({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
+export function ActSigners({ port, state, act }: { port: BookPort; state: BookState; act: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);

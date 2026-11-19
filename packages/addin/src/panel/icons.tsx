@@ -134,3 +134,23 @@ export const BookIcon = () => (
     <path d="M4 9h16M4 15h16M10 3v18" />
   </svg>
 );
+/** 0.36: «Открыть в окне». */
+export const WindowIcon = () => (
+  <svg {...S} width={16} height={16}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 9h18M13 13h5v4" />
+  </svg>
+);
+/** 0.36: шаблоны и поля в боковой панели окна. */
+export const TemplateIcon = () => (
+  <svg {...S} width={16} height={16}>
+    <path d="M6 3h9l4 4v14H6z" />
+    <path d="M14 3v5h5M9 13h7M9 17h5" />
+  </svg>
+);
+export const FieldsIcon = () => (
+  <svg {...S} width={16} height={16}>
+    <path d="M4 6h16M4 12h10M4 18h7" />
+    <path d="M17 15l3 3-3 3" />
+  </svg>
+);

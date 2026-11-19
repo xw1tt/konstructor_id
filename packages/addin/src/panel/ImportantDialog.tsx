@@ -2,10 +2,10 @@
 import { useState } from "react";
 import { TABLES, type TableName } from "@idk/shared/workbook/schema";
 import { loadImportant, saveImportant } from "@idk/shared/workbook/important";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { BookPort } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 
-export function ImportantDialog({ port, state, table, onClose }: { port: ExcelPort; state: BookState; table: TableName; onClose: () => void }) {
+export function ImportantDialog({ port, state, table, onClose }: { port: BookPort; state: BookState; table: TableName; onClose: () => void }) {
   const cols = TABLES[table].columns.filter((c) => c.type !== "formula");
   const [checked, setChecked] = useState<Set<string>>(new Set(state.important[table] ?? []));
   const [busy, setBusy] = useState(false);

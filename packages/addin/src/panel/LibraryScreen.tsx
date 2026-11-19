@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { LIB_KINDS, LIB_LABELS, type LibKind, type LibRecord } from "@idk/shared/library/model";
 import { cellText } from "@idk/shared/workbook/values";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { BookPort } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 import { libraryApi } from "./libraryApi.ts";
 import { addToBook, loadAll } from "./library.ts";
@@ -22,7 +22,7 @@ const line = (r: LibRecord): [string, string] => {
   }
 };
 
-export function LibraryScreen({ port, state }: { port: ExcelPort; state: BookState }) {
+export function LibraryScreen({ port, state }: { port: BookPort; state: BookState }) {
   const [kind, setKind] = useState<LibKind>("material");
   const [q, setQ] = useState("");
   const [items, setItems] = useState<LibRecord[] | null>(null);

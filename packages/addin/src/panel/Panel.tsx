@@ -6,7 +6,7 @@ import { FormAttach } from "./FormAttach.tsx";
 import { NEEDED_SHEETS_SETTING, neededSheetsOn, sheetPlan } from "@idk/shared/workbook/sheets";
 import { loadTemplate, saveTemplate, DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "@idk/shared/templates";
 import { TABLE_NAMES, type TableName } from "@idk/shared/workbook/schema";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { BookPort } from "../book/bookPort.ts";
 import { ServerDownContext } from "../server.tsx";
 import { SECTIONS, sectionForSheet } from "./sections.ts";
 import { useBook, type BookState } from "./useBook.ts";
@@ -14,6 +14,8 @@ import { SheetTools } from "./SheetTools.tsx";
 import { MergeNote } from "./CreateBook.tsx";
 import { TableTools } from "./TableTools.tsx";
 import { TopBar } from "./TopBar.tsx";
+import { WindowNav } from "./WindowNav.tsx";
+import type { BridgeStatus } from "@idk/shared/bridge";
 import { NormativScreen } from "./NormativScreen.tsx";
 import { AssistantScreen } from "./AssistantScreen.tsx";
 import { SettingsScreen } from "./SettingsScreen.tsx";
@@ -46,7 +48,18 @@ export interface PanelSlots {
   onRowsAdded?: (state: BookState, table: TableName, first: number, n: number) => Promise<void>;
 }
 
-export function Panel({ port, slots = {} }: { port: ExcelPort; slots?: PanelSlots }) {
+/** 0.36: где показаны экраны — в панели Excel (верхняя строка) или в окне программы (боковая панель). */
+export interface PanelShell {
+  layout?: "panel" | "window";
+  initialScreen?: ScreenId;
+  /** Панель: «Открыть в окне» с текущим экраном. */
+  onOpenWindow?: (screen: ScreenId) => Promise<void>;
+  /** Окно: книги, открытые в Excel, и выбор книги. */
+  link?: BridgeStatus | null;
+  onBook?: (panel: string) => void;
+}
+
+export function Panel({ port, slots = {}, shell = {} }: { port: BookPort; slots?: PanelSlots; shell?: PanelShell }) {
   const host = port.host();
   if (host !== "ok") {
     return (
@@ -60,7 +73,7 @@ export function Panel({ port, slots = {} }: { port: ExcelPort; slots?: PanelSlot
       </div>
     );
   }
-  return <Supported port={port} slots={slots} />;
+  return <Supported port={port} slots={slots} shell={shell} />;
 }
 
 function Header() {
@@ -71,14 +84,22 @@ function Header() {
   );
 }
 
-function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
+function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; shell: PanelShell }) {
+  const win = shell.layout === "window";
   const state = useBook(port);
   // Итог переноса книги до 0.27 (план 31) — пока пользователь не закроет. 0.31: состояние было объявлено в Panel,
   // а использовалось здесь — закрытие заметки падало с ReferenceError.
   const [, setMergeShown] = useState(0);
   const [serverDown, setServerDown] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [screen, setScreen] = useState<ScreenId>("home");
+  const [screen, setScreen] = useState<ScreenId>(shell.initialScreen ?? "home");
+  const [windowNote, setWindowNote] = useState("");
+  const openWindow = shell.onOpenWindow
+    ? () => {
+        setWindowNote("");
+        shell.onOpenWindow!(screen).catch((e: Error) => setWindowNote(e.message));
+      }
+    : undefined;
   const [template, setTemplate] = useState<TemplateCode>(DEFAULT_TEMPLATE);
   useEffect(() => {
     void loadTemplate(port)
@@ -225,95 +246,117 @@ function Supported({ port, slots }: { port: ExcelPort; slots: PanelSlots }) {
         <UserTemplateContext.Provider value={templates}>
           <PrintOptionsContext.Provider value={options}>
             <CatalogContext.Provider value={catalog}>
-              <div className="app">
-                <TopBar screen={screen} onScreen={setScreen} template={template} templates={list} onTemplate={chooseTemplate} />
-                {serverDown && (
-                  <div className="banner" role="alert">
-                    <p>Сервер не запущен: листы работают, печать и сканы недоступны. Запустите «Конструктор ИД» на компьютере.</p>
-                    <button className="btn" onClick={() => setServerDown(false)}>
-                      Скрыть
-                    </button>
-                  </div>
-                )}
-                {state.error && (
-                  <p className="error" role="alert">
-                    {state.error}
-                  </p>
-                )}
-                {screen === "templates" ? (
-                  <TemplateEditor state={state} onChoose={chooseTemplate} />
-                ) : screen === "fields" ? (
-                  <FieldsScreen state={state} />
-                ) : screen === "library" ? (
-                  <LibraryScreen port={port} state={state} />
-                ) : screen === "wizard" ? (
-                  <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
-                ) : screen === "settings" ? (
-                  <SettingsScreen state={state} assistant={assistant} />
-                ) : screen === "assistant" ? (
-                  <AssistantScreen
-                    port={port}
-                    state={state}
-                    session={assistant}
-                    onSettings={() => setScreen("settings")}
-                    extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />}
+              <div className={win ? "app app-window" : "app"}>
+                {win ? (
+                  <WindowNav
+                    screen={screen}
+                    onScreen={setScreen}
+                    template={template}
+                    templates={list}
+                    onTemplate={chooseTemplate}
+                    link={shell.link}
+                    onBook={shell.onBook}
                   />
-                ) : screen === "delivery" ? (
-                  <DeliveryScreen port={port} state={state} />
-                ) : screen === "normativ" ? (
-                  <NormativScreen port={port} />
-                ) : !book ? (
-                  <p className="notice">Читаю книгу…</p>
-                ) : allMissing || creating ? (
-                  slots.create?.(state, book.missing, flow)
                 ) : (
-                  <>
-                    <nav className="stamp" role="tablist" aria-label="Разделы">
-                      {SECTIONS.map((s) => (
-                        <button
-                          key={s.id}
-                          role="tab"
-                          aria-selected={s.id === active}
-                          title={s.label}
-                          aria-label={s.label}
-                          onClick={() => void port.activateSheet(s.sheets[0])}
-                        >
-                          <SectionIcon id={s.id} />
-                          <span className="st-label">{s.label}</span>
-                        </button>
-                      ))}
-                    </nav>
-                    {(book.missing.length > 0 || state.outdated) && slots.create?.(state, book.missing, flow)}
-                    {port.lastMerge && (
-                      <MergeNote
-                        merge={port.lastMerge}
-                        onClose={() => {
-                          port.lastMerge = null;
-                          setMergeShown((n) => n + 1);
-                        }}
-                      />
-                    )}
-                    <main className="content">
-                      {/* Мастер первого акта (план 17): в книге без актов и на листе «База актов». */}
-                      {((book.tables["Акты"]?.length ?? 0) === 0 || selection?.sheet === "База актов") && !book.missing.includes("Акты") && (
-                        <div className={(book.tables["Акты"]?.length ?? 0) === 0 ? "banner wiz-banner" : "row-actions"}>
-                          {(book.tables["Акты"]?.length ?? 0) === 0 && <p>В книге ещё нет актов. Мастер проведёт от объекта до печати АОСР за 5 шагов.</p>}
-                          <button className="btn btn-primary" onClick={() => setScreen("wizard")}>
-                            Мастер первого акта
-                          </button>
-                        </div>
-                      )}
-                      <SheetTools
-                        port={port}
-                        state={state}
-                        needed={needed}
-                        onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))}
-                      />
-                      <TableTools port={port} state={state} />
-                      {slots.card?.(state)}
-                    </main>
-                  </>
+                  <TopBar screen={screen} onScreen={setScreen} template={template} templates={list} onTemplate={chooseTemplate} onWindow={openWindow} />
                 )}
+                <div className={win ? "win-main" : "app-main"}>
+                  {windowNote && (
+                    <div className="banner" role="alert">
+                      <p>{windowNote}</p>
+                      <button className="btn" onClick={() => setWindowNote("")}>
+                        Скрыть
+                      </button>
+                    </div>
+                  )}
+                  {serverDown && (
+                    <div className="banner" role="alert">
+                      <p>Сервер не запущен: листы работают, печать и сканы недоступны. Запустите «Конструктор ИД» на компьютере.</p>
+                      <button className="btn" onClick={() => setServerDown(false)}>
+                        Скрыть
+                      </button>
+                    </div>
+                  )}
+                  {state.error && (
+                    <p className="error" role="alert">
+                      {state.error}
+                    </p>
+                  )}
+                  {screen === "templates" ? (
+                    <TemplateEditor state={state} onChoose={chooseTemplate} />
+                  ) : screen === "fields" ? (
+                    <FieldsScreen state={state} />
+                  ) : screen === "library" ? (
+                    <LibraryScreen port={port} state={state} />
+                  ) : screen === "wizard" ? (
+                    <WizardScreen port={port} state={state} onClose={() => setScreen("home")} />
+                  ) : screen === "settings" ? (
+                    <SettingsScreen state={state} assistant={assistant} />
+                  ) : screen === "assistant" ? (
+                    <AssistantScreen
+                      port={port}
+                      state={state}
+                      session={assistant}
+                      onSettings={() => setScreen("settings")}
+                      extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />}
+                    />
+                  ) : screen === "delivery" ? (
+                    <DeliveryScreen port={port} state={state} />
+                  ) : screen === "normativ" ? (
+                    <NormativScreen port={port} />
+                  ) : !book ? (
+                    <p className="notice">Читаю книгу…</p>
+                  ) : allMissing || creating ? (
+                    slots.create?.(state, book.missing, flow)
+                  ) : (
+                    <>
+                      <nav className="stamp" role="tablist" aria-label="Разделы">
+                        {SECTIONS.map((s) => (
+                          <button
+                            key={s.id}
+                            role="tab"
+                            aria-selected={s.id === active}
+                            title={s.label}
+                            aria-label={s.label}
+                            onClick={() => void port.activateSheet(s.sheets[0])}
+                          >
+                            <SectionIcon id={s.id} />
+                            <span className="st-label">{s.label}</span>
+                          </button>
+                        ))}
+                      </nav>
+                      {(book.missing.length > 0 || state.outdated) && slots.create?.(state, book.missing, flow)}
+                      {port.lastMerge && (
+                        <MergeNote
+                          merge={port.lastMerge}
+                          onClose={() => {
+                            port.lastMerge = null;
+                            setMergeShown((n) => n + 1);
+                          }}
+                        />
+                      )}
+                      <main className="content">
+                        {/* Мастер первого акта (план 17): в книге без актов и на листе «База актов». */}
+                        {((book.tables["Акты"]?.length ?? 0) === 0 || selection?.sheet === "База актов") && !book.missing.includes("Акты") && (
+                          <div className={(book.tables["Акты"]?.length ?? 0) === 0 ? "banner wiz-banner" : "row-actions"}>
+                            {(book.tables["Акты"]?.length ?? 0) === 0 && <p>В книге ещё нет актов. Мастер проведёт от объекта до печати АОСР за 5 шагов.</p>}
+                            <button className="btn btn-primary" onClick={() => setScreen("wizard")}>
+                              Мастер первого акта
+                            </button>
+                          </div>
+                        )}
+                        <SheetTools
+                          port={port}
+                          state={state}
+                          needed={needed}
+                          onRowsAdded={slots.onRowsAdded && ((t, f, n) => slots.onRowsAdded!(state, t, f, n))}
+                        />
+                        <TableTools port={port} state={state} />
+                        {slots.card?.(state)}
+                      </main>
+                    </>
+                  )}
+                </div>
               </div>
             </CatalogContext.Provider>
           </PrintOptionsContext.Provider>

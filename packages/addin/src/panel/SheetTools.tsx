@@ -5,12 +5,12 @@ import { tableRows, type RowsTarget } from "@idk/shared/workbook/store";
 import { addRows, duplicateRow, moveRow, deleteRows } from "@idk/shared/workbook/rowOps";
 import { findReferences } from "@idk/shared/workbook/refs";
 import { cellText } from "@idk/shared/workbook/values";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { BookPort } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 import { ImportantDialog } from "./ImportantDialog.tsx";
 
 interface Props {
-  port: ExcelPort;
+  port: BookPort;
   state: BookState;
   /** Вызывается после добавления строк в таблицу (значения новой строки по умолчанию). */
   onRowsAdded?: (table: TableName, first: number, n: number) => Promise<void>;

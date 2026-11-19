@@ -5,7 +5,7 @@ import { TABLES, OBJECT_FIELDS, SHEETS, isObjectFieldRequired, keyColumn, column
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
 import { findReferences, renameKey, type RefHit } from "@idk/shared/workbook/refs";
 import type { Book } from "@idk/shared/workbook/records";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import { apiUpload } from "../../api.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
@@ -50,7 +50,7 @@ const keysOf = (book: Book | null, t: TableName) => {
 
 const renameText = (hits: RefHit[]) => `Обновить ссылки: ${hits.length} строк на ${new Set(hits.map((h) => h.table)).size} листах?`;
 
-export function CardArea({ port, state }: { port: ExcelPort; state: BookState }) {
+export function CardArea({ port, state }: { port: BookPort; state: BookState }) {
   const [pending, setPending] = useState<PendingRename | null>(null);
   const [message, setMessage] = useState("");
 
@@ -123,7 +123,7 @@ export function CardArea({ port, state }: { port: ExcelPort; state: BookState })
 /** Столбцы группы «Док.N» таблицы «Материалы» (план 31). */
 const isSlotColumn = (table: TableName, key: string) => table === "Материалы" && /^d\d/.test(key);
 
-function RowCard({ port, state, onRename }: { port: ExcelPort; state: BookState; onRename: (p: PendingRename) => void }) {
+function RowCard({ port, state, onRename }: { port: BookPort; state: BookState; onRename: (p: PendingRename) => void }) {
   const guard = useGuard();
   const catalog = useContext(CatalogContext);
   const { template } = useContext(UserTemplateContext);

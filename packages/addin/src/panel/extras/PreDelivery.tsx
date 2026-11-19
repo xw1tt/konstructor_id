@@ -2,7 +2,7 @@
 // Только предупреждения — печать и сборку не блокирует. Щелчок по строке — к ячейке книги.
 import { useEffect, useState } from "react";
 import { checkActs, warningsText } from "@idk/shared/check/predelivery";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import type { BookState } from "../useBook.ts";
 import { sheetIssueLines, type IssueLine } from "../print.ts";
 import { IssueList } from "./IssueList.tsx";
@@ -13,7 +13,7 @@ const today = () => {
 };
 
 /** trigger — 0.32: проверка запускается сама, когда число меняется (печать акта, сборка комплекта). */
-export function PreDelivery({ port, state, acts, what, trigger = 0 }: { port: ExcelPort; state: BookState; acts: string[]; what: string; trigger?: number }) {
+export function PreDelivery({ port, state, acts, what, trigger = 0 }: { port: BookPort; state: BookState; acts: string[]; what: string; trigger?: number }) {
   const [lines, setLines] = useState<IssueLine[] | null>(null);
   const [busy, setBusy] = useState(false);
   const key = acts.join("\n");

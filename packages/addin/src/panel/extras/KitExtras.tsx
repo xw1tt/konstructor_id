@@ -5,7 +5,7 @@ import type { Issue } from "@idk/shared/workbook/bundle";
 import { cellText } from "@idk/shared/workbook/values";
 import { kitActs, syncRegistry } from "@idk/shared/kit/registry";
 import { readBook, type Book } from "@idk/shared/workbook/records";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../templateContext.ts";
@@ -28,7 +28,7 @@ function openPreview(url: string) {
   }
 }
 
-export function KitExtras({ port, state, kit }: { port: ExcelPort; state: BookState; kit: string }) {
+export function KitExtras({ port, state, kit }: { port: BookPort; state: BookState; kit: string }) {
   const guard = useGuard();
   const template = useContext(TemplateContext);
   const tplState = useContext(UserTemplateContext);

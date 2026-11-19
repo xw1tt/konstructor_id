@@ -1,6 +1,6 @@
 // «Функционал таблицы»: столбцы таблицы; клик ставит курсор в ячейку столбца на текущей строке.
 import type { TableName } from "@idk/shared/workbook/schema";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { BookPort } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 import { columnStatus, tablesOnSheet } from "./tableTools.ts";
 import { useState } from "react";
@@ -8,7 +8,7 @@ import { libKindOf } from "@idk/shared/library/model";
 import { libraryApi } from "./libraryApi.ts";
 import { sendToLibrary } from "./library.ts";
 
-export function TableTools({ port, state }: { port: ExcelPort; state: BookState }) {
+export function TableTools({ port, state }: { port: BookPort; state: BookState }) {
   const { selection: s, table } = state;
   const [lib, setLib] = useState<{ busy: boolean; note: string; error: string }>({ busy: false, note: "", error: "" });
   if (!s || !table) return null;

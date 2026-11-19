@@ -1,14 +1,14 @@
 // План 12, задача 7: блок «Полнота» карточки акта — какие документы нужны акту (по «Виду работ») и что из них есть.
 import { useContext, useState } from "react";
 import { actDocs, completeness, docCode, type Status } from "@idk/shared/catalog/need";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import type { BookState } from "../useBook.ts";
 import { UserTemplateContext } from "../templateContext.ts";
 import { CatalogContext, skipDoc, statusText } from "../catalogApi.ts";
 
 const MARK: Record<Status, string> = { print: "✓", scan: "✓", noScan: "✗", noForm: "✗", noData: "✗" };
 
-export function Completeness({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
+export function Completeness({ port, state, act }: { port: BookPort; state: BookState; act: string }) {
   const catalog = useContext(CatalogContext);
   const { template } = useContext(UserTemplateContext);
   const [error, setError] = useState("");

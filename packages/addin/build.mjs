@@ -12,7 +12,12 @@ const manifestVersion = (readFileSync(join(here, "manifest.xml"), "utf8").match(
 const out = join(here, "dist");
 mkdirSync(out, { recursive: true });
 await build({
-  entryPoints: { main: join(here, "src/main.tsx"), preview: join(here, "src/preview.ts"), portal: join(here, "src/portal.ts") },
+  entryPoints: {
+    main: join(here, "src/main.tsx"),
+    window: join(here, "src/window.tsx"),
+    preview: join(here, "src/preview.ts"),
+    portal: join(here, "src/portal.ts"),
+  },
   bundle: true,
   outdir: out,
   format: "iife",
@@ -23,6 +28,7 @@ await build({
   define: { "process.env.NODE_ENV": '"production"', __PANEL_VERSION__: JSON.stringify(manifestVersion) },
   logLevel: "warning",
 });
-for (const f of ["index.html", "preview.html", "portal.html", "styles.css", "assets"]) cpSync(join(here, "src", f), join(out, f), { recursive: true });
+for (const f of ["index.html", "window.html", "preview.html", "portal.html", "styles.css", "assets"])
+  cpSync(join(here, "src", f), join(out, f), { recursive: true });
 cpSync(join(here, "manifest.xml"), join(out, "manifest.xml"));
 console.log("Панель собрана:", out);

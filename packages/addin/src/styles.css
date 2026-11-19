@@ -1336,3 +1336,193 @@ a.btn {
 .confirm-float p {
   margin-bottom: 6px;
 }
+
+/* ---------- 0.36: «Открыть в окне» и окно программы ---------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.win-body {
+  background: #f4f6f9;
+  font-family: "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+}
+.app-window {
+  flex-direction: row;
+  height: 100vh;
+  min-height: 0;
+  background: #f4f6f9;
+}
+.wn {
+  flex: none;
+  width: 236px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 12px;
+  background: var(--paper);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+.wn-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+}
+.wn-logo {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.wn-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+.wn-cap {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.wn-book {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.wn-book strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.wn-linked {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ok);
+  font-size: 12px;
+}
+.wn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+.wn-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wn-sep {
+  margin: 12px 8px 4px;
+}
+.wn-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.wn-item:hover {
+  background: var(--surface);
+}
+.wn-active,
+.wn-active:hover {
+  background: var(--blue-weak);
+  color: var(--blue);
+}
+.wn-tpl {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wn select,
+.wn-tpl select {
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  font: inherit;
+}
+.win-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 18px 28px 28px;
+  display: flex;
+  flex-direction: column;
+}
+.win-main > * {
+  width: 100%;
+  max-width: 1080px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.win-main > .content {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.win-wait {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.win-wait-card {
+  max-width: 460px;
+  padding: 28px 32px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  text-align: center;
+}
+.win-wait-card h1 {
+  font-size: 20px;
+  margin: 12px 0 8px;
+}
+.win-wait-card .wn-logo {
+  width: 44px;
+  height: 44px;
+  font-size: 17px;
+  border-radius: 11px;
+}
+.win-main > .stamp {
+  margin-bottom: 14px;
+  background: var(--paper);
+}
+.win-main > .content {
+  flex: none;
+}

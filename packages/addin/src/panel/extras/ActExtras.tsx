@@ -2,7 +2,7 @@
 import { useContext, useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
 import type { PrintKind } from "@idk/shared/acts/schemas";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { actSummary } from "./summaries.ts";
@@ -26,7 +26,7 @@ const LINKED: { table: TableName; label: string; key: "schemes" | "materials" | 
   { table: "ВОР", label: "ВОР", key: "vor" },
 ];
 
-export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
+export function ActExtras({ port, state, act }: { port: BookPort; state: BookState; act: string }) {
   const guard = useGuard();
   const template = useContext(TemplateContext);
   const options = useContext(PrintOptionsContext);

@@ -1,7 +1,7 @@
 // План 19: «Помощник» — чат с нейросетью; правки книги — карточкой «Предлагаемые изменения» с подтверждением и отменой.
 import { useContext, useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { resolveProvider, type Provider, type ProviderPublic } from "@idk/shared/ai/model";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { BookPort } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 import { UserTemplateContext } from "./templateContext.ts";
 import { CatalogContext } from "./catalogApi.ts";
@@ -17,7 +17,7 @@ export function AssistantScreen({
   onSettings,
   extra,
 }: {
-  port: ExcelPort;
+  port: BookPort;
   state: BookState;
   session: AssistantSession;
   onSettings(): void;

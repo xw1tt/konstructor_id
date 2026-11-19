@@ -5,7 +5,7 @@ import { readBook } from "@idk/shared/workbook/records";
 import type { RkcItem } from "@idk/shared/spec/rkc";
 import { specClosed, positionOfMaterial, closedReport, CLOSED_SHEET } from "@idk/shared/spec/closed";
 import { matchSpec, applyMatches, type SpecMatch } from "@idk/shared/spec/match";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import { apiGet, apiUploadRkc } from "../../api.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
@@ -19,7 +19,7 @@ interface Parsed {
 }
 
 /** Экран «Материалы»: загрузка РКЦ (позиции — в строки материалов, план 31) и лист «Закрытие по актам». */
-export function SpecExtras({ port, state }: { port: ExcelPort; state: BookState }) {
+export function SpecExtras({ port, state }: { port: BookPort; state: BookState }) {
   const guard = useGuard();
   const [upload, setUpload] = useState<{ id: string; sheets: string[]; sheet: string } | null>(null);
   const [parsed, setParsed] = useState<Parsed | null>(null);
@@ -187,7 +187,7 @@ export function SpecPositionCard({ state, number, material }: { state: BookState
 }
 
 /** «Подобрать № п/п» на экране «Материалы». */
-export function SpecMatchTool({ port, state }: { port: ExcelPort; state: BookState }) {
+export function SpecMatchTool({ port, state }: { port: BookPort; state: BookState }) {
   const [list, setList] = useState<SpecMatch[] | null>(null);
   const [note, setNote] = useState<Note>(null);
   if (!state.book?.tables["Спецификация"]?.length) return null;

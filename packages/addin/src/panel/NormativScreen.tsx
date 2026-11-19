@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NORM_SECTIONS, statusTone, type NormItem, type NormSearchResult, type NormSection, type RefreshState } from "@idk/shared/normCatalog";
 import { formatDateShort } from "@idk/shared/acts/format";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { BookPort } from "../book/bookPort.ts";
 import { apiGet, apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
 import { openPortal } from "./portal.ts";
@@ -27,7 +27,7 @@ const lastUpdated = (u: NormSearchResult["updated"]) => {
   return all.length ? all.sort().at(-1)!.slice(0, 10) : null;
 };
 
-export function NormativScreen({ port }: { port: ExcelPort }) {
+export function NormativScreen({ port }: { port: BookPort }) {
   // useGuard возвращает новую функцию на каждой отрисовке — держим стабильную обёртку для эффектов.
   const guardNow = useGuard();
   const guardRef = useRef(guardNow);

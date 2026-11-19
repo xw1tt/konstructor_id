@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { QUALITY_DOC_LABELS, QUALITY_DOC_TYPES } from "@idk/shared/roles";
 import type { DocFields } from "@idk/shared/scan/docText";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import type { BookState } from "../useBook.ts";
 import { apiUpload, apiSend } from "../../api.ts";
 import { searchOptions } from "../card/search.ts";
@@ -52,7 +52,7 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-export function ScanImport({ port, state }: { port: ExcelPort; state: BookState }) {
+export function ScanImport({ port, state }: { port: BookPort; state: BookState }) {
   const [items, setItems] = useState<Item[]>([]);
   const [busy, setBusy] = useState(false);
   if (!state.book) return null;

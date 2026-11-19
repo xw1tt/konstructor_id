@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cellText } from "@idk/shared/workbook/values";
 import { actMaterialRows, describeActMaterials, planActMaterials, type ActMaterialPick } from "@idk/shared/acts/actMaterials";
 import { applyChanges } from "@idk/shared/ai/changes";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import type { BookState } from "../useBook.ts";
 
 interface Line {
@@ -20,7 +20,7 @@ const qty = (s: string): number | null => {
   return t && Number.isFinite(Number(t)) ? Number(t) : null;
 };
 
-export function ActMaterials({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
+export function ActMaterials({ port, state, act }: { port: BookPort; state: BookState; act: string }) {
   const book = state.book!;
   const initial = useMemo((): Line[] => {
     const cur = actMaterialRows(book, act);

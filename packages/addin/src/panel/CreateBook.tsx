@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
 import { writeBook } from "@idk/shared/workbook/write";
 import { loadImportant } from "@idk/shared/workbook/important";
-import type { ExcelPort, MergeReport } from "../book/excelPort.ts";
+import type { BookPort, MergeReport } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 import type { CreateFlow } from "./Panel.tsx";
 import { exampleRows } from "@idk/shared/workbook/examples";
@@ -13,7 +13,7 @@ type Step = { kind: "idle" } | { kind: "busy"; text: string } | { kind: "done"; 
 /** 0.32: разметка обновляется сама, один раз за сеанс панели (не вышло — кнопка для повтора). */
 let autoTried = false;
 
-export function CreateBook({ port, state, missing, full, flow }: { port: ExcelPort; state: BookState; missing: TableName[]; full: boolean; flow: CreateFlow }) {
+export function CreateBook({ port, state, missing, full, flow }: { port: BookPort; state: BookState; missing: TableName[]; full: boolean; flow: CreateFlow }) {
   // Полное создание держит экран открытым до конца (flow); восстановление разметки — нет.
   const [step, setStep] = useState<Step>({ kind: "idle" });
   const [error, setError] = useState("");

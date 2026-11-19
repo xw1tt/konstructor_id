@@ -46,6 +46,9 @@ jobs:
       - name: Тесты установщика (разбор реестра, версии)
         working-directory: installer
         run: go test ./...
+      - name: Тесты окна программы
+        working-directory: installer/window
+        run: go test -mod=vendor ./... && GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go vet -mod=vendor ./...
 
   installer:
     name: Установщик

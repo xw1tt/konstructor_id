@@ -37,6 +37,7 @@ var version = "dev"
 
 const (
 	appName   = "Конструктор ИД"
+	windowExe = "KonstruktorID.exe" // окно программы (0.36)
 	regUninst = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\KonstruktorID`
 	regRun    = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 	// Каталог надстроек в общей папке — для корпоративного Office (LTSC 2019/2021/2024), который не подхватывает
@@ -114,6 +115,8 @@ func paths() dirs {
 }
 
 func stopServer(d dirs) {
+	// 0.36: окно программы держит KonstruktorID.exe — без закрытия его не перезаписать.
+	_ = hidden("taskkill.exe", "/F", "/IM", windowExe).Run()
 	script := filepath.Join(d.install, "stop-server.ps1")
 	if _, err := os.Stat(script); err == nil {
 		_ = hidden("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script).Run()
@@ -185,13 +188,31 @@ func certTrusted(thumb string) bool {
 }
 
 func shortcut(link, target, args, dir, desc string) error {
+	return iconShortcut(link, target, args, dir, desc, "")
+}
+
+// iconShortcut — ярлык со своей иконкой (окно программы, 0.36).
+func iconShortcut(link, target, args, dir, desc, icon string) error {
 	_ = os.MkdirAll(filepath.Dir(link), 0o755)
-	out, err := ps(fmt.Sprintf(`[Console]::OutputEncoding = [Text.Encoding]::UTF8; $ErrorActionPreference = 'Stop'; $s = (New-Object -ComObject WScript.Shell).CreateShortcut(%s); $s.TargetPath = %s; $s.Arguments = %s; $s.WorkingDirectory = %s; $s.Description = %s; $s.Save()`,
-		psq(link), psq(target), psq(args), psq(dir), psq(desc)))
+	setIcon := ""
+	if icon != "" {
+		setIcon = "$s.IconLocation = " + psq(icon+",0") + "; "
+	}
+	out, err := ps(fmt.Sprintf(`[Console]::OutputEncoding = [Text.Encoding]::UTF8; $ErrorActionPreference = 'Stop'; $s = (New-Object -ComObject WScript.Shell).CreateShortcut(%s); $s.TargetPath = %s; $s.Arguments = %s; $s.WorkingDirectory = %s; $s.Description = %s; %s$s.Save()`,
+		psq(link), psq(target), psq(args), psq(dir), psq(desc), setIcon))
 	if err != nil && out != "" {
 		return fmt.Errorf("%v: %s", err, out)
 	}
 	return err
+}
+
+// desktop — папка «Рабочий стол» (бывает перенесена в OneDrive — берётся у Windows).
+func desktop() string {
+	out, err := ps(`[Console]::OutputEncoding = [Text.Encoding]::UTF8; [Environment]::GetFolderPath('Desktop')`)
+	if err != nil || out == "" {
+		return filepath.Join(os.Getenv("USERPROFILE"), "Desktop")
+	}
+	return out
 }
 
 func reg(args ...string) error {
@@ -309,6 +330,10 @@ func install() {
 	_ = os.MkdirAll(d.menu, 0o755)
 	_ = shortcut(filepath.Join(d.menu, "Перезапустить сервер.lnk"), wscript, `"`+filepath.Join(d.install, "restart-server.vbs")+`"`, d.install, "Перезапуск сервера Конструктора ИД")
 	_ = shortcut(filepath.Join(d.menu, "Папка данных.lnk"), d.data, "", d.data, "Сканы, справочник, резервные копии, журнал сервера")
+	// 0.36: окно программы — ярлыки в меню «Пуск» и на рабочем столе.
+	win, ico := filepath.Join(d.install, windowExe), filepath.Join(d.install, "app.ico")
+	_ = iconShortcut(filepath.Join(d.menu, appName+".lnk"), win, "", d.install, "Окно программы: книга, печать и сдача, помощник, шаблоны", ico)
+	_ = iconShortcut(filepath.Join(desktop(), appName+".lnk"), win, "", d.install, "Окно программы: книга, печать и сдача, помощник, шаблоны", ico)
 	_ = shortcut(filepath.Join(d.menu, "Удалить Конструктор ИД.lnk"), filepath.Join(d.install, "uninstall.exe"), "/uninstall", d.install, "Удаление программы")
 	for k, v := range map[string]string{
 		"DisplayName": appName, "DisplayVersion": version, "Publisher": appName, "InstallLocation": d.install,
@@ -338,7 +363,7 @@ func install() {
 		msg(fmt.Sprintf("Программа установлена, но сервер не ответил за 30 секунд.\n\nПерезагрузите компьютер или выберите в меню «Пуск» → «%s» → «Перезапустить сервер». Журнал сервера: %s%s", appName, filepath.Join(d.data, "server.log"), autostartWarn), mbOK|mbIconWarn)
 		return
 	}
-	steps := "1. Закройте Excel, если он открыт, и откройте снова.\n2. На вкладке «Главная» нажмите кнопку «Конструктор ИД» — справа откроется панель."
+	steps := "1. Закройте Excel, если он открыт, и откройте снова.\n2. На вкладке «Главная» нажмите кнопку «Конструктор ИД» — справа откроется панель.\n3. Большое окно программы — ярлык «Конструктор ИД» на рабочем столе или кнопка «Открыть в окне» в панели."
 	if catalogNote != "" {
 		steps = catalogNote
 	}
@@ -359,6 +384,7 @@ func uninstall() {
 	_ = os.Remove(filepath.Join(d.startup, appName+".lnk"))
 	_ = reg("delete", regRun, "/v", appName, "/f")
 	_ = os.RemoveAll(d.menu)
+	_ = os.Remove(filepath.Join(desktop(), appName+".lnk"))
 	if thumb, err := thumbprint(filepath.Join(d.data, "tls", "ca.pem")); err == nil && certTrusted(thumb) {
 		if msg("Удалить и сертификат «Konstruktor ID Local CA»? Windows попросит подтвердить.", mbYesNo|mbIconQ) == idYes {
 			_ = interactive("certutil.exe", "-user", "-delstore", "Root", thumb).Run()

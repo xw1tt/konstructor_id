@@ -21,6 +21,8 @@ import { aiRoutes } from "./routes/ai.ts";
 import { AiStore } from "./ai/store.ts";
 import { reportRoutes } from "./routes/report.ts";
 import { scanRoutes } from "./routes/scan.ts";
+import { bridgeRoutes } from "./routes/bridge.ts";
+import { defaultWindowLauncher } from "./window.ts";
 import type { OcrRunner } from "./scan/read.ts";
 import type { Post } from "./ai/providers.ts";
 import type { RetryDeps } from "./ai/retry.ts";
@@ -50,6 +52,10 @@ export interface AppOptions {
   ocrRunner?: OcrRunner;
   /** Для тестов: бот Телеграма для отчётов (null — не отправлять; по умолчанию — telegram.json установщика). */
   telegram?: import("./diag/telegram.ts").TgConfig | null;
+  /** 0.36: запуск окна программы (по умолчанию — KonstruktorID.exe рядом с папкой node установленной программы). */
+  openWindow?: ((screen: string | undefined) => Promise<void>) | null;
+  /** 0.36: сколько ждать ответа панели Excel на вызов окна. */
+  bridgeTimeoutMs?: number;
   /** Папка копий отчётов «Сообщить о проблеме» (по умолчанию «Документы\Конструктор ИД — отчёты»). */
   reportsDir?: string;
 }
@@ -74,6 +80,7 @@ export function createApp(opts: AppOptions) {
   aiRoutes(api, ai, { post: opts.aiPost, retry: opts.aiRetry });
   scanRoutes(api, opts.db, opts.dataDir, ai, { ocr: opts.ocrRunner, post: opts.aiPost });
   reportRoutes(api, { dataDir: opts.dataDir, templates, ai, reportsDir: opts.reportsDir, telegram: opts.telegram, fetchImpl: opts.fetchImpl });
+  bridgeRoutes(api, { timeoutMs: opts.bridgeTimeoutMs, openWindow: opts.openWindow === undefined ? defaultWindowLauncher() : opts.openWindow });
   libraryRoutes(api, new LibraryStore(opts.dataDir), opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {

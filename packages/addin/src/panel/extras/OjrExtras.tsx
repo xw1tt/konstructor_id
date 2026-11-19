@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
 import { ojrPrintRequest, syncOjr } from "@idk/shared/ojr";
 import { readBook } from "@idk/shared/workbook/records";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import { apiSend } from "../../api.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
@@ -21,7 +21,7 @@ function openPreview(url: string) {
   }
 }
 
-export function OjrExtras({ port, state }: { port: ExcelPort; state: BookState }) {
+export function OjrExtras({ port, state }: { port: BookPort; state: BookState }) {
   const guard = useGuard();
   const [busy, setBusy] = useState(false);
   const [lines, setLines] = useState<IssueLine[]>([]);

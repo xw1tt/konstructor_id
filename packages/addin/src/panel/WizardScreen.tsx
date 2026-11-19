@@ -8,7 +8,7 @@ import { readBook } from "@idk/shared/workbook/records";
 import { cellText } from "@idk/shared/workbook/values";
 import type { LibRecord } from "@idk/shared/library/model";
 import type { Issue } from "@idk/shared/workbook/bundle";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { BookPort } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 import { libraryApi } from "./libraryApi.ts";
 import { createAct } from "./wizard.ts";
@@ -29,7 +29,7 @@ function F({ label, err, children }: { label: string; err?: string; children: Re
   );
 }
 
-export function WizardScreen({ port, state, onClose }: { port: ExcelPort; state: BookState; onClose(): void }) {
+export function WizardScreen({ port, state, onClose }: { port: BookPort; state: BookState; onClose(): void }) {
   const [d, setD] = useState<WizardData>(emptyWizard);
   const [step, setStep] = useState(0);
   const [errs, setErrs] = useState<Record<string, string>>({});

@@ -2,13 +2,13 @@
 // одним PDF), общий реестр, ОЖР, проверка перед сдачей по всем актам. Раньше это было разбросано по карточкам строк.
 import { useEffect, useState } from "react";
 import { cellText } from "@idk/shared/workbook/values";
-import type { ExcelPort } from "../book/excelPort.ts";
+import type { BookPort } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 import { KitExtras } from "./extras/KitExtras.tsx";
 import { OjrExtras } from "./extras/OjrExtras.tsx";
 import { PreDelivery } from "./extras/PreDelivery.tsx";
 
-export function DeliveryScreen({ port, state }: { port: ExcelPort; state: BookState }) {
+export function DeliveryScreen({ port, state }: { port: BookPort; state: BookState }) {
   const book = state.book;
   const kits = [...new Set((book?.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean))];
   const [kit, setKit] = useState("");

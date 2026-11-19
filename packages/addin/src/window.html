@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Конструктор ИД</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="win-body">
+    <div id="root"><p class="banner" id="boot">Загрузка окна «Конструктор ИД»…</p></div>
+    <script>
+      window.addEventListener(
+        "error",
+        function (e) {
+          var b = document.getElementById("boot");
+          if (b) b.textContent = "Окно не запустилось: " + (e.message || (e.target && e.target.src ? "не загружен " + e.target.src : "ошибка"));
+        },
+        true,
+      );
+    </script>
+    <script src="window.js"></script>
+  </body>
+</html>

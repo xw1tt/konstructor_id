@@ -4,7 +4,7 @@ import { cellText, isoToExcelSerial, splitRefs } from "@idk/shared/workbook/valu
 import { newQualityDoc, docMaterials } from "@idk/shared/acts/actMaterials";
 import { flat } from "@idk/shared/scan/match";
 import { isBlankNumber } from "@idk/shared/workbook/virtual";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 
 export interface NewDoc {
   type: string;
@@ -24,7 +24,7 @@ export const numKey = (s: string) =>
     .replace(/^\s*(№|n|no\.?)\s*/i, "")
     .replace(/[\s№]/g, "");
 
-export async function addQualityDoc(port: ExcelPort, d: NewDoc): Promise<string> {
+export async function addQualityDoc(port: BookPort, d: NewDoc): Promise<string> {
   const materials = [...new Set(d.materials.map((m) => m.trim()).filter(Boolean))];
   if (!materials.length) throw new Error("Отметьте материалы, к которым относится документ");
   if (!d.number.trim()) throw new Error("Укажите номер документа");

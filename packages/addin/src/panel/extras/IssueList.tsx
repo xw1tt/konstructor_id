@@ -1,8 +1,8 @@
 // Список ошибок проверки: каждая строка — ссылка на ячейку книги.
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import type { IssueLine } from "../print.ts";
 
-export function IssueList({ port, lines, title, tone }: { port: ExcelPort; lines: IssueLine[]; title: string; tone?: "warn" }) {
+export function IssueList({ port, lines, title, tone }: { port: BookPort; lines: IssueLine[]; title: string; tone?: "warn" }) {
   if (!lines.length) return null;
   return (
     <div className={"issues" + (tone === "warn" ? " issues-warn" : "")} role={tone === "warn" ? "status" : "alert"}>

@@ -1,11 +1,11 @@
 // Дополнение карточки кабельного журнала: итог длин по акту, переход на лист «Изоляция», сбор марок.
 import { useState } from "react";
 import { collectMarks } from "@idk/shared/workbook/cables";
-import type { ExcelPort } from "../../book/excelPort.ts";
+import type { BookPort } from "../../book/bookPort.ts";
 import type { BookState } from "../useBook.ts";
 import { cableTotal } from "./summaries.ts";
 
-export function CableExtras({ port, state, act }: { port: ExcelPort; state: BookState; act: string }) {
+export function CableExtras({ port, state, act }: { port: BookPort; state: BookState; act: string }) {
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);
   if (!state.book) return null;
   const collect = async () => {

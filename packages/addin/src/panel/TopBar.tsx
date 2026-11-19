@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { TemplateCode } from "@idk/shared/templates";
 import type { UserTemplate } from "@idk/shared/forms/template";
 import { MENU_SCREENS, type ScreenId } from "./screens.ts";
-import { BookIcon, ChevronIcon, GearIcon, PrintIcon, SparkIcon } from "./icons.tsx";
+import { BookIcon, ChevronIcon, GearIcon, PrintIcon, SparkIcon, WindowIcon } from "./icons.tsx";
 
 export function TopBar({
   screen,
@@ -12,12 +12,15 @@ export function TopBar({
   template,
   templates,
   onTemplate,
+  onWindow,
 }: {
   screen: ScreenId;
   onScreen(s: ScreenId): void;
   template: TemplateCode;
   templates: UserTemplate[];
   onTemplate(t: TemplateCode): void;
+  /** 0.36: «Открыть в окне» — тот же экран в отдельном окне программы. */
+  onWindow?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -60,6 +63,12 @@ export function TopBar({
         {tab("home", "Книга", <BookIcon />, " tb-home", "Книга: листы, акты, карточки строк")}
         {tab("delivery", "Печать и сдача", <PrintIcon />, "", "Комплекты, реестр, ОЖР, проверка перед сдачей")}
         {tab("assistant", "Помощник", <SparkIcon />, " tb-assistant")}
+        {onWindow && (
+          <button className="tb-btn tb-window" title="Открыть в окне: тот же экран в отдельном большом окне программы" onClick={onWindow}>
+            <WindowIcon />
+            <span className="sr-only">Открыть в окне</span>
+          </button>
+        )}
         <div className="tb-drop tb-drop-end" ref={box}>
           <button
             className={`tb-btn tb-settings${inMenu ? " tb-active" : ""}`}

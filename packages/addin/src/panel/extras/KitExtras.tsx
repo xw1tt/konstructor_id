@@ -18,7 +18,8 @@ import { PreDelivery } from "./PreDelivery.tsx";
 import { kitShortage, type Status } from "@idk/shared/catalog/need";
 import { CatalogContext, shortageText, statusText } from "../catalogApi.ts";
 
-export function KitExtras({ port, state, kit }: { port: BookPort; state: BookState; kit: string }) {
+/** 0.41: действия комплекта (сверка реестра, сборка, общий реестр, документы «на комплект») — для панели и окна. */
+export function useKit(port: BookPort, state: BookState, kit: string) {
   const guard = useGuard();
   const template = useContext(TemplateContext);
   const tplState = useContext(UserTemplateContext);
@@ -33,10 +34,9 @@ export function KitExtras({ port, state, kit }: { port: BookPort; state: BookSta
     setLines([]);
     setNote(null);
   }, [kit]);
-  if (!kit || !state.book) return null;
-  const count = kitRegistryCount(state.book, kit);
+  const count = state.book && kit ? kitRegistryCount(state.book, kit) : 0;
   // Сводка «не хватает документов» — предупреждение, сборку не блокирует.
-  const shortage: { act: string | null; label: string; status: Status }[] = catalog ? kitShortage(tpl, catalog, state.book, kit) : [];
+  const shortage: { act: string | null; label: string; status: Status }[] = catalog && state.book && kit ? kitShortage(tpl, catalog, state.book, kit) : [];
 
   const showIssues = async (issues: Issue[]) => {
     setLines(await sheetIssueLines(port, issues));
@@ -153,8 +153,15 @@ export function KitExtras({ port, state, kit }: { port: BookPort; state: BookSta
     }
     setBusy(null);
   };
-  const allKits = [...new Set((state.book.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean))];
+  const allKits = [...new Set((state.book?.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean))];
 
+  const check = () => setChecked((n) => n + 1);
+  return { busy, checked, lines, note, count, shortage, kitButtons, fill, build, common, print, allKits, check };
+}
+
+export function KitExtras({ port, state, kit }: { port: BookPort; state: BookState; kit: string }) {
+  const { busy, checked, lines, note, count, shortage, kitButtons, fill, build, common, print, allKits } = useKit(port, state, kit);
+  if (!kit || !state.book) return null;
   return (
     <div className="extras">
       <h3 className="tools-title">Комплект {kit}</h3>

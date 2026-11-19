@@ -10,8 +10,9 @@ import type { BookState } from "../useBook.ts";
 import { issueLines, openPreview, type IssueLine } from "../print.ts";
 import { previewUrl } from "../kit.ts";
 import { IssueList } from "./IssueList.tsx";
+import { IssueIcon } from "../IssueTable.tsx";
 
-export function OjrExtras({ port, state }: { port: BookPort; state: BookState }) {
+export function OjrExtras({ port, state, card = false }: { port: BookPort; state: BookState; card?: boolean }) {
   const guard = useGuard();
   const [busy, setBusy] = useState(false);
   const [lines, setLines] = useState<IssueLine[]>([]);
@@ -65,6 +66,38 @@ export function OjrExtras({ port, state }: { port: BookPort; state: BookState })
     }
   };
 
+  // 0.41: карточка в окне программы — коротко: дни журнала, разделы 3 и 5, обновление.
+  if (card) {
+    const days = new Set((state.book?.tables["ОЖР3"] ?? []).map((r) => String(r.v.date ?? "")).filter(Boolean)).size;
+    return (
+      <div className="jr">
+        <div className="jr-head">
+          <h3>Общий журнал работ</h3>
+          {days > 0 && <IssueIcon level="ok" />}
+        </div>
+        <p className="muted">
+          {days ? `${days} ${days % 10 === 1 && days % 100 !== 11 ? "день" : "дней"} · собирается из актов сам` : "собирается из актов сам"}
+        </p>
+        <div className="jr-actions">
+          <button className="btn" disabled={busy} onClick={() => void print(3)} title="Печать раздела 3 (по датам работ, без воскресений)">
+            Раздел 3
+          </button>
+          <button className="btn" disabled={busy} onClick={() => void print(5)} title="Печать раздела 5 (исполнительная документация)">
+            Раздел 5
+          </button>
+          <button className="btn btn-icon" disabled={busy} onClick={() => void update()} title="Обновить из актов (исправленные на листе условия сохраняются)">
+            {busy ? "…" : "⟳"}
+          </button>
+        </div>
+        <IssueList port={port} lines={lines} title="Не попали в журнал:" />
+        {note && (
+          <p className={note.error ? "error" : "notice"} role="status">
+            {note.text}
+          </p>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="extras">
       <h3 className="tools-title">Общий журнал работ</h3>

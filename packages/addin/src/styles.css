@@ -3037,3 +3037,320 @@ a.btn {
 .acts-head-actions .btn-link {
   font-size: 15px;
 }
+
+/* ---------- 0.41: «Печать и сдача» по макету ---------- */
+.win-body .dl2 {
+  max-width: 1700px;
+}
+.dl-check {
+  margin-bottom: 16px;
+}
+.dl2-grid {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
+}
+.dl2-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dl2-cap2 {
+  margin-top: 26px;
+}
+.dl2-kit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.dl2-kit strong {
+  font-family: var(--serif);
+  font-size: 21px;
+  font-weight: 600;
+}
+.dl2-kit span {
+  color: var(--ink-soft);
+}
+.dl2-kit-on {
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 0 var(--ink);
+}
+.dl2-kit .dl2-warn {
+  color: var(--warn);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dl2-new {
+  padding: 14px 20px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.dl2-new:hover {
+  border-color: var(--ink);
+}
+.dl2-card {
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+}
+.jr-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.jr-head h3,
+.dl2-card h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 21px;
+  font-weight: 600;
+}
+.dl2-card p,
+.jr p.muted {
+  margin: 6px 0 12px;
+}
+.jr-actions {
+  display: flex;
+  gap: 8px;
+}
+.dl2-loose {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.dl2-loose p {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.dl2-main {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-width: 0;
+}
+.dl2-empty {
+  padding: 40px;
+}
+.dl2-empty h3 {
+  font-family: var(--serif);
+  font-size: 26px;
+  margin: 0 0 8px;
+}
+.dl2-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 22px 28px 18px;
+}
+.dl2-head h2 {
+  margin: 8px 0 4px;
+  font-size: 38px;
+}
+.dl2-steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.dl2-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+.dl2-steps li + li {
+  border-left: 1px solid var(--line);
+}
+.dl2-steps b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+}
+.dl2-steps span {
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.dl2-num {
+  display: inline-grid !important;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--ink-soft);
+  border-radius: 50%;
+  font-size: 11px !important;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.dl2-pdf {
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.dl2-pdf-name {
+  margin-left: 12px;
+  font-family: var(--sans, inherit);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.dl2-sheets {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  overflow-x: auto;
+  padding: 14px 4px 6px;
+}
+.dl2-sheet {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.dl2-page {
+  position: relative;
+  width: 60px;
+  height: 84px;
+  border: 1px solid var(--line-strong);
+  background:
+    linear-gradient(var(--ink-soft), var(--ink-soft)) 50% 12px / 28px 2px no-repeat,
+    repeating-linear-gradient(#fff 0 8px, #d8d2c5 8px 9px) 50% 24px / 40px 48px no-repeat,
+    #fff;
+}
+.dl2-sheet-many .dl2-page {
+  box-shadow:
+    3px -3px 0 -1px #fff,
+    3px -3px 0 0 var(--line-strong),
+    6px -6px 0 -1px #fff,
+    6px -6px 0 0 var(--line-strong);
+}
+.dl2-sheet-wide .dl2-page {
+  width: 84px;
+  height: 60px;
+}
+.dl2-sheet-dark .dl2-page {
+  background:
+    linear-gradient(#fff, #fff) 50% 50% / 20px 2px no-repeat,
+    var(--ink);
+  border-color: var(--ink);
+}
+.dl2-sheet figcaption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+.dl2-sheet figcaption b {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.dl2-sheet figcaption .mono {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.dl2-divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--line-strong);
+  margin: 0 4px 40px;
+  flex: none;
+}
+.dl2-kitdocs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--line);
+}
+.dl2-msgs {
+  padding: 0 28px;
+}
+.dl2-msgs > * {
+  margin-top: 12px;
+}
+.dl2-reg header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 28px 10px;
+}
+.dl2-reg h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.dl2-reg sup {
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+.dl2-table {
+  width: calc(100% - 56px);
+  margin: 0 28px 24px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.dl2-table th {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--ink);
+}
+.dl2-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.dl2-table tbody tr {
+  cursor: pointer;
+}
+.dl2-table tbody tr:hover {
+  background: var(--surface);
+}
+.dl2-table .num {
+  text-align: right;
+}
+.dl2-pad {
+  padding: 0 28px 24px;
+}
+@media (max-width: 1300px) {
+  .dl2-grid {
+    grid-template-columns: 1fr;
+  }
+  .dl2-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -22,6 +22,7 @@ export const BRIDGE_METHODS = [
   "activateSheet",
   "filterBy",
   "tableSheetOffset",
+  "tableStartColumn",
   "setSheetsVisible",
   "physical",
   "isVirtual",

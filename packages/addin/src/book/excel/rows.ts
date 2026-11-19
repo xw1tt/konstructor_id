@@ -251,6 +251,15 @@ export async function clearFilters(name: TableName) {
   });
 }
 
+/** 0.44: номер столбца листа (с 0) первого столбца таблицы Excel — для адресов ячеек в карточке окна. */
+export async function tableStartColumn(name: TableName): Promise<number> {
+  return Excel.run(async (ctx: any) => {
+    const body = ctx.workbook.tables.getItem(name).getDataBodyRange().load("columnIndex");
+    await ctx.sync();
+    return body.columnIndex;
+  });
+}
+
 /** Номер строки листа (с 1) первой строки данных таблицы Excel. */
 export async function tableSheetOffset(name: TableName): Promise<number> {
   return Excel.run(async (ctx: any) => {

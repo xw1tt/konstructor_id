@@ -17,6 +17,8 @@ test("files: PDF из 3 страниц → pages 3", async () => {
   assert.equal(get.status, 200);
   assert.equal(get.headers.get("content-type"), "application/pdf");
   assert.equal((await get.arrayBuffer()).byteLength, f.size);
+  assert.deepEqual((await s.req("GET", `/api/files/${f.id}/pages`)).json, { pages: 3 });
+  assert.equal((await s.req("GET", "/api/files/999999/pages")).status, 404);
 });
 
 test("files: одинаковое содержимое → один файл", async () => {

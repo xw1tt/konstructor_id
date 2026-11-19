@@ -153,6 +153,9 @@ export class RemotePort implements BookPort {
   tableSheetOffset(table: TableName) {
     return this.c<number>("tableSheetOffset", table);
   }
+  tableStartColumn(table: TableName) {
+    return this.c<number>("tableStartColumn", table).catch(() => -1);
+  }
 
   async onSelection(cb: () => void) {
     this.events.selection.add(cb);

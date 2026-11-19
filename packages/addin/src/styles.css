@@ -4074,3 +4074,124 @@ a.btn {
   color: var(--ink-soft);
   margin-top: 4px;
 }
+.dl2-pdf-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+/* ---------- 0.44: группы полей, адреса ячеек, схемы, п. 4 ---------- */
+.field-star {
+  color: var(--danger);
+  font-weight: 700;
+}
+.field-label {
+  position: relative;
+}
+.win-body .field-addr {
+  float: right;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+}
+.fgroup {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.fgroup + .fgroup {
+  margin-top: 18px;
+}
+.fgroup legend,
+.bk-qty > .wn-cap,
+.bk-p4 > .wn-cap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 0 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.fgroup legend::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--line);
+}
+.fmore {
+  margin-top: 20px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  padding: 14px 18px;
+}
+.fmore summary {
+  cursor: pointer;
+  line-height: 1.45;
+}
+.fmore[open] summary {
+  margin-bottom: 12px;
+}
+.bk-scan {
+  height: 320px;
+  border: 1px solid var(--line);
+  background: #ebe7dd;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.bk-scan iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+.bk-scan img {
+  max-width: 100%;
+  max-height: 100%;
+}
+.bk-scan p {
+  padding: 20px;
+  text-align: center;
+}
+.ac-page-wide {
+  width: 78px;
+  height: 56px;
+}
+.ac-doc-on .ac-page {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.bk-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+}
+.bk-p4 {
+  padding: 4px 28px 22px;
+}
+.bk-p4 p {
+  margin: 0;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.bk-p4-mine {
+  color: var(--blue);
+  background: #e3e9fb;
+  font-weight: 600;
+}
+.bk-where {
+  padding: 12px 0 0;
+  border: 0;
+}

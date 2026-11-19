@@ -28,6 +28,8 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
   const catalog = useContext(CatalogContext);
   const [busy, setBusy] = useState<string | null>(null);
   const [checked, setChecked] = useState(0);
+  /** 0.44: точные листы комплекта после сборки или «Посчитать листы» (по строкам реестра). */
+  const [layout, setLayout] = useState<{ kit: string; front: number; docs: number[] } | null>(null);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null);
   useEffect(() => {
@@ -94,9 +96,9 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
   };
   const kitButtons = templateButtons(tpl, "kit");
 
-  const build = async () => {
-    setBusy("build");
-    setChecked((n) => n + 1);
+  const build = async (measureOnly = false) => {
+    setBusy(measureOnly ? "measure" : "build");
+    if (!measureOnly) setChecked((n) => n + 1);
     setLines([]);
     setNote(null);
     let synced: Awaited<ReturnType<typeof sync>>;
@@ -112,8 +114,12 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
     if (r?.kind === "issues") await showIssues(r.issues);
     if (r?.kind === "files") setLines(kitIssueLines(r.issues, await port.tableSheetOffset("РеестрИД").catch(() => undefined)));
     if (r?.kind === "ok") {
-      setNote({ text: `${synced.text ? synced.text + " " : ""}Комплект собран: ${r.name}, страниц ${r.pages}.` });
-      openPreview(previewUrl(`/api/kit-jobs/${r.id}`, location.origin));
+      if (r.layout) setLayout({ kit, ...r.layout });
+      if (measureOnly) setNote({ text: `${synced.text ? synced.text + " " : ""}Листы посчитаны по документам: всего ${r.pages}.` });
+      else {
+        setNote({ text: `${synced.text ? synced.text + " " : ""}Комплект собран: ${r.name}, страниц ${r.pages}.` });
+        openPreview(previewUrl(`/api/kit-jobs/${r.id}`, location.origin));
+      }
     }
     setBusy(null);
   };
@@ -156,7 +162,24 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
   const allKits = [...new Set((state.book?.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean))];
 
   const check = () => setChecked((n) => n + 1);
-  return { busy, checked, lines, note, count, shortage, kitButtons, fill, build, common, print, allKits, check };
+  const measure = () => build(true);
+  return {
+    busy,
+    checked,
+    lines,
+    note,
+    count,
+    shortage,
+    kitButtons,
+    fill,
+    build: () => build(false),
+    common,
+    print,
+    allKits,
+    check,
+    measure,
+    layout: layout?.kit === kit ? layout : null,
+  };
 }
 
 export function KitExtras({ port, state, kit }: { port: BookPort; state: BookState; kit: string }) {

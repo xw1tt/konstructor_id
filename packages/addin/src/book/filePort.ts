@@ -96,6 +96,10 @@ export class FilePort implements BookPort {
   async tableSheetOffset() {
     return 2;
   }
+  /** Адреса ячеек в файле неизвестны. */
+  async tableStartColumn(_table?: TableName) {
+    return -1;
+  }
   async onSelection() {
     return async () => {};
   }

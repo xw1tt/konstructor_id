@@ -49,6 +49,7 @@ export function executor(port: ExcelPort): Record<BridgeMethod, Exec> {
     activateSheet: (s) => port.activateSheet(s),
     filterBy: (t, h, v) => port.filterBy(t, h, v),
     tableSheetOffset: (t) => port.tableSheetOffset(t),
+    tableStartColumn: (t) => port.tableStartColumn(t),
     setSheetsVisible: (v, h) => port.setSheetsVisible(v, h),
     physical: (n, r, h) => port.physical(n, r, h),
     isVirtual: (n) => port.isVirtual(n),

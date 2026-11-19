@@ -14,6 +14,8 @@ export interface FieldProps {
   error: string;
   onCommit: (input: string | string[]) => void;
   onUpload?: (file: File) => void;
+  /** 0.44: адрес ячейки на листе («A25») — в карточке окна программы. */
+  address?: string;
 }
 
 function useDraft(value: string) {
@@ -48,7 +50,8 @@ export function Field(p: FieldProps) {
     >
       <span className="field-label">
         {col.header}
-        {col.important ? " *" : ""}
+        {col.important ? <b className="field-star"> *</b> : ""}
+        {p.address && <span className="field-addr">{p.address}</span>}
       </span>
       <Input {...p} />
       {col.hint && <span className="field-hint">{col.hint}</span>}

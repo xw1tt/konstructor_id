@@ -43,7 +43,9 @@ export function kitIssueLines(issues: ServerKitIssue[], offset: number | undefin
 }
 
 export type KitOutcome =
-  { kind: "issues"; issues: Issue[] } | { kind: "files"; issues: ServerKitIssue[] } | { kind: "ok"; id: string; pages: number; name: string };
+  | { kind: "issues"; issues: Issue[] }
+  | { kind: "files"; issues: ServerKitIssue[] }
+  | { kind: "ok"; id: string; pages: number; name: string; layout?: { front: number; docs: number[] } };
 
 /** Проверяет комплект в книге и отправляет задание сборки на сервер. */
 export async function assembleKit(
@@ -65,7 +67,7 @@ export async function assembleKit(
   const data = await res.json().catch(() => null);
   if (res.status === 422 && Array.isArray(data?.issues)) return { kind: "files", issues: data.issues };
   if (!res.ok) throw new Error(data?.error ?? `Ошибка сервера (${res.status})`);
-  return { kind: "ok", id: data.id, pages: data.pages, name: data.name };
+  return { kind: "ok", id: data.id, pages: data.pages, name: data.name, layout: data.layout };
 }
 
 /** Комплекты книги по порядку таблицы «Комплекты», у которых есть строки реестра. */

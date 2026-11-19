@@ -13,7 +13,7 @@ import { cellText, parseDateCell, parseNumberCell } from "@idk/shared/workbook/v
 import type { BookPort } from "../book/bookPort.ts";
 import type { BookState } from "./useBook.ts";
 import type { ScreenId } from "./screens.ts";
-import { RowCard, effectiveColumn, keysOf, type PendingRename } from "./card/RowCard.tsx";
+import { RowCard, colLetter, effectiveColumn, keysOf, type PendingRename } from "./card/RowCard.tsx";
 import { Field } from "./card/fields.tsx";
 import { toCellFor } from "./card/editValue.ts";
 import { ImportantDialog } from "./ImportantDialog.tsx";
@@ -23,7 +23,8 @@ import { SpecExtras, SpecMatchTool } from "./extras/SpecExtras.tsx";
 import { OjrExtras } from "./extras/OjrExtras.tsx";
 import { PreDelivery } from "./extras/PreDelivery.tsx";
 import { PrintOptionsContext, TemplateContext } from "./templateContext.ts";
-import { previewJob } from "./print.ts";
+import { bundleFor, previewJob } from "./print.ts";
+import { point4Lines } from "@idk/shared/acts/rows";
 import { todayIso } from "./today.ts";
 import type { UserTemplate } from "@idk/shared/forms/template";
 
@@ -132,7 +133,7 @@ function rowView(table: TableName, r: BookRow, short: Map<string, string>): { ti
 }
 
 /** Карточка «Объект»: таблица «Поле — Значение» одной формой. */
-function ObjectCard({ port, state, data }: { port: BookPort; state: BookState; data: TableData }) {
+function ObjectCard({ port, state, data, origin }: { port: BookPort; state: BookState; data: TableData; origin?: { col: number; row: number } | null }) {
   const [errors, setErrors] = useState<Record<number, string>>({});
   const col = TABLES["Объект"].columns.find((c) => c.key === "value")!;
   const iField = data.headers.indexOf("Поле");
@@ -153,6 +154,7 @@ function ObjectCard({ port, state, data }: { port: BookPort; state: BookState; d
             }}
             value={row[iValue] ?? null}
             link={null}
+            address={origin ? colLetter(origin.col + iValue) + (origin.row + i) : undefined}
             options={c.ref ? keysOf(state.book, c.ref) : []}
             error={errors[i] ?? ""}
             onCommit={(v) => {
@@ -168,8 +170,47 @@ function ObjectCard({ port, state, data }: { port: BookPort; state: BookState; d
   );
 }
 
-/** «Так акт будет напечатан»: первая страница АОСР из книги (живой предпросмотр). */
-function ActPreview({ state, act }: { state: BookState; act: string }) {
+/** Подсветка значений карточки в предпросмотре (iframe того же сервера): текст значений — синим. */
+function highlight(doc: Document, marks: string[]) {
+  const list = [...new Set(marks.map((m) => m.trim()).filter((m) => m.length >= 3))].sort((a, b) => b.length - a.length);
+  if (!list.length || !doc.body) return;
+  if (!doc.getElementById("idk-hl")) {
+    const st = doc.createElement("style");
+    st.id = "idk-hl";
+    st.textContent = "mark.idk-hl{background:#e3e9fb;color:#2747a8;padding:0 1px;border-radius:2px}";
+    doc.head.appendChild(st);
+  }
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n as Text);
+  for (const node of nodes) {
+    const text = node.data;
+    const m = list.find((x) => text.includes(x));
+    if (!m || node.parentElement?.closest("mark")) continue;
+    const at = text.indexOf(m);
+    const mid = node.splitText(at);
+    mid.splitText(m.length);
+    const mark = doc.createElement("mark");
+    mark.className = "idk-hl";
+    mid.parentNode!.replaceChild(mark, mid);
+    mark.appendChild(mid);
+  }
+}
+
+/** Предпросмотр первой страницы АОСР акта из книги; значения карточки подсвечены. */
+function ActPreview({
+  state,
+  act,
+  title = "Так акт будет напечатан",
+  marks = [],
+  note: foot,
+}: {
+  state: BookState;
+  act: string;
+  title?: string;
+  marks?: string[];
+  note?: string;
+}) {
   const template = useContext(TemplateContext);
   const options = useContext(PrintOptionsContext);
   const [src, setSrc] = useState<string | null>(null);
@@ -192,14 +233,33 @@ function ActPreview({ state, act }: { state: BookState; act: string }) {
       clearTimeout(timer);
     };
   }, [state.book, act, template, options, state.important]);
+  const key = marks.join("\u0001");
   return (
     <section className="bk-side-card">
       <header>
-        <h3>Так акт будет напечатан</h3>
+        <h3>{title}</h3>
         <span className="muted">АОСР · л. 1</span>
       </header>
-      <div className="bk-sheet">{src ? <iframe title="Предпросмотр АОСР" src={src} /> : <p className="muted">{note || "Готовлю предпросмотр…"}</p>}</div>
-      <p className="muted">Поля этой карточки — в документе; пустая важная ячейка подсвечена розовым и в Excel, и здесь.</p>
+      <div className="bk-sheet">
+        {src ? (
+          <iframe
+            key={src + key}
+            title="Предпросмотр АОСР"
+            src={src}
+            onLoad={(e) => {
+              try {
+                const d = (e.target as HTMLIFrameElement).contentDocument;
+                if (d) highlight(d, marks);
+              } catch {
+                /* предпросмотр с другого адреса — без подсветки */
+              }
+            }}
+          />
+        ) : (
+          <p className="muted">{note || "Готовлю предпросмотр…"}</p>
+        )}
+      </div>
+      <p className="muted">{foot ?? "Синим — значения этой карточки; пустая важная ячейка подсвечена розовым и в Excel, и здесь."}</p>
     </section>
   );
 }
@@ -398,6 +458,170 @@ function RepTimeline({ book, rep }: { book: BookState["book"]; rep: BookRow }) {
   );
 }
 
+/** Значения строки для подсветки в предпросмотре: даты — ДД.ММ.ГГГГ, остальное — текстом. */
+function rowMarks(table: TableName, r: BookRow): string[] {
+  return TABLES[table].columns.flatMap((c) => {
+    const v = r.v[c.key];
+    if (c.type === "date") {
+      const p = parseDateCell(v ?? null);
+      if (!p.ok || !p.value) return [];
+      const [y, m, d] = p.value.split("-");
+      const GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+      return [`${d}.${m}.${y}`, `${Number(d)} ${GEN[Number(m) - 1]} ${y}`, `«${d}» ${GEN[Number(m) - 1]} ${y}`];
+    }
+    return cellText(v ?? null)
+      .split(/\s*;\s*/)
+      .filter((x) => x.length >= 3);
+  });
+}
+
+/** 0.44: скан схемы — PDF или картинка из «Скана» строки. */
+function ScanCard({ row, title }: { row: BookRow; title: string }) {
+  const url = row.link.file;
+  const name = t(row.v.file);
+  const isImg = /\.(png|jpe?g|gif|webp|bmp)$/i.test(name);
+  return (
+    <section className="bk-side-card">
+      <header>
+        <h3>{title}</h3>
+        <span className="muted">{name || "нет скана"}</span>
+      </header>
+      <div className="bk-scan">
+        {url ? (
+          isImg ? (
+            <img src={url} alt={name} />
+          ) : (
+            <iframe title={name} src={`${url}#toolbar=0&navpanes=0&view=Fit`} />
+          )
+        ) : (
+          <p className="muted">Скан не приложен — загрузите его в поле «Скан» карточки.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** 0.44: схемы акта листами и проверка схем книги. */
+function SchemesSide({ book, row, onPick, short }: { book: BookState["book"]; row: BookRow; onPick(r: number): void; short: Map<string, string> }) {
+  const all = book?.tables["Схемы"] ?? [];
+  const act = t(row.v.act);
+  const same = all.filter((r) => t(r.v.act) === act);
+  const actRow = (book?.tables["Акты"] ?? []).find((r) => t(r.v.baseNumber) === act);
+  const iso = (v: BookRow["v"][string]) => {
+    const p = parseDateCell(v ?? null);
+    return p.ok ? (p.value ?? "") : "";
+  };
+  const late = (r: BookRow) => {
+    const a = (book?.tables["Акты"] ?? []).find((x) => t(x.v.baseNumber) === t(r.v.act));
+    const d = iso(r.v.date),
+      ad = a ? iso(a.v.date) : "";
+    return !!d && !!ad && d > ad;
+  };
+  const noScan = all.filter((r) => !r.link.file && !t(r.v.file)).length;
+  const lateN = all.filter(late).length;
+  return (
+    <>
+      <section className="bk-side-card">
+        <header>
+          <span className="wn-cap">Схемы акта № {short.get(act) ?? act}</span>
+          {actRow && <span className="muted">{same.length}</span>}
+        </header>
+        <div className="ac-docs">
+          {same.map((r) => {
+            const st = !r.link.file && !t(r.v.file) ? "warn" : late(r) ? "warn" : "ok";
+            return (
+              <button key={r.row} className={`ac-doc ac-doc-${st}${r.row === row.row ? " ac-doc-on" : ""}`} onClick={() => onPick(r.row)} title={t(r.v.name)}>
+                <span className="ac-page ac-page-wide" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                  <b>{st === "ok" ? "✓" : "!"}</b>
+                </span>
+                <span className="ac-doc-label">№ {t(r.v.number) || "—"}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+      <section className="bk-side-card">
+        <span className="wn-cap">Проверка схем книги</span>
+        <p className="bk-check">
+          <IssueIcon level={noScan ? "warn" : "ok"} />
+          {noScan ? `Без скана: ${noScan} из ${all.length}` : `Сканы приложены ко всем ${all.length} схемам`}
+        </p>
+        <p className="bk-check">
+          <IssueIcon level={lateN ? "warn" : "ok"} />
+          {lateN
+            ? `${lateN} ${word(lateN, "схема датирована", "схемы датированы", "схем датированы")} позже своего акта`
+            : "Все схемы датированы не позже своих актов"}
+        </p>
+      </section>
+    </>
+  );
+}
+
+/** 0.44: как схема попадёт в п. 4 АОСР её акта — строки п. 4, текущая выделена. */
+function Point4({ state, row, short }: { state: BookState; row: BookRow; short: Map<string, string> }) {
+  const options = useContext(PrintOptionsContext);
+  const act = t(row.v.act);
+  if (!state.book || !act) return null;
+  const { bundle } = bundleFor(state.book, act, {}, "aosr", options);
+  // Акт пока не собирается — п. 4 по строкам «Схем» этого акта (как его соберёт печать).
+  const docs =
+    bundle?.documents ??
+    (state.book.tables["Схемы"] ?? [])
+      .filter((r) => t(r.v.act) === act)
+      .map((r, i) => {
+        const p = parseDateCell(r.v.date ?? null);
+        return {
+          kind: /схем/i.test(t(r.v.kind) || "схема") ? ("scheme" as const) : ("other" as const),
+          number: t(r.v.number),
+          name: t(r.v.name),
+          date: p.ok && p.value ? p.value : null,
+          fileId: null,
+          sortOrder: i,
+        };
+      });
+  const lines = point4Lines(docs as never, { schemeEach: options?.schemeEach });
+  const num = t(row.v.number);
+  const name = t(row.v.name);
+  return (
+    <section className="bk-p4">
+      <span className="wn-cap">Так в п. 4 акта № {short.get(act) ?? act}</span>
+      <p>
+        Предъявлены документы, подтверждающие соответствие работ предъявляемым к ним требованиям:{" "}
+        {lines.map((l, i) => {
+          const mine = (!!num && l.includes(num)) || (!!name && l.includes(name));
+          return (
+            <span key={i} className={mine ? "bk-p4-mine" : undefined}>
+              {l}{" "}
+            </span>
+          );
+        })}
+      </p>
+    </section>
+  );
+}
+
+/** 0.44: где печатаются реквизиты объекта. */
+function WherePrinted({ book }: { book: BookState["book"] }) {
+  const acts = (book?.tables["Акты"] ?? []).length;
+  return (
+    <section className="bk-side-card">
+      <span className="wn-cap">Где печатаются реквизиты</span>
+      <div className="ac-chips bk-where">
+        <span className="chip">
+          АОСР <span className="mono">{acts}</span>
+        </span>
+        <span className="chip">ВОР</span>
+        <span className="chip">Реестр ИД</span>
+        <span className="chip">Титул комплекта</span>
+        <span className="chip">ОЖР</span>
+      </div>
+    </section>
+  );
+}
+
 export function BookScreen({
   port,
   state,
@@ -424,6 +648,12 @@ export function BookScreen({
   const [important, setImportant] = useState<TableName | null>(null);
   const [rename, setRename] = useState<PendingRename | null>(null);
   const [checkAll, setCheckAll] = useState(0);
+  const printOptions = useContext(PrintOptionsContext);
+  // Для «Шапки каждого акта» — первый акт, который собирается (шапка у всех актов одна).
+  const headerAct = useMemo(() => {
+    const nums = (book.tables["Акты"] ?? []).map((r) => t(r.v.baseNumber)).filter(Boolean);
+    return nums.find((n) => !!bundleFor(book, n, {}, "aosr", printOptions).bundle) ?? nums[0] ?? null;
+  }, [book, printOptions]);
   const current = TABS.find((x) => x.id === tab);
   const short = useMemo(() => shortNumbers((book.tables["Акты"] ?? []).map((r) => t(r.v.baseNumber)).filter(Boolean)), [book]);
   const overview = useMemo(() => actsOverview(book, state.important, todayIso()), [book, state.important]);
@@ -490,6 +720,20 @@ export function BookScreen({
           : null
       : null);
   const selData = selected ? data.get(selected.table) : null;
+  // 0.44: адреса ячеек в карточке — первый столбец таблицы и строка листа первой строки данных.
+  const [origin, setOrigin] = useState<{ table: TableName; col: number; row: number } | null>(null);
+  const selTable = selected?.table ?? null;
+  useEffect(() => {
+    if (!selTable) return;
+    let alive = true;
+    void Promise.all([port.tableStartColumn(selTable), port.tableSheetOffset(selTable)])
+      .then(([col, row]) => alive && setOrigin({ table: selTable, col, row }))
+      .catch(() => alive && setOrigin(null));
+    return () => {
+      alive = false;
+    };
+  }, [port, selTable]);
+  const org = origin && origin.table === selTable && origin.col >= 0 ? { col: origin.col, row: origin.row } : null;
   const total = current ? current.tables.reduce((n, x) => n + (x === "Объект" ? 0 : rowsOf(x).length), 0) : 0;
 
   const run = async (f: () => Promise<void>) => {
@@ -878,12 +1122,18 @@ export function BookScreen({
                 </span>
                 <span className="muted mono bk-pos">{(book.tables["Объект"] ?? []).length} полей · таблица «Объект»</span>
               </header>
-              {selData && <ObjectCard port={port} state={state} data={selData} />}
+              {selData && <ObjectCard port={port} state={state} data={selData} origin={org} />}
             </>
           ) : view && selData ? (
             <>
               <header className="bk-card-head">
-                <h2 title={head?.title}>{selected!.table === "Акты" ? `Акт ${head?.title}` : head?.title || "Новая строка"}</h2>
+                <h2 title={head?.title}>
+                  {selected!.table === "Акты"
+                    ? `Акт ${head?.title}`
+                    : selected!.table === "Схемы"
+                      ? `${t(view.v.kind) || "Схема"} № ${t(view.v.number) || "—"}`
+                      : head?.title || "Новая строка"}
+                </h2>
                 {a && a.status !== "ready" && <span className={`acts-badge acts-${a.status}`}>{statusText(a)}</span>}
                 {!a && level === "critical" && <span className="acts-badge acts-blocked">пустые важные ячейки</span>}
                 <span className="muted mono bk-pos">
@@ -898,7 +1148,15 @@ export function BookScreen({
               </header>
               {selected!.table === "Материалы" && <MaterialQuantity book={book} material={view} short={short} />}
               {selected!.table === "Представители" && <RepTimeline book={book} rep={view} />}
-              <RowCard port={port} state={state} at={{ data: selData, row: selected!.row }} onRename={setRename} title={false} />
+              <RowCard
+                port={port}
+                state={state}
+                at={{ data: selData, row: selected!.row }}
+                onRename={setRename}
+                title={false}
+                layout={{ groups: true, origin: org }}
+              />
+              {selected!.table === "Схемы" && <Point4 state={state} row={view} short={short} />}
             </>
           ) : (
             <p className="notice bk-pad">{total ? "Выберите строку слева." : "На листе пока нет строк — «+ 1» добавит первую."}</p>
@@ -923,7 +1181,26 @@ export function BookScreen({
         </section>
 
         <aside className="bk-side">
-          {current.id === "acts" && view && <ActPreview state={state} act={t(view.v.baseNumber)} />}
+          {current.id === "acts" && view && <ActPreview state={state} act={t(view.v.baseNumber)} marks={rowMarks("Акты", view)} />}
+          {current.id === "requisites" && headerAct && (
+            <ActPreview
+              state={state}
+              act={headerAct}
+              title="Шапка каждого акта"
+              marks={[
+                ...(book.tables["Объект"] ?? []).map((r) => t(r.v.value)),
+                ...(view && selected?.table !== "Объект" ? rowMarks(selected!.table, view) : []),
+              ]}
+              note="Синим — значения реквизитов: объект, организации, шифры. Организации подтягиваются из «Организаций»."
+            />
+          )}
+          {current.id === "requisites" && <WherePrinted book={book} />}
+          {current.id === "schemes" && view && (
+            <>
+              <ScanCard row={view} title="Скан схемы" />
+              <SchemesSide book={book} row={view} short={short} onPick={(row) => setSel({ table: "Схемы", row })} />
+            </>
+          )}
           {current.id === "materials" && (
             <section className="bk-side-card bk-tools">
               <h3>Инструменты раздела</h3>

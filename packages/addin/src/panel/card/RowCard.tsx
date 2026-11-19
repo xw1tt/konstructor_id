@@ -121,6 +121,42 @@ export function CardArea({ port, state }: { port: BookPort; state: BookState }) 
   );
 }
 
+/** Буква столбца листа по номеру с 0: 0 → A, 26 → AA. */
+export function colLetter(n: number): string {
+  let s = "";
+  for (let x = n + 1; x > 0; x = Math.floor((x - 1) / 26)) s = String.fromCharCode(65 + ((x - 1) % 26)) + s;
+  return s;
+}
+
+/** 0.44: группы полей карточки в окне программы (по макетам); прочие поля — «Ещё N полей». */
+const FIELD_GROUPS: Partial<Record<TableName, { title: string; keys: string[] }[]>> = {
+  Акты: [
+    { title: "Основное", keys: ["baseNumber", "date", "section"] },
+    { title: "Работы", keys: ["works", "dateStart", "dateEnd", "sheets", "revision"] },
+    { title: "Требования и разрешение", keys: ["normative", "nextWorks"] },
+  ],
+  Представители: [
+    { title: "Представитель", keys: ["role", "org", "fullName", "position"] },
+    { title: "Полномочия", keys: ["authorityDoc", "nrsNumber", "nrsDate", "validFrom", "validTo"] },
+  ],
+  Материалы: [
+    { title: "Материал", keys: ["name", "mark", "article", "manufacturer", "unit"] },
+    { title: "Спецификация", keys: ["rkc", "section", "quantity"] },
+  ],
+  Схемы: [
+    { title: "Схема", keys: ["act", "kind", "number", "name", "date"] },
+    { title: "Скан", keys: ["file"] },
+  ],
+  Организации: [
+    { title: "Организация", keys: ["shortName", "fullName", "inn", "ogrn", "address", "phone"] },
+    { title: "СРО", keys: ["sroName", "sroOgrn", "sroInn"] },
+  ],
+  Комплекты: [
+    { title: "Комплект", keys: ["number", "section", "volume", "part", "building"] },
+    { title: "Титул и корешки", keys: ["works", "city", "year", "cover", "spine"] },
+  ],
+};
+
 /** Столбцы группы «Док.N» таблицы «Материалы» (план 31). */
 const isSlotColumn = (table: TableName, key: string) => table === "Материалы" && /^d\d/.test(key);
 
@@ -136,12 +172,15 @@ export function RowCard({
   onRename,
   at,
   title = true,
+  layout,
 }: {
   port: BookPort;
   state: BookState;
   onRename: (p: PendingRename) => void;
   at?: RowAt;
   title?: boolean;
+  /** 0.44: окно программы — поля группами по смыслу, остальные свёрнуты; адреса ячеек (первый столбец таблицы, строка листа). */
+  layout?: { groups: boolean; origin: { col: number; row: number } | null };
 }) {
   const guard = useGuard();
   const catalog = useContext(CatalogContext);
@@ -204,6 +243,9 @@ export function RowCard({
         error={errors[c.header] ?? ""}
         onCommit={(v) => void commit(col, v)}
         onUpload={c.type === "file" ? (f) => void upload(c, f) : undefined}
+        address={
+          layout?.origin && layout.origin.col >= 0 ? colLetter(layout.origin.col + t.headers.indexOf(c.header)) + (layout.origin.row + rowIdx) : undefined
+        }
       />
     );
   };
@@ -220,9 +262,48 @@ export function RowCard({
         </p>
       )}
       {/* 0.32: «Подписанты» акта — отдельным блоком с галочками (ActSigners), не текстовым полем. */}
-      <div className="form">
-        {TABLES[table].columns.filter((c) => !isSlotColumn(table, c.key) && !(table === "Акты" && c.key === "signers")).map((c) => renderField(c))}
-      </div>
+      {layout?.groups && FIELD_GROUPS[table] ? (
+        (() => {
+          const own = TABLES[table].columns.filter((c) => !isSlotColumn(table, c.key) && !(table === "Акты" && c.key === "signers"));
+          const used = new Set(FIELD_GROUPS[table]!.flatMap((g) => g.keys));
+          const rest = own.filter((c) => !used.has(c.key) && c.type !== "formula");
+          return (
+            <>
+              {FIELD_GROUPS[table]!.map((g) => (
+                <fieldset key={g.title} className="fgroup">
+                  <legend>{g.title}</legend>
+                  <div className="form">
+                    {g.keys
+                      .map((k) => own.find((c) => c.key === k))
+                      .filter((c): c is ColumnDef => !!c)
+                      .map((c) => renderField(c))}
+                  </div>
+                </fieldset>
+              ))}
+              {rest.length > 0 && (
+                <details className="fmore">
+                  <summary>
+                    <b>
+                      Ещё {rest.length}{" "}
+                      {rest.length % 10 === 1 && rest.length % 100 !== 11
+                        ? "поле"
+                        : rest.length % 10 >= 2 && rest.length % 10 <= 4 && (rest.length % 100 < 12 || rest.length % 100 > 14)
+                          ? "поля"
+                          : "полей"}
+                    </b>{" "}
+                    — {rest.map((c) => c.header.toLowerCase()).join(", ")}
+                  </summary>
+                  <div className="form">{rest.map((c) => renderField(c))}</div>
+                </details>
+              )}
+            </>
+          );
+        })()
+      ) : (
+        <div className="form">
+          {TABLES[table].columns.filter((c) => !isSlotColumn(table, c.key) && !(table === "Акты" && c.key === "signers")).map((c) => renderField(c))}
+        </div>
+      )}
       {table === "Материалы" && (
         // Столбцы «Док.1…3» — свёрнуты: документы ведутся в блоке «Документы качества» ниже.
         <details className="slot-fields">

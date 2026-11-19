@@ -24,6 +24,12 @@ export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: numb
       throw e;
     }
   });
+  // 0.44: число страниц скана (посчитано при загрузке) — для «Так будет сшит PDF» до сборки.
+  r.get("/api/files/:id/pages", (c) => {
+    const f = getFile(db, c.id());
+    if (!f) throw notFound("Файл");
+    return { pages: f.pages && f.pages > 0 ? f.pages : 1 };
+  });
   r.get("/api/files/:id", (c) => {
     const f = getFile(db, c.id());
     if (!f) throw notFound("Файл");

@@ -1,6 +1,6 @@
 // 0.41: «Печать и сдача» в окне программы по макету — комплекты слева, выбранный комплект: пять шагов сдачи,
 // «Так будет сшит PDF», реестр комплекта; журналы и реестры, акты без комплекта.
-import { useContext, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { kitActs } from "@idk/shared/kit/registry";
 import { checkActs } from "@idk/shared/check/predelivery";
 import { shortNumbers } from "@idk/shared/acts/overview";
@@ -55,6 +55,7 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
   const [checkAll, setCheckAll] = useState(0);
   const [newKitBusy, setNewKitBusy] = useState(false);
   const [error, setError] = useState("");
+  const [scanPages, setScanPages] = useState<Record<string, number>>({});
   const rows = (t: "Комплекты" | "АктыКомплектов" | "РеестрИД" | "Акты") => book.tables[t] ?? [];
   const short = useMemo(
     () =>
@@ -83,23 +84,49 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
   const inKits = new Set(rows("АктыКомплектов").map((r) => cellText(r.v.act)));
   const loose = rows("Акты").filter((r) => cellText(r.v.baseNumber) && !inKits.has(cellText(r.v.baseNumber))).length;
   const cur = info.find((x) => x.number === kit);
+  const regIds = rows("РеестрИД")
+    .filter((r) => cellText(r.v.kit) === kit)
+    .map((r) => /\/api\/files\/(\d+)/.exec(r.link.file ?? "")?.[1])
+    .filter((x): x is string => !!x);
+  useEffect(() => {
+    const need = regIds.filter((id) => scanPages[id] === undefined);
+    if (!need.length) return;
+    let alive = true;
+    void Promise.all(
+      need.map((id) =>
+        fetch(`/api/files/${id}/pages`)
+          .then((r) => (r.ok ? (r.json() as Promise<{ pages: number }>) : null))
+          .then((j) => [id, j?.pages ?? 1] as const)
+          .catch(() => [id, 1] as const),
+      ),
+    ).then((pairs) => alive && setScanPages((m) => ({ ...m, ...Object.fromEntries(pairs) })));
+    return () => {
+      alive = false;
+    };
+  }, [regIds.join(",")]);
   const kitRow = rows("Комплекты").find((r) => cellText(r.v.number) === kit);
   const registry = rows("РеестрИД").filter((r) => cellText(r.v.kit) === kit);
   const cover = !!kitRow && !!cellText(kitRow.v.cover ?? null) && !/^(нет|0|false)$/i.test(cellText(kitRow.v.cover ?? null));
   // Страницы: титул (если есть), реестр (1 лист на 25 строк), затем документы по порядку реестра.
-  let page = 1;
+  // Листы: после сборки (или «Посчитать листы») — точно по документам; иначе сканы — по числу страниц файла,
+  // прочие — по графе «Листов» (пусто — 1). Титул, корешки и реестр идут без номера, документы — с л. 1, как в сборке.
+  const exactKit = k.layout && k.layout.docs.length === registry.length ? k.layout : null;
   const front: { label: string; pages: string; dark?: boolean }[] = [];
-  if (cover) front.push({ label: "Титул", pages: `л. ${page++}`, dark: true });
-  const regPages = Math.max(1, Math.ceil(registry.length / 25));
-  front.push({ label: "Реестр", pages: regPages > 1 ? `л. ${page}–${page + regPages - 1}` : `л. ${page}` });
-  page += regPages;
-  const docs = registry.map((r) => {
-    const n = sheetsOf(r);
+  if (cover) front.push({ label: "Титул", pages: "без номера", dark: true });
+  front.push({ label: "Реестр", pages: exactKit ? `${exactKit.front - (cover ? 1 : 0)} л. без номера` : "без номера" });
+  let page = 1;
+  let exact = true;
+  const docs = registry.map((r, i) => {
+    const fileId = /\/api\/files\/(\d+)/.exec(r.link.file ?? "")?.[1];
+    const known = exactKit?.docs[i] ?? (fileId ? scanPages[fileId] : undefined);
+    if (known === undefined) exact = false;
+    const n = known ?? sheetsOf(r);
     const from = page;
     page += n;
-    return { r, label: docShort(r), pages: n > 1 ? `${from}–${from + n - 1}` : `${from}`, many: n > 1 };
+    return { r, label: docShort(r), pages: n > 1 ? `${from}–${from + n - 1}` : `${from}`, many: n > 1, n };
   });
   const total = page - 1;
+  const approx = exact ? "" : "~";
 
   const newKit = async () => {
     setNewKitBusy(true);
@@ -141,7 +168,7 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
           text: cur.warnings ? `${cur.warnings} ${word(cur.warnings, "замечание", "замечания", "замечаний")}, сдаче не мешает` : "замечаний нет",
         },
         { title: "Печать", text: `${registry.length} ${word(registry.length, "документ", "документа", "документов")} по шаблону «${tpl.template.name}»` },
-        { title: "Нумерация", text: `сквозная, листы 1–${total}` },
+        { title: "Нумерация", text: `сквозная, листы 1–${approx}${total}${exact ? "" : " (точно — после «Посчитать листы»)"}` },
         { title: "Один PDF", text: `${cover ? "титул, корешки и реестр" : "реестр"} — в начале` },
       ]
     : [];
@@ -277,13 +304,26 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
               </ol>
               {registry.length > 0 && (
                 <section className="dl2-pdf">
-                  <span className="wn-cap">
-                    Так будет сшит PDF{" "}
-                    <span className="dl2-pdf-name">
-                      ~{total} {word(total, "лист", "листа", "листов")} · Комплект {cur.number}
-                      {cur.volume ? `, том ${cur.volume}` : ""}.pdf
+                  <div className="dl2-pdf-head">
+                    <span className="wn-cap">
+                      Так будет сшит PDF{" "}
+                      <span className="dl2-pdf-name">
+                        {approx}
+                        {total} {word(total, "лист", "листа", "листов")} документов · Комплект {cur.number}
+                        {cur.volume ? `, том ${cur.volume}` : ""}.pdf
+                      </span>
                     </span>
-                  </span>
+                    {!exact && (
+                      <button
+                        className="btn btn-link dl2-measure"
+                        disabled={k.busy !== null}
+                        onClick={() => void k.measure()}
+                        title="Документы печатаются на сервере и считаются по страницам — так же, как при сборке (может занять минуту)"
+                      >
+                        {k.busy === "measure" ? "Считаю листы…" : "Посчитать листы точно"}
+                      </button>
+                    )}
+                  </div>
                   <div className="dl2-sheets">
                     {front.map((f) => (
                       <figure key={f.label} className={f.dark ? "dl2-sheet dl2-sheet-dark" : "dl2-sheet"}>
@@ -374,7 +414,7 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
                           <td>{cellText(d.r.v.name)}</td>
                           <td className="mono">{cellText(d.r.v.number) ? `№ ${cellText(d.r.v.number).replace(/^№\s*/, "")}` : "—"}</td>
                           <td className="mono">{ru(d.r.v.date)}</td>
-                          <td className="mono num">{sheetsOf(d.r)}</td>
+                          <td className="mono num">{d.n}</td>
                           <td className="mono num">{d.pages}</td>
                         </tr>
                       ))}

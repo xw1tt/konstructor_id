@@ -20,7 +20,12 @@ export interface KitIssue {
   column: string;
   message: string;
 }
-export type KitResult = { ok: true; pdf: Buffer; name: string; pages: number } | { ok: false; issues: KitIssue[] };
+/** 0.44: листы каждого документа реестра (по порядку строк) и листы перед документами (титул, корешки, реестр). */
+export interface KitPages {
+  front: number;
+  docs: number[];
+}
+export type KitResult = { ok: true; pdf: Buffer; name: string; pages: number; layout: KitPages } | { ok: false; issues: KitIssue[] };
 
 /** «л. 4» или «л. 5-6». */
 export const pageRange = (start: number, count: number) => (count <= 1 ? `л. ${start}` : `л. ${start}-${start + count - 1}`);
@@ -142,6 +147,7 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
   // 2. Документы по порядку реестра; нумерация листов — с первого документа после реестра.
   const docs: PDFDocument[] = [];
   const lines: RegistryLine[] = [];
+  const counts: number[] = [];
   let next = 1;
   for (const [i, row] of q.rows.entries()) {
     let doc: PDFDocument;
@@ -158,6 +164,7 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
       continue;
     }
     const count = doc.getPageCount();
+    counts.push(count);
     docs.push(doc);
     lines.push({
       n: i + 1,
@@ -243,7 +250,9 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
   // 4. Склейка.
   const out = await PDFDocument.create();
   out.setTitle(registryTitle(q));
+  let frontPages = 0;
   for (const src of await Promise.all(front.map((b) => PDFDocument.load(b)))) {
+    frontPages += src.getPageCount();
     for (const p of await out.copyPages(src, src.getPageIndices())) out.addPage(p);
   }
   // Документы — с номером листа, совпадающим с «л.» реестра (титул, корешки и реестр без номера).
@@ -253,5 +262,5 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
     for (const p of await out.copyPages(src, src.getPageIndices())) stampNumber(out.addPage(p), n++, font);
   }
   const pdf = Buffer.from(await out.save());
-  return { ok: true, pdf, name: kitFileName(k), pages: out.getPageCount() };
+  return { ok: true, pdf, name: kitFileName(k), pages: out.getPageCount(), layout: { front: frontPages, docs: counts } };
 }

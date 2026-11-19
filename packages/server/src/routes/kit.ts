@@ -30,7 +30,7 @@ export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDep
     const id = randomUUID();
     done.set(id, { pdf: res.pdf, name: res.name, at: now(), q });
     while (done.size > MAX_KITS) done.delete(done.keys().next().value!);
-    return new Reply(201, { id, pages: res.pages, name: res.name });
+    return new Reply(201, { id, pages: res.pages, name: res.name, layout: res.layout });
   });
   const get = (id: string) => {
     const j = done.get(id);

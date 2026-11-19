@@ -126,6 +126,10 @@ export class ExcelPort implements TableStore {
   async tableSheetOffset(table: TableName): Promise<number> {
     return rows.tableSheetOffset(await this.excelTable(table));
   }
+  /** Первый столбец таблицы на листе (с 0); -1 — неизвестно. */
+  async tableStartColumn(table: TableName): Promise<number> {
+    return rows.tableStartColumn(await this.excelTable(table)).catch(() => -1);
+  }
 
   // ---------- События ----------
 

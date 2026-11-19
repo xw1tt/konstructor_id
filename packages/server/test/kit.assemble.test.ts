@@ -63,6 +63,9 @@ test("комплект АОВ1: титул, корешки, реестр с «л
   const pages = await pdfPages(buf);
   if (process.env.KIT_DUMP) pages.forEach((p, i) => console.log(`--- ${i}: ${p.slice(0, 600)}`));
   assert.equal(pages.length, r.json.pages);
+  // 0.44: раскладка листов — перед документами и по документам реестра; в сумме — весь PDF.
+  assert.equal(r.json.layout.docs.length, q.rows.length);
+  assert.equal(r.json.layout.front + r.json.layout.docs.reduce((x: number, y: number) => x + y, 0), r.json.pages);
   // титул
   assert.match(pages[0], /Исполнительная документация/);
   assert.match(pages[0], /Заказчик: ООО "СБД"/);

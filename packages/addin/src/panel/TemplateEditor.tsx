@@ -567,7 +567,8 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
         </div>
       )}
       {confirm && (
-        <div className="confirm" role="alertdialog" aria-label="Подтверждение">
+        // 0.35.1: редактор стал длинным — подтверждение показывается вверху панели, а не в самом низу.
+        <div className="confirm confirm-float" role="alertdialog" aria-label="Подтверждение">
           <p>{confirm.text}</p>
           <div className="row-actions">
             <button

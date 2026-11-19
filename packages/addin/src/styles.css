@@ -1320,3 +1320,19 @@ a.btn {
 .form-upload-file .ok {
   color: var(--ok);
 }
+/* 0.35.1: подтверждение вверху панели — видно при любой прокрутке. */
+.confirm-float {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  z-index: 50;
+  margin: 0;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  border-left-width: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.confirm-float p {
+  margin-bottom: 6px;
+}

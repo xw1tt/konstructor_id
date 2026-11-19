@@ -256,14 +256,19 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
             </div>
           )}
           <label>
-            Вид{" "}
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            Вид {/* 0.34.3: вид — из списка или свой (например, «Санитарно-эпидемиологическое заключение»). */}
+            <input
+              list="idk-doc-types"
+              aria-label="Вид документа"
+              placeholder="выберите или введите"
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+            />
+            <datalist id="idk-doc-types">
               {LABELS.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
+                <option key={l} value={l} />
               ))}
-            </select>
+            </datalist>
           </label>
           <label>
             Номер <input value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} />
@@ -292,7 +297,7 @@ export function MaterialExtras({ port, state, name }: { port: ExcelPort; state: 
           )}
           {form.scan && <span className="muted"> {form.scan.name}</span>}
           <div className="row-actions">
-            <button className="btn btn-primary" disabled={busy || reading} onClick={() => void create()}>
+            <button className="btn btn-primary" disabled={busy || reading || !form.type.trim()} onClick={() => void create()}>
               {busy ? "Добавляю…" : "Добавить"}
             </button>
             <button className="btn" disabled={busy} onClick={() => setForm(null)}>

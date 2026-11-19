@@ -37,7 +37,8 @@ export const listName = (table: TableName, col: ColumnDef) => `Список_${ta
 export const LISTS_SHEET = "Списки";
 
 /** Запрещать ли ввод вне списка: для нескольких материалов через «; » — нет. */
-export const strictList = (col: ColumnDef) => col.type !== "refs";
+/** Запрет ввода не из списка: у ссылок на несколько строк и у списков-подсказок (0.34.3: вид документа качества) — нет. */
+export const strictList = (col: ColumnDef) => col.type !== "refs" && !col.freeText;
 
 /** Пустая ячейка важного столбца в непустой строке. */
 export const importantRule = (firstCol: string, lastCol: string, col: string, firstRow: number) =>

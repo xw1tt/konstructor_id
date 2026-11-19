@@ -77,7 +77,7 @@ export function createChecker(book: Book, important: ImportantMap) {
         return p.value;
       }
       case "enum":
-        if (!col.values!.includes(text)) push(t, r.row, col.header, "Значение не из списка");
+        if (!col.freeText && !col.values!.includes(text)) push(t, r.row, col.header, "Значение не из списка");
         return text;
       case "ref": {
         if (!find(col.ref!, text)) push(t, r.row, col.header, `Нет в таблице «${TABLES[col.ref!].sheet}»: ${text}`);
@@ -256,10 +256,12 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
       unit: txt(r.v.unit),
     })),
     qualityDocs: rows("ДокументыКачества")
-      .filter((r) => docTypeFromBook(txt(r.v.type)) && splitRefs(r.v.materials).every((m) => find("Материалы", m)))
+      // 0.34.3: вид не из списка — «Прочее» с введённым названием.
+      .filter((r) => txt(r.v.type) && splitRefs(r.v.materials).every((m) => find("Материалы", m)))
       .map((r) => ({
         id: idOf(r),
-        type: docTypeFromBook(txt(r.v.type)) as QualityDocType,
+        type: docTypeFromBook(txt(r.v.type)) ?? ("other" as QualityDocType),
+        ...(docTypeFromBook(txt(r.v.type)) ? {} : { typeLabel: txt(r.v.type) }),
         number: txt(r.v.number),
         issueDate: parseDateCell(r.v.issueDate).ok ? date(r.v.issueDate) : null,
         validUntil: parseDateCell(r.v.validUntil).ok ? date(r.v.validUntil) : null,

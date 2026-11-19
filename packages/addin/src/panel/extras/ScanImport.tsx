@@ -200,11 +200,17 @@ export function ScanImport({ port, state }: { port: ExcelPort; state: BookState 
               <div className="mat-doc-form">
                 <label>
                   Вид{" "}
-                  <select value={it.type} onChange={(e) => patch(it.key, { type: e.target.value })}>
+                  <input
+                    list="idk-scan-doc-types"
+                    placeholder="выберите или введите"
+                    value={it.type}
+                    onChange={(e) => patch(it.key, { type: e.target.value })}
+                  />
+                  <datalist id="idk-scan-doc-types">
                     {LABELS.map((l) => (
-                      <option key={l}>{l}</option>
+                      <option key={l} value={l} />
                     ))}
-                  </select>
+                  </datalist>
                 </label>
                 <label>
                   Номер <input value={it.number} onChange={(e) => patch(it.key, { number: e.target.value })} />

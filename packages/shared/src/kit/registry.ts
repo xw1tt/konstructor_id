@@ -6,7 +6,7 @@ import type { TableStore } from "../workbook/store.ts";
 import type { Issue } from "../workbook/bundle.ts";
 import type { QualityDoc } from "../schemas.ts";
 import type { ActMaterialInput } from "../acts/schemas.ts";
-import { QUALITY_DOC_LABELS, type QualityDocType } from "../roles.ts";
+import { qualityDocLabel, type QualityDocType } from "../roles.ts";
 import { docNumberFor, formatDateShort, withNo } from "../acts/format.ts";
 import type { FormSet } from "../templates.ts";
 import { avkDefaultNumber, rimDocDate, rimDocName, rimDocOrder } from "../acts/rows.ts";
@@ -71,8 +71,9 @@ function qualityDocs(book: Book): { docs: QualityDoc[]; rowOf: Map<number, BookR
   const rowOf = new Map<number, BookRow>();
   const docs: QualityDoc[] = [];
   for (const r of book.tables["ДокументыКачества"] ?? []) {
-    const type = docTypeFromBook(txt(r.v.type));
-    if (!type) continue;
+    // 0.34.3: вид не из списка — «Прочее» с введённым названием.
+    if (!txt(r.v.type)) continue;
+    const type = docTypeFromBook(txt(r.v.type)) ?? "other";
     const ids = splitRefs(r.v.materials)
       .map(matId)
       .filter((x): x is number => x !== null);
@@ -87,6 +88,7 @@ function qualityDocs(book: Book): { docs: QualityDoc[]; rowOf: Map<number, BookR
       fileId: null,
       materialIds: ids,
       registryName: txt(r.v.registryName),
+      ...(docTypeFromBook(txt(r.v.type)) ? {} : { typeLabel: txt(r.v.type) }),
     });
     rowOf.set(r.row + 1, r);
   }
@@ -229,13 +231,12 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
           "Документ качества",
           n,
           d.number.replace(/^№\s*/, ""),
-          QUALITY_DOC_LABELS[d.type],
+          qualityDocLabel(d),
           d.issueDate ? formatDateShort(d.issueDate) : "б/д",
           code,
           rowOf.get(d.id),
         );
-      else
-        add("Документ качества", n, withNo(d.number), `${QUALITY_DOC_LABELS[d.type]}: ${rimDocName(d, ams, materials)}`, rimDocDate(d), code, rowOf.get(d.id));
+      else add("Документ качества", n, withNo(d.number), `${qualityDocLabel(d)}: ${rimDocName(d, ams, materials)}`, rimDocDate(d), code, rowOf.get(d.id));
     }
   }
   // Документы «на комплект» (скан свидетельства и т. п.) — одна строка на комплект, номер — код документа.

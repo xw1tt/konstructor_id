@@ -5,7 +5,8 @@ import type { CellValue } from "./values.ts";
 import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
-export const SCHEMA_VERSION = 15;
+/** 16 — 0.34.3: вид документа качества можно ввести вручную (список без запрета ввода). */
+export const SCHEMA_VERSION = 16;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -71,6 +72,8 @@ export interface ColumnDef {
   header: string;
   type: ColType;
   values?: readonly string[];
+  /** 0.34.3: список — подсказка, допустимо и своё значение (выпадающий список без запрета ввода). */
+  freeText?: boolean;
   ref?: TableName;
   isKey?: boolean;
   important?: boolean;
@@ -243,7 +246,7 @@ export const TABLES: Record<TableName, TableDef> = {
     c("source", "Источник", "enum", { values: SPEC_SOURCES, width: 10 }),
     c("note", "Примечание", "text", { width: 24 }),
     ...DOC_SLOTS.flatMap((k) => [
-      c(`d${k}type`, `Док.${k}: вид`, "enum", { values: QUALITY_DOC_TYPES.map((d) => QUALITY_DOC_LABELS[d]), width: 20 }),
+      c(`d${k}type`, `Док.${k}: вид`, "enum", { values: QUALITY_DOC_TYPES.map((d) => QUALITY_DOC_LABELS[d]), freeText: true, width: 20 }),
       c(`d${k}number`, `Док.${k}: номер`, "text", { width: 22 }),
       c(`d${k}date`, `Док.${k}: дата`, "date"),
       c(`d${k}valid`, `Док.${k}: действует до`, "date"),
@@ -257,7 +260,7 @@ export const TABLES: Record<TableName, TableDef> = {
     "Материалы",
     [
       c("materials", "Материалы", "refs", { ...imp, ref: "Материалы", width: 60 }),
-      c("type", "Тип", "enum", { ...imp, values: QUALITY_DOC_TYPES.map((d) => QUALITY_DOC_LABELS[d]), width: 24 }),
+      c("type", "Тип", "enum", { ...imp, values: QUALITY_DOC_TYPES.map((d) => QUALITY_DOC_LABELS[d]), freeText: true, width: 24 }),
       c("number", "Номер", "text", { ...imp, width: 30 }),
       c("issueDate", "Дата", "date"),
       c("validUntil", "Действует до", "date"),

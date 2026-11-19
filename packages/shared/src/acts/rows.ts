@@ -1,5 +1,5 @@
 import type { Material, QualityDoc, Representative } from "../schemas.ts";
-import { QUALITY_DOC_LABELS, QUALITY_DOC_TYPES, type RoleCode } from "../roles.ts";
+import { qualityDocLabel, QUALITY_DOC_TYPES, type RoleCode } from "../roles.ts";
 import { activeRepresentatives } from "../rules.ts";
 import type { ActDocumentInput, ActMaterialInput, VorLineInput } from "./schemas.ts";
 import { docNumberFor, formatDateShort, formatNumber, withNo } from "./format.ts";
@@ -25,8 +25,7 @@ const typeRank = (d: QualityDoc) => QUALITY_DOC_TYPES.indexOf(d.type);
 const sortDocs = (docs: QualityDoc[]) => [...docs].sort((a, b) => typeRank(a) - typeRank(b) || a.id - b.id);
 const matMap = (ms: Material[]) => new Map(ms.map((m) => [m.id, m]));
 
-const docShort = (d: QualityDoc) =>
-  [QUALITY_DOC_LABELS[d.type], withNo(d.number), d.issueDate ? `от ${formatDateShort(d.issueDate)}` : ""].filter(Boolean).join(" ");
+const docShort = (d: QualityDoc) => [qualityDocLabel(d), withNo(d.number), d.issueDate ? `от ${formatDateShort(d.issueDate)}` : ""].filter(Boolean).join(" ");
 
 /** П.3 АОСР. */
 export function point3Lines(
@@ -121,7 +120,7 @@ export const rimDocDate = (d: QualityDoc) =>
 export function rimRows(actMaterials: ActMaterialInput[], materials: Material[], docsByMaterial: Map<number, QualityDoc[]>): RimRow[] {
   const rows: RimRow[] = rimDocOrder(actMaterials, docsByMaterial).map((d) => ({
     name: rimDocName(d, actMaterials, materials),
-    type: QUALITY_DOC_LABELS[d.type].toLowerCase(),
+    type: qualityDocLabel(d).toLowerCase(),
     number: withNo(d.number),
     date: rimDocDate(d),
     sheets: d.sheets,
@@ -238,7 +237,7 @@ export function avkDefaultNumber(actNumber: string, sectionCode: string): string
 /** Документ качества строкой АВК: «паспорт качества: №3/405 от 09.05.2025 г.». */
 export const avkDocText = (d: QualityDoc) =>
   [
-    `${QUALITY_DOC_LABELS[d.type].toLowerCase()}:`,
+    `${qualityDocLabel(d).toLowerCase()}:`,
     withNo(d.number),
     d.issueDate ? `от ${formatDateShort(d.issueDate)}` : "",
     d.validUntil ? `до ${formatDateShort(d.validUntil)}` : "",

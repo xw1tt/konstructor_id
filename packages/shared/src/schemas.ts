@@ -85,6 +85,8 @@ export const QualityDocInput = z.object({
   materialIds: z.array(id).default([]),
   /** Наименование в РИМ; пусто — наименования материалов через запятую. */
   registryName: str,
+  /** 0.34.3: вид документа, введённый вручную (не из списка); type тогда — «other». */
+  typeLabel: z.string().trim().max(200).optional(),
 });
 export const QualityDoc = QualityDocInput.extend({ id });
 export type QualityDocInput = z.infer<typeof QualityDocInput>;

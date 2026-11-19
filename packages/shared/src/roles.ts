@@ -24,6 +24,9 @@ export const ORG_ROLE_LABELS: Record<OrgRoleCode, string> = {
 export const QUALITY_DOC_TYPES = ["passport", "certificate", "declaration", "info_letter", "refusal_letter", "other"] as const;
 export type QualityDocType = (typeof QUALITY_DOC_TYPES)[number];
 
+/** 0.34.3: название вида документа качества — введённое вручную или из списка. */
+export const qualityDocLabel = (d: { type: QualityDocType; typeLabel?: string }) => d.typeLabel?.trim() || QUALITY_DOC_LABELS[d.type];
+
 export const QUALITY_DOC_LABELS: Record<QualityDocType, string> = {
   passport: "Паспорт качества",
   certificate: "Сертификат соответствия",

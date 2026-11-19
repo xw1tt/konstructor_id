@@ -81,6 +81,7 @@ test("разметка прежней версии — предложить об
   assert.equal(isOutdated("12"), true);
   assert.equal(isOutdated("13"), true);
   assert.equal(isOutdated("14"), true);
-  assert.equal(isOutdated("15"), false);
+  assert.equal(isOutdated("15"), true);
+  assert.equal(isOutdated("16"), false);
   assert.equal(isOutdated(null), false);
 });

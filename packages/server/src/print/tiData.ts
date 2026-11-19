@@ -1,7 +1,7 @@
 // План 14: данные форм набора «ТИ» (ВД, РМ, РП и шапка КЖ) из пакета акта — по образцам ООО «Техноинжиниринг».
 import type { ActBundle } from "@idk/shared/workbook/bundle";
 import type { RoleCode } from "@idk/shared/roles";
-import { QUALITY_DOC_LABELS } from "@idk/shared/roles";
+import { qualityDocLabel } from "@idk/shared/roles";
 import { activeRepresentatives } from "@idk/shared/rules";
 import { docNumberFor, formatNumber, MONTHS_GEN } from "@idk/shared/acts/format";
 import { rimDocOrder, vorTotals } from "@idk/shared/acts/rows";
@@ -92,12 +92,12 @@ export function tiDocData(b: ActBundle): TiData {
       };
     }),
     rm: rmGroups(docs, ordered).map((g) => ({
-      docs: g.docs.map((d) => ({ type: QUALITY_DOC_LABELS[d.type], date: d.issueDate ? dmy(d.issueDate) : "б/д", number: d.number.replace(/^№\s*/, "") })),
+      docs: g.docs.map((d) => ({ type: qualityDocLabel(d), date: d.issueDate ? dmy(d.issueDate) : "б/д", number: d.number.replace(/^№\s*/, "") })),
       items: g.mats.map((am) => ({ n: ++n, name: mats.get(am.materialId)?.name ?? "" })),
     })),
     rp: docs.map((d, i) => ({
       n: i + 1,
-      type: QUALITY_DOC_LABELS[d.type],
+      type: qualityDocLabel(d),
       date: d.issueDate ? dmy(d.issueDate) : "б/д",
       number: d.number.replace(/^№\s*/, ""),
       sheets: d.sheets,

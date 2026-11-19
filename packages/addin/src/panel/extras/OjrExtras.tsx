@@ -7,19 +7,9 @@ import type { BookPort } from "../../book/bookPort.ts";
 import { apiSend } from "../../api.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
-import { issueLines, type IssueLine } from "../print.ts";
+import { issueLines, openPreview, type IssueLine } from "../print.ts";
 import { previewUrl } from "../kit.ts";
 import { IssueList } from "./IssueList.tsx";
-
-declare const Office: any;
-
-function openPreview(url: string) {
-  if (typeof Office !== "undefined" && Office?.context?.ui?.displayDialogAsync) {
-    Office.context.ui.displayDialogAsync(url, { height: 90, width: 70, displayInIframe: false });
-  } else {
-    window.open(url, "_blank", "noopener");
-  }
-}
 
 export function OjrExtras({ port, state }: { port: BookPort; state: BookState }) {
   const guard = useGuard();

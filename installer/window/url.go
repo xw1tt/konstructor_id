@@ -12,7 +12,7 @@ const (
 	healthURL  = serverBase + "/addin/window.html"
 )
 
-var screens = map[string]bool{"home": true, "delivery": true, "assistant": true, "templates": true, "fields": true, "library": true, "normativ": true, "settings": true}
+var screens = map[string]bool{"home": true, "acts": true, "delivery": true, "assistant": true, "templates": true, "fields": true, "library": true, "normativ": true, "settings": true}
 
 // screenArg: «--screen=assistant» из аргументов запуска (неизвестный экран — главный).
 func screenArg(args []string) string {

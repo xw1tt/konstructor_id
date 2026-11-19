@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { ServerResponse } from "node:http";
 import { Router, Reply, HttpError } from "../http/router.ts";
 import { PRINT_KINDS, type PrintKind } from "@idk/shared/acts/schemas";
-import type { ActDocKind } from "@idk/shared/docs/defs";
+import { ACT_DOC_DEFS, isActDocKind, type ActDocKind } from "@idk/shared/docs/defs";
 import { renderActDoc, view } from "../print/docs.ts";
 import { z } from "zod";
 import { ActBundle } from "@idk/shared/workbook/bundle";
@@ -13,6 +13,7 @@ import { isProtoKind } from "@idk/shared/protocols/defs";
 import { htmlToPdf } from "../print/browser.ts";
 import { renderActXlsx } from "../print/xlsx/index.ts";
 import { protoXlsx } from "../print/xlsx/proto.ts";
+import { PDFDocument } from "pdf-lib";
 import { applyDocStyle, cleanStyle, styleKeyFor, type DocStyle } from "@idk/shared/docStyle";
 
 /** Тело запроса печати: пакет акта и код шаблона (форма заказчика); без кода — СБД. */
@@ -140,7 +141,46 @@ export async function sendBundlePdf(
   res.end(pdf);
 }
 
+/** 0.37: печать документа нескольких актов одним PDF (окно программы, «Печать выбранных»). */
+export const PrintBatch = z.object({
+  template: z.string().default(DEFAULT_TEMPLATE),
+  options: PrintOptions.default({}),
+  kind: z.enum(PRINT_KINDS),
+  bundles: z.array(ActBundle).min(1).max(200),
+});
+export const BATCH_JSON_LIMIT = 64 * 1024 * 1024;
+
+export async function batchPdf(q: z.infer<typeof PrintBatch>): Promise<Buffer> {
+  const out = await PDFDocument.create();
+  for (const b of q.bundles) {
+    const { pdf } = await renderBundlePdf(b, q.kind, q.template, q.options);
+    const src = await PDFDocument.load(pdf);
+    for (const page of await out.copyPages(src, src.getPageIndices())) out.addPage(page);
+  }
+  return Buffer.from(await out.save());
+}
+
 export function printRoutes(r: Router, jobs = createPrintJobs()) {
+  const batches = new Map<string, { q: z.infer<typeof PrintBatch>; at: number }>();
+  r.post("/api/print-batch", async (c) => {
+    const q = await c.body(PrintBatch, BATCH_JSON_LIMIT);
+    const id = randomUUID();
+    batches.set(id, { q, at: Date.now() });
+    while (batches.size > 10) batches.delete(batches.keys().next().value!);
+    return new Reply(201, { id });
+  });
+  r.get("/api/print-batch/:id", async (c) => {
+    const j = batches.get(c.params.id);
+    if (!j || Date.now() - j.at > JOB_TTL_MS) throw new HttpError(404, "Задание печати не найдено или устарело");
+    const pdf = await batchPdf(j.q);
+    const name = `${isActDocKind(j.q.kind) ? ACT_DOC_DEFS[j.q.kind].label : j.q.kind} — актов ${j.q.bundles.length}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
+    c.res.writeHead(200, {
+      "content-type": "application/pdf",
+      "content-length": pdf.length,
+      "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(name)}`,
+    });
+    c.res.end(pdf);
+  });
   r.post("/api/print/:doc", async (c) => {
     const kind = kindOf(c.params.doc);
     const job = readRequest(await c.body(PrintRequest));

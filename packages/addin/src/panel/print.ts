@@ -61,7 +61,14 @@ export async function sheetIssueLines(port: IssuePort, issues: Issue[]): Promise
 export const previewJobUrl = (id: string, doc: PrintKind, origin: string) =>
   `${origin}/addin/preview.html?src=${encodeURIComponent(`/api/print-jobs/${id}/${doc}`)}`;
 
-function openPreview(url: string) {
+/** 0.37: окно программы показывает предпросмотр внутри себя (а не отдельным окном). */
+let previewHook: ((url: string) => void) | null = null;
+export function setPreviewHook(f: ((url: string) => void) | null) {
+  previewHook = f;
+}
+
+export function openPreview(url: string) {
+  if (previewHook) return previewHook(url);
   if (typeof Office !== "undefined" && Office?.context?.ui?.displayDialogAsync) {
     Office.context.ui.displayDialogAsync(url, { height: 90, width: 70, displayInIframe: false });
   } else {

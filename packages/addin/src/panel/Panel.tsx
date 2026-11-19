@@ -24,6 +24,7 @@ import { TemplateEditor } from "./TemplateEditor.tsx";
 import { FieldsScreen } from "./FieldsScreen.tsx";
 import { LibraryScreen } from "./LibraryScreen.tsx";
 import { DeliveryScreen } from "./DeliveryScreen.tsx";
+import { ActsScreen } from "./ActsScreen.tsx";
 import { WizardScreen } from "./WizardScreen.tsx";
 import { AssistantSession } from "./assistant.ts";
 import { aiApi } from "./aiApi.ts";
@@ -300,8 +301,10 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
                       onSettings={() => setScreen("settings")}
                       extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />}
                     />
+                  ) : screen === "acts" ? (
+                    <ActsScreen port={port} state={state} />
                   ) : screen === "delivery" ? (
-                    <DeliveryScreen port={port} state={state} />
+                    <DeliveryScreen port={port} state={state} wide={win} />
                   ) : screen === "normativ" ? (
                     <NormativScreen port={port} />
                   ) : !book ? (

@@ -154,3 +154,10 @@ export const FieldsIcon = () => (
     <path d="M17 15l3 3-3 3" />
   </svg>
 );
+/** 0.37: экран «Акты» окна программы. */
+export const ActsIcon = () => (
+  <svg {...S} width={16} height={16}>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M8 8h8M8 12h8M8 16h4" />
+  </svg>
+);

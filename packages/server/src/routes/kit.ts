@@ -62,7 +62,7 @@ export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDep
         items: z
           .array(z.object({ bundle: ActBundle, kind: z.enum(PRINT_KINDS).nullable(), form: z.object({ template: z.string(), doc: z.string() }).nullable() }))
           .min(1)
-          .max(40),
+          .max(300),
       }),
       KIT_JSON_LIMIT,
     );

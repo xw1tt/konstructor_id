@@ -9,7 +9,7 @@ import type { BookPort } from "../../book/bookPort.ts";
 import { useGuard } from "../../server.tsx";
 import type { BookState } from "../useBook.ts";
 import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../templateContext.ts";
-import { sheetIssueLines, printAct, printForm, type IssueLine } from "../print.ts";
+import { sheetIssueLines, printAct, printForm, openPreview, type IssueLine } from "../print.ts";
 import { templateButtons, type TemplateButton } from "../templatesApi.ts";
 import type { PrintKind } from "@idk/shared/acts/schemas";
 import { assembleKit, assembleCommonRegistry, kitIssueLines, kitRegistryCount, previewUrl } from "../kit.ts";
@@ -17,16 +17,6 @@ import { IssueList } from "./IssueList.tsx";
 import { PreDelivery } from "./PreDelivery.tsx";
 import { kitShortage, type Status } from "@idk/shared/catalog/need";
 import { CatalogContext, shortageText, statusText } from "../catalogApi.ts";
-
-declare const Office: any;
-
-function openPreview(url: string) {
-  if (typeof Office !== "undefined" && Office?.context?.ui?.displayDialogAsync) {
-    Office.context.ui.displayDialogAsync(url, { height: 90, width: 70, displayInIframe: false });
-  } else {
-    window.open(url, "_blank", "noopener");
-  }
-}
 
 export function KitExtras({ port, state, kit }: { port: BookPort; state: BookState; kit: string }) {
   const guard = useGuard();

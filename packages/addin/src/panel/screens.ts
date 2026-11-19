@@ -1,6 +1,6 @@
 // Экраны панели. 0.32: в верхней строке — «Книга», «Печать и сдача», «Помощник»; остальное — в меню «Ещё».
 /** «wizard» — мастер первого акта (план 17): открывается кнопкой в книге, не из верхней строки. */
-export type ScreenId = "home" | "delivery" | "normativ" | "library" | "assistant" | "settings" | "templates" | "fields" | "wizard";
+export type ScreenId = "home" | "acts" | "delivery" | "normativ" | "library" | "assistant" | "settings" | "templates" | "fields" | "wizard";
 
 export const SCREENS: readonly { id: ScreenId; label: string }[] = [
   { id: "home", label: "Книга" },

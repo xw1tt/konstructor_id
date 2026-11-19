@@ -1,6 +1,7 @@
 // 0.37 / редизайн 0.40: экран «Акты» окна программы — таблица актов (статус, номер, работы, период, комплект, документы),
 // поиск, отбор по статусу и виду работ, плавающая панель выбранных актов; справа — карточка акта: документы акта,
 // замечания с местом в книге, подписанты, печать. «⋯» раскрывает полную карточку (материалы, подписанты, полнота).
+import { docIssues } from "./docCheck.ts";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { actsOverview, filterActs, shortNumbers, statusText, type ActFilter, type ActOverview, type ActStatus } from "@idk/shared/acts/overview";
 import { completeness, docCode } from "@idk/shared/catalog/need";
@@ -21,7 +22,7 @@ import { PreDelivery } from "./extras/PreDelivery.tsx";
 import { CatalogContext } from "./catalogApi.ts";
 import { PrintOptionsContext, TemplateContext, UserTemplateContext } from "./templateContext.ts";
 import { templateButtons, type TemplateButton } from "./templatesApi.ts";
-import { bundleFor, openPreview, printAct, printForm, sheetIssueLines, type IssueLine } from "./print.ts";
+import { bundleFor, docState, openPreview, printAct, printForm, sheetIssueLines, type IssueLine } from "./print.ts";
 import { previewUrl } from "./kit.ts";
 import { apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
@@ -52,7 +53,9 @@ function docStates(
     const st = needed?.find((s) => docCode(s.doc) === b.label || docCode(s.doc) === b.key);
     if (needed && !st) return "off";
     if (st && (st.status === "noScan" || st.status === "noForm" || st.status === "noData")) return "warn";
-    if (a.status === "blocked" && b.doc && !bundleFor(book, a.number, important, b.doc).bundle) return "bad";
+    const d = docState(book, a.number, important, b.doc);
+    if (d.state === "absent") return "off";
+    if (d.state === "bad") return "bad";
     return "ok";
   });
 }
@@ -151,9 +154,16 @@ function ActCard({
 
   useEffect(() => {
     let alive = true;
+    // Ошибки документов акта, которые не печатаются (данные есть, но с ошибками), — тоже «не собирается».
+    const docIssues = buttons.flatMap((b, k) => (states[k] === "bad" ? docState(book, a.number, state.important, b.doc).issues : []));
+    const seen = new Set<string>();
+    const uniq = (list: Issue[]) => list.filter((i) => !seen.has(i.message + i.table + i.row) && seen.add(i.message + i.table + i.row));
     const issues: { i: Issue; level: "critical" | "warn" }[] =
-      a.status === "blocked"
-        ? buildBundle(book, a.number, state.important).issues.map((i) => ({ i, level: "critical" as const }))
+      a.status === "blocked" || docIssues.length
+        ? uniq([...(a.status === "blocked" ? buildBundle(book, a.number, state.important).issues : []), ...docIssues]).map((i) => ({
+            i,
+            level: "critical" as const,
+          }))
         : checkActs(book, [a.number], todayIso()).map((i) => ({ i, level: "warn" as const }));
     void sheetIssueLines(
       port,
@@ -164,7 +174,7 @@ function ActCard({
     return () => {
       alive = false;
     };
-  }, [book, a.number, a.status, state.important, port]);
+  }, [book, a.number, a.status, state.important, port, states.join(",")]);
   useEffect(() => {
     setLines([]);
     setFiles(null);
@@ -180,7 +190,10 @@ function ActCard({
     { table: "МатериалыАктов" as const, label: "Материалы", n: count("МатериалыАктов") },
     { table: "ВОР" as const, label: "ВОР", n: count("ВОР") },
   ];
-  const printing = states.filter((s) => s !== "off").length;
+  const applicable = buttons.filter((_, i) => states[i] !== "off");
+  const printing = states.filter((s) => s === "ok" || s === "warn").length;
+  const skipped = buttons.filter((_, i) => states[i] === "off").map((b) => shortLabel(b.label));
+  const broken = buttons.filter((_, i) => states[i] === "bad").map((b) => shortLabel(b.label));
   const signers = signersOf(book, a.number);
 
   const print = async (b: TemplateButton) => {
@@ -202,7 +215,8 @@ function ActCard({
       const list = buttons.flatMap((b) => {
         const r = bundleFor(book, a.number, state.important, b.doc, options);
         if (!r.bundle) {
-          all.push(...r.issues);
+          // Документ акту не нужен (нет кабелей, протокола) — не ошибка.
+          if (docState(book, a.number, state.important, b.doc, options).state !== "absent") all.push(...r.issues);
           return [];
         }
         return [{ bundle: r.bundle, kind: b.doc, form: b.form ? { template: tpl.template.id, doc: b.key } : null }];
@@ -238,7 +252,9 @@ function ActCard({
         </span>
       </header>
       <div className="ac-title">
-        <h2 title={a.number}>№ {label}</h2>
+        <h2 title={a.number} className={label.length > 12 ? "ac-long" : undefined}>
+          № {label}
+        </h2>
         {a.status !== "ready" && <span className={`acts-badge acts-${a.status}`}>{statusText(a)}</span>}
       </div>
       <p className="ac-works">{a.works || <span className="muted">работы (п. 1) не указаны</span>}</p>
@@ -272,7 +288,7 @@ function ActCard({
         <h3>
           Документы акта{" "}
           <span className="muted">
-            печатаются {printing} из {buttons.length}
+            печатаются {printing} из {applicable.length}
           </span>
         </h3>
         <div className="ac-docs">
@@ -291,12 +307,18 @@ function ActCard({
             ),
           )}
         </div>
+        {broken.length > 0 && (
+          <p className="ac-note ac-note-bad">Не печатаются: {broken.join(", ")} — ошибки ниже, щелчок по строке ведёт к месту исправления.</p>
+        )}
+        {skipped.length > 0 && (
+          <p className="ac-note">Не нужны этому акту: {skipped.join(", ")} — нет данных (кабелей, протоколов) или не нужны по «Виду работ».</p>
+        )}
       </section>
       {items.length > 0 && (
         <section className="ac-sec">
           <h3>
-            {a.status === "blocked" ? "Не собирается" : "Замечания"}{" "}
-            <span className="muted">{a.status === "blocked" ? "исправьте в книге" : "печать не блокируют"}</span>
+            {items[0]?.level === "critical" ? "Не собирается" : "Замечания"}{" "}
+            <span className="muted">{items[0]?.level === "critical" ? "исправьте в книге" : "печать не блокируют"}</span>
           </h3>
           <IssueTable port={port} items={items.slice(0, 6)} compact />
           {items.length > 6 && <p className="muted">и ещё {items.length - 6} — «Проверить» покажет все</p>}
@@ -402,7 +424,10 @@ export function ActsScreen({ port, state, focus, onScreen }: { port: BookPort; s
 
   const book = state.book;
   const buttons = templateButtons(tpl.template);
-  const all = useMemo(() => (book ? actsOverview(book, state.important, todayIso()) : []), [book, state.important]);
+  const all = useMemo(
+    () => (book ? actsOverview(book, state.important, todayIso(), docIssues(book, state.important, tpl.template, options)) : []),
+    [book, state.important, tpl.template, options],
+  );
   const states = useMemo(() => {
     const m = new Map<string, DocState[]>();
     if (!book) return m;
@@ -507,7 +532,7 @@ export function ActsScreen({ port, state, focus, onScreen }: { port: BookPort; s
         buttons.flatMap((b) => {
           const r = bundleFor(book, a.number, state.important, b.doc, options);
           if (!r.bundle) {
-            issues.push(...r.issues);
+            if (docState(book, a.number, state.important, b.doc, options).state !== "absent") issues.push(...r.issues);
             return [];
           }
           return [{ bundle: r.bundle, kind: b.doc, form: b.form ? { template: tpl.template.id, doc: b.key } : null }];

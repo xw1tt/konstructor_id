@@ -74,7 +74,11 @@ export async function selectCell(store: VirtualMap, table: TableName, row: numbe
     const t = ctx.workbook.tables.getItem(table);
     const head = t.getHeaderRowRange().load("values");
     t.rows.load("count");
-    t.worksheet.activate();
+    // 0.45: лист скрыт («Только нужные листы», служебный «Материалы в актах») — показать, иначе к ячейке не перейти.
+    const ws = t.worksheet.load("visibility");
+    await ctx.sync();
+    if (ws.visibility !== "Visible") ws.visibility = "Visible";
+    ws.activate();
     await ctx.sync();
     const i = (head.values[0] as unknown[]).map(String).indexOf(header);
     if (i < 0) return;

@@ -4195,3 +4195,29 @@ a.btn {
   padding: 12px 0 0;
   border: 0;
 }
+.ac-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.ac-note-bad {
+  color: var(--danger);
+}
+.field-flash input,
+.field-flash textarea,
+.field-flash select {
+  box-shadow: 0 0 0 3px rgba(39, 71, 168, 0.35) !important;
+  border-color: var(--blue) !important;
+}
+.field-flash .field-label {
+  color: var(--blue) !important;
+}
+.ac-title {
+  flex-wrap: wrap;
+}
+.ac-title h2 {
+  overflow-wrap: anywhere;
+}
+.ac-title h2.ac-long {
+  font-size: 30px;
+}

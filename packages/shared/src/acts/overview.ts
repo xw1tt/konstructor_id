@@ -3,7 +3,7 @@
 // перед сдачей (печать не блокируют); иначе «готов».
 import type { Book } from "../workbook/records.ts";
 import type { ImportantMap } from "../workbook/important.ts";
-import { buildBundle } from "../workbook/bundle.ts";
+import { buildBundle, type Issue } from "../workbook/bundle.ts";
 import { checkActs } from "../check/predelivery.ts";
 import { cellText, parseDateCell, splitRefs } from "../workbook/values.ts";
 
@@ -39,7 +39,8 @@ export function actDates(start: string, end: string): string {
   return `${ru(start, start.slice(0, 4) !== end.slice(0, 4))} – ${ru(end)}`;
 }
 
-export function actsOverview(book: Book, important: ImportantMap, today: string): ActOverview[] {
+/** extra — ошибки документов акта, которые проверяются вне книги (КЖ, протоколы по шаблону): акт с ними не собирается. */
+export function actsOverview(book: Book, important: ImportantMap, today: string, extra?: (act: string) => Issue[]): ActOverview[] {
   const kitsOf = new Map<string, string[]>();
   for (const r of book.tables["АктыКомплектов"] ?? []) {
     const act = cellText(r.v.act);
@@ -58,9 +59,13 @@ export function actsOverview(book: Book, important: ImportantMap, today: string)
     const built = buildBundle(book, number, important);
     let status: ActStatus = "ready";
     let problems: number;
+    const more = built.bundle ? (extra?.(number) ?? []) : [];
     if (!built.bundle) {
       status = "blocked";
       problems = built.issues.length;
+    } else if (more.length) {
+      status = "blocked";
+      problems = more.length;
     } else {
       problems = checkActs(book, [number], today).length;
       if (problems) status = "warn";

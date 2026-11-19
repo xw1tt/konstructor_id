@@ -1,6 +1,8 @@
 // 0.38 / редизайн 0.40: главный экран окна программы — объект, готовность актов (квадрат на акт), «Требует внимания»
 // таблицей с местом в книге, справа — комплекты, документы качества и общий журнал работ.
-import { useEffect, useMemo, useState } from "react";
+import { PrintOptionsContext, UserTemplateContext } from "./templateContext.ts";
+import { docIssues } from "./docCheck.ts";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { objectSummary, type ObjectSummary } from "@idk/shared/acts/objectSummary";
 import { actDates, shortNumbers, statusText, type ActOverview } from "@idk/shared/acts/overview";
 import type { BookPort } from "../book/bookPort.ts";
@@ -48,7 +50,12 @@ export function OverviewScreen({
   onAct?: (act: string) => void;
 }) {
   const book = state.book;
-  const s = useMemo(() => (book ? objectSummary(book, state.important, todayIso()) : null), [book, state.important]);
+  const tplState = useContext(UserTemplateContext);
+  const printOptions = useContext(PrintOptionsContext);
+  const s = useMemo(
+    () => (book ? objectSummary(book, state.important, todayIso(), 8, docIssues(book, state.important, tplState.template, printOptions)) : null),
+    [book, state.important, tplState.template, printOptions],
+  );
   const [items, setItems] = useState<IssueItem[]>([]);
   const [tip, setTip] = useState<ActOverview | null>(null);
   useEffect(() => {
@@ -156,7 +163,7 @@ export function OverviewScreen({
             <h3>
               Требует внимания <sup className="mono">{s.attentionTotal || ""}</sup>
             </h3>
-            <span className="muted">щелчок по строке — переход к ячейке в Excel</span>
+            <span className="muted">щелчок по строке — к месту исправления</span>
           </header>
           {!s.attentionTotal && (
             <p className="ov-clean">

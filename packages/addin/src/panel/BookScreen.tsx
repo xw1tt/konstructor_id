@@ -1,6 +1,8 @@
 // 0.42: «Книга» в окне программы по макету — оглавление разделов с состоянием и листы Excel; вкладки разделов:
 // список строк (поиск, +1, +10, копия, вверх/вниз, удалить) | карточка строки (поля книги) | как будет напечатано / инструменты.
-import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { docIssues } from "./docCheck.ts";
+import type { CellTarget } from "./cellNav.ts";
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { SHEETS, TABLES, isObjectFieldRequired, type TableName } from "@idk/shared/workbook/schema";
 import type { TableData } from "@idk/shared/workbook/store";
 import { tableRows } from "@idk/shared/workbook/store";
@@ -22,7 +24,7 @@ import { ScanImport } from "./extras/ScanImport.tsx";
 import { SpecExtras, SpecMatchTool } from "./extras/SpecExtras.tsx";
 import { OjrExtras } from "./extras/OjrExtras.tsx";
 import { PreDelivery } from "./extras/PreDelivery.tsx";
-import { PrintOptionsContext, TemplateContext } from "./templateContext.ts";
+import { PrintOptionsContext, TemplateContext, UserTemplateContext } from "./templateContext.ts";
 import { bundleFor, previewJob } from "./print.ts";
 import { point4Lines } from "@idk/shared/acts/rows";
 import { todayIso } from "./today.ts";
@@ -45,7 +47,25 @@ const TABS: Tab[] = [
   { id: "kits", label: "Комплекты", tables: ["Комплекты", "АктыКомплектов", "РеестрИД"], sheet: "Комплекты" },
   { id: "ojr", label: "ОЖР", tables: ["ОЖР3", "ОЖР5"], sheet: "ОЖР Раздел 3" },
 ];
+/** Вспомогательные таблицы — на какой вкладке показать их строку при переходе к исправлению. */
+const TAB_OF: Partial<Record<TableName, TabId>> = {
+  МатериалыАктов: "acts",
+  ВОР: "acts",
+  ДокументыКачества: "materials",
+  Спецификация: "materials",
+  Электролаборатория: "cables",
+  СредстваИзмерений: "cables",
+  ИзмеренияМарок: "cables",
+  ДокументыКабелей: "cables",
+  Протоколы: "acts",
+  ПереченьОборудования: "acts",
+};
+
 const GROUP: Partial<Record<TableName, string>> = {
+  МатериалыАктов: "Материалы в актах",
+  ВОР: "ВОР",
+  Протоколы: "Протоколы",
+  ИзмеренияМарок: "Измерения марок",
   Объект: "Объект",
   Организации: "Организации",
   Шифры: "Шифры",
@@ -107,6 +127,18 @@ function rowView(table: TableName, r: BookRow, short: Map<string, string>): { ti
       return { title: `Комплект ${t(v.number)}${t(v.volume) ? ` · том ${t(v.volume)}` : ""}`, sub: t(v.works), right: "" };
     case "АктыКомплектов":
       return { title: `Акт № ${short.get(t(v.act)) ?? t(v.act)}`, sub: `комплект ${t(v.kit)}`, right: "", mono: true };
+    case "МатериалыАктов":
+      return {
+        title: t(v.material),
+        sub: [`акт № ${short.get(t(v.act)) ?? t(v.act)}`, t(v.quantity) && `кол-во ${t(v.quantity)}`].filter(Boolean).join(" · "),
+        right: "",
+      };
+    case "ВОР":
+      return {
+        title: t(v.material),
+        sub: [`акт № ${short.get(t(v.act)) ?? t(v.act)}`, t(v.group), t(v.quantity) && `объём ${t(v.quantity)}`].filter(Boolean).join(" · "),
+        right: "",
+      };
     case "РеестрИД":
       return {
         title: t(v.name),
@@ -629,6 +661,7 @@ export function BookScreen({
   needed,
   onScreen,
   onRowsAdded,
+  focus,
 }: {
   port: BookPort;
   state: BookState;
@@ -636,9 +669,12 @@ export function BookScreen({
   needed: { on: boolean; set(v: boolean): Promise<void> };
   onScreen(s: ScreenId): void;
   onRowsAdded?: (t: TableName, first: number, n: number) => Promise<void>;
+  /** 0.45: открыть место исправления — вкладку, строку и поле. */
+  focus?: (CellTarget & { n: number }) | null;
 }) {
   const book = state.book!;
   const [tab, setTab] = useState<TabId>("toc");
+  const [extra, setExtra] = useState<TableName | null>(null);
   const [sel, setSel] = useState<{ table: TableName; row: number } | null>(null);
   const [data, setData] = useState<Map<TableName, TableData | null>>(new Map());
   const [query, setQuery] = useState("");
@@ -655,8 +691,14 @@ export function BookScreen({
     return nums.find((n) => !!bundleFor(book, n, {}, "aosr", printOptions).bundle) ?? nums[0] ?? null;
   }, [book, printOptions]);
   const current = TABS.find((x) => x.id === tab);
+  const tabTables: TableName[] = current ? (extra && !current.tables.includes(extra) ? [...current.tables, extra] : current.tables) : [];
   const short = useMemo(() => shortNumbers((book.tables["Акты"] ?? []).map((r) => t(r.v.baseNumber)).filter(Boolean)), [book]);
-  const overview = useMemo(() => actsOverview(book, state.important, todayIso()), [book, state.important]);
+  const tplCtx = useContext(UserTemplateContext);
+  const optCtx = useContext(PrintOptionsContext);
+  const overview = useMemo(
+    () => actsOverview(book, state.important, todayIso(), docIssues(book, state.important, tplCtx.template, optCtx)),
+    [book, state.important, tplCtx.template, optCtx],
+  );
   const actStatus = useMemo(() => new Map(overview.map((a) => [a.number, a])), [overview]);
 
   // Таблицы вкладки — из книги (с гиперссылками и порядком столбцов листа).
@@ -664,19 +706,64 @@ export function BookScreen({
     if (!current) return;
     let alive = true;
     void port
-      .readMany(current.tables)
+      .readMany(tabTables)
       .then((m) => alive && setData(m))
       .catch((e: Error) => alive && setError(e.message));
     return () => {
       alive = false;
     };
-  }, [port, book, tab]);
+  }, [port, book, tab, extra]);
+  // Место исправления: вкладка таблицы (или ближайшая, со вспомогательной таблицей группой), строка и поле.
+  const [flash, setFlash] = useState<{ column: string; n: number } | null>(null);
+  const pending = useRef<{ table: TableName; row: number | null; tab: TabId } | null>(null);
   useEffect(() => {
-    setSel(null);
+    if (!focus) return;
+    const own = TABS.find((x) => x.tables.includes(focus.table));
+    const id = own?.id ?? TAB_OF[focus.table] ?? "acts";
+    setExtra(own ? null : focus.table);
+    pending.current = { table: focus.table, row: focus.row, tab: id };
+    if (id === tab) applyPending();
+    else setTab(id);
+    const label = focus.table === "Объект" && focus.row !== null ? t((book.tables["Объект"] ?? [])[focus.row]?.v.field ?? null) : focus.column;
+    setFlash({ column: label, n: focus.n });
+  }, [focus?.n]);
+  const applyPending = () => {
+    const p = pending.current;
+    pending.current = null;
     setQuery("");
+    if (!p) return setSel(null);
+    if (p.table === "Объект") return setSel({ table: "Объект", row: 0 });
+    setSel(p.row !== null ? { table: p.table, row: p.row } : null);
+  };
+  useEffect(() => {
+    if (pending.current) {
+      if (pending.current.tab === tab) applyPending();
+    } else {
+      setSel(null);
+      setQuery("");
+      setExtra(null);
+    }
     setAskDelete(false);
     setError("");
   }, [tab]);
+  // Подсветить поле с ошибкой в карточке (после отрисовки карточки).
+  useEffect(() => {
+    if (!flash) return;
+    const timer = setTimeout(() => {
+      const fields = [...document.querySelectorAll<HTMLElement>(".bk-card .field")];
+      const want = flash.column.trim().toLowerCase();
+      const f =
+        fields.find((el) => (el.querySelector(".field-label")?.firstChild?.textContent ?? "").trim().toLowerCase() === want) ??
+        fields.find((el) => (el.querySelector(".field-label")?.textContent ?? "").toLowerCase().startsWith(want));
+      if (!f) return;
+      f.closest("details")?.setAttribute("open", "");
+      f.scrollIntoView({ block: "center", behavior: "smooth" });
+      f.classList.add("field-flash");
+      (f.querySelector("input,textarea,select") as HTMLElement | null)?.focus({ preventScroll: true });
+      setTimeout(() => f.classList.remove("field-flash"), 2500);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [flash, sel, data]);
 
   const levelOf = (table: TableName, r: BookRow): Level => {
     if (table === "Акты") {
@@ -709,7 +796,7 @@ export function BookScreen({
       );
     });
   };
-  const firstTable = current?.tables[0];
+  const firstTable = tabTables[0];
   const selected =
     sel ??
     (current && firstTable
@@ -734,7 +821,7 @@ export function BookScreen({
     };
   }, [port, selTable]);
   const org = origin && origin.table === selTable && origin.col >= 0 ? { col: origin.col, row: origin.row } : null;
-  const total = current ? current.tables.reduce((n, x) => n + (x === "Объект" ? 0 : rowsOf(x).length), 0) : 0;
+  const total = current ? tabTables.reduce((n, x) => n + (x === "Объект" ? 0 : rowsOf(x).length), 0) : 0;
 
   const run = async (f: () => Promise<void>) => {
     setBusy(true);
@@ -969,7 +1056,7 @@ export function BookScreen({
   // ---------- Вкладка раздела ----------
   const editor = () => {
     if (!current) return null;
-    const groups = current.tables;
+    const groups = tabTables;
     const view = selected && selected.table !== "Объект" ? rowsOf(selected.table).find((r) => r.row === selected.row) : null;
     const head = view ? rowView(selected!.table, view, short) : null;
     const level = view ? levelOf(selected!.table, view) : null;
@@ -985,7 +1072,7 @@ export function BookScreen({
         <section className="bk-list">
           <header>
             <strong>
-              {total} {current.id === "acts" ? word(total, "акт", "акта", "актов") : word(total, "строка", "строки", "строк")}
+              {total} {current.id === "acts" && !extra ? word(total, "акт", "акта", "актов") : word(total, "строка", "строки", "строк")}
             </strong>
             <span className="muted"> · {current.sheet}</span>
             <input type="search" placeholder="Поиск…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск по строкам" />

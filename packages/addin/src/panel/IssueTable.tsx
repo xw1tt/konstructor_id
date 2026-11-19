@@ -1,5 +1,7 @@
 // 0.40: замечания в окне программы — таблицей: значок, сообщение, место в книге (лист · строка · столбец), акт, переход.
+import { useContext } from "react";
 import type { BookPort } from "../book/bookPort.ts";
+import { CellNavContext } from "./cellNav.ts";
 import type { IssueLine } from "./print.ts";
 
 export interface IssueItem {
@@ -32,13 +34,17 @@ export function placeText(l: IssueLine): string {
 }
 
 export function IssueTable({ port, items, compact = false }: { port: BookPort; items: IssueItem[]; compact?: boolean }) {
+  const nav = useContext(CellNavContext);
   if (!items.length) return null;
-  const go = (l: IssueLine) => void port.selectCell(l.table, l.row, l.table === "Объект" ? "Значение" : l.column);
+  const go = (l: IssueLine) => {
+    void port.selectCell(l.table, l.row, l.table === "Объект" ? "Значение" : l.column).catch(() => undefined);
+    nav?.({ table: l.table, row: l.row, column: l.column });
+  };
   return (
     <ul className={`it${compact ? " it-compact" : ""}`}>
       {items.map((x, i) => (
         <li key={i}>
-          <button className="it-row" onClick={() => go(x.line)} title="Перейти к ячейке в Excel">
+          <button className="it-row" onClick={() => go(x.line)} title="Перейти к месту исправления">
             <IssueIcon level={x.level} />
             <span className="it-msg">{x.line.message ?? x.line.text}</span>
             <span className="it-place mono">{placeText(x.line)}</span>

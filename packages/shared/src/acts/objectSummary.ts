@@ -47,9 +47,9 @@ const iso = (v: Parameters<typeof parseDateCell>[0]) => {
   return p.ok ? (p.value ?? "") : "";
 };
 
-export function objectSummary(book: Book, important: ImportantMap, today: string, limit = 8): ObjectSummary {
+export function objectSummary(book: Book, important: ImportantMap, today: string, limit = 8, extra?: (act: string) => Issue[]): ObjectSummary {
   const rows = (t: keyof Book["tables"]) => book.tables[t] ?? [];
-  const list = actsOverview(book, important, today);
+  const list = actsOverview(book, important, today, extra);
   const count = (s: string) => list.filter((a) => a.status === s).length;
 
   const kits = [
@@ -76,7 +76,7 @@ export function objectSummary(book: Book, important: ImportantMap, today: string
 
   const attention: AttentionItem[] = [];
   for (const a of list.filter((x) => x.status === "blocked")) {
-    const first = buildBundle(book, a.number, important).issues[0];
+    const first = buildBundle(book, a.number, important).issues[0] ?? extra?.(a.number)[0];
     if (first) attention.push({ ...first, act: a.number, level: "critical" });
   }
   const warnings = checkActs(

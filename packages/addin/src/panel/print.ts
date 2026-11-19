@@ -170,6 +170,24 @@ export function bundleFor(book: Book, actNumber: string, important: ImportantMap
   return printBundle(book, { act: actNumber }, important, doc, options);
 }
 
+/**
+ * 0.45: печатается ли документ для акта. absent — у акта нет исходных данных этого документа (нет кабелей для КЖ
+ * и протокола изоляции, нет строки протокола): документ акту не нужен и не показывается; bad — данные есть, но с ошибками.
+ */
+export function docState(
+  book: Book,
+  act: string,
+  important: ImportantMap,
+  doc: PrintKind | null,
+  options?: PrintOptions,
+): { state: "ok" | "bad" | "absent"; issues: Issue[] } {
+  if (!doc) return { state: "ok", issues: [] };
+  const { bundle, issues } = printBundle(book, { act }, important, doc, options);
+  if (bundle) return { state: "ok", issues: [] };
+  const absent = doc !== "aosr" && issues.length > 0 && issues.every((i) => i.row === null && (i.table === "КабельныйЖурнал" || i.table === "Протоколы"));
+  return { state: absent ? "absent" : "bad", issues };
+}
+
 /** Печать документа по своей форме шаблона: проверка акта, задание на сервере, предпросмотр. */
 export async function printForm(
   book: Book,

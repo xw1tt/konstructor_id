@@ -28,6 +28,7 @@ export function WindowNav({
   onTemplate,
   link,
   onBook,
+  file,
 }: {
   screen: ScreenId;
   onScreen(s: ScreenId): void;
@@ -36,6 +37,7 @@ export function WindowNav({
   onTemplate(t: TemplateCode): void;
   link?: BridgeStatus | null;
   onBook?: (panel: string) => void;
+  file?: { name: string; close(): void } | null;
 }) {
   const item = (i: (typeof ITEMS)[number]) => (
     <button
@@ -71,12 +73,21 @@ export function WindowNav({
         ) : (
           <strong title={activeBook?.name}>{activeBook?.name ?? "—"}</strong>
         )}
-        <span className="wn-linked">
-          <span className="wn-dot" aria-hidden="true" /> связь с Excel
-        </span>
+        {file ? (
+          <>
+            <span className="wn-file">только просмотр и печать (файл, без Excel)</span>
+            <button className="btn btn-link wn-close" onClick={file.close}>
+              Закрыть файл
+            </button>
+          </>
+        ) : (
+          <span className="wn-linked">
+            <span className="wn-dot" aria-hidden="true" /> связь с Excel
+          </span>
+        )}
       </div>
       <nav className="wn-nav" aria-label="Экраны">
-        {ITEMS.filter((i) => i.group === "work").map(item)}
+        {ITEMS.filter((i) => i.group === "work" && !(file && i.id === "home")).map(item)}
         <span className="wn-cap wn-sep">Настройка</span>
         {ITEMS.filter((i) => i.group === "setup").map(item)}
       </nav>

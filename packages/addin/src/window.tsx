@@ -9,6 +9,7 @@ import { PanelGuard } from "./panel/PanelGuard.tsx";
 import { RemotePort, WindowEvents } from "./book/remotePort.ts";
 import type { ScreenId } from "./panel/screens.ts";
 import { setPreviewHook } from "./panel/print.ts";
+import { FilePort, type BookSnapshot } from "./book/filePort.ts";
 
 declare global {
   interface Window {
@@ -30,7 +31,50 @@ function setTitle(book: string | null) {
   void window.idkSetTitle?.(t).catch(() => undefined);
 }
 
-function Waiting({ down }: { down: boolean }) {
+/** 0.39: сохранённая книга без Excel — файл на сервер, обратно — таблицы книги. */
+async function loadBookFile(f: File): Promise<BookSnapshot> {
+  const r = await fetch("/api/book-file", { method: "POST", headers: { "x-file-name": encodeURIComponent(f.name) }, body: f });
+  const j = (await r.json().catch(() => null)) as (BookSnapshot & { error?: string }) | null;
+  if (!r.ok || !j) throw new Error(j?.error ?? `Ошибка сервера (${r.status})`);
+  return j;
+}
+
+function OpenFile({ onOpen }: { onOpen(b: BookSnapshot): void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <div className="win-file">
+      <label className={`btn${busy ? " btn-disabled" : ""}`}>
+        {busy ? "Читаю книгу…" : "Открыть сохранённую книгу (.xlsx)…"}
+        <input
+          type="file"
+          accept=".xlsx,.xlsm"
+          hidden
+          disabled={busy}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            setBusy(true);
+            setError("");
+            loadBookFile(f)
+              .then(onOpen)
+              .catch((err: Error) => setError(err.message))
+              .finally(() => setBusy(false));
+          }}
+        />
+      </label>
+      <p className="hint">Без Excel: обзор, акты, проверка, печать и сборка комплектов. Изменить книгу — в Excel.</p>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Waiting({ down, onFile }: { down: boolean; onFile(b: BookSnapshot): void }) {
   return (
     <div className="win-wait">
       <div className="win-wait-card">
@@ -44,6 +88,7 @@ function Waiting({ down }: { down: boolean }) {
           <>
             <p>Откройте книгу объекта в Excel и панель «Конструктор ИД» в ней (вкладка «Главная» → «Конструктор ИД»).</p>
             <p className="hint">Окно работает с книгой, открытой в Excel: данные остаются в книге, правки видны в Excel сразу.</p>
+            <OpenFile onOpen={onFile} />
           </>
         )}
       </div>
@@ -97,16 +142,36 @@ function WindowApp() {
       events.down.delete(d);
     };
   }, []);
+  const [file, setFile] = useState<BookSnapshot | null>(null);
   const active = status?.active ?? null;
-  const book = status?.books.find((b) => b.panel === active)?.name ?? null;
+  const book = file ? file.name : (status?.books.find((b) => b.panel === active)?.name ?? null);
   useEffect(() => setTitle(book), [book]);
   // Новая книга — новый слой книги (кэши экранов не переносятся между книгами).
   const port = useMemo(() => (active ? new RemotePort(events) : null), [active]);
   const slots = useMemo(() => (port ? bookSlots(port) : null), [port]);
+  const filePort = useMemo(() => (file ? new FilePort(file) : null), [file]);
+  const fileSlots = useMemo(() => (filePort ? bookSlots(filePort) : null), [filePort]);
+  if (file && filePort && fileSlots)
+    return (
+      <>
+        <Preview />
+        <Panel
+          key={"file:" + file.name}
+          port={filePort}
+          slots={fileSlots}
+          shell={{
+            layout: "window",
+            initialScreen: screen === "home" ? "overview" : screen,
+            link: { books: [{ panel: "file", name: file.name }], active: "file" },
+            file: { name: file.name, close: () => setFile(null) },
+          }}
+        />
+      </>
+    );
   if (!status || !port || !slots)
     return (
       <>
-        <Waiting down={down} />
+        <Waiting down={down} onFile={setFile} />
         <Preview />
       </>
     );

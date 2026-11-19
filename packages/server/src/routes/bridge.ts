@@ -4,7 +4,12 @@
 import { randomUUID } from "node:crypto";
 import type { ServerResponse } from "node:http";
 import { BridgeCall, BridgeEvent, BridgeResult, WindowOpen, type BridgeStatus, type PanelMessage, type WindowMessage } from "@idk/shared/bridge";
-import { HttpError, type Router } from "../http/router.ts";
+import { HttpError, Reply, type Router } from "../http/router.ts";
+import { readRaw } from "./rkc.ts";
+import { readBookFile } from "../xlsx/bookFile.ts";
+import { XlsxError } from "../xlsx/read.ts";
+
+export const BOOK_FILE_LIMIT = 100 * 1024 * 1024;
 
 export const BRIDGE_JSON_LIMIT = 64 * 1024 * 1024;
 const KEEPALIVE_MS = 20_000;
@@ -153,6 +158,24 @@ export function bridgeRoutes(r: Router, deps: BridgeDeps = {}): Bridge {
     const out = await b.call(q.method, q.args);
     if (!out.ok) throw new HttpError(502, out.error ?? "Ошибка Excel");
     return { value: out.value ?? null };
+  });
+
+  // 0.39: сохранённая книга без Excel — таблицы, гиперссылки и настройки из файла (окно — только просмотр и печать).
+  r.post("/api/book-file", async (c) => {
+    const buf = await readRaw(c.req, BOOK_FILE_LIMIT);
+    const name = decodeURIComponent(String(c.req.headers["x-file-name"] ?? "Книга.xlsx")).slice(0, 200);
+    try {
+      return new Reply(200, { name, ...readBookFile(buf) });
+    } catch (e) {
+      if (e instanceof XlsxError || e instanceof RangeError)
+        return new Reply(422, {
+          error:
+            e instanceof XlsxError && /Конструктора ИД/.test(e.message)
+              ? e.message
+              : "Это не книга Excel (.xlsx) — сохраните книгу объекта как «Книга Excel (*.xlsx)»",
+        });
+      throw e;
+    }
   });
 
   // Кнопка «Открыть в окне» в панели: книга этой панели становится активной, окно запускается (или выходит вперёд).

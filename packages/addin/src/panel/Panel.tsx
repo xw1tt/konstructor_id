@@ -60,6 +60,8 @@ export interface PanelShell {
   /** Окно: книги, открытые в Excel, и выбор книги. */
   link?: BridgeStatus | null;
   onBook?: (panel: string) => void;
+  /** 0.39: книга из сохранённого файла (без Excel) — только просмотр и печать. */
+  file?: { name: string; close(): void } | null;
 }
 
 export function Panel({ port, slots = {}, shell = {} }: { port: BookPort; slots?: PanelSlots; shell?: PanelShell }) {
@@ -266,6 +268,7 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
                     onTemplate={chooseTemplate}
                     link={shell.link}
                     onBook={shell.onBook}
+                    file={shell.file}
                   />
                 ) : (
                   <TopBar

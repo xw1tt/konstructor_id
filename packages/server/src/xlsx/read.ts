@@ -9,6 +9,9 @@ export interface XlsxBook {
   sheets: string[];
   /** Значения листа: строки и столбцы с 0, пустые ячейки — null. */
   grid(sheet: string): CellValue[][];
+  /** 0.39: путь листа в архиве (xl/worksheets/sheetN.xml) и текст части архива — для таблиц и гиперссылок. */
+  sheetPath(sheet: string): string | undefined;
+  part(path: string): string | undefined;
 }
 
 const MESSAGES: Record<string, string> = {
@@ -31,7 +34,7 @@ function unzip(buf: Buffer): Map<string, () => Buffer> {
   return new Map([...files].map(([k, get]) => [k, () => asXlsx(get)]));
 }
 
-const unescape = (s: string) =>
+export const unescape = (s: string) =>
   s
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
@@ -40,7 +43,7 @@ const unescape = (s: string) =>
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, "&");
-const attr = (tag: string, name: string) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
+export const attr = (tag: string, name: string) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
 const texts = (xml: string) => [...xml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => unescape(m[1])).join("");
 const colIndex = (ref: string) => [...ref.replace(/\d+$/, "")].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
 
@@ -72,6 +75,8 @@ export function readXlsx(data: Uint8Array): XlsxBook {
 
   return {
     sheets: sheets.map((s) => s.name),
+    sheetPath: (name) => sheets.find((x) => x.name === name)?.path,
+    part: text,
     grid(name) {
       const s = sheets.find((x) => x.name === name);
       if (!s) throw new XlsxError(`Лист «${name}» не найден`);

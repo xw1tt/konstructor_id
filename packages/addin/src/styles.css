@@ -1881,3 +1881,27 @@ a.btn {
 .tb-window-wide .tb-label {
   display: inline;
 }
+
+/* ---------- 0.39: книга из файла без Excel ---------- */
+.win-file {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.win-file .btn {
+  display: inline-block;
+  cursor: pointer;
+}
+.btn-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.wn-file {
+  color: var(--warn);
+  font-size: 12px;
+}
+.wn-close {
+  align-self: flex-start;
+  padding: 0;
+  font-size: 12px;
+}

@@ -15,6 +15,7 @@ import { tiVdSheet, tiRmSheet, tiRpSheet, tiKjSheet } from "./ti.ts";
 import { tiDocData, tiHeader } from "../tiData.ts";
 import { docNumberFor } from "@idk/shared/acts/format";
 import { tiJournal } from "@idk/shared/acts/cableDocs";
+import { applyLook } from "../../xlsx/look.ts";
 
 const cables = (b: ActBundle) => {
   if (!b.cables) throw new HttpError(400, "В пакете нет данных кабельного журнала");
@@ -56,5 +57,5 @@ export function renderActXlsx(b: ActBundle, kind: ActDocKind, options: Partial<P
   const form = actDocFormFor(kind, options);
   const render = ACT_DOC_XLSX[kind][form];
   if (!render) throw new HttpError(400, "Для этого документа Excel не формируется");
-  return { xlsx: writeBook([render(b, options, set)]), name: xlsxName(actDocFileName(b, kind, set, form)) };
+  return { xlsx: writeBook([applyLook(render(b, options, set), options.styles?.[`${kind}:${form}`])]), name: xlsxName(actDocFileName(b, kind, set, form)) };
 }

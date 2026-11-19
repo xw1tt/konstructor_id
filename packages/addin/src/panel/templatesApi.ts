@@ -3,6 +3,7 @@ import { BUILTIN_SBD, BUILTIN_DOC_LABELS, isBuiltinTemplate, type UserTemplate, 
 import type { FormDoc, FormSet } from "@idk/shared/templates";
 import type { PrintKind } from "@idk/shared/acts/schemas";
 import { PROTO_DEFS, isProtoKind } from "@idk/shared/protocols/defs";
+import { cleanStyle, type DocStyle } from "@idk/shared/docStyle";
 import { apiGet, apiSend } from "../api.ts";
 
 export interface TemplateButton {
@@ -94,6 +95,15 @@ export async function applyChange(
 }
 
 /** Настройки бланка документа (скрытые графы и строки, свои заголовки); пустые — бланк по умолчанию. */
+/** 0.33: оформление документа; «как в образце» — запись удаляется. */
+export function withStyle(t: UserTemplate, key: string, style: DocStyle): UserTemplate {
+  const styles = { ...(t.print.styles ?? {}) };
+  const clean = cleanStyle(style);
+  if (!Object.keys(clean).length) delete styles[key];
+  else styles[key] = clean;
+  return withPrint(t, { styles });
+}
+
 export function withBlank(t: UserTemplate, key: string, s: { hide: string[]; headers: Record<string, string> }): UserTemplate {
   const blanks = { ...(t.print.blanks ?? {}) };
   const headers = Object.fromEntries(Object.entries(s.headers).filter(([, v]) => v.trim()));

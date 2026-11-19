@@ -18,7 +18,7 @@ import { cellText } from "@idk/shared/workbook/values";
 import { apiSend } from "../api.ts";
 import { useGuard } from "../server.tsx";
 import type { BookState } from "./useBook.ts";
-import { UserTemplateContext } from "./templateContext.ts";
+import { TemplateContext, UserTemplateContext } from "./templateContext.ts";
 import {
   createTemplate,
   deleteTemplate,
@@ -31,8 +31,11 @@ import {
   withReserve,
   withDecimals,
   withBlank,
+  withStyle,
 } from "./templatesApi.ts";
 import { BlankEditor } from "./BlankEditor.tsx";
+import { StyleEditor } from "./StyleEditor.tsx";
+import { styleKeyFor } from "@idk/shared/docStyle";
 import { blankKeyFor } from "@idk/shared/blanks";
 import { bundleFor } from "./print.ts";
 import { CatalogContext } from "./catalogApi.ts";
@@ -55,6 +58,7 @@ const toBase64 = async (f: File) => {
 
 export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose(id: string): void }) {
   const ctx = useContext(UserTemplateContext);
+  const template = useContext(TemplateContext);
   const catalog = useContext(CatalogContext);
   const [picker, setPicker] = useState(false);
   const guard = useGuard();
@@ -369,6 +373,22 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                 const key = blankKeyFor(d.doc, t.print);
                 return key ? (
                   <BlankEditor blankKey={key} value={t.print.blanks?.[key] ?? null} onChange={(v) => void change((x) => withBlank(x, key, v))} />
+                ) : null;
+              })()}
+            {d.kind === "builtin" &&
+              !d.form &&
+              (() => {
+                const key = styleKeyFor(d.doc, t.print);
+                return key ? (
+                  <StyleEditor
+                    styleKey={key}
+                    doc={d.doc}
+                    value={t.print.styles?.[key] ?? null}
+                    state={state}
+                    template={template}
+                    options={t.print}
+                    onSave={(v) => change((x) => withStyle(x, key, v))}
+                  />
                 ) : null;
               })()}
             {d.kind === "builtin" && d.doc === "aosr" && (

@@ -10,8 +10,8 @@ test("настройки печати книги: по умолчанию как
   const { loadPrintOptions, savePrintOptions, PrintOptions } = await import("@idk/shared/templates");
   const { MemoryWorkbook } = await import("@idk/shared/workbook/memory");
   const wb = new MemoryWorkbook({});
-  assert.deepEqual(await loadPrintOptions(wb), { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
-  await savePrintOptions(wb, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
-  assert.deepEqual(await loadPrintOptions(wb), { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
-  assert.deepEqual(PrintOptions.parse({}), { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
+  assert.deepEqual(await loadPrintOptions(wb), { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} });
+  await savePrintOptions(wb, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} });
+  assert.deepEqual(await loadPrintOptions(wb), { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} });
+  assert.deepEqual(PrintOptions.parse({}), { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} });
 });

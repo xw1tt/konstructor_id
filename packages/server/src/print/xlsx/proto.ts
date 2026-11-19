@@ -1,3 +1,5 @@
+import { applyLook } from "../../xlsx/look.ts";
+import type { DocStyle } from "@idk/shared/docStyle";
 // План 28: протоколы лаборатории и акты комиссии в Excel — по описанию документа (PROTO_DEFS), как PDF.
 import type { ActBundle } from "@idk/shared/workbook/bundle";
 import { PROTO_DEFS } from "@idk/shared/protocols/defs";
@@ -115,7 +117,7 @@ export function protoSheet(b: ActBundle, view?: BlankView): Layout {
   return L;
 }
 
-export function protoXlsx(b: ActBundle, view?: BlankView): { xlsx: Buffer; name: string } {
+export function protoXlsx(b: ActBundle, view?: BlankView, style?: Partial<DocStyle> | null): { xlsx: Buffer; name: string } {
   const L = protoSheet(b, view);
-  return { xlsx: writeBook([L.sheet]), name: `${b.proto!.code} ${withNo(String(b.proto!.number ?? ""))}.xlsx`.replace(/[\\/:*?"<>|]/g, "_") };
+  return { xlsx: writeBook([applyLook(L.sheet, style)]), name: `${b.proto!.code} ${withNo(String(b.proto!.number ?? ""))}.xlsx`.replace(/[\\/:*?"<>|]/g, "_") };
 }

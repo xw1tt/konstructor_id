@@ -9,7 +9,7 @@ import { mergeUserCatalog } from "@idk/shared/catalog/merge";
 import type { UserCatalog } from "@idk/shared/catalog/model";
 import { apiGet, apiSend } from "../api.ts";
 import type { ToolKit } from "./assistant.ts";
-import { TEMPLATE_TOOLS, getBlanks, validateBlankProposal, validatePrintProposal } from "@idk/shared/ai/templateTools";
+import { TEMPLATE_TOOLS, getBlanks, validateBlankProposal, validatePrintProposal, validateStyleProposal } from "@idk/shared/ai/templateTools";
 import type { UserTemplate } from "@idk/shared/forms/template";
 
 export interface CatalogApi {
@@ -250,11 +250,12 @@ export function templateKit(api: TemplateApi, onChanged: () => void = () => {}):
     async exec(call: ToolCall, ctx: ToolContext) {
       const a = call.arguments ?? {};
       if (call.name === "get_blanks") return json(getBlanks(ctx.template, a.doc ? String(a.doc) : undefined));
-      if (call.name !== "propose_blank" && call.name !== "propose_print_settings") return null;
+      if (call.name !== "propose_blank" && call.name !== "propose_print_settings" && call.name !== "propose_style") return null;
       // Предложения одного ответа накапливаются: следующее строится от уже предложенных настроек.
       const prev = [...ctx.proposals].reverse().find((p) => p.change.kind === "template" && p.change.templateId === ctx.template.id);
       const t = prev && prev.change.kind === "template" ? { ...ctx.template, print: prev.change.after } : ctx.template;
-      const r = call.name === "propose_blank" ? validateBlankProposal(t, a) : validatePrintProposal(t, a);
+      const r =
+        call.name === "propose_blank" ? validateBlankProposal(t, a) : call.name === "propose_style" ? validateStyleProposal(t, a) : validatePrintProposal(t, a);
       if (!r.ok) return json({ error: r.error });
       const change = prev && prev.change.kind === "template" ? { ...r.change, before: prev.change.before } : r.change;
       if (prev) ctx.proposals.splice(ctx.proposals.indexOf(prev), 1);

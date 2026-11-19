@@ -128,6 +128,22 @@ export async function printAct(
   return [];
 }
 
+/** 0.33: задание печати для живого предпросмотра оформления — без открытия окна. Для предпросмотра незаполненные
+ *  важные поля не мешают (пустые строки бланка — тоже оформление); null и замечания — пакет не собран. */
+export async function previewJob(
+  book: Book,
+  actNumber: string,
+  _important: ImportantMap,
+  doc: PrintKind,
+  template: TemplateCode,
+  options?: PrintOptions,
+): Promise<{ id: string | null; issues: Issue[] }> {
+  const { bundle, issues } = printBundle(book, { act: actNumber }, {}, doc, options);
+  if (!bundle) return { id: null, issues };
+  const { id } = await apiSend<{ id: string }>("POST", "/api/print-jobs", { ...bundle, template, options });
+  return { id, issues: [] };
+}
+
 export const previewFormUrl = (id: string, origin: string) => `${origin}/addin/preview.html?src=${encodeURIComponent(`/api/form-jobs/${id}`)}`;
 
 /** Пакет акта для своей формы: для КЖ/протокола — кабельный, протокола или акта плана 13 — его пакет, иначе обычный. */

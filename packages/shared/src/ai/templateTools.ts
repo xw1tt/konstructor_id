@@ -1,5 +1,5 @@
 // Инструменты помощника для бланков и форм документов шаблона: что можно настроить и предложения изменений
-// (скрыть/показать графы и строки, переименовать графы, набор форм, форма документа, запас КЖ, п.4 АОСР).
+// (скрыть/показать графы и строки, переименовать графы, набор форм, форма документа, запас КЖ, п.4 АОСР; 0.33 — оформление).
 import type { ToolDef } from "./model.ts";
 import { ACT_DOC_DEFS, isActDocKind } from "../docs/defs.ts";
 import { PROTO_DEFS, isProtoKind } from "../protocols/defs.ts";
@@ -7,6 +7,7 @@ import { BUILTIN_DOC_LABELS, docLabel, isBuiltinTemplate, type UserTemplate } fr
 import { FORM_DOCS, FORM_SETS, FORM_SET_LABELS, PrintOptions, type FormDoc, type FormSet } from "../templates.ts";
 import { blankDef, blankKeyFor, blankView, describeBlank, findBlankPart, type BlankSettings } from "../blanks.ts";
 import type { PrintKind } from "../acts/schemas.ts";
+import { cleanStyle, describeStyle, DOC_FONTS, DocStyle, STYLE_PRESETS, styleKeyFor, styleLabel } from "../docStyle.ts";
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties, required });
 const str = (description: string) => ({ type: "string", description });
@@ -34,6 +35,36 @@ export const TEMPLATE_TOOLS: ToolDef[] = [
           additionalProperties: { type: "string" },
         },
         reset: { type: "boolean", description: "Вернуть бланк к исходному виду" },
+      },
+      ["doc"],
+    ),
+  },
+  {
+    name: "propose_style",
+    description:
+      "Предложить изменить оформление встроенного документа шаблона (пользователь подтвердит): шрифт, размеры текста, таблицы, заголовков граф и заголовка документа (пт), жирный/курсив заполненных значений, интервал, высоту строк таблицы (мм), поворот заголовков узких граф, выравнивание в таблице, текст по ширине, поля (мм) и ориентацию листа. Действует на PDF (и шрифт/размер/поля — на Excel) всех актов книги. Только указанные параметры меняются; null — вернуть как в образце.",
+    parameters: obj(
+      {
+        doc: str("Документ: АОСР, РИМ, ВД, ВОР, АВК, КЖ, Протокол или код протокола"),
+        preset: { type: "string", enum: STYLE_PRESETS.map((p) => p.id), description: STYLE_PRESETS.map((p) => `${p.id} — ${p.label}`).join("; ") },
+        font: { type: ["string", "null"], enum: [...DOC_FONTS, null] },
+        size: { type: ["number", "null"], description: "Основной текст, пт (6–16; в образце 10)" },
+        tableSize: { type: ["number", "null"], description: "Текст таблиц, пт (5–14)" },
+        headerSize: { type: ["number", "null"], description: "Заголовки граф, пт (5–14)" },
+        titleSize: { type: ["number", "null"], description: "Заголовок документа, пт (8–20)" },
+        valueBold: { type: ["boolean", "null"] },
+        valueItalic: { type: ["boolean", "null"] },
+        lineHeight: { type: ["number", "null"], description: "Межстрочный интервал (0,9–2; в образце 1,15)" },
+        rowHeight: { type: ["number", "null"], description: "Наименьшая высота строки таблицы, мм (3–30)" },
+        headerRotate: { type: ["boolean", "null"] },
+        tableAlign: { type: ["string", "null"], enum: ["left", "center", null] },
+        textAlign: { type: ["string", "null"], enum: ["justify", null] },
+        marginTop: { type: ["number", "null"] },
+        marginRight: { type: ["number", "null"] },
+        marginBottom: { type: ["number", "null"] },
+        marginLeft: { type: ["number", "null"] },
+        orientation: { type: ["string", "null"], enum: ["portrait", "landscape", null] },
+        reset: { type: "boolean", description: "Вернуть оформление как в образце" },
       },
       ["doc"],
     ),
@@ -108,10 +139,14 @@ export function getBlanks(t: UserTemplate, doc?: string): unknown {
       if (d.ownForm) return { doc: d.label, form: "своя форма из файла — меняется файлом (Шаблоны → «Скачать форму», правка в Word/Excel, «Загрузить форму»)" };
       const key = blankKeyFor(d.kind, o);
       const def = key ? blankDef(key) : null;
-      if (!key || !def) return { doc: d.label, form: "встроенная, без настраиваемых граф (вид задан нормативом)" };
+      const sk = styleKeyFor(d.kind, o);
+      const style = sk ? describeStyle(o.styles[sk]) : [];
+      const look = { style: style.length ? style : "как в образце" };
+      if (!key || !def) return { doc: d.label, form: "встроенная, без настраиваемых граф (вид задан нормативом)", ...look };
       const v = blankView(key, o.blanks[key]);
       return {
         doc: d.label,
+        ...look,
         blank: def.label,
         columns: def.columns.map((c) => ({
           key: c.key,
@@ -197,6 +232,46 @@ export function validateBlankProposal(t: UserTemplate, a: Record<string, unknown
     `Шаблон «${t.name}», бланк «${def.label}»: ${will.length ? will.join("; ") : "исходный вид"}${was.length ? ` (было: ${was.join("; ")})` : ""}`,
   ];
   return change(t, { ...o, blanks }, lines);
+}
+
+const STYLE_FIELDS = Object.keys(DocStyle.shape) as (keyof DocStyle)[];
+
+/** Проверка propose_style → новые настройки печати шаблона (0.33). */
+export function validateStyleProposal(t: UserTemplate, a: Record<string, unknown>): Result {
+  const d = findTemplateDoc(t, String(a.doc ?? ""));
+  if (!d) return { ok: false, error: `В шаблоне «${t.name}» нет документа «${String(a.doc ?? "")}». Документы: ${t.docs.map(docLabel).join(", ")}` };
+  if (d.ownForm) return { ok: false, error: `У «${d.label}» своя форма из файла — шрифт и размеры задаются в самом файле формы (Word/Excel)` };
+  const o = PrintOptions.parse(t.print ?? {});
+  const key = styleKeyFor(d.kind, o);
+  if (!key) return { ok: false, error: `Оформление «${d.label}» не настраивается` };
+  let next: Record<string, unknown> = a.reset ? {} : { ...(o.styles[key] ?? {}) };
+  if (a.preset !== undefined && a.preset !== null) {
+    const p = STYLE_PRESETS.find((x) => x.id === a.preset);
+    if (!p) return { ok: false, error: `Набора «${String(a.preset)}» нет. Наборы: ${STYLE_PRESETS.map((x) => x.id).join(", ")}` };
+    next = { ...p.style };
+  }
+  for (const f of STYLE_FIELDS) {
+    if (!(f in a)) continue;
+    const v = a[f];
+    if (v === null || v === "") delete next[f];
+    else next[f] = typeof v === "string" && /^-?[\d.,]+$/.test(v) && f !== "font" ? Number(v.replace(",", ".")) : v;
+  }
+  let style: DocStyle;
+  try {
+    style = cleanStyle(next);
+  } catch (e) {
+    const issue = (e as { issues?: { path: (string | number)[]; message: string }[] }).issues?.[0];
+    return { ok: false, error: `Неверное значение${issue ? ` «${issue.path.join(".")}»: ${issue.message}` : ""}` };
+  }
+  const styles = { ...o.styles };
+  if (!Object.keys(style).length) delete styles[key];
+  else styles[key] = style;
+  const was = describeStyle(o.styles[key]),
+    will = describeStyle(style);
+  const lines = [
+    `Шаблон «${t.name}», оформление «${styleLabel(key)}»: ${will.length ? will.join("; ") : "как в образце"}${was.length ? ` (было: ${was.join("; ")})` : ""}`,
+  ];
+  return change(t, { ...o, styles }, lines);
 }
 
 /** Проверка propose_print_settings → новые настройки печати шаблона. */

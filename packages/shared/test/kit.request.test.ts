@@ -43,7 +43,7 @@ test("сканы — свои или найденные по номеру в и�
     "1",
     defaultImportant(),
     "sbd",
-    { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} },
+    { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} },
     NOW,
   );
   assert.deepEqual(issues, []);
@@ -89,7 +89,7 @@ test("сканы — свои или найденные по номеру в и�
   assert.equal(q.designer!.shortName, 'ООО "МАРКС ИНЖИНИРИНГ"');
   assert.equal(q.contractor!.shortName, 'ООО "Велесстрой"');
   assert.deepEqual(q.logos, { developer: { name: "sbd.png", link: null }, contractor: null });
-  assert.deepEqual(q.options, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
+  assert.deepEqual(q.options, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} });
   assert.equal(q.object.contractNumber, "КУТ03-Р-СМР-36-26");
 });
 

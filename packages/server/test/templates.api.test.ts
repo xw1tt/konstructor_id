@@ -73,7 +73,7 @@ test("выгрузка и загрузка шаблона; шаблоны пер
 test("п.4 АОСР сохраняется в шаблоне", async () => {
   const s = await startTestServer();
   const { json: t } = await s.req("POST", "/api/templates", { name: "П4", from: "sbd" });
-  assert.deepEqual(t.print, { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} });
+  assert.deepEqual(t.print, { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} });
   const put = await s.req("PUT", `/api/templates/${t.id}`, { name: "П4", docs: t.docs, print: { schemeEach: true } });
   assert.equal(put.status, 200);
   assert.deepEqual((await s.req("GET", "/api/templates")).json.find((x: any) => x.id === t.id).print, {
@@ -83,7 +83,12 @@ test("п.4 АОСР сохраняется в шаблоне", async () => {
     kjReserve: 2,
     kjDecimals: null,
     blanks: {},
+    styles: {},
   });
   const copy = await s.req("POST", "/api/templates", { name: "Копия", from: t.id });
-  assert.deepEqual(copy.json.print, { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} }, "копия наследует настройку");
+  assert.deepEqual(
+    copy.json.print,
+    { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} },
+    "копия наследует настройку",
+  );
 });

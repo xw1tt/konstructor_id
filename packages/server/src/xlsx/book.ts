@@ -30,7 +30,7 @@ export type Side = boolean | "medium";
 export const FONT = "Times New Roman";
 export const DEFAULT_SIZE = 10;
 
-interface Cell {
+export interface Cell {
   v: string | number;
   s: CellStyle;
 }

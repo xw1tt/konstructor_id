@@ -45,7 +45,7 @@ export type UserTemplate = z.infer<typeof UserTemplate>;
 export const BUILTIN_SBD: UserTemplate = {
   id: SBD_ID,
   name: "СБД",
-  print: { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} },
+  print: { schemeEach: false, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} },
   docs: (["aosr", "rim", "vd", "vor", "avk", "kj", "ip"] as const).map((doc) => ({ kind: "builtin" as const, doc, form: null })),
 };
 
@@ -54,7 +54,7 @@ export const TI_ID = "ti";
 export const BUILTIN_TI: UserTemplate = {
   id: TI_ID,
   name: "ТИ",
-  print: { schemeEach: false, formSet: "ti", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {} },
+  print: { schemeEach: false, formSet: "ti", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} },
   docs: (["aosr", "rim", "rp", "vd", "kj", "ip"] as const).map((doc) => ({ kind: "builtin" as const, doc, form: null })),
 };
 /** Встроенные шаблоны (только чтение). */

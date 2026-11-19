@@ -10,7 +10,7 @@ import { mergeCatalog, mergeUserCatalog, referencedUserCatalog } from "@idk/shar
 import { HttpError } from "../http/router.ts";
 import { openZip, writeZip, ZipError } from "../zip/zip.ts";
 
-export const NEED_OFFICE_FILE = "Нужен файл Word (.docx) или Excel (.xlsx). Старые .doc/.xls сохраните в новом формате";
+export const NEED_OFFICE_FILE = "Нужен файл Word (.docx, .doc) или Excel (.xlsx, .xls)";
 
 /** Тип формы по содержимому: .docx — есть word/document.xml, .xlsx — xl/workbook.xml. */
 export function formType(buf: Uint8Array): "docx" | "xlsx" | null {

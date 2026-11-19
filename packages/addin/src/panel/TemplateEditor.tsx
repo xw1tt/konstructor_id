@@ -36,6 +36,7 @@ import {
 import { BlankEditor } from "./BlankEditor.tsx";
 import { StyleEditor } from "./StyleEditor.tsx";
 import { FormUpload } from "./FormUpload.tsx";
+import { base64File, FORM_ACCEPT, readFormFile } from "./formFile.ts";
 import { styleKeyFor } from "@idk/shared/docStyle";
 import { blankKeyFor } from "@idk/shared/blanks";
 import { bundleFor } from "./print.ts";
@@ -49,13 +50,6 @@ interface Markup {
   doc: number;
   name: string;
 }
-
-const toBase64 = async (f: File) => {
-  const bytes = new Uint8Array(await f.arrayBuffer());
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(s);
-};
 
 export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose(id: string): void }) {
   const ctx = useContext(UserTemplateContext);
@@ -158,7 +152,13 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
   };
   const setForm = async (i: number, file: File | undefined) => {
     if (!file) return;
-    const f = await guard(uploadForm(t.id, file), fail);
+    // 0.35: .doc/.xls — сначала перевод в .docx/.xlsx.
+    const ready = await guard(
+      readFormFile(file).then((x) => (x.converted ? base64File(x.base64, x.name) : file)),
+      fail,
+    );
+    if (!ready) return;
+    const f = await guard(uploadForm(t.id, ready), fail);
     if (f) await save(t.docs.map((d, k) => (k === i ? { ...d, form: f } : d)));
   };
 
@@ -175,11 +175,13 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
       return;
     }
     const code = d.kind === "custom" ? d.code : undefined;
+    const ff = await guard(readFormFile(file), fail);
+    if (!ff) return;
     const r = await guard(
-      apiSend<Omit<Markup, "doc" | "name">>("POST", `/api/templates/${t.id}/markup`, { bundle, file: await toBase64(file), name: file.name, code }),
+      apiSend<Omit<Markup, "doc" | "name">>("POST", `/api/templates/${t.id}/markup`, { bundle, file: ff.base64, name: ff.name, code }),
       fail,
     );
-    if (r) setMarkup({ ...r, doc: i, name: file.name });
+    if (r) setMarkup({ ...r, doc: i, name: ff.name });
   };
   const finishMarkup = async () => {
     if (!markup) return;
@@ -437,7 +439,7 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                   Загрузить форму
                   <input
                     type="file"
-                    accept=".docx,.xlsx"
+                    accept={FORM_ACCEPT}
                     hidden
                     onChange={(e) => {
                       void setForm(i, e.target.files?.[0]);
@@ -449,7 +451,7 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                   По образцу
                   <input
                     type="file"
-                    accept=".docx,.xlsx"
+                    accept={FORM_ACCEPT}
                     hidden
                     onChange={(e) => {
                       void startMarkup(i, e.target.files?.[0]);

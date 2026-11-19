@@ -27,7 +27,8 @@ const RULES: [PrintKind, RegExp][] = [
   ["aosr", /освидетельствовани[яе] скрытых работ/],
   ["avk", /входного контроля/],
   ["vor", /ведомость (физических )?объем(ов|а) (выполненных )?работ|ведомость объемов/],
-  ["vd", /ведомость смонтированного оборудования|ведомость (смонтированного )?(оборудования|материалов|технических средств)/],
+  ["vd", /ведомость смонтированного|ведомость (оборудования|материалов|технических средств)/],
+  ["rp", /реестр приложений/],
   ["rim", /реестр (применен|исполнительн|материал|документ)/],
   ["kj", /кабельн(ый|ого) журнал/],
   ["ip", /сопротивлени[яе] изоляции/],
@@ -43,7 +44,7 @@ export function codeFromName(name: string): string {
   return letters.join("").slice(0, 6) || "ДОК";
 }
 
-const HEAD = /^(акт|протокол|ведомость|журнал|реестр|перечень|справка|заключение|паспорт|лист|схема)(?=\s|$|[ .,:])/;
+const HEAD = /^(акт|протокол|ведомость|журнал|кабельный журнал|реестр|перечень|справка|заключение|паспорт|лист|схема)(?=\s|$|[ .,:№])/;
 
 /** Заголовок документа: первая строка, начинающаяся с «Акт», «Протокол», «Ведомость»… (с продолжением на следующей строке). */
 export function findTitle(text: string): string {
@@ -52,11 +53,12 @@ export function findTitle(text: string): string {
     .map((l) => l.replace(/^[A-Z]+\d+:\s*/, "").trim())
     .filter(Boolean);
   for (let i = 0; i < lines.length; i++) {
-    const l = norm(lines[i]);
+    const head = lines[i].replace(/\s*№.*$/, "").trim();
+    const l = norm(head);
     if (!HEAD.test(l) || l.length > 200) continue;
-    // «АКТ» отдельной строкой, а «освидетельствования скрытых работ» — следующей.
+    // «АКТ» (или «ВЕДОМОСТЬ № 14.4…») отдельной строкой, а «освидетельствования скрытых работ» — следующей.
     const next = lines[i + 1] && !/\d{2}\.\d{2}\.\d{4}|№/.test(lines[i + 1]) && lines[i + 1].length < 160 ? lines[i + 1] : "";
-    const t = l.split(" ").length < 3 && next ? `${lines[i]} ${next}` : lines[i];
+    const t = l.split(" ").length === 1 && next ? `${head} ${next}` : head;
     return t
       .replace(/\s*№.*$/, "")
       .replace(/\s+/g, " ")
@@ -81,7 +83,8 @@ export function guessDoc(text: string): DocGuess {
       return { kind: k, title: title || PROTO_DEFS[k].name, name: PROTO_DEFS[k].name, code: PROTO_DEFS[k].code };
   }
   for (const [kind, re] of RULES) if (re.test(t)) return { kind, title, name: sentence(title), code: "" };
-  for (const [kind, re] of RULES) if (re.test(all.slice(0, 1500))) return { kind, title: title || "", name: sentence(title), code: "" };
+  // Заголовок нашёлся, но не встроенный документ — свой (в теле реестра приложений встречаются названия ведомостей).
+  if (!title) for (const [kind, re] of RULES) if (re.test(all.slice(0, 1500))) return { kind, title: title || "", name: sentence(title), code: "" };
   const name = sentence(title) || "Свой документ";
   return { kind: null, title, name, code: codeFromName(name) };
 }

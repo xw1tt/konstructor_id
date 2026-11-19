@@ -1309,3 +1309,14 @@ a.btn {
 .form-upload-result {
   margin-top: 6px;
 }
+.form-upload-result {
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+.form-upload-file {
+  font-size: 12px;
+  word-break: break-all;
+}
+.form-upload-file .ok {
+  color: var(--ok);
+}

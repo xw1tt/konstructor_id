@@ -12,6 +12,7 @@ import { formType, NEED_OFFICE_FILE } from "../forms/store.ts";
 import { formData } from "../forms/fields.ts";
 import { markupForm, applyChoices, applyPairs, markupText } from "../forms/markup.ts";
 import { guessDoc } from "@idk/shared/forms/recognize";
+import { defaultLegacyConverter, toOpenXml, type LegacyConverter } from "../forms/legacy.ts";
 import { isKnownField } from "@idk/shared/forms/fields";
 
 const MARKUP_TTL_MS = 30 * 60_000;
@@ -23,7 +24,7 @@ const disposition = (name: string, kind = "attachment") =>
 import { protoSampleDocx } from "../forms/protoDocx.ts";
 import { PROTO_DEFS, isProtoKind } from "@idk/shared/protocols/defs";
 
-export function templateRoutes(r: Router, store: TemplateStore, now: () => number = Date.now) {
+export function templateRoutes(r: Router, store: TemplateStore, now: () => number = Date.now, legacy: LegacyConverter = defaultLegacyConverter()) {
   const marks = new Map<string, { buf: Buffer; type: "docx" | "xlsx"; name: string; at: number }>();
   const mark = (token: string) => {
     const m = marks.get(token);
@@ -49,13 +50,21 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
     return new Reply(201, { token, found: res.found, ambiguous: res.ambiguous, type });
   });
   // 0.34: загрузка формы в один шаг. Шаг 1 — что это за документ (по тексту файла).
+  // 0.35: перевод формы старого формата для любых мест панели (загрузка формы, «Файл формы…» помощника).
+  r.post("/api/forms/convert", async (c) => {
+    const q = await c.body(z.object({ file: z.string(), name: z.string().default("") }), 40 * 1024 * 1024);
+    const x = await toOpenXml(Buffer.from(q.file, "base64"), q.name, legacy);
+    if (!formType(x.buf)) throw new HttpError(422, NEED_OFFICE_FILE);
+    return { file: x.buf.toString("base64"), name: x.name, converted: x.converted };
+  });
+  // 0.35: .doc/.xls переводятся в .docx/.xlsx (Word/Excel на компьютере) — ответ несёт переведённый файл.
   r.post("/api/templates/:id/recognize/detect", async (c) => {
-    const q = await c.body(z.object({ file: z.string() }), 40 * 1024 * 1024);
+    const q = await c.body(z.object({ file: z.string(), name: z.string().default("") }), 40 * 1024 * 1024);
     store.get(c.params.id);
-    const buf = Buffer.from(q.file, "base64");
-    const type = formType(buf);
+    const x = await toOpenXml(Buffer.from(q.file, "base64"), q.name, legacy);
+    const type = formType(x.buf);
     if (!type) throw new HttpError(422, NEED_OFFICE_FILE);
-    return { type, ...guessDoc(markupText(buf, type)) };
+    return { type, ...guessDoc(markupText(x.buf, type)), ...(x.converted ? { file: x.buf.toString("base64"), name: x.name } : {}) };
   });
   // Шаг 2 — разметка по каждому акту книги; образец заполнен по тому, у которого больше совпавших значений.
   r.post("/api/templates/:id/recognize", async (c) => {

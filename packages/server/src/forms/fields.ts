@@ -9,6 +9,7 @@ import type { FormSet } from "@idk/shared/templates";
 import { repLine } from "@idk/shared/acts/repLine";
 import { ROLE_GROUPS, type FormData } from "@idk/shared/forms/fields";
 import { buildDocDataFromBundle, buildAvkData } from "../print/fromBundle.ts";
+import { tiDocData } from "../print/tiData.ts";
 import { protoFormData, emptyProtoFormData } from "@idk/shared/protocols/form";
 
 export type { FormData };
@@ -23,6 +24,7 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
   const aosr = buildDocDataFromBundle(b, "aosr", { formSet: set });
   const vd = buildDocDataFromBundle(b, "vd");
   const avk = buildAvkData(b);
+  const ti = tiDocData(b);
   const mat = (id: number) => b.materials.find((m) => m.id === id);
   const v: Record<string, string> = {
     "Объект.Наименование": b.object.name,
@@ -36,6 +38,10 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
     "Объект.Шифр РД": section?.code ?? "",
     "Объект.Раздел": section?.name ?? "",
     "Объект.Подрядчик": org(act.performerOrgId)?.shortName ?? "",
+    // 0.35: полные реквизиты, как в шапке АОСР (наименование, ОГРН, ИНН, адрес, СРО).
+    "Объект.Застройщик реквизиты": aosr.developer,
+    "Объект.Строительство реквизиты": aosr.builder,
+    "Объект.Проектировщик реквизиты": aosr.designer,
     "Акт.Номер": act.baseNumber,
     "Акт.Номер документа": doc?.code ? `${act.baseNumber}.${doc.code}` : aosr.number,
     "Акт.Номер АОСР": aosr.number,
@@ -116,6 +122,39 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
         "ВОР.Материал": mat(l.materialId)?.name ?? "",
         "ВОР.Ед.": mat(l.materialId)?.unit ?? "",
         "ВОР.Объём": formatNumber(l.quantity),
+      })),
+      // 0.35: реестр как у заказчика — строка документа качества, под ней его материалы (группы РМ «ТИ»).
+      Реестр: ti.rm.flatMap((g) => [
+        ...g.docs.map((d) => ({ "Реестр.№": "", "Реестр.Строка": "документ", "Реестр.Наименование": d.type, "Реестр.Дата": d.date, "Реестр.Номер": d.number })),
+        ...g.items.map((it) => ({
+          "Реестр.№": String(it.n),
+          "Реестр.Строка": "материал",
+          "Реестр.Наименование": it.name,
+          "Реестр.Дата": "",
+          "Реестр.Номер": "",
+        })),
+      ]),
+      // 0.35: реестр приложений к АОСР — документы качества по порядку.
+      Приложения: ti.rp.map((r) => ({
+        "Приложение.№": String(r.n),
+        "Приложение.Наименование": r.type,
+        "Приложение.Дата": r.date,
+        "Приложение.Номер": r.number,
+        "Приложение.Листов": r.sheets ? String(r.sheets) : "",
+      })),
+      // 0.35: кабельный журнал по своей форме.
+      Кабели: (b.cables?.rows ?? []).map((c, i) => ({
+        "Кабель.№": String(i + 1),
+        "Кабель.Группа": c.group,
+        "Кабель.Обозначение": c.designation,
+        "Кабель.Начало": c.from,
+        "Кабель.Конец": c.to,
+        "Кабель.Марка": c.cableMark,
+        "Кабель.Длина по проекту": formatNumber(c.projectLength ?? null),
+        "Кабель.Длина": formatNumber(c.cableLength ?? null),
+        "Кабель.Труба": c.pipeMark,
+        "Кабель.Длина трубы": formatNumber(c.pipeLength ?? null),
+        "Кабель.Примечание": c.note,
       })),
       ...proto.lists,
     },

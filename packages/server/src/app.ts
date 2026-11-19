@@ -1,3 +1,4 @@
+import type { LegacyConverter } from "./forms/legacy.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { logError } from "./diag/log.ts";
 import type { Db } from "./db.ts";
@@ -39,6 +40,8 @@ export interface AppOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Перевод своих форм в PDF через Office (по умолчанию — PowerShell + COM на Windows). */
   officeRunner?: OfficeRunner;
+  /** 0.35: перевод .doc/.xls в .docx/.xlsx (по умолчанию — Word/Excel, вне Windows — LibreOffice). */
+  legacyConverter?: LegacyConverter;
   /** Для тестов: подмена HTTP-запросов к нейросетям. */
   aiPost?: Post;
   /** 0.31: параметры повторов запросов к нейросети (тесты — без пауз). */
@@ -63,7 +66,7 @@ export function createApp(opts: AppOptions) {
   const catalog = new CatalogStore(opts.dataDir);
   catalogRoutes(api, catalog);
   const templates = new TemplateStore(opts.dataDir, catalog);
-  templateRoutes(api, templates);
+  templateRoutes(api, templates, undefined, opts.legacyConverter);
   const runner = opts.officeRunner ?? powershellRunner();
   formJobRoutes(api, templates, runner);
   kitRoutes(api, opts.db, opts.dataDir, { templates, runner });

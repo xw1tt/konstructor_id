@@ -13,7 +13,7 @@ export function editableLink(src: string, formType: string | null, pdfName = "")
     const word = formType === "docx";
     return { href: `${src}/source`, label: word ? "Скачать Word" : "Скачать Excel", file: file(word ? ".docx" : ".xlsx") };
   }
-  if (/^\/api\/kit-jobs\/[^/?]+$/.test(src)) return { href: `${src}/xlsx`, label: "Скачать Excel (архив)", file: file(" (Excel).zip") };
+  if (/^\/api\/kit-jobs\/[^/?]+$/.test(src)) return { href: `${src}/xlsx`, label: "Скачать Word и Excel (архив)", file: file(" (Word и Excel).zip") };
   if (/^\/api\/common-registry-jobs\/[^/?]+$/.test(src)) return { href: `${src}/xlsx`, label: "Скачать Excel", file: file(".xlsx") };
   return null;
 }

@@ -5,7 +5,11 @@ import type { KitRequest as KitRequestT } from "@idk/shared/kit/request";
 import type { Db } from "../db.ts";
 import { Router, Reply, HttpError } from "../http/router.ts";
 import { assembleKit, type KitDeps } from "../kit/assemble.ts";
-import { kitXlsxZip, kitZipName } from "../kit/xlsx.ts";
+import { docFile, kitXlsxZip, kitZipName } from "../kit/xlsx.ts";
+import { writeZip } from "../zip/zip.ts";
+import { ActBundle } from "@idk/shared/workbook/bundle";
+import { PRINT_KINDS } from "@idk/shared/acts/schemas";
+import { PrintOptions } from "@idk/shared/templates";
 import { commonRegistry, commonRegistryFiles, COMMON_NAME } from "../kit/common.ts";
 import { z } from "zod";
 import { attachment } from "./print.ts";
@@ -47,6 +51,53 @@ export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDep
       "cache-control": "no-store",
     });
     c.res.end(zip);
+  });
+  const actFiles = new Map<string, { zip: Buffer; name: string; at: number }>();
+  // 0.35: все документы одного акта файлами — свои формы Word/Excel заполненными, встроенные — в Excel — архивом.
+  r.post("/api/act-files", async (c) => {
+    const q = await c.body(
+      z.object({
+        name: z.string().default("Документы акта"),
+        options: PrintOptions.partial().optional(),
+        items: z
+          .array(z.object({ bundle: ActBundle, kind: z.enum(PRINT_KINDS).nullable(), form: z.object({ template: z.string(), doc: z.string() }).nullable() }))
+          .min(1)
+          .max(40),
+      }),
+      KIT_JSON_LIMIT,
+    );
+    const files: [string, Buffer | string][] = [];
+    const errors: string[] = [];
+    const width = Math.max(2, String(q.items.length).length);
+    q.items.forEach((it) => {
+      try {
+        const x = docFile(it.bundle, { kind: it.kind, form: it.form }, q.options, forms);
+        files.push([`${String(files.length + 1).padStart(width, "0")} ${x.name}`, x.buf]);
+      } catch (e) {
+        errors.push(`${it.form?.doc ?? it.kind}: ${(e as Error).message}`);
+      }
+    });
+    if (!files.length) throw new HttpError(422, `Файлы не собраны: ${errors.join("; ")}`);
+    if (errors.length) files.push(["Ошибки.txt", errors.join("\r\n")]);
+    const id = randomUUID();
+    const name = `${q.name.replace(/[\\/:*?"<>|]/g, "_")}.zip`;
+    actFiles.set(id, { zip: writeZip(files), name, at: now() });
+    while (actFiles.size > MAX_KITS) actFiles.delete(actFiles.keys().next().value!);
+    return new Reply(201, { id, name, files: files.map(([n]) => n), errors });
+  });
+  r.get("/api/act-files/:id", (c) => {
+    const j = actFiles.get(c.params.id);
+    if (!j || now() - j.at > KIT_TTL_MS) {
+      actFiles.delete(c.params.id);
+      throw new HttpError(404, "Архив не найден или устарел — соберите его заново");
+    }
+    c.res.writeHead(200, {
+      "content-type": "application/zip",
+      "content-length": j.zip.length,
+      "content-disposition": attachment(j.name),
+      "cache-control": "no-store",
+    });
+    c.res.end(j.zip);
   });
   // Общий реестр ИД: все комплекты объекта (задания сборки каждого комплекта) → PDF и Excel.
   const common = new Map<string, { pdf: Buffer; xlsx: Buffer; at: number }>();

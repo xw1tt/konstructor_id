@@ -225,7 +225,7 @@ test("Excel комплекта: архив — по файлу .xlsx на каж
   const res = await s.raw("GET", `/api/kit-jobs/${r.json.id}/xlsx`);
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("content-type"), "application/zip");
-  assert.match(decodeURIComponent(res.headers.get("content-disposition") ?? ""), /^attachment;.*Реестр №1 Том 1 Часть 1 \(Excel\)\.zip/);
+  assert.match(decodeURIComponent(res.headers.get("content-disposition") ?? ""), /^attachment;.*Реестр №1 Том 1 Часть 1 \(Word и Excel\)\.zip/);
   const names = [...openZip(new Uint8Array(await res.arrayBuffer())).keys()];
   const docs = q.rows.filter((x) => x.doc);
   assert.equal(names.length, docs.length, names.join(", "));

@@ -4,14 +4,8 @@ import { docLabel, isBuiltinTemplate } from "@idk/shared/forms/template";
 import { UserTemplateContext } from "./templateContext.ts";
 import { apiSend } from "../api.ts";
 import { createTemplate, saveTemplateDocs, type TemplateDoc } from "./templatesApi.ts";
+import { FORM_ACCEPT, readFormFile } from "./formFile.ts";
 import type { FormKit } from "./kits.ts";
-
-const toBase64 = async (f: File) => {
-  const bytes = new Uint8Array(await f.arrayBuffer());
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(s);
-};
 
 export function FormAttach({ kit, onChoose }: { kit: FormKit; onChoose(id: string): void }) {
   const [, rerender] = useReducer((n: number) => n + 1, 0);
@@ -46,18 +40,23 @@ export function FormAttach({ kit, onChoose }: { kit: FormKit; onChoose(id: strin
   return (
     <div className="as-form">
       <div className="row-actions">
-        <label className="btn" title="Заполненный документ заказчика (.docx или .xlsx) — помощник сделает из него форму с метками">
+        <label className="btn" title="Заполненный документ заказчика (Word или Excel, в том числе старые .doc/.xls) — помощник сделает из него форму с метками">
           Файл формы…
           <input
             type="file"
-            accept=".docx,.xlsx"
+            accept={FORM_ACCEPT}
             hidden
             onChange={async (e) => {
               const f = e.target.files?.[0];
               e.target.value = "";
               if (!f) return;
-              kit.attach({ name: f.name, base64: await toBase64(f) });
-              setMsg(null);
+              try {
+                const x = await readFormFile(f);
+                kit.attach({ name: x.name, base64: x.base64 });
+                setMsg(null);
+              } catch (err) {
+                setMsg({ ok: false, text: (err as Error).message });
+              }
               rerender();
             }}
           />

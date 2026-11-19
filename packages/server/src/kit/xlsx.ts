@@ -1,5 +1,8 @@
 // План 28: Excel-файлы документов комплекта одним архивом — по файлу на документ в порядке реестра (сканы не входят).
 import type { KitRequest, KitRow } from "@idk/shared/kit/request";
+import type { ActBundle } from "@idk/shared/workbook/bundle";
+import type { PrintKind } from "@idk/shared/acts/schemas";
+import type { PrintOptions } from "@idk/shared/templates";
 import { writeZip } from "../zip/zip.ts";
 import { renderBundleXlsx } from "../routes/print.ts";
 import { fillForm } from "../forms/convert.ts";
@@ -10,6 +13,28 @@ import type { KitDeps } from "./assemble.ts";
 const bundleOf = (q: KitRequest, row: KitRow) =>
   row.doc?.proto ? q.protos.find((p) => p.proto?.number === row.doc!.proto) : q.acts.find((a) => a.act.baseNumber === row.doc!.act);
 const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, "_");
+
+/** 0.35: файл одного документа — своя форма (заполненный .docx/.xlsx) или встроенный документ в Excel. */
+export function docFile(
+  b: ActBundle,
+  doc: { kind: PrintKind | null; form: { template: string; doc: string } | null },
+  options: Partial<PrintOptions> | undefined,
+  deps: Pick<KitDeps, "templates">,
+): { name: string; buf: Buffer } {
+  const f = doc.form;
+  if (f) {
+    if (!deps.templates) throw new Error("свои формы недоступны");
+    const t = deps.templates.get(f.template);
+    const d = findDoc(t.docs, f.doc);
+    if (!d?.form) throw new Error(`у документа «${f.doc}» нет своей формы в шаблоне «${t.name}»`);
+    const code = docCode(d);
+    const filled = fillForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set: t.print.formSet });
+    return { name: `${safe(`${docLabel(d)} ${b.act.baseNumber}`)}.${d.form.type}`, buf: filled.buf };
+  }
+  if (!doc.kind) throw new Error("не указан документ");
+  const { xlsx, name } = renderBundleXlsx(b, doc.kind, options);
+  return { name: safe(name), buf: xlsx };
+}
 
 /** Архив .zip: «01 <имя>.xlsx» (своя форма Word — .docx); документы, которые не удалось собрать, — в «Ошибки.txt». */
 export function kitXlsxZip(q: KitRequest, deps: Pick<KitDeps, "templates">): { zip: Buffer; files: string[] } {
@@ -22,19 +47,8 @@ export function kitXlsxZip(q: KitRequest, deps: Pick<KitDeps, "templates">): { z
     try {
       const b = bundleOf(q, row);
       if (!b) throw new Error("нет данных документа");
-      const f = row.doc!.form;
-      if (f) {
-        if (!deps.templates) throw new Error("свои формы недоступны");
-        const t = deps.templates.get(f.template);
-        const d = findDoc(t.docs, f.doc);
-        if (!d?.form) throw new Error(`у документа «${f.doc}» нет своей формы в шаблоне «${t.name}»`);
-        const code = docCode(d);
-        const filled = fillForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set: t.print.formSet });
-        files.push([`${n} ${safe(`${docLabel(d)} ${b.act.baseNumber}`)}.${d.form.type}`, filled.buf]);
-        return;
-      }
-      const { xlsx, name } = renderBundleXlsx(b, row.doc!.kind!, q.options);
-      files.push([`${n} ${safe(name)}`, xlsx]);
+      const x = docFile(b, { kind: row.doc!.kind ?? null, form: row.doc!.form ?? null }, q.options, deps);
+      files.push([`${n} ${x.name}`, x.buf]);
     } catch (e) {
       errors.push(`Строка ${row.row ?? i + 1}: ${(e as Error).message}`);
     }
@@ -43,4 +57,5 @@ export function kitXlsxZip(q: KitRequest, deps: Pick<KitDeps, "templates">): { z
   return { zip: writeZip(files), files: files.map(([name]) => name) };
 }
 
-export const kitZipName = (pdfName: string) => pdfName.replace(/\.pdf$/i, "") + " (Excel).zip";
+/** 0.35: в архиве и файлы Word своих форм — имя без «(Excel)». */
+export const kitZipName = (pdfName: string) => pdfName.replace(/\.pdf$/i, "") + " (Word и Excel).zip";

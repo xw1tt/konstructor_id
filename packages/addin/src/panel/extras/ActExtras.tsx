@@ -8,7 +8,8 @@ import type { BookState } from "../useBook.ts";
 import { actSummary } from "./summaries.ts";
 import { TemplateContext, PrintOptionsContext, UserTemplateContext } from "../templateContext.ts";
 import { templateButtons, type TemplateButton } from "../templatesApi.ts";
-import { sheetIssueLines, printAct, printForm, type IssueLine } from "../print.ts";
+import { bundleFor, sheetIssueLines, printAct, printForm, type IssueLine } from "../print.ts";
+import { apiSend } from "../../api.ts";
 import { IssueList } from "./IssueList.tsx";
 import { Completeness } from "./Completeness.tsx";
 import { PreDelivery } from "./PreDelivery.tsx";
@@ -32,6 +33,7 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
   const tpl = useContext(UserTemplateContext);
   const [busy, setBusy] = useState<string | null>(null);
   const [made, setMade] = useState<{ id: string; name: string; warnings: string[] } | null>(null);
+  const [files, setFiles] = useState<{ id: string; name: string; count: number; words: number; errors: string[] } | null>(null);
   const [lines, setLines] = useState<IssueLine[]>([]);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
@@ -57,6 +59,45 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
           ". Проверьте «Работы (п.1)», даты и номера схем.",
       );
       state.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** 0.35: все документы акта файлами — свои формы заполненными Word/Excel, встроенные — в Excel — одним архивом. */
+  const download = async () => {
+    setBusy("files");
+    setError("");
+    setLines([]);
+    setFiles(null);
+    try {
+      const all: Issue[] = [];
+      const items = templateButtons(tpl.template).flatMap((b) => {
+        const { bundle, issues } = bundleFor(state.book!, act, state.important, b.doc, options);
+        if (!bundle) {
+          all.push(...issues);
+          return [];
+        }
+        return [{ bundle, kind: b.doc, form: b.form ? { template: tpl.template.id, doc: b.key } : null }];
+      });
+      if (!items.length) {
+        setLines(await sheetIssueLines(port, all));
+        return;
+      }
+      const r = await apiSend<{ id: string; name: string; files: string[]; errors: string[] }>("POST", "/api/act-files", {
+        name: `Акт ${act}`,
+        options,
+        items,
+      });
+      setFiles({
+        id: r.id,
+        name: r.name,
+        count: r.files.filter((f) => f !== "Ошибки.txt").length,
+        words: r.files.filter((f) => /\.docx$/i.test(f)).length,
+        errors: r.errors,
+      });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -124,7 +165,25 @@ export function ActExtras({ port, state, act }: { port: ExcelPort; state: BookSt
             {b.form ? " ✎" : ""}
           </button>
         ))}
+        <button
+          className="btn"
+          disabled={busy !== null}
+          onClick={() => void download()}
+          title="Все документы акта файлами для правки и отправки: свои формы — заполненными Word/Excel, встроенные — в Excel"
+        >
+          {busy === "files" ? "Собираю…" : "Файлы Word/Excel"}
+        </button>
       </div>
+      {files && (
+        <p className="notice" role="status">
+          <a href={`/api/act-files/${files.id}`} download={files.name}>
+            Скачать {files.name}
+          </a>{" "}
+          — файлов {files.count}
+          {files.words ? `, из них Word ${files.words}` : ""}
+          {files.errors.length > 0 && <span className="warn"> · не собраны: {files.errors.join("; ")}</span>}
+        </p>
+      )}
       {tpl.warning && (
         <p className="warn" role="status">
           {tpl.warning}

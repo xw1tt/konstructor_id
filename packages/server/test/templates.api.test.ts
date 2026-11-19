@@ -48,7 +48,7 @@ test("формы: .docx принимается, PDF и .doc — 422; скачи�
   assert.equal(Buffer.compare(Buffer.from(await get.arrayBuffer()), docx), 0);
   const pdf = await upload(s, t.id, await makePdf(1), "a.pdf");
   assert.equal(pdf.status, 422);
-  assert.equal((await pdf.json()).error, "Нужен файл Word (.docx) или Excel (.xlsx). Старые .doc/.xls сохраните в новом формате");
+  assert.equal((await pdf.json()).error, "Нужен файл Word (.docx, .doc) или Excel (.xlsx, .xls)");
 });
 
 test("выгрузка и загрузка шаблона; шаблоны переживают перезапуск", async () => {

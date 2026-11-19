@@ -27,7 +27,14 @@ const PRIORITY = ["Акт.Номер АОСР", "Акт.Номер", "Акт.Д�
 const LISTS: [string, string, boolean][] = [
   ["Материалы", "Материал.Наименование", true],
   ["Схемы", "Схема.Номер", false],
+  // 0.35: реестр «документ → его материалы», реестр приложений, кабельный журнал по своей форме.
+  ["Реестр", "Реестр.Наименование", true],
+  ["Приложения", "Приложение.Номер", false],
+  ["Кабели", "Кабель.Обозначение", false],
 ];
+/** 0.35: «слабые» поля — короткие общие слова и числа (город, месяц, год…). В настоящих формах они встречаются и
+ *  в адресах, приказах, датах других документов, поэтому метка ставится, только если значение в документе одно. */
+const WEAK = new Set(["Объект.Город", "Документ.Город", "Акт.Месяц", "Акт.День", "Акт.Год", "Акт.Экз.", "Акт.Доп. сведения"]);
 const RE_ESC = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const searchable = (v: string) => {
@@ -327,7 +334,12 @@ function markupXlsx(buf: Uint8Array, data: FormData, mk: Marker): Buffer {
 }
 
 export function markupForm(buf: Uint8Array, type: "docx" | "xlsx", data: FormData): MarkupResult {
-  const mk = new Marker(candidates(data));
+  const text = markupText(buf, type, 400000);
+  const count = (v: string) => [...text.matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${RE_ESC(v)}(?![\\p{L}\\p{N}])`, "gu"))].length;
+  const cands = candidates(data)
+    .map(([v, keys]): [string, string[]] => [v, keys.filter((k) => !WEAK.has(k) || count(v) === 1)])
+    .filter(([, keys]) => keys.length > 0);
+  const mk = new Marker(cands);
   if (type === "xlsx") return { buf: markupXlsx(buf, data, mk), found: mk.found, ambiguous: mk.places };
   const files = openZip(buf);
   if (!files.has("word/document.xml")) throw new FormError("Это не файл Word (.docx)");

@@ -7,6 +7,7 @@ import { UserTemplateContext } from "./templateContext.ts";
 import { CatalogContext } from "./catalogApi.ts";
 import { aiApi } from "./aiApi.ts";
 import type { AssistantSession } from "./assistant.ts";
+import { AssistantRoles } from "./AssistantRoles.tsx";
 
 const today = () => new Date().toLocaleDateString("ru-RU");
 
@@ -48,10 +49,10 @@ export function AssistantScreen({
   const active = providers?.providers.find((p) => p.id === providers.active) ?? null;
   const masked = active ? resolveProvider({ ...active, key: "" } as Provider).maskNames : false;
 
-  const send = async () => {
-    const q = text.trim();
+  const send = async (task?: { text: string; display: string }) => {
+    const q = task?.text ?? text.trim();
     if (!q || busy || !state.book) return;
-    setText("");
+    if (!task) setText("");
     setBusy(true);
     setError("");
     const s = state.selection;
@@ -66,6 +67,7 @@ export function AssistantScreen({
         prompt: { today: today(), sheet: s?.sheet ?? null, table: s?.table ?? null, row: s?.row ?? null, act: state.lastAct },
       },
       rerender,
+      task?.display,
     );
     setChecked(new Set(session.pending.map((p) => p.id)));
     setBusy(false);
@@ -142,6 +144,10 @@ export function AssistantScreen({
             <li>«Добавь вид работ “Монтаж СКУД” с актом проверки контроллеров»</li>
             <li>«Сделай форму по приложенному файлу» — сначала «Файл формы…»</li>
           </ul>
+          <p>
+            Или готовые роли внизу: «Проверка как технадзор» — строгая проверка актов с замечаниями по пунктам; «Черновики актов из РД» — приложите РД, помощник
+            предложит акты скрытых работ, нормативы и материалы из спецификации.
+          </p>
           <p>Помощник предложит изменения — вы примените их кнопкой и сможете отменить.</p>
         </div>
       )}
@@ -205,6 +211,13 @@ export function AssistantScreen({
         </div>
       )}
       {extra}
+      <AssistantRoles
+        disabled={busy || !state.book}
+        act={state.lastAct}
+        acts={(state.book?.tables["Акты"] ?? []).map((r) => String(r.v.baseNumber ?? "").trim()).filter(Boolean)}
+        onTask={(t) => void send(t)}
+        onError={setError}
+      />
       <div className="as-input">
         <textarea
           rows={3}

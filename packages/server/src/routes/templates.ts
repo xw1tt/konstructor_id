@@ -11,6 +11,7 @@ import { HttpError } from "../http/router.ts";
 import { formType, NEED_OFFICE_FILE } from "../forms/store.ts";
 import { formData } from "../forms/fields.ts";
 import { markupForm, applyChoices, applyPairs, markupText } from "../forms/markup.ts";
+import { guessDoc } from "@idk/shared/forms/recognize";
 import { isKnownField } from "@idk/shared/forms/fields";
 
 const MARKUP_TTL_MS = 30 * 60_000;
@@ -46,6 +47,45 @@ export function templateRoutes(r: Router, store: TemplateStore, now: () => numbe
     const token = randomUUID();
     marks.set(token, { buf: res.buf, type, name: q.name, at: now() });
     return new Reply(201, { token, found: res.found, ambiguous: res.ambiguous, type });
+  });
+  // 0.34: загрузка формы в один шаг. Шаг 1 — что это за документ (по тексту файла).
+  r.post("/api/templates/:id/recognize/detect", async (c) => {
+    const q = await c.body(z.object({ file: z.string() }), 40 * 1024 * 1024);
+    store.get(c.params.id);
+    const buf = Buffer.from(q.file, "base64");
+    const type = formType(buf);
+    if (!type) throw new HttpError(422, NEED_OFFICE_FILE);
+    return { type, ...guessDoc(markupText(buf, type)) };
+  });
+  // Шаг 2 — разметка по каждому акту книги; образец заполнен по тому, у которого больше совпавших значений.
+  r.post("/api/templates/:id/recognize", async (c) => {
+    const q = await c.body(
+      z.object({
+        file: z.string(),
+        name: z.string().default("образец"),
+        code: z.string().optional(),
+        bundles: z
+          .array(z.object({ act: z.string(), bundle: ActBundle }))
+          .min(1)
+          .max(60),
+      }),
+      120 * 1024 * 1024,
+    );
+    const set = store.get(c.params.id).print.formSet;
+    const buf = Buffer.from(q.file, "base64");
+    const type = formType(buf);
+    if (!type) throw new HttpError(422, NEED_OFFICE_FILE);
+    let best: { act: string; res: ReturnType<typeof markupForm> } | null = null;
+    const byAct: { act: string; found: number }[] = [];
+    for (const b of q.bundles) {
+      const res = markupForm(buf, type, formData(b.bundle, { ...(q.code ? { code: q.code } : {}), set }));
+      byAct.push({ act: b.act, found: res.found });
+      if (!best || res.found > best.res.found) best = { act: b.act, res };
+    }
+    for (const [k, m] of marks) if (now() - m.at > MARKUP_TTL_MS) marks.delete(k);
+    const token = randomUUID();
+    marks.set(token, { buf: best!.res.buf, type, name: q.name, at: now() });
+    return new Reply(201, { token, type, act: best!.act, found: best!.res.found, ambiguous: best!.res.ambiguous, byAct });
   });
   // План 20: текст размеченного образца и новые метки от помощника (поверх разметки; выбор вариантов — при сохранении).
   r.get("/api/templates/:id/markup/:token/text", (c) => {

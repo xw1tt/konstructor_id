@@ -13,6 +13,7 @@ import { FORM_SET_LABELS } from "../templates.ts";
 import { describeChange, isTable, showValue, toCell, validateChange, type BookChange } from "./changes.ts";
 import { ojrRows } from "../ojr.ts";
 import type { CellValue } from "../workbook/values.ts";
+import { checkActs } from "../check/predelivery.ts";
 import type { NameMask } from "./mask.ts";
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties, required });
@@ -41,7 +42,8 @@ export const BOOK_TOOLS: ToolDef[] = [
   },
   {
     name: "check_act",
-    description: "Проверка акта: ошибки, мешающие печати (как при печати), и полнота документов по справочнику и шаблону.",
+    description:
+      "Проверка акта: ошибки, мешающие печати (как при печати), предупреждения проверки перед сдачей (сроки документов качества, полномочия подписантов, даты схем и работ, сканы) и полнота документов по справочнику и шаблону.",
     parameters: obj({ act: str("Номер акта (столбец «Номер акта» таблицы «Акты»)") }, ["act"]),
   },
   {
@@ -180,6 +182,10 @@ function checkAct(ctx: ToolContext, a: Record<string, unknown>) {
   const out: Record<string, unknown> = {
     act,
     printIssues: issues.map((i) => `«${i.table}»${i.row !== null ? `, строка ${i.row + 1}` : ""}, «${i.column}»: ${i.message}`),
+    // 0.34: то, за что технадзор обычно возвращает документы (сроки документов качества, полномочия, даты, сканы).
+    deliveryWarnings: checkActs(ctx.book, [act], new Date().toISOString().slice(0, 10)).map(
+      (w) => `«${w.table}»${w.row !== null ? `, строка ${w.row + 1}` : ""}, «${w.column}»: ${w.message}`,
+    ),
   };
   if (ctx.catalog) {
     out.workKinds = actWorks(ctx.catalog, ctx.book, act);

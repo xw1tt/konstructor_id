@@ -74,7 +74,8 @@ export class AssistantSession {
     this.history.push({ role: "user", content: `[${text}]` });
   }
 
-  async ask(text: string, c: AskContext, onUpdate: () => void = () => {}): Promise<void> {
+  /** display — подпись в чате вместо полного задания (0.34: роли помощника). */
+  async ask(text: string, c: AskContext, onUpdate: () => void = () => {}, display?: string): Promise<void> {
     if (this.pending.length) {
       this.note("Пользователь не стал применять прежние предложения");
       this.pending = [];
@@ -86,7 +87,7 @@ export class AssistantSession {
     if (this.history[0]?.role === "system") this.history[0] = system;
     else this.history.unshift(system);
     this.history.push({ role: "user", content: text });
-    this.items.push({ kind: "user", text });
+    this.items.push({ kind: "user", text: display ?? text });
     onUpdate();
     const ctx: ToolContext = {
       book: c.book,

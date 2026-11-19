@@ -6,6 +6,12 @@ import { Router } from "../http/router.ts";
 import type { AiStore } from "../ai/store.ts";
 import { chat, chatStream, StreamAborted, type ChatDeps } from "../ai/providers.ts";
 import { logError } from "../diag/log.ts";
+import { pdfText } from "../scan/read.ts";
+import { formType } from "../forms/store.ts";
+import { markupText } from "../forms/markup.ts";
+
+/** Сколько страниц РД читается из PDF. */
+const RD_PAGES = 40;
 
 export function aiRoutes(r: Router, store: AiStore, deps: ChatDeps = {}) {
   r.get("/api/ai/providers", () => store.list());
@@ -27,6 +33,25 @@ export function aiRoutes(r: Router, store: AiStore, deps: ChatDeps = {}) {
     return { ok: true, text: out.message.content.trim().slice(0, 200), ms: Date.now() - started };
   });
   r.get("/api/ai/usage", () => store.usage());
+  // 0.34: текст рабочей документации для роли «Черновики актов из РД» — PDF (текстовый слой), Word, Excel.
+  r.post("/api/ai/extract", async (c) => {
+    const q = await c.body(z.object({ file: z.string(), name: z.string().default("РД") }), 60 * 1024 * 1024);
+    const buf = Buffer.from(q.file, "base64");
+    if (buf.subarray(0, 5).toString("latin1") === "%PDF-") {
+      let r: { text: string; pages: number };
+      try {
+        r = await pdfText(buf, RD_PAGES);
+      } catch {
+        throw new HttpError(422, "Не удалось прочитать PDF — возможно, файл повреждён или защищён паролем");
+      }
+      if (!r.text.replace(/\s+/g, "").length)
+        throw new HttpError(422, "В PDF нет текстового слоя (скан) — помощник не прочитает его. Нужен PDF, сохранённый из САПР или Word, или файл Word/Excel");
+      return { name: q.name, text: r.text, pages: r.pages, cut: r.pages > RD_PAGES };
+    }
+    const type = formType(buf);
+    if (!type) throw new HttpError(422, "Нужен файл PDF, Word (.docx) или Excel (.xlsx)");
+    return { name: q.name, text: markupText(buf, type, 200000), pages: null, cut: false };
+  });
   r.post("/api/ai/chat", async (c) => {
     const req = await c.body(ChatRequest, 8 * 1024 * 1024);
     const p = store.active();

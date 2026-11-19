@@ -1284,3 +1284,28 @@ a.btn {
   border: 0;
   display: block;
 }
+
+/* 0.34: роли помощника и загрузка формы в один шаг. */
+.as-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin: 6px 0 4px;
+}
+.as-role {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.as-role-scope {
+  max-width: 150px;
+  font-size: 12px;
+}
+.btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.form-upload-result {
+  margin-top: 6px;
+}

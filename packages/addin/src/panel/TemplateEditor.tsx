@@ -35,6 +35,7 @@ import {
 } from "./templatesApi.ts";
 import { BlankEditor } from "./BlankEditor.tsx";
 import { StyleEditor } from "./StyleEditor.tsx";
+import { FormUpload } from "./FormUpload.tsx";
 import { styleKeyFor } from "@idk/shared/docStyle";
 import { blankKeyFor } from "@idk/shared/blanks";
 import { bundleFor } from "./print.ts";
@@ -270,6 +271,16 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
           «{t.name}» — встроенный шаблон, он не меняется. Выбор набора и форм ниже создаст копию с этой настройкой; «Копия» — просто копия.
         </p>
       )}
+
+      <FormUpload
+        t={t}
+        state={state}
+        onTemplate={(id) => {
+          ctx.reload();
+          setEditId(id);
+        }}
+        onDone={(text, error) => setNote({ text, error })}
+      />
 
       <h3 className="tools-title">Набор форм и нумерация</h3>
       <div className="row-actions">

@@ -111,3 +111,25 @@ test("план 21: замена текста — одно предложение
   await s.revert();
   assert.deepEqual(await readBook(wb), before);
 });
+
+test("0.34: роль — в чате короткая подпись, модели уходит полное задание", async () => {
+  const wb = new MemoryWorkbook(aov1Records() as any);
+  let sent: ChatMessage[] = [];
+  const s = new AssistantSession({
+    store: wb,
+    chat: async (m) => {
+      sent = m;
+      return reply("Замечаний нет.");
+    },
+  });
+  const { ASSISTANT_ROLES } = await import("@idk/shared/ai/roles");
+  const task = ASSISTANT_ROLES[0].build({ act: AOV1, acts: [AOV1] });
+  await s.ask(
+    task.text,
+    { book: await readBook(wb), important: defaultImportant(), catalog: null, template: BUILTIN_SBD, masked: false, prompt: { today: "19.11.2026" } },
+    () => {},
+    task.display,
+  );
+  assert.deepEqual(s.items[0], { kind: "user", text: `Проверка как технадзор: акт ${AOV1}` });
+  assert.match(String(sent.at(-1)!.content), /Роль: ты — инженер строительного контроля/);
+});

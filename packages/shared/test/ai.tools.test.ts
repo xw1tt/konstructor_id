@@ -44,6 +44,7 @@ test("чтение: таблицы, строки с номерами и дата
   const chk = call(ctx, "check_act", { act: AOV1 });
   assert.deepEqual(chk.printIssues, []);
   assert.ok(Array.isArray(chk.documents));
+  assert.ok(Array.isArray(chk.deliveryWarnings), "0.34: предупреждения проверки перед сдачей");
   assert.ok(call(ctx, "check_act", { act: "X" }).printIssues[0].includes("не найден"));
   assert.equal(
     call(ctx, "read_rows", { table: "Материалы", column: "Наименование", contains: "КАБЕЛЬ" }).rows.every((x: any) => /кабель/i.test(x.values["Наименование"])),

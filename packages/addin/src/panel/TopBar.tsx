@@ -13,6 +13,8 @@ export function TopBar({
   templates,
   onTemplate,
   onWindow,
+  compact = false,
+  onCompact,
 }: {
   screen: ScreenId;
   onScreen(s: ScreenId): void;
@@ -21,6 +23,9 @@ export function TopBar({
   onTemplate(t: TemplateCode): void;
   /** 0.36: «Открыть в окне» — тот же экран в отдельном окне программы. */
   onWindow?: () => void;
+  /** 0.38: компактная панель — в верхней строке «Книга» и «Окно программы», остальное открывается в окне. */
+  compact?: boolean;
+  onCompact?: (v: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -61,9 +66,15 @@ export function TopBar({
     <header className="topbar">
       <nav className="topbar-nav" aria-label="Экраны">
         {tab("home", "Книга", <BookIcon />, " tb-home", "Книга: листы, акты, карточки строк")}
-        {tab("delivery", "Печать и сдача", <PrintIcon />, "", "Комплекты, реестр, ОЖР, проверка перед сдачей")}
-        {tab("assistant", "Помощник", <SparkIcon />, " tb-assistant")}
-        {onWindow && (
+        {!compact && tab("delivery", "Печать и сдача", <PrintIcon />, "", "Комплекты, реестр, ОЖР, проверка перед сдачей")}
+        {!compact && tab("assistant", "Помощник", <SparkIcon />, " tb-assistant")}
+        {compact && onWindow && (
+          <button className="tb-btn tb-window-wide" title="Акты, печать и сдача, помощник, шаблоны — в большом окне программы" onClick={onWindow}>
+            <WindowIcon />
+            <span className="tb-label">Окно программы</span>
+          </button>
+        )}
+        {!compact && onWindow && (
           <button className="tb-btn tb-window" title="Открыть в окне: тот же экран в отдельном большом окне программы" onClick={onWindow}>
             <WindowIcon />
             <span className="sr-only">Открыть в окне</span>
@@ -102,7 +113,25 @@ export function TopBar({
                 </li>
               ))}
               <li className="tb-menu-sep" role="separator" />
-              {MENU_SCREENS.map((m) => (
+              {compact && (
+                <>
+                  <li className="tb-menu-head" role="presentation">
+                    В окне программы
+                  </li>
+                  {[
+                    { id: "delivery" as ScreenId, label: "Печать и сдача" },
+                    { id: "assistant" as ScreenId, label: "Помощник" },
+                  ].map((m) => (
+                    <li key={m.id} role="none">
+                      <button role="menuitem" onClick={() => go(m.id)}>
+                        <span className="tb-check" />
+                        {m.label}
+                      </button>
+                    </li>
+                  ))}
+                </>
+              )}
+              {(compact ? MENU_SCREENS.filter((m) => m.id !== "settings") : MENU_SCREENS).map((m) => (
                 <li key={m.id} role="none">
                   <button role="menuitem" aria-current={screen === m.id ? "page" : undefined} onClick={() => go(m.id)}>
                     <span className="tb-check">{screen === m.id ? "•" : ""}</span>
@@ -110,6 +139,36 @@ export function TopBar({
                   </button>
                 </li>
               ))}
+              {compact && (
+                <>
+                  <li className="tb-menu-sep" role="separator" />
+                  <li role="none">
+                    <button role="menuitem" aria-current={screen === "settings" ? "page" : undefined} onClick={() => go("settings")}>
+                      <span className="tb-check">{screen === "settings" ? "•" : ""}</span>
+                      Настройки
+                    </button>
+                  </li>
+                </>
+              )}
+              {onCompact && (
+                <>
+                  <li className="tb-menu-sep" role="separator" />
+                  <li role="none">
+                    <button
+                      role="menuitemcheckbox"
+                      aria-checked={compact}
+                      title="В панели — только книга и настройки; акты, печать и сдача, помощник, шаблоны — в окне программы"
+                      onClick={() => {
+                        onCompact(!compact);
+                        setOpen(false);
+                      }}
+                    >
+                      <span className="tb-check">{compact ? "✓" : ""}</span>
+                      Компактная панель
+                    </button>
+                  </li>
+                </>
+              )}
             </ul>
           )}
         </div>

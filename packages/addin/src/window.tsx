@@ -21,7 +21,7 @@ const events = new WindowEvents();
 
 function screenFromUrl(search: string): ScreenId {
   const s = new URLSearchParams(search).get("screen");
-  return (WINDOW_SCREENS as readonly string[]).includes(s ?? "") ? (s as ScreenId) : "home";
+  return (WINDOW_SCREENS as readonly string[]).includes(s ?? "") ? (s as ScreenId) : "overview";
 }
 
 function setTitle(book: string | null) {

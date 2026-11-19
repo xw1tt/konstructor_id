@@ -77,6 +77,6 @@ export type PanelMessage = { type: "call"; id: string; method: BridgeMethod; arg
 export type WindowMessage = { type: "status"; status: BridgeStatus } | { type: "change" | "selection"; payload?: unknown };
 
 /** Экраны, которые окно может открыть сразу (кнопка «Открыть в окне» на нужном экране). */
-export const WINDOW_SCREENS = ["home", "acts", "delivery", "assistant", "templates", "fields", "library", "normativ", "settings"] as const;
+export const WINDOW_SCREENS = ["overview", "home", "acts", "delivery", "assistant", "templates", "fields", "library", "normativ", "settings"] as const;
 export type WindowScreen = (typeof WINDOW_SCREENS)[number];
 export const WindowOpen = z.object({ panel: z.string().min(1).max(100).optional(), screen: z.enum(WINDOW_SCREENS).optional() });

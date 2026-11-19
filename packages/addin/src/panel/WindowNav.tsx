@@ -5,9 +5,10 @@ import type { TemplateCode } from "@idk/shared/templates";
 import type { UserTemplate } from "@idk/shared/forms/template";
 import type { BridgeStatus } from "@idk/shared/bridge";
 import type { ScreenId } from "./screens.ts";
-import { ActsIcon, BookIcon, FieldsIcon, GearIcon, LibraryIcon, NormIcon, PrintIcon, SparkIcon, TemplateIcon } from "./icons.tsx";
+import { ActsIcon, BookIcon, HomeIcon, FieldsIcon, GearIcon, LibraryIcon, NormIcon, PrintIcon, SparkIcon, TemplateIcon } from "./icons.tsx";
 
 const ITEMS: { id: ScreenId; label: string; icon: ReactNode; group: "work" | "setup" }[] = [
+  { id: "overview", label: "Объект", icon: <HomeIcon />, group: "work" },
   { id: "home", label: "Книга", icon: <BookIcon />, group: "work" },
   { id: "acts", label: "Акты", icon: <ActsIcon />, group: "work" },
   { id: "delivery", label: "Печать и сдача", icon: <PrintIcon />, group: "work" },

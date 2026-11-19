@@ -15,6 +15,7 @@ import { MergeNote } from "./CreateBook.tsx";
 import { TableTools } from "./TableTools.tsx";
 import { TopBar } from "./TopBar.tsx";
 import { WindowNav } from "./WindowNav.tsx";
+import { PANEL_SCREENS, readCompact, writeCompact } from "./compact.ts";
 import type { BridgeStatus } from "@idk/shared/bridge";
 import { NormativScreen } from "./NormativScreen.tsx";
 import { AssistantScreen } from "./AssistantScreen.tsx";
@@ -25,6 +26,7 @@ import { FieldsScreen } from "./FieldsScreen.tsx";
 import { LibraryScreen } from "./LibraryScreen.tsx";
 import { DeliveryScreen } from "./DeliveryScreen.tsx";
 import { ActsScreen } from "./ActsScreen.tsx";
+import { OverviewScreen } from "./OverviewScreen.tsx";
 import { WizardScreen } from "./WizardScreen.tsx";
 import { AssistantSession } from "./assistant.ts";
 import { aiApi } from "./aiApi.ts";
@@ -95,12 +97,19 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
   const [creating, setCreating] = useState(false);
   const [screen, setScreen] = useState<ScreenId>(shell.initialScreen ?? "home");
   const [windowNote, setWindowNote] = useState("");
-  const openWindow = shell.onOpenWindow
-    ? () => {
-        setWindowNote("");
-        shell.onOpenWindow!(screen).catch((e: Error) => setWindowNote(e.message));
-      }
-    : undefined;
+  const openWindowAt = (s: ScreenId) => {
+    setWindowNote("");
+    shell.onOpenWindow?.(s).catch((e: Error) => setWindowNote(e.message));
+  };
+  const openWindow = shell.onOpenWindow ? () => openWindowAt(screen) : undefined;
+  // 0.38: компактная панель — в панели «Книга» и «Настройки», остальные экраны открываются в окне программы.
+  const [compact, setCompactState] = useState(() => !win && !!shell.onOpenWindow && readCompact());
+  const setCompact = (v: boolean) => {
+    setCompactState(v);
+    writeCompact(v);
+    if (v && !PANEL_SCREENS.includes(screen)) setScreen("home");
+  };
+  const goScreen = (s: ScreenId) => (compact && !PANEL_SCREENS.includes(s) ? openWindowAt(s) : setScreen(s));
   const [template, setTemplate] = useState<TemplateCode>(DEFAULT_TEMPLATE);
   useEffect(() => {
     void loadTemplate(port)
@@ -259,7 +268,16 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
                     onBook={shell.onBook}
                   />
                 ) : (
-                  <TopBar screen={screen} onScreen={setScreen} template={template} templates={list} onTemplate={chooseTemplate} onWindow={openWindow} />
+                  <TopBar
+                    screen={screen}
+                    onScreen={goScreen}
+                    template={template}
+                    templates={list}
+                    onTemplate={chooseTemplate}
+                    onWindow={openWindow}
+                    compact={compact}
+                    onCompact={shell.onOpenWindow ? setCompact : undefined}
+                  />
                 )}
                 <div className={win ? "win-main" : "app-main"}>
                   {windowNote && (
@@ -300,6 +318,13 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
                       session={assistant}
                       onSettings={() => setScreen("settings")}
                       extra={<FormAttach kit={formKit} onChoose={chooseTemplate} />}
+                    />
+                  ) : screen === "overview" ? (
+                    <OverviewScreen
+                      port={port}
+                      state={state}
+                      bookName={shell.link?.books.find((b) => b.panel === shell.link?.active)?.name}
+                      onScreen={setScreen}
                     />
                   ) : screen === "acts" ? (
                     <ActsScreen port={port} state={state} />

@@ -128,11 +128,11 @@ function makeLookup(data: FormData, warnings: Set<string>, item?: Record<string,
  *  (в ячейке после таблицы Word всегда держит абзац, так что ячейка не остаётся пустой).
  *  0.46.3: варианты строки — подряд строки {#Список:вариант}; для элемента берётся строка, вариант которой равен его полю
  *  «….Строка» (реестр материалов: серая строка документа без номера и строка материала с автономером). */
-function fillTable(tbl: string, data: FormData, warnings: Set<string>): string {
+function fillTable(tbl: string, data: FormData, warnings: Set<string>, lines: Map<string, string[]> = new Map()): string {
   const spans = elements(tbl, "tr");
   if (!spans.length) return tbl;
   const rows = spans.map(({ start, end }) =>
-    mapElements(tbl.slice(start, end), "tc", (cell) => mapElements(cell, "tbl", (inner) => fillTable(inner, data, warnings))),
+    mapElements(tbl.slice(start, end), "tc", (cell) => mapElements(cell, "tbl", (inner) => fillTable(inner, data, warnings, lines))),
   );
   const marks = rows.map((row) => {
     const m = paragraphText(withoutTables(row)).match(/\{#([^{}:]+)(?::([^{}]+))?\}/);
@@ -144,7 +144,7 @@ function fillTable(tbl: string, data: FormData, warnings: Set<string>): string {
   for (let i = 0; i < rows.length;) {
     const mark = marks[i];
     if (!mark) {
-      out += gap(i) + rows[i];
+      out += gap(i) + (rowCopies(rows[i], data, warnings, lines) ?? rows[i]);
       i++;
       continue;
     }
@@ -170,21 +170,26 @@ function fillTable(tbl: string, data: FormData, warnings: Set<string>): string {
 /**
  * 0.46.5: значение по строкам бланка. В образцах (АОСР «Камчатки») длинное значение напечатано строками — каждая в своей
  * строке таблицы с подчёркиванием; метка {Поле@k:w} — k-я строка значения шириной около w знаков. Слова раскладываются
- * по строкам по порядку, перевод строки значения начинает новую строку бланка, всё, что не влезло, — в последнюю.
+ * по строкам по порядку, перевод строки значения начинает новую строку бланка.
+ * 0.46.6: не влезшее в строки бланка — в дополнительные строки шириной последней (бланк получает столько строк с
+ * подчёркиванием, сколько нужно); результат — не короче числа строк бланка.
  */
 export function wrapToRows(value: string, widths: number[]): string[] {
-  const rows = widths.map(() => "");
+  const rows: string[] = widths.map(() => "");
   if (!widths.length) return rows;
+  const width = (r: number) => widths[Math.min(r, widths.length - 1)];
   let r = 0;
-  const last = widths.length - 1;
   const put = (word: string) => {
-    while (r < last && rows[r] && rows[r].length + 1 + word.length > widths[r]) r++;
-    rows[r] = rows[r] ? `${rows[r]}${rows[r].endsWith("\n") ? "" : " "}${word}` : word;
+    while (rows[r] && rows[r].length + 1 + word.length > width(r)) {
+      r++;
+      if (r >= rows.length) rows.push("");
+    }
+    rows[r] = rows[r] ? `${rows[r]} ${word}` : word;
   };
   value.split("\n").forEach((line, i) => {
-    if (i > 0) {
-      if (r < last && rows[r]) r++;
-      else if (rows[r]) rows[r] += "\n";
+    if (i > 0 && rows[r]) {
+      r++;
+      if (r >= rows.length) rows.push("");
     }
     for (const w of line.split(/\s+/).filter(Boolean)) put(w);
   });
@@ -193,8 +198,8 @@ export function wrapToRows(value: string, widths: number[]): string[] {
 
 const ROW_LABEL = /\{([^{}@]+)@(\d+):(\d+)\}/g;
 
-/** Значения меток {Поле@k:w} части документа: ширины строк собираются по всем меткам поля. */
-function rowValues(xml: string, data: FormData): Record<string, string> {
+/** Строки значений меток {Поле@k:w} части документа: у последней строки поля — и дополнительные. */
+function rowLines(xml: string, data: FormData): Map<string, string[]> {
   const text = elements(xml, "p")
     .map(({ start, end }) => paragraphText(xml.slice(start, end)))
     .join("\n");
@@ -204,7 +209,7 @@ function rowValues(xml: string, data: FormData): Record<string, string> {
     if (!list.some((x) => x.k === Number(m[2]))) list.push({ k: Number(m[2]), w: Number(m[3]), label: m[0].slice(1, -1) });
     fields.set(m[1].trim(), list);
   }
-  const out: Record<string, string> = {};
+  const out = new Map<string, string[]>();
   for (const [field, list] of fields) {
     if (!(field in data.values)) continue;
     list.sort((a, b) => a.k - b.k);
@@ -212,14 +217,30 @@ function rowValues(xml: string, data: FormData): Record<string, string> {
       data.values[field],
       list.map((x) => x.w),
     );
-    list.forEach((x, i) => (out[x.label] = rows[i]));
+    list.forEach((x, i) => out.set(x.label, i === list.length - 1 ? rows.slice(i) : [rows[i]]));
   }
   return out;
 }
 
+/** Строка таблицы с метками строк значения: пустая (не первая строка значения) — убирается; у последней строки
+ *  значения — копии строки бланка под дополнительные строки (каждая со своим подчёркиванием). */
+function rowCopies(row: string, data: FormData, warnings: Set<string>, lines: Map<string, string[]>): string | null {
+  const labels = [...paragraphText(withoutTables(row)).matchAll(ROW_LABEL)].map((m) => m[0].slice(1, -1)).filter((l) => lines.has(l));
+  if (!labels.length) return null;
+  const first = (l: string) => Number(l.match(/@(\d+):/)![1]) === 1;
+  if (labels.every((l) => !first(l) && !lines.get(l)!.join(""))) return "";
+  const extra = Math.max(...labels.map((l) => lines.get(l)!.length)) - 1;
+  const base = makeLookup(data, warnings);
+  let out = fillParagraphs(row, (label) => (lines.has(label) ? lines.get(label)![0] : base(label)));
+  for (let e = 1; e <= extra; e++) out += fillParagraphs(row, (label) => (lines.has(label) ? (lines.get(label)![e] ?? "") : ""));
+  return out;
+}
+
 function fillPart(xml: string, data0: FormData, warnings: Set<string>): string {
-  const data: FormData = { ...data0, values: { ...data0.values, ...rowValues(xml, data0) } };
-  const tables = mapElements(xml, "tbl", (tbl) => fillTable(tbl, data, warnings));
+  const lines = rowLines(xml, data0);
+  // Вне таблиц копировать нечего — дополнительные строки уходят в последнюю переводами строк.
+  const data: FormData = { ...data0, values: { ...data0.values, ...Object.fromEntries([...lines].map(([l, v]) => [l, v.join("\n")])) } };
+  const tables = mapElements(xml, "tbl", (tbl) => fillTable(tbl, data, warnings, lines));
   return fillParagraphs(tables, makeLookup(data, warnings));
 }
 

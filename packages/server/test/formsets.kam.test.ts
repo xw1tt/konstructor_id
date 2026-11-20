@@ -193,11 +193,11 @@ test("0.46.4: Word «Камчатки» открывается без восст
   }
 });
 
-test("0.46.5: длинное значение — по строкам бланка: первая уже (рядом с подписью поля), остаток — в последнюю", async () => {
+test("0.46.5–0.46.6: длинное значение — по строкам бланка: первая уже (рядом с подписью поля), не влезшее — в новые строки", async () => {
   const { wrapToRows } = await import("@idk/server/forms/docx");
-  assert.deepEqual(wrapToRows("раз два три четыре", [8, 8]), ["раз два", "три четыре"]);
-  assert.deepEqual(wrapToRows("раз два три четыре пять шесть", [8, 8]), ["раз два", "три четыре пять шесть"]);
-  assert.deepEqual(wrapToRows("1. Схема А\n2. Схема Б\n3. Схема В", [40, 40]), ["1. Схема А", "2. Схема Б\n3. Схема В"]);
+  assert.deepEqual(wrapToRows("раз два три четыре", [8, 12]), ["раз два", "три четыре"]);
+  assert.deepEqual(wrapToRows("раз два три четыре пять шесть", [8, 12]), ["раз два", "три четыре", "пять шесть"], "не влезло — дополнительная строка");
+  assert.deepEqual(wrapToRows("1. Схема А\n2. Схема Б\n3. Схема В", [40, 40]), ["1. Схема А", "2. Схема Б", "3. Схема В"]);
   assert.deepEqual(wrapToRows("коротко", [10, 10, 10]), ["коротко", "", ""]);
   const { docFile } = await import("@idk/server/kit/xlsx");
   const { docxText } = await import("@idk/server/forms/docx");
@@ -205,4 +205,23 @@ test("0.46.5: длинное значение — по строкам бланк
   const t = docxText(docFile(b, { kind: "aosr", form: null }, KAM, {}).buf);
   assert.doesNotMatch(t, /@\d+:\d+|\{/, "метки строк заполнены");
   assert.ok(t.includes(b.object.name.split(" ").slice(0, 3).join(" ")));
+});
+
+test("0.46.6: строки бланка АОСР — лишние пустые убираются, не влезшее — новые строки с подчёркиванием; подписи не разрываются", async () => {
+  const { docFile } = await import("@idk/server/kit/xlsx");
+  const { openZip } = await import("@idk/server/zip/zip");
+  const { elements } = await import("@idk/server/forms/docx");
+  const b = await bundle();
+  const xml = openZip(docFile(b, { kind: "aosr", form: null }, KAM, {}).buf).get("word/document.xml")!().toString("utf8");
+  // Каждая строка значения — в своей строке бланка (с подчёркиванием), без переносов внутри строки.
+  assert.equal((xml.match(/<w:br\/>/g) ?? []).length, 0);
+  for (const name of ["rim", "rp", "aosr"] as const) {
+    const x = openZip(docFile(b, { kind: name, form: null }, KAM, {}).buf).get("word/document.xml")!().toString("utf8");
+    const all = elements(x, "p");
+    const last = all.slice(-6).map(({ start, end }) => x.slice(start, end));
+    assert.ok(
+      last.slice(0, -1).some((p) => p.includes("<w:keepNext/>")),
+      `${name}: подписи держатся вместе`,
+    );
+  }
 });

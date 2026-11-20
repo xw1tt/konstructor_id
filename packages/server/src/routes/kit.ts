@@ -6,6 +6,7 @@ import type { Db } from "../db.ts";
 import { Router, Reply, HttpError } from "../http/router.ts";
 import { assembleKit, type KitDeps } from "../kit/assemble.ts";
 import { docFile, kitXlsxZip, kitZipName } from "../kit/xlsx.ts";
+import { BUILTIN_DOC_LABELS } from "@idk/shared/forms/template";
 import { writeZip } from "../zip/zip.ts";
 import { ActBundle } from "@idk/shared/workbook/bundle";
 import { PRINT_KINDS } from "@idk/shared/acts/schemas";
@@ -74,7 +75,8 @@ export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDep
         const x = docFile(it.bundle, { kind: it.kind, form: it.form }, q.options, forms);
         files.push([`${String(files.length + 1).padStart(width, "0")} ${x.name}`, x.buf]);
       } catch (e) {
-        errors.push(`${it.form?.doc ?? it.kind}: ${(e as Error).message}`);
+        const label = it.form?.doc ?? (it.kind ? BUILTIN_DOC_LABELS[it.kind] : "документ");
+        errors.push(`${label} акта ${it.bundle.act.baseNumber}: ${(e as Error).message}`);
       }
     });
     if (!files.length) throw new HttpError(422, `Файлы не собраны: ${errors.join("; ")}`);

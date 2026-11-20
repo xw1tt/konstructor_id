@@ -3,7 +3,7 @@
 import { useContext, useEffect, useState } from "react";
 import type { Issue } from "@idk/shared/workbook/bundle";
 import { cellText } from "@idk/shared/workbook/values";
-import { kitActs, syncRegistry } from "@idk/shared/kit/registry";
+import { kitActs, missingRegistryDocs, syncRegistry } from "@idk/shared/kit/registry";
 import { readBook, type Book } from "@idk/shared/workbook/records";
 import type { BookPort } from "../../book/bookPort.ts";
 import { useGuard } from "../../server.tsx";
@@ -51,10 +51,15 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
     // В отфильтрованной таблице вставка задела бы скрытые строки других комплектов.
     if (await port.isFiltered("РеестрИД")) await port.clearFilters("РеестрИД");
     const r = await syncRegistry(port, book, k, tpl);
-    if (!r.changed && r.linked) return { book: await readBook(port), text: `В реестр комплекта ${k} перенесены сканы: ${r.linked}.`, issues: [] };
-    if (!r.changed) return { book, text: "", issues: r.issues };
+    // 0.46.2: в реестр идут только документы шаблона книги — о недостающих АОСР, РИМ, РП, ВД говорим прямо.
+    const missing = missingRegistryDocs(tpl);
+    const warn = missing.length
+      ? ` В шаблоне книги «${tpl.name}» нет ${missing.join(", ")} — в реестр они не попадают. Выберите для книги шаблон с ними («Шаблоны» → «Выбрать для книги», например «Камчатка») или добавьте их в свой шаблон.`
+      : "";
+    if (!r.changed && r.linked) return { book: await readBook(port), text: `В реестр комплекта ${k} перенесены сканы: ${r.linked}.${warn}`, issues: [] };
+    if (!r.changed) return { book, text: warn.trim(), issues: r.issues };
     const parts = [r.added && `добавлено ${r.added}`, r.removed && `убрано ${r.removed}`].filter(Boolean).join(", ");
-    return { book: await readBook(port), text: `Реестр комплекта ${k} обновлён из актов${parts ? ` (${parts})` : ""}.`, issues: [] };
+    return { book: await readBook(port), text: `Реестр комплекта ${k} обновлён из актов${parts ? ` (${parts})` : ""}.${warn}`, issues: [] };
   };
 
   const fill = async () => {

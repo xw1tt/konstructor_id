@@ -5,6 +5,7 @@ import { docIssues } from "./docCheck.ts";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { actsOverview, filterActs, shortNumbers, statusText, type ActFilter, type ActOverview, type ActStatus } from "@idk/shared/acts/overview";
 import { completeness, docCode } from "@idk/shared/catalog/need";
+import { missingRegistryDocs } from "@idk/shared/kit/registry";
 import { checkActs } from "@idk/shared/check/predelivery";
 import { addNextAct } from "@idk/shared/acts/nextAct";
 import { buildBundle, type Issue } from "@idk/shared/workbook/bundle";
@@ -150,7 +151,8 @@ function ActCard({
   const [check, setCheck] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [files, setFiles] = useState<{ id: string; name: string } | null>(null);
+  /** 0.46.2: архив «Файлы Word/Excel» — что в нём и что не вошло (ошибки сервера по документам). */
+  const [files, setFiles] = useState<{ id: string; name: string; files: string[]; errors: string[] } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -221,8 +223,14 @@ function ActCard({
         }
         return [{ bundle: r.bundle, kind: b.doc, form: b.form ? { template: tpl.template.id, doc: b.key } : null }];
       });
-      if (!list.length) return setLines(await sheetIssueLines(port, all));
-      const r = await apiSend<{ id: string; name: string }>("POST", "/api/act-files", { name: `Акт ${a.number}`, options, items: list });
+      // Документы с ошибками в книге не входят в архив — показываем, какие и почему (раньше молча пропускались).
+      if (all.length) setLines(await sheetIssueLines(port, all));
+      if (!list.length) return;
+      const r = await apiSend<{ id: string; name: string; files: string[]; errors: string[] }>("POST", "/api/act-files", {
+        name: `Акт ${a.number}`,
+        options,
+        items: list,
+      });
       setFiles(r);
     } catch (e) {
       setError((e as Error).message);
@@ -349,7 +357,24 @@ function ActCard({
         <p className="notice" role="status">
           <a href={`/api/act-files/${files.id}`} download={files.name}>
             Скачать {files.name}
-          </a>
+          </a>{" "}
+          — {files.files.filter((f) => f !== "Ошибки.txt").length} файл.:{" "}
+          {files.files
+            .filter((f) => f !== "Ошибки.txt")
+            .map((f) => f.replace(/^\d+ /, ""))
+            .join(", ")}
+          {lines.length > 0 && <> Документы с ошибками в книге в архив не вошли — список выше.</>}
+        </p>
+      )}
+      {files && missingRegistryDocs(tpl.template).length > 0 && (
+        <p className="warn" role="status">
+          В шаблоне книги «{tpl.template.name}» нет {missingRegistryDocs(tpl.template).join(", ")} — эти документы не печатаются и в архив не входят. Выберите
+          для книги шаблон с ними («Шаблоны» → «Выбрать для книги», например «Камчатка») или добавьте их в свой шаблон.
+        </p>
+      )}
+      {files && files.errors.length > 0 && (
+        <p className="error" role="alert">
+          Не вошли в архив: {files.errors.join("; ")}
         </p>
       )}
       {check > 0 && <PreDelivery port={port} state={state} acts={[a.number]} what="акт" trigger={check} />}
@@ -552,7 +577,11 @@ export function ActsScreen({ port, state, focus, onScreen }: { port: BookPort; s
         setError,
       );
       if (!r) return;
-      setNote({ text: ` — файлов ${r.files.filter((f) => f !== "Ошибки.txt").length}`, href: `/api/act-files/${r.id}`, name: r.name });
+      setNote({
+        text: ` — файлов ${r.files.filter((f) => f !== "Ошибки.txt").length}${r.errors.length ? `. Не вошли (подробно — «Ошибки.txt» в архиве): ${r.errors.slice(0, 5).join("; ")}${r.errors.length > 5 ? "…" : ""}` : ""}`,
+        href: `/api/act-files/${r.id}`,
+        name: r.name,
+      });
     } finally {
       setBusy(null);
     }

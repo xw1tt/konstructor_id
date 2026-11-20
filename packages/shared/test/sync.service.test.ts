@@ -91,3 +91,14 @@ test("0.46.1: реестр уже собран, сканы схемы и док�
   const again = await syncRegistry(wb, await readBook(wb), "1");
   assert.equal(again.linked, 0, "второй раз переносить нечего");
 });
+
+test("0.46.2: шаблон без АОСР, РИМ, РП, ВД — их нет в реестре, missingRegistryDocs называет их", async () => {
+  const { BUILTIN_KAM } = await import("@idk/shared/forms/template");
+  const { registryRows, missingRegistryDocs } = await import("@idk/shared/kit/registry");
+  assert.deepEqual(missingRegistryDocs(BUILTIN_KAM), []);
+  const own = { ...BUILTIN_KAM, id: "t-1", name: "Свой", docs: BUILTIN_KAM.docs.filter((d) => d.kind === "builtin" && d.doc === "kj") };
+  assert.deepEqual(missingRegistryDocs(own), ["АОСР", "РИМ", "РП", "ВД"]);
+  const rows = registryRows(await readBook(new MemoryWorkbook(kitRecords())), "1", own).rows.map((r) => r.values["Вид"]);
+  assert.ok(!rows.some((k) => ["АОСР", "РИМ", "РП", "ВД"].includes(String(k))));
+  assert.ok(rows.includes("Схема") && rows.includes("Документ качества"), "схемы и документы качества — независимо от шаблона");
+});

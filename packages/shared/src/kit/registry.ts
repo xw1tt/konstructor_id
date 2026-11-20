@@ -95,6 +95,16 @@ function qualityDocs(book: Book): { docs: QualityDoc[]; rowOf: Map<number, BookR
   return { docs, rowOf, matId };
 }
 
+/**
+ * 0.46.2: документы акта, которые печатает программа, но которых нет в шаблоне книги — их строк в реестре не будет.
+ * Подсказка для панели: «АОСР, РИМ, РП, ВД не входят в шаблон «…»».
+ */
+export function missingRegistryDocs(template: UserTemplate | undefined): string[] {
+  if (!template) return [];
+  const kinds: ActDocKind[] = ["aosr", "rim", ...(template.print?.formSet && template.print.formSet !== "sbd" ? (["rp"] as const) : []), "vd"];
+  return kinds.filter((k) => !template.docs.some((d) => d.kind === "builtin" && d.doc === k)).map((k) => ACT_DOC_DEFS[k].label);
+}
+
 /** Строки реестра комплекта из актов (порядок образца СБД). Шаблон пользователя: встроенные документы — только
  *  входящие в шаблон, свои (форма или скан) — после АОСР/РИМ/ВД акта, в порядке шаблона. Без шаблона — все встроенные
  *  (как «СБД»). Со справочником (план 12) — документы акта по его «Виду работ» (actDocs), документы «на комплект» —

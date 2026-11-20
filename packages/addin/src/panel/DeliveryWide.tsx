@@ -1,7 +1,7 @@
 // 0.41: «Печать и сдача» в окне программы по макету — комплекты слева, выбранный комплект: пять шагов сдачи,
 // «Так будет сшит PDF», реестр комплекта; журналы и реестры, акты без комплекта.
 import { useContext, useEffect, useMemo, useState } from "react";
-import { kitActs } from "@idk/shared/kit/registry";
+import { kitActs, missingRegistryDocs } from "@idk/shared/kit/registry";
 import { checkActs } from "@idk/shared/check/predelivery";
 import { shortNumbers } from "@idk/shared/acts/overview";
 import { cellText, parseDateCell, parseNumberCell } from "@idk/shared/workbook/values";
@@ -395,6 +395,12 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
                     </button>
                   </span>
                 </header>
+                {missingRegistryDocs(tpl.template).length > 0 && (
+                  <p className="warn dl2-pad" role="status">
+                    <IssueIcon level="warn" /> В шаблоне книги «{tpl.template.name}» нет {missingRegistryDocs(tpl.template).join(", ")} — в реестр они не
+                    попадают. Выберите для книги шаблон с ними (экран «Шаблоны» → «Выбрать для книги», например «Камчатка») или добавьте их в свой шаблон.
+                  </p>
+                )}
                 {registry.length ? (
                   <table className="dl2-table">
                     <thead>

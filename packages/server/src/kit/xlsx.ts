@@ -9,10 +9,24 @@ import { fillForm } from "../forms/convert.ts";
 import { findDoc, docCode } from "../routes/formJobs.ts";
 import { docLabel } from "@idk/shared/forms/template";
 import type { KitDeps } from "./assemble.ts";
+import { actDocFileName } from "../print/docs.ts";
+import { kamDocx } from "../forms/kamForms.ts";
+import { isActDocKind } from "@idk/shared/docs/defs";
+import { actDocFormFor } from "@idk/shared/blanks";
 
 const bundleOf = (q: KitRequest, row: KitRow) =>
   row.doc?.proto ? q.protos.find((p) => p.proto?.number === row.doc!.proto) : q.acts.find((a) => a.act.baseNumber === row.doc!.act);
 const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, "_");
+
+/** 0.46.3: «Камчатка» — АОСР и реестры в Word по образцам заказчика (ВД и КЖ — в Excel, как в образцах); null — нет. */
+export function kamWordFile(b: ActBundle, kind: PrintKind, options: Partial<PrintOptions> | undefined): { name: string; buf: Buffer } | null {
+  if ((options?.formSet ?? "sbd") !== "kam" || !isActDocKind(kind)) return null;
+  if (kind !== "aosr" && actDocFormFor(kind, options ?? {}) !== "kam") return null;
+  const form = kamDocx(kind);
+  if (!form) return null;
+  const filled = fillForm(b, { file: "kam.docx", type: "docx", original: "", buf: form }, { set: "kam" });
+  return { name: actDocFileName(b, kind, "kam", actDocFormFor(kind, options ?? {})).replace(/\.pdf$/i, ".docx"), buf: filled.buf };
+}
 
 /** 0.35: файл одного документа — своя форма (заполненный .docx/.xlsx) или встроенный документ в Excel. */
 export function docFile(
@@ -32,6 +46,8 @@ export function docFile(
     return { name: `${safe(`${docLabel(d)} ${b.act.baseNumber}`)}.${d.form.type}`, buf: filled.buf };
   }
   if (!doc.kind) throw new Error("не указан документ");
+  const word = kamWordFile(b, doc.kind, options);
+  if (word) return { name: safe(word.name), buf: word.buf };
   const { xlsx, name } = renderBundleXlsx(b, doc.kind, options);
   return { name: safe(name), buf: xlsx };
 }

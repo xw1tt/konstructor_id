@@ -144,3 +144,31 @@ test("реестр ИД комплекта по «Камчатке»: АОСР, 
   assert.equal(by("ВД")["Наименование"], "Ведомость смонтированного оборудования");
   assert.match(String(by("РИМ")["Наименование"]), /^Реестр примененных материалов к АОСР/);
 });
+
+test("0.46.3: «Камчатка» в Word — АОСР, реестр примененных материалов, реестр приложений по образцам; ВД и КЖ — Excel", async () => {
+  const { docFile } = await import("@idk/server/kit/xlsx");
+  const { docxText } = await import("@idk/server/forms/docx");
+  const b = await bundle((r) => {
+    r["Схемы"] = r["Схемы"].slice(0, 2).map((s: any, i: number) => ({ ...s, Номер: `Приложение ${i + 1}`, Листов: i ? 4 : 1 }));
+  });
+  const file = (kind: "aosr" | "rim" | "rp" | "vd") => docFile(b, { kind, form: null }, KAM, {});
+  const aosr = file("aosr");
+  assert.equal(aosr.name, `${AOV1}.docx`);
+  const t = docxText(aosr.buf);
+  assert.doesNotMatch(t, /\{|нет поля/, "все метки заполнены");
+  assert.ok(t.includes(AOV1));
+  assert.ok(t.includes("Согласно реестра примененных материалов"));
+  assert.ok(t.includes("Согласно реестру приложений"));
+  assert.match(t, /1\. Исполнительная схема/);
+  assert.ok(!t.includes("Аносов") && !t.includes("Спектрум"), "данных образца не осталось");
+  const rim = file("rim");
+  assert.equal(rim.name, `${AOV1}.РПМ.docx`);
+  const rt = docxText(rim.buf);
+  assert.doesNotMatch(rt, /\{|нет поля/);
+  assert.ok(rt.includes("Паспорт качества") && rt.includes(`к АОСР №${AOV1}`));
+  assert.ok(!rt.includes("Шкаф напольный"));
+  const rp = docxText(file("rp").buf);
+  assert.doesNotMatch(rp, /\{|нет поля/);
+  assert.ok(rp.includes("Ведомость смонтированного оборудования") && rp.includes("Приложение 2"));
+  assert.match(file("vd").name, /\.ВД\.xlsx$/);
+});

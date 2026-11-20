@@ -103,7 +103,11 @@ export function tiDocData(b: ActBundle, set: FormSet = "ti"): TiData {
       };
     }),
     rm: rmGroups(docs, ordered).map((g) => ({
-      docs: g.docs.map((d) => ({ type: qualityDocLabel(d), date: d.issueDate ? dmy(d.issueDate) : "б/д", number: d.number.replace(/^№\s*/, "") })),
+      docs: g.docs.map((d) => ({
+        type: qualityDocLabel(d),
+        date: d.issueDate ? dmy(d.issueDate) : "б/д",
+        number: d.number.replace(/^№\s*/, "") || (kam ? "б/н" : ""),
+      })),
       items: g.mats.map((am) => {
         const m = mats.get(am.materialId);
         // «Камчатка»: наименование и марка (артикул) материала одной строкой, как в образце.

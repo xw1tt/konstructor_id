@@ -9,6 +9,7 @@ import { PanelGuard } from "./panel/PanelGuard.tsx";
 import { RemotePort, WindowEvents } from "./book/remotePort.ts";
 import type { ScreenId } from "./panel/screens.ts";
 import { setPreviewHook } from "./panel/print.ts";
+import { editableLink } from "./previewLinks.ts";
 import { FilePort, type BookSnapshot } from "./book/filePort.ts";
 
 declare global {
@@ -99,10 +100,28 @@ function Waiting({ down, onFile }: { down: boolean; onFile(b: BookSnapshot): voi
 /** 0.37: предпросмотр документа — поверх окна программы; «Отдельным окном» — как раньше. */
 function Preview() {
   const [url, setUrl] = useState<string | null>(null);
+  /** Своя форма: Word или Excel — по заголовку ответа (задание формы хранится готовым, повторный запрос дешёвый). */
+  const [formType, setFormType] = useState<string | null>(null);
   useEffect(() => {
     setPreviewHook(setUrl);
     return () => setPreviewHook(null);
   }, []);
+  useEffect(() => {
+    setFormType(null);
+    if (!url) return;
+    const { src } = previewParts(url);
+    if (!/^\/api\/form-jobs\//.test(src)) return;
+    let alive = true;
+    void fetch(src)
+      .then((r) => {
+        void r.body?.cancel();
+        if (alive) setFormType(r.headers.get("x-source-type"));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [url]);
   useEffect(() => {
     if (!url) return;
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setUrl(null);
@@ -110,11 +129,21 @@ function Preview() {
     return () => document.removeEventListener("keydown", esc);
   }, [url]);
   if (!url) return null;
+  const direct = previewParts(url);
+  const edit = formType && direct.edit && /form-jobs/.test(direct.src) ? editableLink(direct.src, formType) : direct.edit;
   return (
     <div className="win-preview" role="dialog" aria-label="Предпросмотр документа">
       <div className="win-preview-bar">
         <strong>Предпросмотр</strong>
-        <span className="hint">скачать и напечатать — кнопками над документом</span>
+        <a className="btn" href={direct.pdf} download>
+          Скачать PDF
+        </a>
+        {edit && (
+          <a className="btn" href={edit.href} download={edit.file || true}>
+            {edit.label}
+          </a>
+        )}
+        <span className="hint">напечатать — кнопкой печати над документом</span>
         <button className="btn" onClick={() => window.open(url, "_blank", "noopener")}>
           Отдельным окном
         </button>
@@ -122,9 +151,25 @@ function Preview() {
           Закрыть
         </button>
       </div>
-      <iframe title="Документ" src={url} />
+      {/* 0.46.3: документ — прямо в рамке окна (без вложенной страницы предпросмотра: в окне программы PDF во второй
+          вложенной рамке не показывался). */}
+      <iframe key={direct.src} title="Документ" src={direct.src} />
     </div>
   );
+}
+
+/** Адрес документа из адреса страницы предпросмотра (…/preview.html?src=/api/…) и ссылки «Скачать». */
+export function previewParts(url: string): { src: string; pdf: string; edit: ReturnType<typeof editableLink> } {
+  let src = url;
+  try {
+    const u = new URL(url, location.origin);
+    if (u.pathname.endsWith("/preview.html")) src = u.searchParams.get("src") ?? url;
+  } catch {
+    /* адрес как есть */
+  }
+  const kit = /^\/api\/(kit-jobs|common-registry-jobs|form-jobs)\//.test(src);
+  // Документ печати: Excel или Word («Камчатка») — какой, решает сервер по тому же адресу (имя файла — его).
+  return { src, pdf: kit ? `${src}?download=1` : src, edit: editableLink(src, /^\/api\/print-jobs\//.test(src) ? "any" : null) };
 }
 
 function WindowApp() {

@@ -1,4 +1,6 @@
 // Печать из пакета акта, собранного панелью в книге Excel.
+import { actDocFormFor } from "@idk/shared/blanks";
+import { kamWordFile } from "../kit/xlsx.ts";
 import { randomUUID } from "node:crypto";
 import type { ServerResponse } from "node:http";
 import { Router, Reply, HttpError } from "../http/router.ts";
@@ -120,6 +122,7 @@ export function renderBundleXlsx(b: ActBundle, kind: PrintKind, options: Partial
   return renderActXlsx(b, kind as ActDocKind, options);
 }
 
+export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 export const attachment = (name: string) =>
   `attachment; filename*=UTF-8''${encodeURIComponent(name.replace(/[\\/:*?"<>|]/g, "_")).replace(/['()*]/g, (ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase())}`;
@@ -137,6 +140,10 @@ export async function sendBundlePdf(
     "content-type": "application/pdf",
     "content-length": pdf.length,
     "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(name)}`,
+    // 0.46.3: у документа «Камчатки» редактируемый файл — Word (ссылка «Скачать Word» в предпросмотре).
+    ...(options.formSet === "kam" && isActDocKind(kind) && (kind === "aosr" || actDocFormFor(kind, options) === "kam") && ["aosr", "rim", "rp"].includes(kind)
+      ? { "x-source-type": "docx" }
+      : {}),
   });
   res.end(pdf);
 }
@@ -211,6 +218,18 @@ export function printRoutes(r: Router, jobs = createPrintJobs()) {
       return;
     }
     if (c.query.get("format") === "xlsx") {
+      // 0.46.3: документ «Камчатки» с формой Word — файл Word.
+      const word = kamWordFile(j.bundle, kind, j.options);
+      if (word) {
+        c.res.writeHead(200, {
+          "content-type": DOCX_MIME,
+          "content-length": word.buf.length,
+          "content-disposition": attachment(word.name),
+          "cache-control": "no-store",
+        });
+        c.res.end(word.buf);
+        return;
+      }
       const { xlsx, name } = renderBundleXlsx(j.bundle, kind, j.options);
       c.res.writeHead(200, { "content-type": XLSX_MIME, "content-length": xlsx.length, "content-disposition": attachment(name), "cache-control": "no-store" });
       c.res.end(xlsx);

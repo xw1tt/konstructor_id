@@ -14,6 +14,17 @@ import { protoFormData, emptyProtoFormData } from "@idk/shared/protocols/form";
 
 export type { FormData };
 
+/** «Акт.День начала», «Акт.Месяц начала», «Акт.Год начала», «Акт.Год начала кратко» (и окончания). */
+function dateParts(what: "начала" | "окончания", iso: string | null): Record<string, string> {
+  const [y = "", m = "", d = ""] = (iso ?? "").split("-");
+  return {
+    [`Акт.День ${what}`]: d,
+    [`Акт.Месяц ${what}`]: m ? (MONTHS_GEN.at(Number(m) - 1) ?? "") : "",
+    [`Акт.Год ${what}`]: y,
+    [`Акт.Год ${what} кратко`]: y.slice(2),
+  };
+}
+
 /** Метки своей формы. doc.code — код своего документа (номер «<акт>.<код>»); doc.set — набор форм шаблона (нумерация). */
 export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): FormData {
   const set = doc?.set ?? "sbd";
@@ -24,7 +35,7 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
   const aosr = buildDocDataFromBundle(b, "aosr", { formSet: set });
   const vd = buildDocDataFromBundle(b, "vd");
   const avk = buildAvkData(b);
-  const ti = tiDocData(b);
+  const ti = tiDocData(b, set === "kam" ? "kam" : "ti");
   const mat = (id: number) => b.materials.find((m) => m.id === id);
   const v: Record<string, string> = {
     "Объект.Наименование": b.object.name,
@@ -53,6 +64,10 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
     "Акт.Месяц": mm ? (MONTHS_GEN.at(Number(mm) - 1) ?? "") : "",
     "Акт.Год": yy ?? "",
     "Акт.Дата прописью": aosr.date,
+    // 0.46.3: «07» сентября 20 26 г. — год двумя последними цифрами (в бланке «20» напечатано); даты работ по частям.
+    "Акт.Год кратко": (yy ?? "").slice(2),
+    ...dateParts("начала", act.dateStart),
+    ...dateParts("окончания", act.dateEnd),
     "Акт.Работы": act.works,
     "Акт.Начало": formatDateShort(act.dateStart),
     "Акт.Окончание": formatDateShort(act.dateEnd),
@@ -62,7 +77,7 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
     "Акт.Разрешается": act.nextWorks,
     "Акт.Доп. сведения": act.extraInfo,
     "Акт.Экз.": String(act.copies),
-    "Акт.Приложения": act.attachments,
+    "Акт.Приложения": aosr.attachments,
     "Акт.Листы": act.sheets,
     "Акт.Ревизия": act.revision,
     "Акт.Выполнивший работы": aosr.performerOrg,
@@ -77,6 +92,9 @@ export function formData(b: ActBundle, doc?: { code?: string; set?: FormSet }): 
     const list = activeRepresentatives(b.representatives, role, act.date);
     const join = (f: (r: (typeof list)[number]) => string) => list.map(f).filter(Boolean).join("\n");
     v[`${g}.ФИО`] = join((r) => r.fullName);
+    // 0.46.3: представители по одному — отдельные строки подписи (у выполнившего работы в образце «Камчатки» — двое).
+    v[`${g}.ФИО 1`] = list[0]?.fullName ?? "";
+    v[`${g}.ФИО 2`] = list[1]?.fullName ?? "";
     v[`${g}.Должность`] = join((r) => r.position);
     v[`${g}.Организация`] = join((r) => org(r.orgId)?.shortName ?? "");
     v[`${g}.Приказ`] = join((r) => r.authorityDoc);

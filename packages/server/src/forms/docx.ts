@@ -125,19 +125,42 @@ function makeLookup(data: FormData, warnings: Set<string>, item?: Record<string,
 }
 
 /** Таблица: сначала вложенные таблицы строк, затем повтор строк с {#Список}; таблица без строк удаляется
- *  (в ячейке после таблицы Word всегда держит абзац, так что ячейка не остаётся пустой). */
+ *  (в ячейке после таблицы Word всегда держит абзац, так что ячейка не остаётся пустой).
+ *  0.46.3: варианты строки — подряд строки {#Список:вариант}; для элемента берётся строка, вариант которой равен его полю
+ *  «….Строка» (реестр материалов: серая строка документа без номера и строка материала с автономером). */
 function fillTable(tbl: string, data: FormData, warnings: Set<string>): string {
-  const rows = mapElements(tbl, "tr", (row0) => {
-    const row = mapElements(row0, "tc", (cell) => mapElements(cell, "tbl", (inner) => fillTable(inner, data, warnings)));
-    const name = paragraphText(withoutTables(row))
-      .match(/\{#([^{}]+)\}/)?.[1]
-      ?.trim();
-    if (!name) return row;
-    const list = data.lists[name];
-    if (!list) warnings.add(`Нет списка «${name}»`);
-    return (list ?? []).map((item) => fillParagraphs(row, makeLookup(data, warnings, item))).join("");
+  const spans = elements(tbl, "tr");
+  if (!spans.length) return tbl;
+  const rows = spans.map(({ start, end }) =>
+    mapElements(tbl.slice(start, end), "tc", (cell) => mapElements(cell, "tbl", (inner) => fillTable(inner, data, warnings))),
+  );
+  const marks = rows.map((row) => {
+    const m = paragraphText(withoutTables(row)).match(/\{#([^{}:]+)(?::([^{}]+))?\}/);
+    return m ? { name: m[1].trim(), variant: m[2]?.trim() ?? null } : null;
   });
-  return elements(rows, "tr").length ? rows : "";
+  let out = "";
+  for (let i = 0; i < rows.length;) {
+    const mark = marks[i];
+    if (!mark) {
+      out += rows[i++];
+      continue;
+    }
+    const group: { row: string; variant: string | null }[] = [];
+    while (i < rows.length && marks[i]?.name === mark.name && (group.length === 0 || (marks[i]!.variant !== null && group[0].variant !== null))) {
+      group.push({ row: rows[i], variant: marks[i]!.variant });
+      i++;
+      if (group[0].variant === null) break;
+    }
+    const list = data.lists[mark.name];
+    if (!list) warnings.add(`Нет списка «${mark.name}»`);
+    for (const item of list ?? []) {
+      const kind = Object.entries(item).find(([k]) => k.endsWith(".Строка"))?.[1];
+      const tpl = group.find((g) => g.variant !== null && g.variant === kind) ?? group[0];
+      out += fillParagraphs(tpl.row, makeLookup(data, warnings, item));
+    }
+  }
+  if (!elements(out, "tr").length) return "";
+  return tbl.slice(0, spans[0].start) + out + tbl.slice(spans[spans.length - 1].end);
 }
 
 function fillPart(xml: string, data: FormData, warnings: Set<string>): string {

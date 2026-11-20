@@ -5,7 +5,7 @@ import { cellText, parseNumberCell, type CellValue } from "./values.ts";
 import type { Book, BookRow } from "./records.ts";
 import type { ImportantMap } from "./important.ts";
 import type { TableStore } from "./store.ts";
-import type { FormSet } from "../templates.ts";
+import { tiLike, type FormSet } from "../templates.ts";
 import { MEASURE_KEYS, type CablesData, type CableRow, type MarkMeasure } from "./cableTypes.ts";
 
 export type CableDocKind = "kj" | "ip";
@@ -23,7 +23,7 @@ export function buildCableBundle(
   kind: CableDocKind,
   opts: { set?: FormSet } = {},
 ): { bundle: ActBundle | null; issues: Issue[] } {
-  const ti = opts.set === "ti";
+  const ti = tiLike(opts.set);
   const base = buildBundle(book, actNumber, important);
   const n = actNumber.trim();
   const c = createChecker(book, important);
@@ -98,6 +98,11 @@ export function buildCableBundle(
       tray: (v.tray as number | null) ?? null,
       smoothPipe: (v.smoothPipe as number | null) ?? null,
       corrugatedPipe: (v.corrugatedPipe as number | null) ?? null,
+      zku: txt(r.v.zku),
+      cabinet: txt(r.v.cabinet),
+      panel: txt(r.v.panel),
+      port: txt(r.v.port),
+      outlet: txt(r.v.outlet),
     })),
     marks: [...markRows.values()].map((r): MarkMeasure => ({
       mark: txt(r.v.mark),

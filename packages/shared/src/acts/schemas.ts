@@ -60,6 +60,8 @@ export const ActDocumentInput = z.object({
   date: optDate,
   fileId: optId,
   sortOrder: z.number().int().default(0),
+  /** 0.46: листов в схеме (реестр приложений «Камчатка»), null — не указано. */
+  sheets: z.number().nullable().optional(),
 });
 export type ActDocumentInput = z.infer<typeof ActDocumentInput>;
 

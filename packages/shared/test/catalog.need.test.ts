@@ -42,7 +42,9 @@ const tpl: UT = UserTemplate.parse({
   ],
 });
 
-const rows = (list: Record<string, CellValue>[]): BookRow[] => list.map((v, row) => ({ row, v, link: {} }));
+// Скан загружен — в «Скане» ссылка на файл (0.46: одно имя без ссылки — не скан).
+const rows = (list: Record<string, CellValue>[]): BookRow[] =>
+  list.map((v, row) => ({ row, v, link: (v.file ? { file: `https://localhost/api/files/${row + 1}` } : {}) as BookRow["link"] }));
 const book = (acts: Record<string, CellValue>[], registry: Record<string, CellValue>[] = [], kitActs: string[] = []): Book => ({
   object: {},
   missing: [],
@@ -55,7 +57,7 @@ const book = (acts: Record<string, CellValue>[], registry: Record<string, CellVa
 });
 const labels = (docs: UT["docs"]) => docs.map(docLabel);
 
-test("схема книги — версия 16 (0.34.3 — свой вид документа качества)", () => assert.equal(SCHEMA_VERSION, 16));
+test("схема книги — версия 17 (0.46 — трасса СКС в КЖ, листы схем)", () => assert.equal(SCHEMA_VERSION, 17));
 
 test("акт с двумя видами работ получает документы обоих без дублей; документ «на комплект» — не в акте", () => {
   const b = book([{ baseNumber: "1", workKinds: "Прокладка кабельных линий; Монтаж кабельных лотков" }]);
@@ -102,6 +104,10 @@ test("полнота акта: печать, скан есть / нет, сво�
   assert.equal(withScan[2].status, "scan");
   const emptyScan = completeness(tpl, cat, book(acts, [{ kit: "1", number: "1.ПИК", file: "" }]), "1");
   assert.equal(emptyScan[2].status, "noScan");
+  // Имя файла в «Скане» без самого файла (ссылки) — скана нет.
+  const nameOnly = book(acts, [{ kit: "1", number: "1.ПИК", file: "пик.pdf" }]);
+  nameOnly.tables["РеестрИД"]![0].link = {};
+  assert.equal(completeness(tpl, cat, nameOnly, "1")[2].status, "noScan");
 });
 
 test("комплект: скан «на комплект» в нехватке один раз; найденный скан убирает его", () => {

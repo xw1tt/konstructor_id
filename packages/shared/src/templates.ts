@@ -20,9 +20,12 @@ export async function saveTemplate(store: TableStore, code: TemplateCode): Promi
 
 /** Настройки печати книги (меню «Шаблоны ▾»). schemeEach — «Исполнительная схема» перед каждой схемой п.4 АОСР
  *  (по умолчанию — только перед первой из подряд идущих, как в образце СБД). */
-export const FORM_SETS = ["sbd", "ti"] as const;
+export const FORM_SETS = ["sbd", "ti", "kam"] as const;
 export type FormSet = (typeof FORM_SETS)[number];
-export const FORM_SET_LABELS: Record<FormSet, string> = { sbd: "СБД", ti: "ТИ" };
+export const FORM_SET_LABELS: Record<FormSet, string> = { sbd: "СБД", ti: "ТИ", kam: "Камчатка" };
+/** 0.46: набор «Камчатка» — формы ООО «Техноинжиниринг» для объекта аэропорта Петропавловск-Камчатский: как «ТИ»
+ *  (нумерация от номера акта, шапки ВД и КЖ, реестры с документами качества), со своими РП, РМ и КЖ. */
+export const tiLike = (s: FormSet | undefined): boolean => !!s && s !== "sbd";
 /** Документы, у которых есть встроенные варианты форм (план 14). */
 export const FORM_DOCS = ["vd", "rim", "kj", "registry"] as const;
 export type FormDoc = (typeof FORM_DOCS)[number];
@@ -34,7 +37,7 @@ export const PrintOptions = z.object({
   schemeEach: z.boolean().default(false),
   formSet: z.enum(FORM_SETS).default("sbd"),
   forms: z
-    .object(Object.fromEntries(FORM_DOCS.map((d) => [d, z.enum(FORM_SETS).optional()])) as Record<FormDoc, z.ZodOptional<z.ZodEnum<["sbd", "ti"]>>>)
+    .object(Object.fromEntries(FORM_DOCS.map((d) => [d, z.enum(FORM_SETS).optional()])) as Record<FormDoc, z.ZodOptional<z.ZodEnum<["sbd", "ti", "kam"]>>>)
     .default({}),
   kjReserve: z.number().min(0).max(100).default(2),
   kjDecimals: z.number().int().min(0).max(3).nullable().default(null),

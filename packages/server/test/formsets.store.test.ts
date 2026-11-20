@@ -9,7 +9,7 @@ test("список: СБД, ТИ, свои; «ТИ» читается и не м
   const own = s.create("Мой");
   assert.deepEqual(
     s.list().map((t) => t.id),
-    ["sbd", "ti", own.id],
+    ["sbd", "ti", "kam", own.id],
   );
   assert.equal(s.get("ti").print.formSet, "ti");
   assert.throws(() => s.save("ti", { name: "ТИ", docs: [] }), /не меняется/);

@@ -46,6 +46,11 @@ test("две марки — ИТОГО по каждой и Всего; труб
     tray: null,
     smoothPipe: null,
     corrugatedPipe: null,
+    zku: "",
+    cabinet: "",
+    panel: "",
+    port: "",
+    outlet: "",
   });
   const lines = journalLines([r("1", "А", 10.5, "Этаж П1"), r("2", "Б", 5, "Этаж П1", "Труба 20", 3), r("3", "А", 1, "Этаж П2")]);
   assert.deepEqual(

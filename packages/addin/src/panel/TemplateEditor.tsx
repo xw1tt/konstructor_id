@@ -234,9 +234,6 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
             key={t.id}
             onBlur={(e) => e.target.value.trim() !== t.name && void save(t.docs, e.target.value.trim())}
           />
-          <a className="btn" href={`/api/templates/${t.id}/export`} download>
-            Выгрузить
-          </a>
           <button
             className="btn btn-danger"
             onClick={() =>
@@ -248,6 +245,10 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
         </div>
       )}
       <div className="row-actions">
+        {/* 0.46: выгрузить можно любой шаблон, и встроенный, — файл для других инженеров (у них он загрузится копией). */}
+        <a className="btn" href={`/api/templates/${t.id}/export`} download title="Файл .idk-template с формами — передать другому инженеру">
+          Выгрузить «{t.name}»
+        </a>
         <label className="btn">
           Загрузить шаблон (.idk-template)
           <input
@@ -270,7 +271,8 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
       </div>
       {readOnly && (
         <p className="notice">
-          «{t.name}» — встроенный шаблон, он не меняется. Выбор набора и форм ниже создаст копию с этой настройкой; «Копия» — просто копия.
+          «{t.name}» — встроенный шаблон: он не меняется и не удаляется, его можно выгрузить для другого инженера. Выбор набора и форм ниже создаст копию с этой
+          настройкой; «Копия» — просто копия.
         </p>
       )}
 
@@ -363,7 +365,7 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                     />
                   </label>
                 )}
-                {d.doc === "kj" && (t.print.forms?.kj ?? t.print.formSet) === "ti" && (
+                {d.doc === "kj" && (t.print.forms?.kj ?? t.print.formSet) !== "sbd" && (
                   <label className="setting-option" title="Итоги и строки «в т.ч. <марка>»; длины кабелей в строках — как в книге">
                     Знаков после запятой в итогах{" "}
                     <select

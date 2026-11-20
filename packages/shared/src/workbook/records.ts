@@ -11,6 +11,12 @@ export interface BookRow {
   link: Record<string, string | null>;
 }
 
+/**
+ * 0.46: скан строки загружен — в графе «Скан» ссылка на файл (загруженный в программу или свой). Одно имя файла
+ * в ячейке без ссылки — не скан: такой документ в комплект не попадёт, проверка считает его без скана.
+ */
+export const hasUploadedScan = (r: Pick<BookRow, "link">, key = "file"): boolean => !!r.link?.[key]?.trim();
+
 export interface Book {
   tables: Partial<Record<TableName, BookRow[]>>;
   object: Record<string, CellValue>;

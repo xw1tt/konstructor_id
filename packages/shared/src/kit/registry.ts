@@ -8,7 +8,7 @@ import type { QualityDoc } from "../schemas.ts";
 import type { ActMaterialInput } from "../acts/schemas.ts";
 import { qualityDocLabel, type QualityDocType } from "../roles.ts";
 import { docNumberFor, formatDateShort, withNo } from "../acts/format.ts";
-import type { FormSet } from "../templates.ts";
+import { tiLike, type FormSet } from "../templates.ts";
 import { avkDefaultNumber, rimDocDate, rimDocName, rimDocOrder } from "../acts/rows.ts";
 import type { PrintKind } from "../acts/schemas.ts";
 import type { TemplateDoc, UserTemplate } from "../forms/template.ts";
@@ -109,7 +109,7 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
   const rows = (t: TableName) => book.tables[t] ?? [];
   // Набор форм шаблона (план 14): нумерация и наименования строк.
   const set: FormSet = template?.print?.formSet ?? "sbd";
-  const ti = set === "ti";
+  const ti = tiLike(set);
   const { kitRow, acts } = kitActs(book, kit);
   if (!kitRow) {
     issues.push({ table: "Комплекты", row: null, column: "№ реестра", message: `Комплект «${kit}» не найден на листе «Комплекты»` });
@@ -192,7 +192,7 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
       const doc = of("ДокументыКабелей")[0];
       const jc = doc ? txt(doc.v.journalCode) : "";
       if (inTpl("kj")) {
-        if (ti) add("КЖ", n, withNo(docNumberFor(n, "kj", set)), KJ_NAME, doc ? short(doc.v.journalDate) || date : date, code);
+        if (ti) add("КЖ", n, withNo(set === "kam" && jc ? jc : docNumberFor(n, "kj", set)), KJ_NAME, doc ? short(doc.v.journalDate) || date : date, code);
         else add("КЖ", n, jc ? `№ ${jc}` : "", KJ_NAME, doc ? short(doc.v.journalDate) : "", code);
       }
       if (ti && inTpl("ip")) {

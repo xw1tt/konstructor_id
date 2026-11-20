@@ -1,9 +1,9 @@
 // План 15: печать документов акта по описаниям ACT_DOC_DEFS — форма по набору и шаблону, HTML и имя файла.
 import type { ActBundle } from "@idk/shared/workbook/bundle";
 import type { FormSet, PrintOptions } from "@idk/shared/templates";
-import type { ActDocKind } from "@idk/shared/docs/defs";
+import { ACT_DOC_DEFS, type ActDocKind } from "@idk/shared/docs/defs";
 import { docNumberFor } from "@idk/shared/acts/format";
-import { tiJournal } from "@idk/shared/acts/cableDocs";
+import { tiJournal, kamJournal } from "@idk/shared/acts/cableDocs";
 import { HttpError } from "../http/router.ts";
 import { buildDocDataFromBundle, buildAvkData } from "./fromBundle.ts";
 import { renderHtml, renderCableHtml } from "./templates/index.ts";
@@ -13,7 +13,7 @@ import { vdHtml } from "./templates/vd.ts";
 import { vorHtml } from "./templates/vor.ts";
 import { ipHtml } from "./templates/ip.ts";
 import { avkHtml } from "./templates/avk.ts";
-import { tiVdHtml, tiRmHtml, tiRpHtml, tiKjHtml } from "./templates/ti.ts";
+import { tiVdHtml, tiRmHtml, tiRpHtml, tiKjHtml, kamRmHtml, kamRpHtml, kamKjHtml } from "./templates/ti.ts";
 import { tiDocData, tiHeader } from "./tiData.ts";
 import { cableDocData } from "./cableData.ts";
 
@@ -27,11 +27,22 @@ const cables = (b: ActBundle) => {
   return b.cables;
 };
 
+/** Номер КЖ «Камчатки»: шифр журнала из «ДокументыКабелей» (в образце — свой номер), иначе от номера акта. */
+export const kamKjNumber = (b: ActBundle) => b.cables?.doc?.journalCode?.trim() || docNumberFor(b.act.baseNumber, "kj", "kam");
+
 /** Встроенные формы документов по наборам (ключи — наборы из ACT_DOC_DEFS[kind].forms). */
 export const ACT_DOC_RENDER: Record<ActDocKind, Partial<Record<FormSet, Render>>> = {
   aosr: { sbd: (b, o) => renderHtml("aosr", buildDocDataFromBundle(b, "aosr", o)) },
-  rim: { sbd: (b, o) => rimHtml(buildDocDataFromBundle(b, "rim", o), view("rim:sbd", o)), ti: (b, o) => tiRmHtml(tiDocData(b), view("rim:ti", o)) },
-  vd: { sbd: (b, o) => vdHtml(buildDocDataFromBundle(b, "vd", o), view("vd:sbd", o)), ti: (b, o) => tiVdHtml(tiDocData(b), view("vd:ti", o)) },
+  rim: {
+    sbd: (b, o) => rimHtml(buildDocDataFromBundle(b, "rim", o), view("rim:sbd", o)),
+    ti: (b, o) => tiRmHtml(tiDocData(b), view("rim:ti", o)),
+    kam: (b, o) => kamRmHtml(tiDocData(b, "kam"), view("rim:kam", o)),
+  },
+  vd: {
+    sbd: (b, o) => vdHtml(buildDocDataFromBundle(b, "vd", o), view("vd:sbd", o)),
+    ti: (b, o) => tiVdHtml(tiDocData(b), view("vd:ti", o)),
+    kam: (b, o) => tiVdHtml(tiDocData(b, "kam"), view("vd:kam", o)),
+  },
   vor: { sbd: (b, o) => vorHtml(buildDocDataFromBundle(b, "vor", o), view("vor:sbd", o)) },
   avk: { sbd: (b, o) => avkHtml(buildAvkData(b), view("avk:sbd", o)) },
   kj: {
@@ -45,9 +56,18 @@ export const ACT_DOC_RENDER: Record<ActDocKind, Partial<Record<FormSet, Render>>
         },
         view("kj:ti", o),
       ),
+    kam: (b, o) =>
+      kamKjHtml(
+        {
+          header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date),
+          number: kamKjNumber(b),
+          journal: kamJournal(cables(b).rows, o.kjDecimals ?? null),
+        },
+        view("kj:kam", o),
+      ),
   },
   ip: { sbd: (b, o, set) => ipHtml(cableDocData(b, "ip", set), view("ip:sbd", o)) },
-  rp: { ti: (b, o) => tiRpHtml(tiDocData(b), view("rp:ti", o)) },
+  rp: { ti: (b, o) => tiRpHtml(tiDocData(b), view("rp:ti", o)), kam: (b, o) => kamRpHtml(tiDocData(b, "kam"), view("rp:kam", o)) },
 };
 
 /** Форма документа: выбранная в шаблоне (ВД, РИМ, КЖ) или набора; нет такой встроенной — первая из описания. */
@@ -59,7 +79,10 @@ export function actDocFileName(b: ActBundle, kind: ActDocKind, set: FormSet, for
   if (kind === "avk") return `АВК ${buildAvkData(b).number}.pdf`.replace(/[\\/:*?"<>|]/g, "_");
   if (kind === "vor") return `${base}.ВОР.pdf`;
   if (kind === "kj" && set === "sbd" && form === "sbd") return `${b.cables?.doc?.journalCode || `${base}.КЖ`}.pdf`;
-  return `${docNumberFor(base, kind, set)}.pdf`;
+  const number = docNumberFor(base, kind, set);
+  // Номер документа = номер акта (ВД «Камчатки»): к имени — код документа, чтобы не совпало с АОСР.
+  const name = kind !== "aosr" && number === base.trim() ? `${number}.${ACT_DOC_DEFS[kind].label}` : number;
+  return `${name}.pdf`;
 }
 
 export function renderActDoc(b: ActBundle, kind: ActDocKind, options: Partial<PrintOptions> = {}): { html: string; name: string; pageNumbers: boolean } {

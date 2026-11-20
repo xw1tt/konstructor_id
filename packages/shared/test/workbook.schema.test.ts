@@ -26,7 +26,7 @@ test("заголовки таблиц — как в спецификации", (
     ["Поле", "Значение"],
   );
   assert.equal(TABLES["Акты"].columns.length, 22);
-  assert.equal(TABLES["КабельныйЖурнал"].columns.length, 15, "план 14: 4 столбца длин КЖ «ТИ»");
+  assert.equal(TABLES["КабельныйЖурнал"].columns.length, 20, "план 14: 4 столбца длин КЖ «ТИ»; 0.46: 5 столбцов трассы СКС «Камчатки»");
   assert.equal(OBJECT_FIELDS[0].label, "Наименование объекта");
 });
 

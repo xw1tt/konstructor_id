@@ -1,12 +1,12 @@
 // План 28: бланки набора «ТИ» в Excel — ВД, РМ, РП, кабельный журнал (как PDF).
 import type { TiData, TiHeader } from "../tiData.ts";
-import type { TiJournal } from "@idk/shared/acts/cableDocs";
+import type { TiJournal, KamJournal } from "@idk/shared/acts/cableDocs";
 import type { CellStyle } from "../../xlsx/book.ts";
 import { Layout, wrapLines, lineHeight } from "../../xlsx/layout.ts";
 import { PORTRAIT } from "./aosr.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { xlsxBlankTable } from "../blankTable.ts";
-import { tiVdRows, tiRmRows, tiRpRows, tiKjRows } from "../templates/ti.ts";
+import { tiVdRows, tiRmRows, tiRpRows, tiKjRows, kamKjRows } from "../templates/ti.ts";
 import { withNo } from "@idk/shared/acts/format";
 
 const S = 8.5;
@@ -114,5 +114,51 @@ export function tiKjSheet(d: { header: TiHeader; number: string; journal: TiJour
         9,
       );
     }
+  return L;
+}
+
+// ---------- 0.46: набор «Камчатка» ----------
+
+function kamHead(L: Layout, sub: string, d: TiData) {
+  title(L, "РЕЕСТР");
+  title(L, sub);
+  title(L, `к АОСР ${d.aosrNumber} от ${d.actDate}г.`);
+  L.gap(6);
+}
+
+export function kamRmSheet(d: TiData, view: BlankView = blankView("rim:kam")): Layout {
+  const L = new Layout(`РПМ ${d.rmNumber}`, Array(N).fill(180 / N), PORTRAIT);
+  kamHead(L, "примененных материалов", d);
+  xlsxBlankTable(L, view, tiRmRows(d), { size: S });
+  tiSigns(L, d);
+  return L;
+}
+
+export function kamRpSheet(d: TiData, view: BlankView = blankView("rp:kam")): Layout {
+  const L = new Layout(`РП ${d.rpNumber}`, Array(N).fill(180 / N), PORTRAIT);
+  kamHead(L, "приложений", d);
+  xlsxBlankTable(L, view, tiRpRows(d), { size: S });
+  tiSigns(L, d);
+  return L;
+}
+
+export function kamKjSheet(d: { header: TiHeader; number: string; journal: KamJournal }, view: BlankView = blankView("kj:kam")): Layout {
+  const L = new Layout(`КЖ ${d.number}`, Array(55).fill(5), { landscape: true, margins: [10, 10, 10, 12] });
+  tiHead(L, d.header);
+  title(L, `Кабельный журнал ${withNo(String(d.number ?? ""))}`, 12);
+  L.gap(6);
+  xlsxBlankTable(L, view, kamKjRows(d.journal, view), { size: 8 });
+  if (view.shown("signs")) {
+    L.gap(10);
+    L.line(
+      [
+        { c1: 1, c2: 4, text: "Сдал:", style: { h: "left" } },
+        { c1: 5, c2: 18, text: "", under: true, caption: "(Ф.И.О.)" },
+        { c1: 21, c2: 28, text: "", under: true, caption: "(подпись)" },
+        { c1: 31, c2: 36, text: "", under: true, caption: "(дата)" },
+      ],
+      9,
+    );
+  }
   return L;
 }

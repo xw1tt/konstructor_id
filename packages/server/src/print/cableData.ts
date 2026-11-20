@@ -2,7 +2,7 @@
 import type { ActBundle } from "@idk/shared/workbook/bundle";
 import type { Instrument, Lab } from "@idk/shared/workbook/cableTypes";
 import { docNumberFor, formatDateShort, formatNumber } from "@idk/shared/acts/format";
-import type { FormSet } from "@idk/shared/templates";
+import { tiLike, type FormSet } from "@idk/shared/templates";
 import { column } from "@idk/shared/workbook/schema";
 import { journalLines, journalSheets, journalSigners, monthYear, protocolRows, type JournalLine, type ProtocolRow } from "@idk/shared/acts/cableDocs";
 import { HttpError } from "../http/router.ts";
@@ -60,7 +60,7 @@ export function cableDocData<K extends keyof CableDocData>(b: ActBundle, kind: K
     object: b.object.name,
     project: section?.code ?? "",
     dates: d ? [formatDateShort(d.dateFrom), formatDateShort(d.dateTo)].filter(Boolean).join(" - ") : formatDateShort(b.act.date),
-    number: set === "ti" ? docNumberFor(b.act.baseNumber, "ip", "ti") : (d?.protocolNumber ?? ""),
+    number: tiLike(set) ? docNumberFor(b.act.baseNumber, "ip", set) : (d?.protocolNumber ?? ""),
     temperature: d ? formatNumber(d.temperature) : dflt("temperature"),
     humidity: d ? formatNumber(d.humidity) : dflt("humidity"),
     purpose: d ? d.purpose : dflt("purpose"),

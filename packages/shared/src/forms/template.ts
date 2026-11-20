@@ -57,8 +57,17 @@ export const BUILTIN_TI: UserTemplate = {
   print: { schemeEach: false, formSet: "ti", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} },
   docs: (["aosr", "rim", "rp", "vd", "kj", "ip"] as const).map((doc) => ({ kind: "builtin" as const, doc, form: null })),
 };
-/** Встроенные шаблоны (только чтение). */
-export const BUILTIN_TEMPLATES = [BUILTIN_SBD, BUILTIN_TI];
+/** 0.46: встроенный шаблон «Камчатка» — АОСР, реестр примененных материалов, реестр приложений, ВД и КЖ СКС
+ *  по образцам объекта аэропорта Петропавловск-Камчатский. */
+export const KAM_ID = "kam";
+export const BUILTIN_KAM: UserTemplate = {
+  id: KAM_ID,
+  name: "Камчатка",
+  print: { schemeEach: false, formSet: "kam", forms: {}, kjReserve: 0, kjDecimals: null, blanks: {}, styles: {} },
+  docs: (["aosr", "rim", "rp", "vd", "kj"] as const).map((doc) => ({ kind: "builtin" as const, doc, form: null })),
+};
+/** Встроенные шаблоны (только чтение: не меняются и не удаляются, выгружаются для передачи). */
+export const BUILTIN_TEMPLATES = [BUILTIN_SBD, BUILTIN_TI, BUILTIN_KAM];
 export const isBuiltinTemplate = (id: string) => BUILTIN_TEMPLATES.some((t) => t.id === id);
 
 /** Ошибки шаблона: имя, коды своих документов (формат, повтор, занятые встроенными). */

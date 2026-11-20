@@ -5,16 +5,16 @@ import type { ActDocKind } from "@idk/shared/docs/defs";
 import { HttpError } from "../../http/router.ts";
 import { writeBook } from "../../xlsx/book.ts";
 import type { Sheet } from "../../xlsx/book.ts";
-import { actDocFileName, actDocFormFor, view } from "../docs.ts";
+import { actDocFileName, actDocFormFor, view, kamKjNumber } from "../docs.ts";
 import { buildDocDataFromBundle } from "../fromBundle.ts";
 import { aosrSheet } from "./aosr.ts";
 import { rimSheet, vdSheet, vorSheet, avkSheet, ipSheet, kjSheet } from "./sbd.ts";
 import { buildAvkData } from "../fromBundle.ts";
 import { cableDocData } from "../cableData.ts";
-import { tiVdSheet, tiRmSheet, tiRpSheet, tiKjSheet } from "./ti.ts";
+import { tiVdSheet, tiRmSheet, tiRpSheet, tiKjSheet, kamRmSheet, kamRpSheet, kamKjSheet } from "./ti.ts";
 import { tiDocData, tiHeader } from "../tiData.ts";
 import { docNumberFor } from "@idk/shared/acts/format";
-import { tiJournal } from "@idk/shared/acts/cableDocs";
+import { tiJournal, kamJournal } from "@idk/shared/acts/cableDocs";
 import { applyLook } from "../../xlsx/look.ts";
 
 const cables = (b: ActBundle) => {
@@ -30,8 +30,13 @@ export const ACT_DOC_XLSX: Record<ActDocKind, Partial<Record<FormSet, RenderXlsx
   rim: {
     sbd: (b, o) => rimSheet(buildDocDataFromBundle(b, "rim", o), view("rim:sbd", o)).sheet,
     ti: (b, o) => tiRmSheet(tiDocData(b), view("rim:ti", o)).sheet,
+    kam: (b, o) => kamRmSheet(tiDocData(b, "kam"), view("rim:kam", o)).sheet,
   },
-  vd: { sbd: (b, o) => vdSheet(buildDocDataFromBundle(b, "vd", o), view("vd:sbd", o)).sheet, ti: (b, o) => tiVdSheet(tiDocData(b), view("vd:ti", o)).sheet },
+  vd: {
+    sbd: (b, o) => vdSheet(buildDocDataFromBundle(b, "vd", o), view("vd:sbd", o)).sheet,
+    ti: (b, o) => tiVdSheet(tiDocData(b), view("vd:ti", o)).sheet,
+    kam: (b, o) => tiVdSheet(tiDocData(b, "kam"), view("vd:kam", o)).sheet,
+  },
   vor: { sbd: (b, o) => vorSheet(buildDocDataFromBundle(b, "vor", o), view("vor:sbd", o)).sheet },
   avk: { sbd: (b, o) => avkSheet(buildAvkData(b), view("avk:sbd", o)).sheet },
   kj: {
@@ -45,9 +50,14 @@ export const ACT_DOC_XLSX: Record<ActDocKind, Partial<Record<FormSet, RenderXlsx
         },
         view("kj:ti", o),
       ).sheet,
+    kam: (b, o) =>
+      kamKjSheet(
+        { header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date), number: kamKjNumber(b), journal: kamJournal(cables(b).rows, o.kjDecimals ?? null) },
+        view("kj:kam", o),
+      ).sheet,
   },
   ip: { sbd: (b, o, set) => ipSheet(cableDocData(b, "ip", set), view("ip:sbd", o)).sheet },
-  rp: { ti: (b, o) => tiRpSheet(tiDocData(b), view("rp:ti", o)).sheet },
+  rp: { ti: (b, o) => tiRpSheet(tiDocData(b), view("rp:ti", o)).sheet, kam: (b, o) => kamRpSheet(tiDocData(b, "kam"), view("rp:kam", o)).sheet },
 };
 
 export const xlsxName = (pdfName: string) => pdfName.replace(/\.pdf$/i, "") + ".xlsx";

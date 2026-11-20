@@ -73,12 +73,15 @@ export function styleKeyFor(kind: PrintKind | string, options: { formSet?: FormS
   return `${kind}:${actDocFormFor(kind, options)}`;
 }
 
+/** Подписи наборов (как FORM_SET_LABELS; без импорта значения — templates.ts импортирует этот файл). */
+const SET_LABELS: Record<string, string> = { sbd: "СБД", ti: "ТИ", kam: "Камчатка" };
+
 /** Название документа для ключа оформления. */
 export function styleLabel(key: string): string {
   if (isProtoKind(key)) return PROTO_DEFS[key].code;
   const [kind, form] = key.split(":");
   const d = isActDocKind(kind) ? ACT_DOC_DEFS[kind] : null;
-  return d ? `${d.label}${form ? ` (${form === "ti" ? "ТИ" : "СБД"})` : ""}` : key;
+  return d ? `${d.label}${form ? ` (${SET_LABELS[form] ?? form})` : ""}` : key;
 }
 
 /** Убирает пустые и совпадающие с образцом поля; пустой объект — «как в образце». */

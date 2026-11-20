@@ -1,6 +1,6 @@
 // План 14: формы набора «ТИ» по образцам ООО «Техноинжиниринг» — ВД, реестр применённых материалов (РМ), реестр приложений (РП).
 import type { TiData, TiHeader, TiSign } from "../tiData.ts";
-import type { TiJournal } from "@idk/shared/acts/cableDocs";
+import type { TiJournal, KamJournal } from "@idk/shared/acts/cableDocs";
 import { e, page } from "./common.ts";
 import { blankView, type BlankView } from "@idk/shared/blanks";
 import { htmlBlankTable, type BodyRow } from "../blankTable.ts";
@@ -152,6 +152,68 @@ export function tiKjHtml(d: { header: TiHeader; number: string; journal: TiJourn
     `${TI_STYLE}${KJ_STYLE}${tiHeaderHtml(d.header)}
     <div class="ti-title" style="font-size:12pt">Кабельный журнал ${e(withNo(String(d.number ?? "")))}</div>
     ${htmlBlankTable(view, tiKjRows(d.journal, view), { cls: "ti-kj", style: "margin-top:6pt" })}${view.shown("signs") ? `<div class="kj-signs">${sign("Сдал:")}${sign("Принял:")}</div>` : ""}`,
+    "ti",
+  );
+}
+
+// ---------- 0.46: набор «Камчатка» ----------
+
+/** Заголовок реестра «Камчатки»: «РЕЕСТР / <чего> / к АОСР №… от …г.» — без своего номера, как в образце. */
+const kamHead = (sub: string, d: TiData) =>
+  `<div class="ti-title">РЕЕСТР</div><div class="ti-title" style="margin-top:0">${e(sub)}</div>
+   <div class="ti-title" style="margin-top:0">к АОСР ${e(d.aosrNumber)} от ${e(d.actDate)}г.</div>`;
+
+export function kamRmHtml(d: TiData, view: BlankView = blankView("rim:kam")): string {
+  return page(
+    `РПМ ${d.aosrNumber}`,
+    `${TI_STYLE}${kamHead("примененных материалов", d)}${htmlBlankTable(view, tiRmRows(d), { cls: "ti-t", style: "margin-top:6pt" })}${tiSignsHtml(d.signs)}`,
+    "ti",
+  );
+}
+
+export function kamRpHtml(d: TiData, view: BlankView = blankView("rp:kam")): string {
+  return page(
+    `РП ${d.aosrNumber}`,
+    `${TI_STYLE}${kamHead("приложений", d)}${htmlBlankTable(view, tiRpRows(d), { cls: "ti-t", style: "margin-top:6pt" })}${tiSignsHtml(d.signs)}`,
+    "ti",
+  );
+}
+
+/** Строки КЖ «Камчатка»: группы (шкафы), кабели, итоги по маркам (марка — в графе «Марка», без неё — в первой). */
+export function kamKjRows(j: KamJournal, view: BlankView): BodyRow[] {
+  const rows: BodyRow[] = j.lines.map((l) =>
+    l.kind === "group"
+      ? { full: l.title, cls: "grp", style: { b: true } }
+      : {
+          cls: "row",
+          cells: {
+            designation: l.designation,
+            zku: l.zku,
+            cabinet: l.cabinet,
+            panel: l.panel,
+            port: l.port,
+            outlet: l.outlet,
+            mark: l.mark,
+            project: l.project,
+            fact: l.fact,
+          },
+        },
+  );
+  const label = view.shown("mark") ? "mark" : "designation";
+  if (view.shown("byMark"))
+    for (const m of j.byMark) rows.push({ cls: "tot", style: { b: true }, cells: { [label]: m.mark, project: m.project, fact: m.fact } });
+  return rows;
+}
+
+/** Кабельный журнал СКС «Камчатка»: шапка «ТИ», таблица с трассой ЗКУ → розеточный модуль, итоги по маркам, «Сдал:». */
+export function kamKjHtml(d: { header: TiHeader; number: string; journal: KamJournal }, view: BlankView = blankView("kj:kam")): string {
+  const sign = `<div class="kj-sign"><div>Сдал:</div><div class="line"></div><div></div><div class="line"></div><div></div><div class="line"></div>
+    <div></div><div class="cap">(Ф.И.О.)</div><div></div><div class="cap">(подпись)</div><div></div><div class="cap">(дата)</div></div>`;
+  return page(
+    `КЖ ${d.number}`,
+    `${TI_STYLE}${KJ_STYLE}${tiHeaderHtml(d.header)}
+    <div class="ti-title" style="font-size:12pt">Кабельный журнал ${e(withNo(String(d.number ?? "")))}</div>
+    ${htmlBlankTable(view, kamKjRows(d.journal, view), { cls: "ti-kj", style: "margin-top:6pt" })}${view.shown("signs") ? `<div class="kj-signs">${sign}</div>` : ""}`,
     "ti",
   );
 }

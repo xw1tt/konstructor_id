@@ -7,7 +7,7 @@ import { SHEETS, TABLES, isObjectFieldRequired, type TableName } from "@idk/shar
 import type { TableData } from "@idk/shared/workbook/store";
 import { tableRows } from "@idk/shared/workbook/store";
 import { addRows, deleteRows, duplicateRow, moveRow } from "@idk/shared/workbook/rowOps";
-import type { BookRow } from "@idk/shared/workbook/records";
+import { hasUploadedScan, type BookRow } from "@idk/shared/workbook/records";
 import { sheetPlan } from "@idk/shared/workbook/sheets";
 import { actsOverview, shortNumbers, statusText } from "@idk/shared/acts/overview";
 import { findReferences, renameKey } from "@idk/shared/workbook/refs";
@@ -549,7 +549,7 @@ function SchemesSide({ book, row, onPick, short }: { book: BookState["book"]; ro
       ad = a ? iso(a.v.date) : "";
     return !!d && !!ad && d > ad;
   };
-  const noScan = all.filter((r) => !r.link.file && !t(r.v.file)).length;
+  const noScan = all.filter((r) => !hasUploadedScan(r)).length;
   const lateN = all.filter(late).length;
   return (
     <>
@@ -560,7 +560,7 @@ function SchemesSide({ book, row, onPick, short }: { book: BookState["book"]; ro
         </header>
         <div className="ac-docs">
           {same.map((r) => {
-            const st = !r.link.file && !t(r.v.file) ? "warn" : late(r) ? "warn" : "ok";
+            const st = !hasUploadedScan(r) ? "warn" : late(r) ? "warn" : "ok";
             return (
               <button key={r.row} className={`ac-doc ac-doc-${st}${r.row === row.row ? " ac-doc-on" : ""}`} onClick={() => onPick(r.row)} title={t(r.v.name)}>
                 <span className="ac-page ac-page-wide" aria-hidden="true">
@@ -863,8 +863,8 @@ export function BookScreen({
     const blocked = acts.filter((a) => a.status === "blocked").length;
     const warn = acts.filter((a) => a.status === "warn").length;
     const docs = book.tables["ДокументыКачества"] ?? [];
-    const noScan = docs.filter((r) => (t(r.v.number) || t(r.v.type)) && !r.link.file && !t(r.v.file)).length;
-    const schemesNoScan = (book.tables["Схемы"] ?? []).filter((r) => !r.link.file && !t(r.v.file)).length;
+    const noScan = docs.filter((r) => (t(r.v.number) || t(r.v.type)) && !hasUploadedScan(r)).length;
+    const schemesNoScan = (book.tables["Схемы"] ?? []).filter((r) => !hasUploadedScan(r)).length;
     const cableM = (book.tables["КабельныйЖурнал"] ?? []).reduce((s, r) => {
       const p = parseNumberCell(r.v.cableLength ?? null);
       return s + (p.ok && p.value ? p.value : 0);

@@ -3,7 +3,9 @@ import type { RoleCode } from "@idk/shared/roles";
 import type { Organization, Representative } from "@idk/shared/schemas";
 import type { ActBundle } from "@idk/shared/workbook/bundle";
 import { activeRepresentatives, orgFullForm } from "@idk/shared/rules";
-import { docNumberFor, formatDateLong, formatDateShort } from "@idk/shared/acts/format";
+import { docNumberFor, formatDateLong, formatDateShort, withNo } from "@idk/shared/acts/format";
+import { kamSchemeName } from "./tiData.ts";
+import { column } from "@idk/shared/workbook/schema";
 import { repLine } from "@idk/shared/acts/repLine";
 import { point3Lines, point4Lines, rimRows, vdRows, vorRows, signers, avkRows, avkDefaultNumber, SIGN_LABELS } from "@idk/shared/acts/rows";
 import type { PrintOptions } from "@idk/shared/templates";
@@ -15,6 +17,20 @@ const full = (o: Organization | undefined) => {
   const t = orgFullForm(o).trim();
   return /[.!?]$/.test(t) ? t : `${t}.`;
 };
+
+/** 0.46: АОСР «Камчатки» — п.3 и приложения ссылкой на реестры, п.4 — нумерованный список схем (как в образце). */
+export const KAM_P3 = "Согласно реестра примененных материалов";
+export const KAM_ATTACHMENTS = "Согласно реестру приложений";
+const AOSR_ATTACHMENTS_DEFAULT = String(column("Акты", "attachments").default ?? "");
+export function kamPoint4(docs: ActBundle["documents"]): string[] {
+  if (!docs.length) return ["Не требуется"];
+  return [...docs]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((d, i) => {
+      const tail = d.kind === "scheme" ? "" : [withNo(d.number), d.date ? `от ${formatDateShort(d.date)}` : ""].filter(Boolean).join(" ");
+      return `${i + 1}. ${[kamSchemeName(d), tail].filter(Boolean).join(" ")}`;
+    });
+}
 
 const AOSR_ROLES: RoleCode[] = ["developer_control", "builder", "builder_control", "designer", "performer"];
 const APPENDIX_ROLES: RoleCode[] = ["developer_control", "builder", "builder_control", "performer"];
@@ -32,6 +48,7 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
   const vor = b.vor;
   const docsByMaterial = new Map(actMats.map((m) => [m.materialId, b.qualityDocs.filter((d) => d.materialIds.includes(m.materialId))]));
   const set = options.formSet ?? "sbd";
+  const kam = set === "kam";
   const aosrNumber = docNumberFor(act.baseNumber, "aosr", set);
   const repText = (r: Representative | undefined) =>
     r
@@ -64,15 +81,16 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
             .filter(Boolean)
             .map((s) => `, ${s}`)
             .join(""),
-        p3: point3Lines(actMats, mats, docsByMaterial, act.baseNumber, set),
-        p4: point4Lines(b.documents, options),
+        p3: kam && actMats.length ? [KAM_P3] : point3Lines(actMats, mats, docsByMaterial, act.baseNumber, set),
+        p4: kam ? kamPoint4(b.documents) : point4Lines(b.documents, options),
         dateStart: formatDateLong(act.dateStart),
         dateEnd: formatDateLong(act.dateEnd),
         normative: act.normative,
         nextWorks: act.nextWorks,
         extraInfo: act.extraInfo,
         copies: act.copies,
-        attachments: act.attachments,
+        // «Камчатка»: пусто или значение по умолчанию книги («Согласно п.3, п.4.») — ссылка на реестр приложений.
+        attachments: kam && (!act.attachments.trim() || act.attachments.trim() === AOSR_ATTACHMENTS_DEFAULT) ? KAM_ATTACHMENTS : act.attachments,
         signs: signers(reps, roles, act.date),
       };
     },

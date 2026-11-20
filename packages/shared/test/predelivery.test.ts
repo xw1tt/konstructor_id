@@ -21,7 +21,7 @@ test("книга АОВ1: два сертификата истекли до да
     msgs(w, /нет документов качества/).map((x) => x.message),
     [`акт ${AOV1}: у материала «Шайба с узкими полями М8» нет документов качества`],
   );
-  assert.equal(w.filter((x) => !/нет скана|срок действия истёк|нет документов качества/.test(x.message)).length, 0);
+  assert.equal(w.filter((x) => !/нет скана|срок действия истёк|нет документов качества|нет загруженного документа качества/.test(x.message)).length, 0);
   assert.ok(w.every((x) => x.act === AOV1));
 });
 
@@ -74,4 +74,16 @@ test("подписи: склонение и все акты", async () => {
   assert.equal(warningsText(3), "3 предупреждения");
   assert.equal(warningsText(12), "12 предупреждений");
   assert.deepEqual(allActs(await readBook(new MemoryWorkbook(aov1Records() as any))), [AOV1]);
+});
+
+test("0.46: документ качества — по загруженному файлу: имя в «Скане» без файла — не скан; файл есть — замечаний о скане нет", async () => {
+  const book = await readBook(new MemoryWorkbook(aov1Records()));
+  const docs = book.tables["ДокументыКачества"]!;
+  docs[0].v.file = "паспорт.pdf";
+  const w1 = checkActs(book, [AOV1], "2026-10-27");
+  assert.ok(w1.some((x) => x.row === docs[0].row && /в «Скане» только имя «паспорт\.pdf» — файл не загружен/.test(x.message)));
+  for (const d of docs) d.link = { file: "https://localhost:3443/api/files/7" };
+  const w2 = checkActs(book, [AOV1], "2026-10-27");
+  assert.equal(w2.filter((x) => x.table === "ДокументыКачества" && x.column === "Скан").length, 0);
+  assert.equal(w2.filter((x) => /нет загруженного документа качества/.test(x.message)).length, 0);
 });

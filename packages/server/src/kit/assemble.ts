@@ -4,7 +4,7 @@ import { PDFDocument, StandardFonts, degrees, rgb, type PDFPage, type PDFFont } 
 import type { KitRequest, KitRow, FileRef } from "@idk/shared/kit/request";
 import { orgFullForm } from "@idk/shared/rules";
 import type { Organization } from "@idk/shared/schemas";
-import { DEFAULT_TEMPLATE } from "@idk/shared/templates";
+import { DEFAULT_TEMPLATE, tiLike } from "@idk/shared/templates";
 import { renderBundlePdf } from "../routes/print.ts";
 import { htmlToPdf } from "../print/browser.ts";
 import { resolveScan, loadScan, type ScanContext } from "./files.ts";
@@ -229,7 +229,7 @@ export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResu
       ),
     );
   }
-  if (formOf(q.options, "registry") === "ti") {
+  if (tiLike(formOf(q.options, "registry"))) {
     front.push(
       await htmlToPdf(
         tiRegistryHtml({

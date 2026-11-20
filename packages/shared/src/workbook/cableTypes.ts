@@ -25,6 +25,12 @@ export const CableRow = z.object({
   tray: optNum,
   smoothPipe: optNum,
   corrugatedPipe: optNum,
+  /** 0.46: КЖ СКС набора «Камчатка». */
+  zku: str,
+  cabinet: str,
+  panel: str,
+  port: str,
+  outlet: str,
 });
 export type CableRow = z.infer<typeof CableRow>;
 

@@ -3,8 +3,10 @@ import type { ActBundle } from "@idk/shared/workbook/bundle";
 import type { RoleCode } from "@idk/shared/roles";
 import { qualityDocLabel } from "@idk/shared/roles";
 import { activeRepresentatives } from "@idk/shared/rules";
-import { docNumberFor, formatNumber, MONTHS_GEN } from "@idk/shared/acts/format";
-import { rimDocOrder, vorTotals } from "@idk/shared/acts/rows";
+import { docNumberFor, formatNumber, MONTHS_GEN, withNo } from "@idk/shared/acts/format";
+import { rimDocOrder, vorTotals, SIGN_LABELS } from "@idk/shared/acts/rows";
+import type { FormSet } from "@idk/shared/templates";
+import { KAM_NAMES } from "@idk/shared/docs/defs";
 
 /** Подписи ролей в формах «ТИ» (как в образцах). */
 export const TI_SIGN_LABELS: Partial<Record<RoleCode, string>> = {
@@ -42,7 +44,7 @@ export interface TiData {
   vd: { n: number; name: string; type: string; quantity: string; unit: string }[];
   /** Группы РМ: документы (подряд, на один и тот же набор материалов), затем эти материалы. */
   rm: { docs: { type: string; date: string; number: string }[]; items: { n: number; name: string }[] }[];
-  rp: { n: number; type: string; date: string; number: string; sheets: number }[];
+  rp: { n: number; type: string; date: string; number: string; sheets: number | null }[];
   signs: TiSign[];
 }
 
@@ -66,7 +68,16 @@ export function tiHeader(b: ActBundle, dateIso: string | null): TiHeader {
   };
 }
 
-export function tiDocData(b: ActBundle): TiData {
+/** Схема строкой реестра приложений «Камчатка»: «Исполнительная схема …» (как в п.4 АОСР), номер — «Приложение N». */
+export const kamSchemeName = (d: { kind: string; name: string }) =>
+  d.kind === "scheme" && !/^исполнительн/i.test(d.name.trim()) ? `Исполнительная схема ${d.name.trim()}` : d.name.trim();
+
+/** Листов в ВД «Камчатка» — по числу строк (≈30 строк на лист). */
+const vdSheets = (rows: number) => Math.max(1, Math.ceil(rows / 30));
+
+/** set — «ti» или «kam» (0.46): у «Камчатки» номера ВД, РМ и РП — номер акта, в РП — ВД и схемы, подписи — полные. */
+export function tiDocData(b: ActBundle, set: FormSet = "ti"): TiData {
+  const kam = set === "kam";
   const act = b.act;
   const mats = new Map(b.materials.map((m) => [m.id, m]));
   const ordered = [...b.actMaterials].sort((a, c) => a.sortOrder - c.sortOrder);
@@ -76,11 +87,11 @@ export function tiDocData(b: ActBundle): TiData {
   let n = 0;
   return {
     header: tiHeader(b, act.date),
-    aosrNumber: docNumberFor(act.baseNumber, "aosr", "ti"),
+    aosrNumber: kam ? withNo(docNumberFor(act.baseNumber, "aosr", set)) : docNumberFor(act.baseNumber, "aosr", set),
     actDate: dmy(act.date),
-    vdNumber: docNumberFor(act.baseNumber, "vd", "ti"),
-    rmNumber: docNumberFor(act.baseNumber, "rim", "ti"),
-    rpNumber: docNumberFor(act.baseNumber, "rp", "ti"),
+    vdNumber: docNumberFor(act.baseNumber, "vd", set),
+    rmNumber: docNumberFor(act.baseNumber, "rim", set),
+    rpNumber: docNumberFor(act.baseNumber, "rp", set),
     vd: ordered.map((am, i) => {
       const m = mats.get(am.materialId);
       return {
@@ -93,16 +104,45 @@ export function tiDocData(b: ActBundle): TiData {
     }),
     rm: rmGroups(docs, ordered).map((g) => ({
       docs: g.docs.map((d) => ({ type: qualityDocLabel(d), date: d.issueDate ? dmy(d.issueDate) : "б/д", number: d.number.replace(/^№\s*/, "") })),
-      items: g.mats.map((am) => ({ n: ++n, name: mats.get(am.materialId)?.name ?? "" })),
+      items: g.mats.map((am) => {
+        const m = mats.get(am.materialId);
+        // «Камчатка»: наименование и марка (артикул) материала одной строкой, как в образце.
+        const mark = kam ? (m?.mark || m?.article || "").trim() : "";
+        const name = m?.name ?? "";
+        return { n: ++n, name: mark && !name.includes(mark) ? `${name} ${mark}` : name };
+      }),
     })),
-    rp: docs.map((d, i) => ({
-      n: i + 1,
-      type: qualityDocLabel(d),
-      date: d.issueDate ? dmy(d.issueDate) : "б/д",
-      number: d.number.replace(/^№\s*/, ""),
-      sheets: d.sheets,
-    })),
-    signs: tiSigns(b, act.date),
+    rp: [
+      ...(kam
+        ? [
+            ...(ordered.length
+              ? [
+                  {
+                    type: KAM_NAMES.vd,
+                    date: dmy(act.date),
+                    number: withNo(docNumberFor(act.baseNumber, "vd", set)),
+                    sheets: vdSheets(ordered.length) as number | null,
+                  },
+                ]
+              : []),
+            ...[...b.documents]
+              .sort((x, y) => x.sortOrder - y.sortOrder)
+              .map((d, i) => ({
+                type: kamSchemeName(d),
+                date: d.date ? dmy(d.date) : dmy(act.date),
+                number: d.number.trim() || `Приложение ${i + 1}`,
+                sheets: d.sheets ?? null,
+              })),
+          ]
+        : []),
+      ...docs.map((d) => ({
+        type: qualityDocLabel(d),
+        date: d.issueDate ? dmy(d.issueDate) : "б/д",
+        number: d.number.replace(/^№\s*/, "") || "б/н",
+        sheets: d.sheets as number | null,
+      })),
+    ].map((r, i) => ({ n: i + 1, ...r })),
+    signs: tiSigns(b, act.date, set),
   };
 }
 
@@ -123,9 +163,10 @@ export function rmGroups<D extends { materialIds: number[] }, M extends { materi
 }
 
 /** Подписи пяти ролей АОСР: подпись роли и ФИО действующих на дату (пусто — строка для подписи). */
-export function tiSigns(b: ActBundle, date: string): TiSign[] {
+export function tiSigns(b: ActBundle, date: string, set: FormSet = "ti"): TiSign[] {
   return ROLES.map((role) => {
     const names = activeRepresentatives(b.representatives, role, date).map((r) => r.fullName);
-    return { label: TI_SIGN_LABELS[role]!, names: names.length ? names : [""] };
+    // «Камчатка»: подписи ролей полностью, как в АОСР по 344/пр.
+    return { label: set === "kam" ? `${SIGN_LABELS[role]}:` : TI_SIGN_LABELS[role]!, names: names.length ? names : [""] };
   });
 }

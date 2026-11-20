@@ -72,9 +72,9 @@ export const TEMPLATE_TOOLS: ToolDef[] = [
   {
     name: "propose_print_settings",
     description:
-      "Предложить изменить настройки печати шаблона (пользователь подтвердит): набор форм и нумерации (sbd — СБД, ti — ТИ), форму отдельного документа (vd, rim, kj, registry: sbd, ti или пусто — по набору), запас кабеля в КЖ «ТИ» (%), знаков после запятой в итогах КЖ «ТИ», п.4 АОСР «Исполнительная схема» перед каждой схемой.",
+      "Предложить изменить настройки печати шаблона (пользователь подтвердит): набор форм и нумерации (sbd — СБД, ti — ТИ, kam — Камчатка), форму отдельного документа (vd, rim, kj, registry: sbd, ti, kam или пусто — по набору), запас кабеля в КЖ «ТИ» (%), знаков после запятой в итогах КЖ «ТИ», п.4 АОСР «Исполнительная схема» перед каждой схемой.",
     parameters: obj({
-      formSet: { type: "string", enum: ["sbd", "ti"] },
+      formSet: { type: "string", enum: ["sbd", "ti", "kam"] },
       forms: { type: "object", description: '{"kj": "ti", "vd": ""}', additionalProperties: { type: "string" } },
       kjReserve: { type: "number", description: "Запас кабеля в КЖ «ТИ», %" },
       kjDecimals: {
@@ -281,7 +281,7 @@ export function validatePrintProposal(t: UserTemplate, a: Record<string, unknown
   const lines: string[] = [];
   const setName = (s: FormSet) => FORM_SET_LABELS[s];
   if (a.formSet !== undefined) {
-    if (!(FORM_SETS as readonly string[]).includes(String(a.formSet))) return { ok: false, error: "formSet — sbd или ti" };
+    if (!(FORM_SETS as readonly string[]).includes(String(a.formSet))) return { ok: false, error: "formSet — sbd, ti или kam" };
     next.formSet = a.formSet as FormSet;
     lines.push(`набор форм и нумерации: ${setName(o.formSet)} → ${setName(next.formSet)}`);
   }

@@ -6,7 +6,8 @@ import { PROTO_KINDS, PROTO_DEFS } from "../protocols/defs.ts";
 import { ROLE_CODES, QUALITY_DOC_TYPES, QUALITY_DOC_LABELS, type RoleCode, type QualityDocType } from "../roles.ts";
 
 /** 16 — 0.34.3: вид документа качества можно ввести вручную (список без запрета ввода). */
-export const SCHEMA_VERSION = 16;
+/** 17 — 0.46: столбцы трассы СКС в «Кабельном журнале» и «Листов» у схем (набор «Камчатка»). */
+export const SCHEMA_VERSION = 17;
 
 export type ColType = "text" | "longtext" | "date" | "number" | "int" | "enum" | "ref" | "refs" | "file" | "formula";
 
@@ -302,6 +303,8 @@ export const TABLES: Record<TableName, TableDef> = {
     c("name", "Наименование", "text", { ...imp, width: 55 }),
     c("date", "Дата", "date", imp),
     c("file", "Скан", "file", { service: true }),
+    // 0.46: число листов схемы — графа «Лист» реестра приложений набора «Камчатка».
+    c("sheets", "Листов", "number"),
   ]),
   МатериалыАктов: t("МатериалыАктов", "Материалы в актах", [
     c("act", "Акт", "ref", { ...imp, ref: "Акты", width: 24 }),
@@ -357,6 +360,12 @@ export const TABLES: Record<TableName, TableDef> = {
     c("tray", "Лоток, м", "number"),
     c("smoothPipe", "Труба гладкая, м", "number"),
     c("corrugatedPipe", "Труба гофрированная, м", "number"),
+    // 0.46: кабельный журнал СКС набора «Камчатка» — начало трассы (ЗКУ, шкаф, патч-панель, порт) и конец (розеточный модуль).
+    c("zku", "№ ЗКУ", "text"),
+    c("cabinet", "№ шкафа", "text"),
+    c("panel", "№ п/панели", "text"),
+    c("port", "№ порта на панели", "text"),
+    c("outlet", "№ роз.модуля", "text"),
   ]),
   Электролаборатория: t("Электролаборатория", "Изоляция", [
     c("nameAddress", "Организация и адрес", "longtext", { ...imp, isKey: true, width: 50 }),

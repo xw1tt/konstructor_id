@@ -2,7 +2,7 @@
 import type { Catalog, CatalogWork } from "./model.ts";
 import type { TemplateDoc, UserTemplate } from "../forms/template.ts";
 import { BUILTIN_DOC_LABELS, docLabel } from "../forms/template.ts";
-import type { Book, BookRow } from "../workbook/records.ts";
+import { hasUploadedScan, type Book, type BookRow } from "../workbook/records.ts";
 import { cellText, splitRefs } from "../workbook/values.ts";
 import { kitActs } from "../kit/registry.ts";
 import { PROTO_DEFS, isProtoKind } from "../protocols/defs.ts";
@@ -87,7 +87,7 @@ function hasScan(book: Book, number: string, where: { kit?: string; act?: string
       normNumber(txt(r.v.number)) === normNumber(number) &&
       (where.kit === undefined || txt(r.v.kit) === where.kit) &&
       (where.act === undefined || (where.act === null ? !txt(r.v.act) : true)) &&
-      (txt(r.v.file) !== "" || !!r.link?.file),
+      hasUploadedScan(r),
   );
 }
 

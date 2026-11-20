@@ -3,7 +3,7 @@
 import type { RoleCode } from "../roles.ts";
 import { roleFromBook } from "../workbook/schema.ts";
 import { cellText, parseDateCell, splitRefs, type CellValue } from "../workbook/values.ts";
-import type { Book, BookRow } from "../workbook/records.ts";
+import { hasUploadedScan, type Book, type BookRow } from "../workbook/records.ts";
 import type { Issue } from "../workbook/bundle.ts";
 
 export interface Warning extends Issue {
@@ -17,7 +17,12 @@ const iso = (v: CellValue | undefined): string | null => {
 const ru = (d: string) => d.split("-").reverse().join(".");
 const norm = (s: string) => s.trim().toLowerCase();
 const roleOf = (label: string): RoleCode | null => roleFromBook(label);
-const hasScan = (r: BookRow) => !!(r.link.file || cellText(r.v.file ?? null));
+const hasScan = (r: BookRow) => hasUploadedScan(r);
+/** Нет скана: в «Скане» только имя файла (сам файл не загружен) или пусто. */
+const noScanText = (r: BookRow) => {
+  const name = cellText(r.v.file ?? null);
+  return name ? `в «Скане» только имя «${name}» — файл не загружен` : "нет скана";
+};
 
 /**
  * Предупреждения по актам (в порядке актов). Повтор одной и той же ячейки (документ качества в нескольких актах)
@@ -106,6 +111,15 @@ export function checkActs(book: Book, acts: readonly string[], today: string): W
       if (!name || !rows("Материалы").some((x) => norm(cellText(x.v.name ?? null)) === norm(name))) continue;
       const docs = docsOf(name);
       if (!docs.length) warn(act, "МатериалыАктов", m.row, "Материал", `${A}: у материала «${name}» нет документов качества`);
+      // Документ качества считается по загруженному файлу, а не по строке с названием в таблице.
+      else if (!docs.some(hasScan))
+        warn(
+          act,
+          "МатериалыАктов",
+          m.row,
+          "Материал",
+          `${A}: у материала «${name}» нет загруженного документа качества — в «Документах качества» ${docs.length === 1 ? "есть строка" : `есть ${docs.length} строки`}, но без файла скана`,
+        );
       const hasVor = vor.some((v) => norm(cellText(v.v.material ?? null)) === norm(name) && cellText(v.v.quantity ?? null));
       if (!cellText(m.v.quantity ?? null) && !hasVor)
         warn(act, "МатериалыАктов", m.row, "Кол-во", `${A}: у материала «${name}» нет количества — пусто и в ВОР нет объёмов`);
@@ -123,7 +137,7 @@ export function checkActs(book: Book, acts: readonly string[], today: string): W
           );
         if (date && issued && issued > date)
           warn(act, "ДокументыКачества", d.row, "Дата", `«${label}» (${name}): дата документа ${ru(issued)} позже даты акта ${act} (${ru(date)})`);
-        if (!hasScan(d)) warn(act, "ДокументыКачества", d.row, "Скан", `«${label}» (${name}): нет скана`);
+        if (!hasScan(d)) warn(act, "ДокументыКачества", d.row, "Скан", `«${label}» (${name}): ${noScanText(d)}`);
         if (!cellText(d.v.sheets ?? null)) warn(act, "ДокументыКачества", d.row, "Листов", `«${label}» (${name}): не указано число листов`);
       }
     }
@@ -133,7 +147,7 @@ export function checkActs(book: Book, acts: readonly string[], today: string): W
       const label = `${cellText(s.v.kind ?? null) || "Схема"} ${cellText(s.v.number ?? null)}`.trim();
       const sd = iso(s.v.date);
       if (date && sd && sd > date) warn(act, "Схемы", s.row, "Дата", `${A}: «${label}» датирована ${ru(sd)} — позже даты акта (${ru(date)})`);
-      if (!hasScan(s)) warn(act, "Схемы", s.row, "Скан", `${A}: у «${label}» нет скана`);
+      if (!hasScan(s)) warn(act, "Схемы", s.row, "Скан", `${A}: у «${label}» ${noScanText(s)}`);
     }
   }
   return out;

@@ -46,29 +46,37 @@ export const TI_NAMES = {
   ip: "Протокол сопротивления изоляции",
 };
 
-const both = (s: string): Record<FormSet, string> => ({ sbd: s, ti: s });
+const both = (s: string): Record<FormSet, string> => ({ sbd: s, ti: s, kam: s });
+/** Наименования строк реестра в наборе «Камчатка» (как в реестре приложений образца). */
+export const KAM_NAMES = {
+  rim: "Реестр примененных материалов к АОСР",
+  vd: "Ведомость смонтированного оборудования",
+  rp: "Реестр приложений к АОСР",
+};
 const MATS: TableName[] = ["МатериалыАктов", "Материалы"];
 
 const list: ActDocDef[] = [
-  { kind: "aosr", label: "АОСР", registry: "АОСР", suffix: { sbd: "АОСР", ti: "" },
-    name: (s, c) => (s === "ti" ? AOSR_NAME : `${AOSR_NAME} ${c.works}`), bundle: "act", tables: ["Схемы", "МатериалыАктов"], forms: ["sbd"] },
-  { kind: "rim", label: "РИМ", registry: "РИМ", suffix: { sbd: "РИМ", ti: "РМ" },
-    name: (s, c) => (s === "ti" ? `${TI_NAMES.rim} ${c.aosrNo} от ${c.date}` : RIM_NAME), bundle: "act",
-    tables: [...MATS, "ДокументыКачества"], rowsFrom: "МатериалыАктов", formDoc: "rim", forms: ["sbd", "ti"] },
-  { kind: "vd", label: "ВД", registry: "ВД", suffix: both("ВД"), name: (s) => (s === "ti" ? TI_NAMES.vd : VD_NAME), bundle: "act",
-    tables: MATS, rowsFrom: "МатериалыАктов", formDoc: "vd", forms: ["sbd", "ti"] },
+  { kind: "aosr", label: "АОСР", registry: "АОСР", suffix: { sbd: "АОСР", ti: "", kam: "" },
+    name: (s, c) => (s !== "sbd" ? AOSR_NAME : `${AOSR_NAME} ${c.works}`), bundle: "act", tables: ["Схемы", "МатериалыАктов"], forms: ["sbd"] },
+  { kind: "rim", label: "РИМ", registry: "РИМ", suffix: { sbd: "РИМ", ti: "РМ", kam: "РПМ" },
+    name: (s, c) =>
+      s === "ti" ? `${TI_NAMES.rim} ${c.aosrNo} от ${c.date}` : s === "kam" ? `${KAM_NAMES.rim} ${c.aosrNo} от ${c.date}` : RIM_NAME,
+    bundle: "act", tables: [...MATS, "ДокументыКачества"], rowsFrom: "МатериалыАктов", formDoc: "rim", forms: ["sbd", "ti", "kam"] },
+  { kind: "vd", label: "ВД", registry: "ВД", suffix: { sbd: "ВД", ti: "ВД", kam: "" },
+    name: (s) => (s === "ti" ? TI_NAMES.vd : s === "kam" ? KAM_NAMES.vd : VD_NAME), bundle: "act",
+    tables: MATS, rowsFrom: "МатериалыАктов", formDoc: "vd", forms: ["sbd", "ti", "kam"] },
   { kind: "vor", label: "ВОР", registry: "ВОР", suffix: both("ВОР"), name: () => VOR_NAME, bundle: "act", tables: ["ВОР"],
     rowsFrom: "ВОР", forms: ["sbd"] },
-  { kind: "avk", label: "АВК", registry: "АВК", suffix: { sbd: null, ti: null }, name: () => AVK_NAME, bundle: "act",
+  { kind: "avk", label: "АВК", registry: "АВК", suffix: { sbd: null, ti: null, kam: null }, name: () => AVK_NAME, bundle: "act",
     tables: MATS, rowsFrom: "МатериалыАктов", forms: ["sbd"] },
   { kind: "kj", label: "КЖ", registry: "КЖ", suffix: both("КЖ"), name: () => KJ_NAME, bundle: "cable",
-    tables: ["КабельныйЖурнал", "ДокументыКабелей"], rowsFrom: "КабельныйЖурнал", formDoc: "kj", forms: ["sbd", "ti"] },
-  { kind: "ip", label: "Протокол", registry: "Протокол", suffix: { sbd: "Протокол", ti: "П" },
-    name: (s) => (s === "ti" ? TI_NAMES.ip : PROTOCOL_NAME), bundle: "cable",
+    tables: ["КабельныйЖурнал", "ДокументыКабелей"], rowsFrom: "КабельныйЖурнал", formDoc: "kj", forms: ["sbd", "ti", "kam"] },
+  { kind: "ip", label: "Протокол", registry: "Протокол", suffix: { sbd: "Протокол", ti: "П", kam: "П" },
+    name: (s) => (s !== "sbd" ? TI_NAMES.ip : PROTOCOL_NAME), bundle: "cable",
     tables: ["КабельныйЖурнал", "ДокументыКабелей", "Электролаборатория", "СредстваИзмерений", "ИзмеренияМарок"],
     rowsFrom: "КабельныйЖурнал", forms: ["sbd"] },
   { kind: "rp", label: "РП", registry: "РП", suffix: both("РП"), name: (_s, c) => `${RP_NAME} ${c.aosrNo} от ${c.date}`, bundle: "act",
-    tables: ["ДокументыКачества", "МатериалыАктов"], rowsFrom: "МатериалыАктов", forms: ["ti"] },
+    tables: ["ДокументыКачества", "МатериалыАктов"], rowsFrom: "МатериалыАктов", forms: ["ti", "kam"] },
 ];
 export const ACT_DOC_DEFS = Object.fromEntries(list.map((d) => [d.kind, d])) as Record<ActDocKind, ActDocDef>;
 

@@ -201,3 +201,61 @@ export function tiJournal(rows: CableRow[], reservePct: number, decimals: number
     reserve: { pct: formatNumber(reservePct), fact: up(factAll), tray: up(tray), smooth: up(smooth), corrugated: up(corr) },
   };
 }
+
+// ---------- 0.46: кабельный журнал СКС набора «Камчатка» ----------
+
+export type KamJournalLine =
+  | { kind: "group"; title: string }
+  | {
+      kind: "cable";
+      designation: string;
+      zku: string;
+      cabinet: string;
+      panel: string;
+      port: string;
+      outlet: string;
+      mark: string;
+      project: string;
+      fact: string;
+    };
+
+export interface KamJournal {
+  lines: KamJournalLine[];
+  /** Итоги по маркам под таблицей: марка, сумма длин по проекту и фактических (как СУММЕСЛИ образца). */
+  byMark: { mark: string; project: string; fact: string }[];
+}
+
+/** КЖ «Камчатка»: группы (шкафы) и кабели; пустая длина — пустая графа; итоги по маркам. */
+export function kamJournal(rows: CableRow[], decimals: number | null = null): KamJournal {
+  const lines: KamJournalLine[] = [];
+  let group = "";
+  for (const r of rows) {
+    const g = r.group.trim();
+    if (g && g !== group) lines.push({ kind: "group", title: g });
+    if (g) group = g;
+    lines.push({
+      kind: "cable",
+      designation: r.designation,
+      // Начало трассы без граф СКС — «Откуда», конец без розеточного модуля — «Куда».
+      zku: r.zku || r.from,
+      cabinet: r.cabinet,
+      panel: r.panel,
+      port: r.port,
+      outlet: r.outlet || r.to,
+      mark: r.cableMark,
+      project: formatNumber(r.projectLength),
+      fact: formatNumber(factLength(r)),
+    });
+  }
+  const num = (x: number) => (decimals === null ? formatNumber(x) : fixedNumber(x, decimals));
+  const marks = new Map<string, { mark: string; project: number; fact: number }>();
+  for (const r of rows) {
+    if (!r.cableMark.trim()) continue;
+    const k = markKey(r.cableMark);
+    const m = marks.get(k) ?? { mark: r.cableMark, project: 0, fact: 0 };
+    m.project = round3(m.project + (r.projectLength ?? 0));
+    m.fact = round3(m.fact + (factLength(r) ?? 0));
+    marks.set(k, m);
+  }
+  return { lines, byMark: [...marks.values()].map((m) => ({ mark: m.mark, project: num(m.project), fact: num(m.fact) })) };
+}

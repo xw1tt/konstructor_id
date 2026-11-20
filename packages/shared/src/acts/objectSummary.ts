@@ -1,6 +1,6 @@
 // 0.38: сводка по объекту для главного экрана окна программы — акты по готовности, комплекты, документы качества,
 // ОЖР и то, что требует внимания (акты, которые не собираются, и замечания проверки перед сдачей).
-import type { Book } from "../workbook/records.ts";
+import { hasUploadedScan, type Book } from "../workbook/records.ts";
 import type { ImportantMap } from "../workbook/important.ts";
 import type { Issue } from "../workbook/bundle.ts";
 import { buildBundle } from "../workbook/bundle.ts";
@@ -68,7 +68,7 @@ export function objectSummary(book: Book, important: ImportantMap, today: string
     return end > m ? end : m;
   }, "");
   const docs = rows("ДокументыКачества").filter((r) => cellText(r.v.number) || cellText(r.v.type));
-  const noScan = docs.filter((r) => !r.link.file && !cellText(r.v.file)).length;
+  const noScan = docs.filter((r) => !hasUploadedScan(r)).length;
   const expiring = docs.filter((r) => {
     const until = iso(r.v.validUntil);
     return !!until && !!lastWork && until < lastWork;

@@ -303,6 +303,7 @@ export function buildBundle(book: Book, actNumber: string, important: ImportantM
       date: s.v.date as string | null,
       fileId: null,
       sortOrder: i,
+      sheets: typeof s.v.sheets === "number" ? s.v.sheets : null,
     })),
     avk: {
       number: txt(actRow.v.avkNumber) || avkDefaultNumber(n, sectionKey),

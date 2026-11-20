@@ -140,7 +140,9 @@ export class TemplateStore {
     } catch {
       throw new HttpError(422, "Это не файл шаблона (.idk-template)");
     }
-    const t: UserTemplate = { id: `t-${randomUUID()}`, name: src.name, docs: [], print: src.print };
+    // Выгруженный встроенный шаблон («СБД», «ТИ», «Камчатка») загружается своей копией — с пометкой в имени.
+    const name = BUILTIN_TEMPLATES.some((b) => b.name === src.name) ? `${src.name} (загружен)` : src.name;
+    const t: UserTemplate = { id: `t-${randomUUID()}`, name, docs: [], print: src.print };
     mkdirSync(join(this.dir(t.id), "forms"), { recursive: true });
     t.docs = src.docs.map((d) => {
       if (!d.form) return d;

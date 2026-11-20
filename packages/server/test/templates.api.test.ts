@@ -22,7 +22,7 @@ test("список, копия «СБД», переименование, сво�
   const docs = [...c.json.docs, { kind: "custom", code: "АГИ", name: "Акт гидр. испытаний", form: null }];
   const put = await s.req("PUT", `/api/templates/${c.json.id}`, { name: "ПИК-2", docs });
   assert.equal(put.status, 200, JSON.stringify(put.json));
-  assert.equal((await s.req("GET", "/api/templates")).json[2].name, "ПИК-2");
+  assert.equal((await s.req("GET", "/api/templates")).json[3].name, "ПИК-2");
   const bad = await s.req("PUT", `/api/templates/${c.json.id}`, { name: "ПИК-2", docs: [{ kind: "custom", code: "АОСР", name: "x", form: null }] });
   assert.equal(bad.status, 422);
   assert.equal(bad.json.error, "Код «АОСР» занят встроенным документом");
@@ -31,7 +31,8 @@ test("список, копия «СБД», переименование, сво�
   assert.equal(del.status, 400);
   assert.equal(del.json.error, "Встроенный шаблон «СБД» не удаляется");
   assert.equal((await s.req("DELETE", `/api/templates/${c.json.id}`)).status, 204);
-  assert.equal((await s.req("GET", "/api/templates")).json.length, 2, "встроенные «СБД» и «ТИ»");
+  assert.equal((await s.req("GET", "/api/templates")).json.length, 3, "встроенные «СБД», «ТИ» и «Камчатка»");
+  for (const id of ["ti", "kam"]) assert.equal((await s.req("DELETE", `/api/templates/${id}`)).status, 400, `«${id}» не удаляется`);
 });
 
 test("формы: .docx принимается, PDF и .doc — 422; скачивание", async () => {
@@ -67,7 +68,7 @@ test("выгрузка и загрузка шаблона; шаблоны пер
   assert.equal(t2.docs[0].code, "АГИ");
   assert.equal((await s2.raw("GET", `/api/templates/${t2.id}/forms/${t2.docs[0].form.file}`)).status, 200);
   const again = await startTestServer({ dataDir: s.dataDir });
-  assert.equal((await again.req("GET", "/api/templates")).json[2].name, "Свой");
+  assert.equal((await again.req("GET", "/api/templates")).json[3].name, "Свой");
 });
 
 test("п.4 АОСР сохраняется в шаблоне", async () => {
@@ -90,5 +91,22 @@ test("п.4 АОСР сохраняется в шаблоне", async () => {
     copy.json.print,
     { schemeEach: true, formSet: "sbd", forms: {}, kjReserve: 2, kjDecimals: null, blanks: {}, styles: {} },
     "копия наследует настройку",
+  );
+});
+
+test("0.46: встроенные шаблоны выгружаются; загруженный — копия с пометкой, «Камчатка» с набором «Камчатка»", async () => {
+  const s = await startTestServer();
+  const exp = await s.raw("GET", "/api/templates/kam/export");
+  assert.equal(exp.status, 200);
+  assert.match(decodeURIComponent(exp.headers.get("content-disposition") ?? ""), /Камчатка\.idk-template/);
+  const zip = new Uint8Array(await exp.arrayBuffer());
+  const imp = await s.raw("POST", "/api/templates/import", { body: zip as unknown as BodyInit, headers: { "content-type": "application/octet-stream" } });
+  assert.equal(imp.status, 201);
+  const t = await imp.json();
+  assert.equal(t.name, "Камчатка (загружен)");
+  assert.equal(t.print.formSet, "kam");
+  assert.deepEqual(
+    t.docs.map((d: { doc: string }) => d.doc),
+    ["aosr", "rim", "rp", "vd", "kj"],
   );
 });

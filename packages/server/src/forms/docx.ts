@@ -167,7 +167,58 @@ function fillTable(tbl: string, data: FormData, warnings: Set<string>): string {
   return tbl.slice(0, spans[0].start) + out + tbl.slice(spans[spans.length - 1].end);
 }
 
-function fillPart(xml: string, data: FormData, warnings: Set<string>): string {
+/**
+ * 0.46.5: значение по строкам бланка. В образцах (АОСР «Камчатки») длинное значение напечатано строками — каждая в своей
+ * строке таблицы с подчёркиванием; метка {Поле@k:w} — k-я строка значения шириной около w знаков. Слова раскладываются
+ * по строкам по порядку, перевод строки значения начинает новую строку бланка, всё, что не влезло, — в последнюю.
+ */
+export function wrapToRows(value: string, widths: number[]): string[] {
+  const rows = widths.map(() => "");
+  if (!widths.length) return rows;
+  let r = 0;
+  const last = widths.length - 1;
+  const put = (word: string) => {
+    while (r < last && rows[r] && rows[r].length + 1 + word.length > widths[r]) r++;
+    rows[r] = rows[r] ? `${rows[r]}${rows[r].endsWith("\n") ? "" : " "}${word}` : word;
+  };
+  value.split("\n").forEach((line, i) => {
+    if (i > 0) {
+      if (r < last && rows[r]) r++;
+      else if (rows[r]) rows[r] += "\n";
+    }
+    for (const w of line.split(/\s+/).filter(Boolean)) put(w);
+  });
+  return rows;
+}
+
+const ROW_LABEL = /\{([^{}@]+)@(\d+):(\d+)\}/g;
+
+/** Значения меток {Поле@k:w} части документа: ширины строк собираются по всем меткам поля. */
+function rowValues(xml: string, data: FormData): Record<string, string> {
+  const text = elements(xml, "p")
+    .map(({ start, end }) => paragraphText(xml.slice(start, end)))
+    .join("\n");
+  const fields = new Map<string, { k: number; w: number; label: string }[]>();
+  for (const m of text.matchAll(ROW_LABEL)) {
+    const list = fields.get(m[1].trim()) ?? [];
+    if (!list.some((x) => x.k === Number(m[2]))) list.push({ k: Number(m[2]), w: Number(m[3]), label: m[0].slice(1, -1) });
+    fields.set(m[1].trim(), list);
+  }
+  const out: Record<string, string> = {};
+  for (const [field, list] of fields) {
+    if (!(field in data.values)) continue;
+    list.sort((a, b) => a.k - b.k);
+    const rows = wrapToRows(
+      data.values[field],
+      list.map((x) => x.w),
+    );
+    list.forEach((x, i) => (out[x.label] = rows[i]));
+  }
+  return out;
+}
+
+function fillPart(xml: string, data0: FormData, warnings: Set<string>): string {
+  const data: FormData = { ...data0, values: { ...data0.values, ...rowValues(xml, data0) } };
   const tables = mapElements(xml, "tbl", (tbl) => fillTable(tbl, data, warnings));
   return fillParagraphs(tables, makeLookup(data, warnings));
 }

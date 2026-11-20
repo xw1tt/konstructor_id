@@ -172,3 +172,23 @@ test("0.46.3: «Камчатка» в Word — АОСР, реестр приме
   assert.ok(rp.includes("Ведомость смонтированного оборудования") && rp.includes("Приложение 2"));
   assert.match(file("vd").name, /\.ВД\.xlsx$/);
 });
+
+test("0.46.4: Word «Камчатки» открывается без восстановления — в каждой ячейке есть абзац, закладки парные", async () => {
+  const { docFile } = await import("@idk/server/kit/xlsx");
+  const { openZip } = await import("@idk/server/zip/zip");
+  const b = await bundle();
+  for (const kind of ["aosr", "rim", "rp"] as const) {
+    const xml = openZip(docFile(b, { kind, form: null }, KAM, {}).buf).get("word/document.xml")!().toString("utf8");
+    const stack: boolean[] = [];
+    let empty = 0;
+    for (const m of xml.matchAll(/<(\/?)w:(tc|p)(?=[\s>/])[^>]*?(\/?)>/g)) {
+      if (m[2] === "tc") {
+        if (!m[1]) stack.push(false);
+        else if (!stack.pop()) empty++;
+      } else if (!m[1] && stack.length) stack[stack.length - 1] = true;
+    }
+    assert.equal(empty, 0, `${kind}: пустые ячейки таблицы`);
+    const ids = (re: RegExp) => [...xml.matchAll(re)].map((x) => x[1]).sort();
+    assert.deepEqual(ids(/<w:bookmarkStart[^>]*w:id="(\d+)"/g), ids(/<w:bookmarkEnd[^>]*w:id="(\d+)"/g), `${kind}: закладки`);
+  }
+});

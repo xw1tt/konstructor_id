@@ -138,15 +138,19 @@ function fillTable(tbl: string, data: FormData, warnings: Set<string>): string {
     const m = paragraphText(withoutTables(row)).match(/\{#([^{}:]+)(?::([^{}]+))?\}/);
     return m ? { name: m[1].trim(), variant: m[2]?.trim() ?? null } : null;
   });
+  // Между строками Word держит закладки и прочее — сохраняются на своих местах (без них Word считает файл повреждённым).
+  const gap = (i: number) => (i === 0 ? "" : tbl.slice(spans[i - 1].end, spans[i].start));
   let out = "";
   for (let i = 0; i < rows.length;) {
     const mark = marks[i];
     if (!mark) {
-      out += rows[i++];
+      out += gap(i) + rows[i];
+      i++;
       continue;
     }
     const group: { row: string; variant: string | null }[] = [];
     while (i < rows.length && marks[i]?.name === mark.name && (group.length === 0 || (marks[i]!.variant !== null && group[0].variant !== null))) {
+      out += gap(i);
       group.push({ row: rows[i], variant: marks[i]!.variant });
       i++;
       if (group[0].variant === null) break;

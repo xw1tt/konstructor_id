@@ -1,4 +1,5 @@
 // Печать из пакета акта, собранного панелью в книге Excel.
+import { wordPdf, type OfficeRunner } from "../forms/convert.ts";
 import { actDocFormFor } from "@idk/shared/blanks";
 import { kamWordFile } from "../kit/xlsx.ts";
 import { randomUUID } from "node:crypto";
@@ -80,6 +81,12 @@ export function renderBundleHtml(b: ActBundle, kind: PrintKind, options: Partial
 }
 
 /** PDF документа пакета и имя файла (как у прежней печати из базы). */
+let printRunner: OfficeRunner | null = null;
+/** Word на компьютере для печати документов «Камчатки» (задаётся при запуске сервера). */
+export function setPrintOfficeRunner(r: OfficeRunner | null) {
+  printRunner = r;
+}
+
 export async function renderBundlePdf(
   b: ActBundle,
   kind: PrintKind,
@@ -87,6 +94,13 @@ export async function renderBundlePdf(
   options: Partial<PrintOptions> = {},
 ): Promise<{ pdf: Buffer; name: string }> {
   const { html, name } = renderBundleHtml(b, kind, options);
+  // 0.46.8: «Камчатка» — PDF из того же файла Word, что и «Скачать Word» (через Word на компьютере), чтобы печать и Word
+  // совпадали; Word не найден — встроенная форма.
+  const word = printRunner ? kamWordFile(b, kind, options) : null;
+  if (word && printRunner) {
+    const pdf = await wordPdf(word.buf, printRunner);
+    if (pdf) return { pdf, name };
+  }
   return { pdf: await htmlToPdf(html, { pageNumbers: kind === "vor" }), name };
 }
 

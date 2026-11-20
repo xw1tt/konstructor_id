@@ -1,4 +1,5 @@
 import type { LegacyConverter } from "./forms/legacy.ts";
+import { setPrintOfficeRunner } from "./routes/print.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { logError } from "./diag/log.ts";
 import type { Db } from "./db.ts";
@@ -74,6 +75,7 @@ export function createApp(opts: AppOptions) {
   const templates = new TemplateStore(opts.dataDir, catalog);
   templateRoutes(api, templates, undefined, opts.legacyConverter);
   const runner = opts.officeRunner ?? powershellRunner();
+  setPrintOfficeRunner(runner);
   formJobRoutes(api, templates, runner);
   kitRoutes(api, opts.db, opts.dataDir, { templates, runner });
   const ai = new AiStore(opts.dataDir);

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 // Печать своей формы: подстановка меток → PDF через установленный Word/Excel (PowerShell + COM, без окна),
 // а без Office — своими силами (HTML → Edge) с предупреждением.
 import type { FormSet } from "@idk/shared/templates";
@@ -102,6 +103,38 @@ export async function renderForm(
     warnings.push(form.type === "docx" ? "Word не найден — форма может отличаться от Word" : "Excel не найден — форма может отличаться от Excel");
     const html = form.type === "docx" ? docxToHtml(filled.buf) : xlsxToHtml(filled.buf);
     return { pdf: await htmlToPdf(html), source: filled.buf, warnings, via: "html" };
+  } finally {
+    removeQuietly(dir);
+  }
+}
+
+/** 0.46.8: PDF заполненного файла Word через Word на компьютере (null — Word не найден или не справился).
+ *  Тот же файл — тот же PDF: готовые PDF помнятся (предпросмотр, затем комплект — без повторного перевода). */
+const wordPdfCache = new Map<string, Buffer>();
+let wordQueue: Promise<unknown> = Promise.resolve();
+export async function wordPdf(docx: Buffer, runner: OfficeRunner): Promise<Buffer | null> {
+  const key = createHash("sha1").update(docx).digest("hex");
+  const hit = wordPdfCache.get(key);
+  if (hit) return hit;
+  // Word — по одному документу за раз (несколько экземпляров Word одновременно мешают друг другу).
+  const run = wordQueue.then(() => wordPdfNow(docx, key, runner));
+  wordQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function wordPdfNow(docx: Buffer, key: string, runner: OfficeRunner): Promise<Buffer | null> {
+  const hit = wordPdfCache.get(key);
+  if (hit) return hit;
+  const dir = mkdtempSync(join(tmpdir(), "idk-word-"));
+  try {
+    const src = join(dir, "doc.docx"),
+      out = join(dir, "doc.pdf");
+    writeFileSync(src, docx);
+    if (!(await runner("docx", src, out).catch(() => false)) || !existsSync(out)) return null;
+    const pdf = readFileSync(out);
+    wordPdfCache.set(key, pdf);
+    while (wordPdfCache.size > 200) wordPdfCache.delete(wordPdfCache.keys().next().value!);
+    return pdf;
   } finally {
     removeQuietly(dir);
   }

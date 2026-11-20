@@ -225,3 +225,29 @@ test("0.46.6: строки бланка АОСР — лишние пустые �
     );
   }
 });
+
+test("0.46.8: PDF «Камчатки» (АОСР, реестры) — из того же файла Word через Word; без Word — встроенная форма", async () => {
+  const { setPrintOfficeRunner } = await import("@idk/server/routes/print");
+  const { writeFileSync } = await import("node:fs");
+  const b = await bundle();
+  const seen: string[] = [];
+  setPrintOfficeRunner(async (kind, _src, out) => {
+    seen.push(kind);
+    writeFileSync(out, Buffer.from(`%PDF-word-${seen.length}`));
+    return true;
+  });
+  try {
+    const a = await renderBundlePdf(b, "aosr", "kam", KAM);
+    assert.equal(a.pdf.toString(), "%PDF-word-1");
+    assert.equal(a.name, `${AOV1}.pdf`);
+    assert.equal((await renderBundlePdf(b, "aosr", "kam", KAM)).pdf.toString(), "%PDF-word-1", "тот же файл — из памяти, Word не запускается");
+    assert.equal((await renderBundlePdf(b, "rp", "kam", KAM)).pdf.toString(), "%PDF-word-2");
+    assert.deepEqual(seen, ["docx", "docx"]);
+    setPrintOfficeRunner(async () => false);
+    const html = await renderBundlePdf(b, "rim", "kam", KAM);
+    assert.equal(html.pdf.subarray(0, 4).toString(), "%PDF", "Word не найден — встроенная форма");
+    assert.ok(html.pdf.length > 1000);
+  } finally {
+    setPrintOfficeRunner(null);
+  }
+});

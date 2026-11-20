@@ -51,6 +51,7 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
     // В отфильтрованной таблице вставка задела бы скрытые строки других комплектов.
     if (await port.isFiltered("РеестрИД")) await port.clearFilters("РеестрИД");
     const r = await syncRegistry(port, book, k, tpl);
+    if (!r.changed && r.linked) return { book: await readBook(port), text: `В реестр комплекта ${k} перенесены сканы: ${r.linked}.`, issues: [] };
     if (!r.changed) return { book, text: "", issues: r.issues };
     const parts = [r.added && `добавлено ${r.added}`, r.removed && `убрано ${r.removed}`].filter(Boolean).join(", ");
     return { book: await readBook(port), text: `Реестр комплекта ${k} обновлён из актов${parts ? ` (${parts})` : ""}.`, issues: [] };

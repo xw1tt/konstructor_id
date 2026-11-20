@@ -3,10 +3,10 @@ import { z } from "zod";
 import { ACT_DOC_DEFS, type ActDocKind } from "../docs/defs.ts";
 import { Organization } from "../schemas.ts";
 import { PRINT_KINDS, type PrintKind } from "../acts/schemas.ts";
-import { withNo } from "../acts/format.ts";
+import { formatDateShort, withNo } from "../acts/format.ts";
 import { DEFAULT_TEMPLATE, PrintOptions, type TemplateCode } from "../templates.ts";
 import { REGISTRY_KINDS, column, type RegistryKind, type TableName } from "../workbook/schema.ts";
-import { cellText, parseNumberCell, type CellValue } from "../workbook/values.ts";
+import { cellText, parseDateCell, parseNumberCell, type CellValue } from "../workbook/values.ts";
 import { ActBundle, buildBundle, createChecker, type Issue } from "../workbook/bundle.ts";
 import { buildCableBundle } from "../workbook/cables.ts";
 import type { Book, BookRow } from "../workbook/records.ts";
@@ -146,12 +146,30 @@ export function buildKitRequest(
   // Сканы, которые можно найти по номеру в исходных таблицах, если в строке реестра «Скан» пуст.
   const byNumber = (t: TableName, key: string, number: string, act?: string) =>
     c.rows(t).find((r) => withNo(txt(r.v[key])) === withNo(number) && (!act || !("act" in r.v) || txt(r.v.act) === act));
-  const fallback = (kind: RegistryKind, number: string, act: string): FileRef | null => {
+  /** Документ качества строки реестра: по номеру, при нескольких с тем же номером («б/н») — по виду и дате. */
+  const qualityRow = (r: BookRow): BookRow | undefined => {
+    const same = c
+      .rows("ДокументыКачества")
+      .filter((d) => withNo(txt(d.v.number)) === withNo(txt(r.v.number)) || (!txt(d.v.number) && /б\/н/i.test(txt(r.v.number))));
+    if (same.length < 2) return same[0];
+    const name = txt(r.v.name).toLowerCase();
+    const date = txt(r.v.date);
+    const fit = same.filter((d) => {
+      const type = txt(d.v.type).toLowerCase();
+      const issued = parseDateCell(d.v.issueDate);
+      const day = issued.ok && issued.value ? formatDateShort(issued.value) : "";
+      return (!type || name.startsWith(type) || name.includes(type)) && (!date || !day || date.includes(day));
+    });
+    return fit.find((d) => d.link.file) ?? fit[0];
+  };
+  const fallback = (kind: RegistryKind, r: BookRow): FileRef | null => {
+    const number = txt(r.v.number);
+    const act = txt(r.v.act);
     switch (kind) {
       case "Схема":
         return fileOf(byNumber("Схемы", "number", number, act || undefined));
       case "Документ качества":
-        return fileOf(byNumber("ДокументыКачества", "number", number));
+        return fileOf(qualityRow(r));
       case "Поверка":
         return fileOf(byNumber("СредстваИзмерений", "certificate", number));
       case "Лаборатория":
@@ -223,7 +241,11 @@ export function buildKitRequest(
       else if (!acts.includes(act)) c.push("РеестрИД", r.row, H("РеестрИД", "act"), `Акт «${act}» не входит в комплект «${kit}»`);
       else (needs.get(act) ?? needs.set(act, new Set()).get(act)!).add(printed ?? "aosr");
     } else {
-      file = fileOf(r) ?? fallback(kind, txt(r.v.number), act);
+      // 0.46.1: загруженный файл важнее имени — в реестре только имя (или пусто), а у схемы / документа качества
+      // есть загруженный скан — берётся он.
+      const own = fileOf(r);
+      const src = own?.link ? null : fallback(kind, r);
+      file = own?.link ? own : src?.link ? src : (own ?? src);
       if (!file) c.push("РеестрИД", r.row, H("РеестрИД", "file"), "Нет скана: укажите файл в столбце «Скан»");
     }
     const sheets = parseNumberCell(r.v.sheets as CellValue);

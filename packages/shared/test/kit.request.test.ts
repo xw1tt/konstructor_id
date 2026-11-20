@@ -110,3 +110,20 @@ test("пустой реестр — подсказка «Заполнить из
   const book = await readBook(new MemoryWorkbook(kitRecords()));
   assert.ok(msgs(buildKitRequest(book, "1", defaultImportant())).some((x) => /нажмите «Заполнить из актов»/.test(x)));
 });
+
+test("0.46.1: в реестре только имя (или пусто), а у схемы и документа качества загружен файл — берётся загруженный", async () => {
+  const book = await filled((r) => {
+    for (const s of r["Схемы"]) s["Скан"] = `${s["Номер"]}.pdf`;
+    for (const d of r["ДокументыКачества"]) d["Скан"] = `${d["Номер"]}.pdf`;
+    for (const i of r["СредстваИзмерений"]) i["Скан"] = "поверка.pdf";
+    r["Электролаборатория"][0]["Скан"] = "лаб.pdf";
+    r["РеестрИД"][4]["Скан"] = "старое-имя.pdf";
+  });
+  book.tables["Схемы"]![0].link = { file: "https://localhost:3443/api/files/21" };
+  for (const [i, d] of book.tables["ДокументыКачества"]!.entries()) d.link = { file: `https://localhost:3443/api/files/${100 + i}` };
+  const { request, issues } = buildKitRequest(book, "1", defaultImportant(), "sbd", undefined, NOW);
+  assert.deepEqual(issues, []);
+  assert.equal(request!.rows[4].file!.link, "https://localhost:3443/api/files/21", "имя в реестре без файла — берётся скан схемы");
+  const quality = request!.rows.filter((r) => r.kind === "Документ качества");
+  assert.ok(quality.length > 3 && quality.every((r) => /\/api\/files\/1\d\d$/.test(r.file?.link ?? "")), "сканы документов качества");
+});

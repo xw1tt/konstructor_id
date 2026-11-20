@@ -287,14 +287,26 @@ export async function syncRegistry(
   book: Book,
   kit: string,
   template?: UserTemplate,
-): Promise<{ changed: boolean; count: number; added: number; removed: number; issues: Issue[] }> {
+): Promise<{ changed: boolean; count: number; added: number; removed: number; linked?: number; issues: Issue[] }> {
   const { rows, issues } = registryRows(book, kit, template);
   if (issues.length) return { changed: false, count: 0, added: 0, removed: 0, issues };
   const cur = (book.tables["РеестрИД"] ?? []).filter((r) => txt(r.v.kit) === kit);
   const curKeys = cur.map((r) => regKey(Object.fromEntries(Object.entries(r.v).map(([k, v]) => [column("РеестрИД", k).header, v]))));
   const newKeys = rows.map((r) => regKey(r.values));
   const same = curKeys.length === newKeys.length && [...curKeys].sort().join("\n") === [...newKeys].sort().join("\n");
-  if (same) return { changed: false, count: rows.length, added: 0, removed: 0, issues: [] };
+  if (same) {
+    // 0.46.1: документы те же, но сканы могли загрузить позже — ссылки из схем и документов качества переносятся
+    // в «Скан» реестра (раньше реестр с теми же документами не трогался и новые сканы в него не попадали).
+    const fresh = new Map(newKeys.map((k, i) => [k, rows[i]] as const));
+    let linked = 0;
+    for (const [i, r] of cur.entries()) {
+      const n = fresh.get(curKeys[i]);
+      if (!n?.link || n.link === r.link.file) continue;
+      await store.write("РеестрИД", r.row, { [H("file")]: n.values[H("file")] ?? null }, { [H("file")]: n.link });
+      linked++;
+    }
+    return { changed: false, count: rows.length, added: 0, removed: 0, linked, issues: [] };
+  }
   // Ручные правки — на те же документы.
   const byKey = new Map(cur.map((r, i) => [curKeys[i], r] as const));
   for (const [i, r] of rows.entries()) {
@@ -302,6 +314,7 @@ export async function syncRegistry(
     if (!old) continue;
     if (old.v.copies !== null && old.v.copies !== undefined) r.values[H("copies")] = old.v.copies;
     if (old.v.sheets !== null && old.v.sheets !== undefined) r.values[H("sheets")] = old.v.sheets;
+    // Скан из схемы или документа качества важнее прежнего; нет его — остаётся вписанный в реестр вручную.
     if (!r.link && old.link.file) {
       r.link = old.link.file;
       r.values[H("file")] = old.v.file ?? null;

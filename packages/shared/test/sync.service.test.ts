@@ -65,3 +65,29 @@ test("ОЖР: пустой — заполняется; совпадает — н
   const kept = after.rows.find((x) => iso(x[di]) === day);
   assert.equal(kept?.[ci], "-2 °С, снег");
 });
+
+test("0.46.1: реестр уже собран, сканы схемы и документа качества загружены позже — переносятся в «Скан» реестра", async () => {
+  const wb = new MemoryWorkbook(kitRecords());
+  await syncRegistry(wb, await readBook(wb), "1");
+  const schemes = (await wb.read("Схемы"))!;
+  const docs = (await wb.read("ДокументыКачества"))!;
+  await wb.write("Схемы", 0, { Скан: "схема.pdf" }, { Скан: "https://localhost:3443/api/files/11" });
+  await wb.write("ДокументыКачества", 0, { Скан: "паспорт.pdf" }, { Скан: "https://localhost:3443/api/files/12" });
+  const r = await syncRegistry(wb, await readBook(wb), "1");
+  assert.equal(r.changed, false, "документы те же — реестр не перестраивается");
+  assert.equal(r.linked, 2);
+  const t = (await wb.read("РеестрИД"))!;
+  const fi = t.headers.indexOf("Скан");
+  const ni = t.headers.indexOf("Номер документа");
+  const sNo = String(schemes.rows[0][schemes.headers.indexOf("Номер")]);
+  const s = t.rows.findIndex((x) => x[t.headers.indexOf("Вид")] === "Схема" && String(x[ni]) === `№${sNo}`);
+  assert.equal(t.links[s][fi], "https://localhost:3443/api/files/11");
+  assert.equal(t.rows[s][fi], "схема.pdf");
+  assert.ok(
+    t.links.some((l) => l[fi] === "https://localhost:3443/api/files/12"),
+    "скан документа качества",
+  );
+  assert.ok(docs.rows.length);
+  const again = await syncRegistry(wb, await readBook(wb), "1");
+  assert.equal(again.linked, 0, "второй раз переносить нечего");
+});

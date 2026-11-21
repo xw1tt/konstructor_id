@@ -22,3 +22,13 @@ test("КЖ без кабелей акта — absent; с кабелями — п
   assert.equal(docState(none, AOV1, defaultImportant(), "kj").state, "absent");
   assert.equal(docState(none, AOV1, defaultImportant(), null).state, "ok");
 });
+
+test("0.46.12: КЖ «Камчатки» без строки «ДокументыКабелей» печатается — проверка по набору шаблона", async () => {
+  const { PrintOptions } = await import("@idk/shared/templates");
+  const { BUILTIN_KAM } = await import("@idk/shared/forms/template");
+  const recs = aov1Records() as any;
+  recs["ДокументыКабелей"] = [];
+  const book = await readBook(new MemoryWorkbook(recs));
+  assert.equal(docState(book, AOV1, defaultImportant(), "kj").state, "bad", "по «СБД» нужен шифр журнала");
+  assert.equal(docState(book, AOV1, defaultImportant(), "kj", PrintOptions.parse(BUILTIN_KAM.print)).state, "ok");
+});

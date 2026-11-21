@@ -1,6 +1,7 @@
 // 0.37 / редизайн 0.40: экран «Акты» окна программы — таблица актов (статус, номер, работы, период, комплект, документы),
 // поиск, отбор по статусу и виду работ, плавающая панель выбранных актов; справа — карточка акта: документы акта,
 // замечания с местом в книге, подписанты, печать. «⋯» раскрывает полную карточку (материалы, подписанты, полнота).
+import type { PrintOptions } from "@idk/shared/templates";
 import { docIssues } from "./docCheck.ts";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { actsOverview, filterActs, shortNumbers, statusText, type ActFilter, type ActOverview, type ActStatus } from "@idk/shared/acts/overview";
@@ -49,12 +50,14 @@ function docStates(
   buttons: TemplateButton[],
   important: BookState["important"],
   needed: ReturnType<typeof completeness> | null,
+  options?: PrintOptions,
 ): DocState[] {
   return buttons.map((b) => {
     const st = needed?.find((s) => docCode(s.doc) === b.label || docCode(s.doc) === b.key);
     if (needed && !st) return "off";
     if (st && (st.status === "noScan" || st.status === "noForm" || st.status === "noData")) return "warn";
-    const d = docState(book, a.number, important, b.doc);
+    // 0.46.12: с настройками шаблона (набор «ТИ»/«Камчатка» — КЖ без «ДокументыКабелей»): без них КЖ проверялся по «СБД».
+    const d = docState(book, a.number, important, b.doc, options);
     if (d.state === "absent") return "off";
     if (d.state === "bad") return "bad";
     return "ok";
@@ -157,7 +160,7 @@ function ActCard({
   useEffect(() => {
     let alive = true;
     // Ошибки документов акта, которые не печатаются (данные есть, но с ошибками), — тоже «не собирается».
-    const docIssues = buttons.flatMap((b, k) => (states[k] === "bad" ? docState(book, a.number, state.important, b.doc).issues : []));
+    const docIssues = buttons.flatMap((b, k) => (states[k] === "bad" ? docState(book, a.number, state.important, b.doc, options).issues : []));
     const seen = new Set<string>();
     const uniq = (list: Issue[]) => list.filter((i) => !seen.has(i.message + i.table + i.row) && seen.add(i.message + i.table + i.row));
     const issues: { i: Issue; level: "critical" | "warn" }[] =
@@ -456,9 +459,10 @@ export function ActsScreen({ port, state, focus, onScreen }: { port: BookPort; s
   const states = useMemo(() => {
     const m = new Map<string, DocState[]>();
     if (!book) return m;
-    for (const a of all) m.set(a.number, docStates(book, a, buttons, state.important, catalog ? completeness(tpl.template, catalog, book, a.number) : null));
+    for (const a of all)
+      m.set(a.number, docStates(book, a, buttons, state.important, catalog ? completeness(tpl.template, catalog, book, a.number) : null, options));
     return m;
-  }, [all, book, catalog, tpl.template]);
+  }, [all, book, catalog, tpl.template, options]);
   const short = useMemo(() => shortNumbers(all.map((a) => a.number)), [all]);
   const kinds = useMemo(() => [...new Set(all.flatMap((a) => a.workKinds))].sort((a, b) => a.localeCompare(b, "ru")), [all]);
   const shown = filterActs(all, filter);

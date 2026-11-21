@@ -7,7 +7,18 @@ import { docNumberFor, formatDateLong, formatDateShort, withNo } from "@idk/shar
 import { kamSchemeName } from "./tiData.ts";
 import { column } from "@idk/shared/workbook/schema";
 import { repLine } from "@idk/shared/acts/repLine";
-import { point3Lines, point4Lines, rimRows, vdRows, vorRows, signers, avkRows, avkDefaultNumber, SIGN_LABELS } from "@idk/shared/acts/rows";
+import {
+  point3Lines,
+  point4Lines,
+  rimRows,
+  vdRows,
+  vorRows,
+  signers,
+  avkRows,
+  avkDefaultNumber,
+  SIGN_LABELS,
+  MATERIALS_INLINE_LIMIT,
+} from "@idk/shared/acts/rows";
 import type { PrintOptions } from "@idk/shared/templates";
 import type { AvkData, AosrData, RimData, VdData, VorData, DocData } from "./data.ts";
 
@@ -81,7 +92,8 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
             .filter(Boolean)
             .map((s) => `, ${s}`)
             .join(""),
-        p3: kam && actMats.length ? [KAM_P3] : point3Lines(actMats, mats, docsByMaterial, act.baseNumber, set),
+        // «Камчатка»: материалов больше 5 — ссылкой на реестр, иначе — материалы с документами (как в п.3 по 344/пр).
+        p3: kam && actMats.length > MATERIALS_INLINE_LIMIT ? [KAM_P3] : point3Lines(actMats, mats, docsByMaterial, act.baseNumber, set),
         p4: kam ? kamPoint4(b.documents) : point4Lines(b.documents, options),
         dateStart: formatDateLong(act.dateStart),
         dateEnd: formatDateLong(act.dateEnd),

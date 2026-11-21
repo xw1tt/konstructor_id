@@ -251,3 +251,20 @@ test("0.46.8: PDF «Камчатки» (АОСР, реестры) — из то�
     setPrintOfficeRunner(null);
   }
 });
+
+test("0.46.12: «Камчатка» — материалов не больше 5: п.3 АОСР — материалы с документами, а не ссылка на реестр", async () => {
+  const many = await bundle();
+  assert.ok(many.actMaterials.length > 5);
+  const few = await bundle((r) => {
+    const mine = r["МатериалыАктов"].filter((m: any) => m["Акт"] === AOV1);
+    r["МатериалыАктов"] = [...r["МатериалыАктов"].filter((m: any) => m["Акт"] !== AOV1), ...mine.slice(0, 2)];
+    const kept = new Set(mine.slice(0, 2).map((m: any) => m["Материал"]));
+    if (r["ВОР"]) r["ВОР"] = r["ВОР"].filter((v: any) => kept.has(v["Материал"]));
+  });
+  assert.equal(few.actMaterials.length, 2);
+  const p3 = buildDocDataFromBundle(few, "aosr", KAM).p3;
+  assert.equal(p3.length, 2);
+  assert.ok(!p3.some((l) => /Согласно реестр/.test(l)));
+  const name = few.materials.find((m) => m.id === few.actMaterials[0].materialId)!.name;
+  assert.ok(p3.some((l) => l.startsWith(name)));
+});

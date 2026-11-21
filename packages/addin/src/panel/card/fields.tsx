@@ -64,6 +64,52 @@ export function Field(p: FieldProps) {
   );
 }
 
+/**
+ * 0.46.11: дата. Поле даты браузера сообщает дату после каждой цифры года (0002, 0020, 0202, 2026) и пустоту, пока
+ * дата набрана не вся, — раньше каждое такое значение сразу записывалось в Excel, книга перечитывалась, и ввод сбивался.
+ * Теперь: пока поле в фокусе, набранное — черновик; в книгу пишется полная дата с годом 1900–2100 (выбор в календаре —
+ * сразу), очистка — при уходе из поля.
+ */
+const isoToRu = (iso: string) => iso.split("-").reverse().join(".");
+const fullYear = (iso: string) => {
+  const y = Number(iso.slice(0, 4));
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) && y >= 1900 && y <= 2100;
+};
+function DateInput({ value, onCommit }: { value: CellValue; onCommit: (v: string) => void }) {
+  const parsed = parseDateCell(value);
+  const iso = parsed.ok && parsed.value ? parsed.value : "";
+  const d = useDraft(iso);
+  const sent = useRef(iso);
+  useEffect(() => {
+    sent.current = iso;
+  }, [iso]);
+  const send = (next: string) => {
+    if (next === sent.current) return;
+    sent.current = next;
+    onCommit(next ? isoToRu(next) : "");
+  };
+  return (
+    <input
+      type="date"
+      min="1900-01-01"
+      max="2100-12-31"
+      value={d.draft}
+      {...d.bind}
+      onChange={(e) => {
+        const v = e.target.value;
+        d.setDraft(v);
+        if (fullYear(v)) send(v);
+      }}
+      onBlur={(e) => {
+        const v = e.target.value;
+        // Набрана не вся дата (badInput) — не стирать записанную, вернуть её.
+        if (e.target.validity?.badInput || (v && !fullYear(v))) d.setDraft(iso);
+        else send(v);
+      }}
+    />
+  );
+}
+
 function Input(p: FieldProps) {
   const { col, value } = p;
   const text = fromCell(col, value);
@@ -77,16 +123,8 @@ function Input(p: FieldProps) {
       return <output className="readonly">{text || "—"}</output>;
     case "longtext":
       return <textarea rows={3} value={d.draft} {...d.bind} onChange={(e) => d.setDraft(e.target.value)} onBlur={commitText} />;
-    case "date": {
-      const iso = parseDateCell(value);
-      return (
-        <input
-          type="date"
-          value={iso.ok && iso.value ? iso.value : ""}
-          onChange={(e) => p.onCommit(e.target.value ? e.target.value.split("-").reverse().join(".") : "")}
-        />
-      );
-    }
+    case "date":
+      return <DateInput value={value} onCommit={p.onCommit} />;
     case "enum":
       return (
         <select value={cellText(value)} onChange={(e) => p.onCommit(e.target.value)}>

@@ -4221,3 +4221,21 @@ a.btn {
 .ac-title h2.ac-long {
   font-size: 30px;
 }
+
+/* 0.46.10: «Сканы на этом компьютере» на главном экране окна. */
+.ov-folder {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 8px;
+  font-size: 12px;
+}
+.ov-folder input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.dl2-missing {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}

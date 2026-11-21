@@ -21,7 +21,7 @@ type Answer = { ok: true; id: number; sha256: string; name: string } | { ok: fal
 
 const isUrl = (s: string) => /^https?:\/\//i.test(s.trim());
 
-export async function relinkScans(port: BookPort, book: Book, origin: string): Promise<RelinkResult> {
+export async function relinkScans(port: BookPort, book: Book, origin: string, folder?: string): Promise<RelinkResult> {
   const cells: { table: TableName; row: number; header: string; name: string; link: string | null }[] = [];
   for (const [table, def] of Object.entries(TABLES) as [TableName, (typeof TABLES)[TableName]][]) {
     const files = def.columns.filter((c) => c.type === "file");
@@ -37,7 +37,7 @@ export async function relinkScans(port: BookPort, book: Book, origin: string): P
   const res: RelinkResult = { checked: cells.length, relinked: 0, missing: [] };
   if (!cells.length) return res;
   const { items } = await apiSend<{ items: Answer[] }>("POST", "/api/files/relink", {
-    scanFolder: cellText(book.object.scanFolder ?? null),
+    scanFolder: folder ?? cellText(book.object.scanFolder ?? null),
     items: cells.map((c) => ({ link: c.link, name: c.name })),
   });
   for (const [i, a] of items.entries()) {
@@ -60,13 +60,13 @@ export function useRelink(port: BookPort, state: BookState, afterFill: () => Pro
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [missing, setMissing] = useState<RelinkResult["missing"]>([]);
-  const run = async () => {
+  const run = async (folder?: string) => {
     if (!state.book) return;
     setBusy(true);
     setNote("");
     setMissing([]);
     try {
-      const r = await relinkScans(port, state.book, location.origin);
+      const r = await relinkScans(port, state.book, location.origin, folder);
       state.refresh();
       if (r.relinked) await afterFill().catch(() => undefined);
       setMissing(r.missing);

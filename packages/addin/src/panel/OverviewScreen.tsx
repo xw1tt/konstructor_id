@@ -12,6 +12,9 @@ import { sheetIssueLines } from "./print.ts";
 import { IssueTable, IssueIcon, type IssueItem } from "./IssueTable.tsx";
 import { SparkIcon } from "./icons.tsx";
 import { todayIso } from "./today.ts";
+import { useRelink, RelinkNote } from "./relinkScans.tsx";
+import { cellText } from "@idk/shared/workbook/values";
+import { column } from "@idk/shared/workbook/schema";
 
 const MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 
@@ -251,6 +254,7 @@ export function OverviewScreen({
               </span>
             </div>
           </section>
+          <ScanFolderBlock port={port} state={state} />
           <section className="ov-block">
             <header>
               <span className="wn-cap">Общий журнал работ</span>
@@ -270,5 +274,57 @@ export function OverviewScreen({
         </aside>
       </div>
     </div>
+  );
+}
+
+/**
+ * 0.46.10: «Сканы» на главном экране — где лежат паспорта, сертификаты и схемы на этом компьютере («Папка сканов»
+ * объекта; несколько — через «;», подпапки просматриваются) и «Привязать сканы» для книги с другого компьютера.
+ */
+function ScanFolderBlock({ port, state }: { port: BookPort; state: BookState }) {
+  const saved = cellText(state.book?.object.scanFolder ?? null);
+  const [value, setValue] = useState(saved);
+  const [error, setError] = useState("");
+  useEffect(() => setValue(saved), [saved]);
+  const relink = useRelink(port, state, async () => undefined);
+  const save = async () => {
+    setError("");
+    if (value.trim() === saved) return;
+    const t = await port.read("Объект");
+    const label = "Папка сканов";
+    const i = t ? t.rows.findIndex((r) => cellText(r[t.headers.indexOf("Поле")] ?? null) === label) : -1;
+    if (!t || i < 0) return setError("В книге нет строки «Папка сканов» на листе «Объект» — нажмите «Обновить разметку» в панели Excel");
+    await port.write("Объект", i, { [column("Объект", "value").header]: value.trim() });
+    state.refresh();
+  };
+  return (
+    <section className="ov-block">
+      <header>
+        <span className="wn-cap">Сканы на этом компьютере</span>
+      </header>
+      <label className="ov-folder">
+        <span className="muted">Папка сканов (паспорта, сертификаты, схемы; несколько — через «;», с подпапками)</span>
+        <input
+          className="mono"
+          value={value}
+          placeholder="D:\\Объект\\Сканы"
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={() => void save()}
+          onKeyDown={(e) => e.key === "Enter" && void save()}
+        />
+      </label>
+      {error && <p className="error">{error}</p>}
+      <div className="row-actions">
+        <button
+          className="btn"
+          disabled={relink.busy}
+          onClick={() => void save().then(() => relink.run(value.trim()))}
+          title="Книга с другого компьютера: найти сканы в этой папке и переписать ссылки «Скан» книги на файлы этого компьютера"
+        >
+          {relink.busy ? "Ищу сканы…" : "Привязать сканы"}
+        </button>
+      </div>
+      <RelinkNote port={port} relink={relink} />
+    </section>
   );
 }

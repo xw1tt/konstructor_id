@@ -232,7 +232,11 @@ function rowCopies(row: string, data: FormData, warnings: Set<string>, lines: Ma
   const extra = Math.max(...labels.map((l) => lines.get(l)!.length)) - 1;
   const base = makeLookup(data, warnings);
   let out = fillParagraphs(row, (label) => (lines.has(label) ? lines.get(label)![0] : base(label)));
-  for (let e = 1; e <= extra; e++) out += fillParagraphs(row, (label) => (lines.has(label) ? (lines.get(label)![e] ?? "") : ""));
+  // Копии строки — только под продолжение значения: текст других ячеек (подпись поля слева, «7. Разрешается…») убирается.
+  const blank = mapElements(row, "tc", (cell) =>
+    labels.some((l) => paragraphText(withoutTables(cell)).includes(`{${l}}`)) ? cell : cell.replace(/(<w:t(?:\s[^>]*)?>)[^<]*(<\/w:t>)/g, "$1$2"),
+  );
+  for (let e = 1; e <= extra; e++) out += fillParagraphs(blank, (label) => (lines.has(label) ? (lines.get(label)![e] ?? "") : ""));
   return out;
 }
 

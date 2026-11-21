@@ -142,8 +142,8 @@ test("ошибки файлов — 422 со строками реестра; б
   assert.equal(r.status, 422);
   assert.equal(r.json.error, "Комплект не собран: исправьте ошибки");
   assert.deepEqual(r.json.issues, [
-    { row: q.rows[5].row, column: "Скан", message: `Файл не найден: ${join(scans, "нет.pdf")}` },
-    { row: null, column: "Логотип", message: `Файл не найден: ${join(scans, "лого.pdf")}` },
+    { row: q.rows[5].row, column: "Скан", message: `Файл не найден: ${join(scans, "нет.pdf")} (искали и в подпапках)` },
+    { row: null, column: "Логотип", message: `Файл не найден: ${join(scans, "лого.pdf")} (искали и в подпапках)` },
   ]);
 
   const q2 = await request();

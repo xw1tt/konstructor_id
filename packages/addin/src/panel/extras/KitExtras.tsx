@@ -1,6 +1,7 @@
 // Дополнение карточки комплекта (строки «Комплектов», «Актов комплектов», «Реестра ИД»):
 // реестр из актов (0.32 — сверяется сам при сборке), переходы к строкам комплекта, сборка комплекта в один PDF.
 import { useContext, useEffect, useState } from "react";
+import { useRelink, RelinkNote } from "../relinkScans.tsx";
 import type { Issue } from "@idk/shared/workbook/bundle";
 import { cellText } from "@idk/shared/workbook/values";
 import { kitActs, missingRegistryDocs, syncRegistry } from "@idk/shared/kit/registry";
@@ -190,6 +191,7 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
 
 export function KitExtras({ port, state, kit }: { port: BookPort; state: BookState; kit: string }) {
   const { busy, checked, lines, note, count, shortage, kitButtons, fill, build, common, print, allKits } = useKit(port, state, kit);
+  const relink = useRelink(port, state, () => fill());
   if (!kit || !state.book) return null;
   return (
     <div className="extras">
@@ -207,6 +209,14 @@ export function KitExtras({ port, state, kit }: { port: BookPort; state: BookSta
           {busy === "fill" ? "Сверяю…" : "Обновить из актов"}
         </button>
         <button
+          className="btn"
+          disabled={busy !== null || relink.busy}
+          onClick={() => void relink.run()}
+          title="Книга с другого компьютера: найти сканы на этом компьютере (в «Папке сканов» с подпапками) и переписать ссылки"
+        >
+          {relink.busy ? "Ищу сканы…" : "Привязать сканы"}
+        </button>
+        <button
           className="btn btn-primary"
           disabled={busy !== null}
           onClick={() => void build()}
@@ -215,6 +225,7 @@ export function KitExtras({ port, state, kit }: { port: BookPort; state: BookSta
           {busy === "build" ? "Собираю…" : "Сдать: собрать комплект"}
         </button>
       </div>
+      <RelinkNote port={port} relink={relink} />
       <div className="row-actions">
         <button
           className="btn"

@@ -74,7 +74,7 @@ test("«В библиотеку» строк книги, затем «Добав
   );
   assert.deepEqual(
     b.tables["ДокументыКачества"]!.map((r) => [r.v.number, r.link.file]),
-    [["№1", `${ORIGIN}/api/files/101`]],
+    [["№1", `${ORIGIN}/api/files/101?sha=${"0".repeat(63)}7`]],
   );
   assert.deepEqual(await addToBook(dst, await readBook(dst), picked, all, api, ORIGIN), { added: 0, skipped: 4 }, "повтор — без дублей");
   assert.equal((await readBook(dst)).tables["Материалы"]!.length, 1);

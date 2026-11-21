@@ -38,9 +38,11 @@ test("ошибки поиска файла", () => {
   const msg = (name: string, c = ctx, link: string | null = null) => (resolveScan({ name, link }, c) as { message: string }).message;
   assert.equal(msg(""), "Нет скана: укажите файл в столбце «Скан»");
   assert.equal(msg("письмо.docx"), "Поддерживаются только PDF, JPG и PNG: письмо.docx");
-  assert.equal(msg("нет.pdf"), `Файл не найден: ${join(scans, "нет.pdf")}`);
-  assert.equal(msg("схема 1.pdf", { ...ctx, scanFolder: " " }), "Укажите «Папка сканов» в «Объекте» или полный путь к файлу: схема 1.pdf");
-  assert.match(msg("x.pdf", ctx, "https://localhost:3443/api/files/999"), /Прикреплённый файл не найден на сервере/);
+  assert.equal(msg("нет.pdf"), `Файл не найден: ${join(scans, "нет.pdf")} (искали и в подпапках)`);
+  assert.match(msg("схема 1.pdf", { ...ctx, scanFolder: " " }), /Скан «схема 1\.pdf» не найден на этом компьютере\. Укажите «Папка сканов»/);
+  // 0.46.9: номера файла нет на этом компьютере — файл ищется по имени из ячейки.
+  assert.match(msg("x.pdf", ctx, "https://localhost:3443/api/files/999"), /Файл не найден: .*x\.pdf/);
+  assert.match(msg("", ctx, "https://localhost:3443/api/files/999"), /не найден на этом компьютере/);
 });
 
 test("страницы: PDF как есть, картинка — альбомный А4, битый PDF — ошибка", async () => {
@@ -57,4 +59,37 @@ test("страницы: PDF как есть, картинка — альбомн
     .replace("trailer\n<<", "trailer\n<<\n/Encrypt 1 0 R");
   writeFileSync(join(scans, "защищён.pdf"), Buffer.from(bytes, "latin1"));
   await assert.rejects(loadScan({ path: join(scans, "защищён.pdf"), mime: "application/pdf" }), /PDF защищён паролем/);
+});
+
+test("0.46.9: книга с другого компьютера — номер файла чужой: по имени из ячейки в папке сканов (с подпапками), по отпечатку", async () => {
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  const sub = join(scans, "Паспорта", "Кабель");
+  mkdirSync(sub, { recursive: true });
+  const passport = Buffer.from(await makePdf(2));
+  writeFileSync(join(sub, "паспорт кабеля.pdf"), passport);
+  // На этом компьютере под номером — совсем другой файл.
+  const other = await saveFile(db, dir, Readable.from([Buffer.from(await makePdf(1))]), { name: "чужой.pdf", mime: "application/pdf" }, 1e7);
+  const link = `https://localhost:3443/api/files/${other.id}`;
+  assert.deepEqual(resolveScan({ name: "паспорт кабеля.pdf", link }, ctx), { ok: true, path: join(sub, "паспорт кабеля.pdf"), mime: "application/pdf" });
+  // Имя совпадает с файлом под номером — он и берётся.
+  assert.equal((resolveScan({ name: "чужой.pdf", link }, ctx) as { path: string }).path.includes(other.sha256), true);
+  // Ссылка с отпечатком: файла в хранилище нет — находится в папке по содержимому, даже под другим именем.
+  const sha = createHash("sha256").update(passport).digest("hex");
+  assert.deepEqual(resolveScan({ name: "переименован.pdf", link: `https://localhost:3443/api/files/77?sha=${sha}` }, ctx), {
+    ok: true,
+    path: join(sub, "паспорт кабеля.pdf"),
+    mime: "application/pdf",
+  });
+  // Два разных файла с одним именем в разных подпапках — не угадываем.
+  const two = join(dir, "Два");
+  mkdirSync(join(two, "а"), { recursive: true });
+  mkdirSync(join(two, "б"), { recursive: true });
+  writeFileSync(join(two, "а", "паспорт.pdf"), Buffer.from(await makePdf(1)));
+  writeFileSync(join(two, "б", "паспорт.pdf"), Buffer.from(await makePdf(4)));
+  const r = resolveScan({ name: "паспорт.pdf", link: null }, { ...ctx, scanFolder: two }) as { ok: boolean; message: string };
+  assert.equal(r.ok, false);
+  assert.match(r.message, /несколько разных файлов «паспорт\.pdf»/);
+  // Несколько папок — через «;».
+  assert.equal(resolveScan({ name: "паспорт кабеля.pdf", link: null }, { ...ctx, scanFolder: `${two}; ${scans}` }).ok, true);
 });

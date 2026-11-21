@@ -142,6 +142,12 @@ export function toBookRows(records: LibRecord[], scanLink: (r: LibRecord) => str
   return { rows, links };
 }
 
+/**
+ * 0.46.9: адрес скана в книге — номер файла программы и отпечаток содержимого («…/api/files/12?sha=…»): на другом
+ * компьютере номер другой, а по отпечатку файл находится в хранилище или в папке сканов.
+ */
+export const scanLink = (origin: string, f: { id: number; sha256?: string | null }) => `${origin}/api/files/${f.id}${f.sha256 ? `?sha=${f.sha256}` : ""}`;
+
 /** Номер локального файла из адреса скана в книге («…/api/files/12»). */
 export const fileIdOf = (link: string | null | undefined): number | null => {
   const m = /\/api\/files\/(\d+)(?:[?#].*)?$/.exec(link ?? "");

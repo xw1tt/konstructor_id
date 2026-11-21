@@ -5,6 +5,7 @@ import { newQualityDoc, docMaterials } from "@idk/shared/acts/actMaterials";
 import { flat } from "@idk/shared/scan/match";
 import { isBlankNumber } from "@idk/shared/workbook/virtual";
 import type { BookPort } from "../../book/bookPort.ts";
+import { scanLink } from "@idk/shared/library/model";
 
 export interface NewDoc {
   type: string;
@@ -14,7 +15,7 @@ export interface NewDoc {
   sheets: string;
   materials: string[];
   /** Загруженный скан (/api/files/:id). */
-  scan: { id: number; name: string } | null;
+  scan: { id: number; name: string; sha256?: string } | null;
 }
 
 const norm = (s: string) => s.trim().toLowerCase();
@@ -32,7 +33,7 @@ export async function addQualityDoc(port: BookPort, d: NewDoc): Promise<string> 
   const t = await port.read("ДокументыКачества");
   if (!t) throw new Error("Таблица «Материалы» не найдена — нажмите «Обновить разметку»");
   const h = (n: string) => t.headers.indexOf(n);
-  const link = d.scan ? { Скан: `${location.origin}/api/files/${d.scan.id}` } : null;
+  const link = d.scan ? { Скан: scanLink(location.origin, d.scan) } : null;
   // «б/н» — один и тот же документ только при том же скане (иначе это разные паспорта без номера).
   const blank = isBlankNumber(d.number);
   const same = t.rows.findIndex(

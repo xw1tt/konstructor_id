@@ -1,5 +1,6 @@
 // Карточка текущей строки: все поля строки, запись в ячейку при выходе из поля, переименование ключей
 // с обновлением ссылок, дополнения разделов.
+import { scanLink } from "@idk/shared/library/model";
 import { useContext, useEffect, useState } from "react";
 import { TABLES, OBJECT_FIELDS, SHEETS, isObjectFieldRequired, keyColumn, column as colOf, type ColumnDef, type TableName } from "@idk/shared/workbook/schema";
 import { cellText, type CellValue } from "@idk/shared/workbook/values";
@@ -222,7 +223,7 @@ export function RowCard({
   const upload = async (col: ColumnDef, file: File) => {
     const f = await guard(apiUpload(file, file.name), (m) => setErrors((e) => ({ ...e, [col.header]: m })));
     if (!f) return;
-    await port.write(table, rowIdx, { [col.header]: f.name }, { [col.header]: `${location.origin}/api/files/${f.id}` });
+    await port.write(table, rowIdx, { [col.header]: f.name }, { [col.header]: scanLink(location.origin, f) });
     state.refresh();
   };
 

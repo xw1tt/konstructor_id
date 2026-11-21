@@ -36,7 +36,7 @@ interface Item {
   status: "reading" | "ready" | "error" | "added";
   error: string;
   note: string;
-  uploaded: { id: number; name: string } | null;
+  uploaded: { id: number; name: string; sha256?: string } | null;
   res: Identified | null;
   type: string;
   number: string;
@@ -93,7 +93,7 @@ export function ScanImport({ port, state }: { port: BookPort; state: BookState }
         const r = await apiSend<Identified>("POST", `/api/files/${up.id}/identify`, { materials: mats, today: today() });
         patch(it.key, {
           status: "ready",
-          uploaded: { id: up.id, name: up.name },
+          uploaded: { id: up.id, name: up.name, sha256: up.sha256 },
           res: r,
           type: r.fields.type ?? LABELS[0],
           number: r.fields.number ?? "",

@@ -1,5 +1,5 @@
 // План 16: «Добавить в книгу» из библиотеки и «В библиотеку» из строк книги.
-import { LIB_KINDS, LIB_TABLE, fileIdOf, libKeyFilled, libKindOf, libValues, planAdd, toBookRows, type LibRecord } from "@idk/shared/library/model";
+import { LIB_KINDS, LIB_TABLE, fileIdOf, scanLink, libKeyFilled, libKindOf, libValues, planAdd, toBookRows, type LibRecord } from "@idk/shared/library/model";
 import type { Book } from "@idk/shared/workbook/records";
 import type { TableName } from "@idk/shared/workbook/schema";
 import type { TableStore } from "@idk/shared/workbook/store";
@@ -25,7 +25,7 @@ export async function addToBook(
   for (const r of plan.add) {
     if (r.kind !== "doc" || !r.scan) continue;
     const f = await api.importScan(r.scan.sha256, r.scan.name, r.scan.mime);
-    links.set(r.id, `${origin}/api/files/${f.fileId}`);
+    links.set(r.id, scanLink(origin, { id: f.fileId, sha256: r.scan.sha256 }));
   }
   const { rows, links: bookLinks } = toBookRows(plan.add, (r) => links.get(r.id) ?? null);
   await writeBook(store, rows, bookLinks);

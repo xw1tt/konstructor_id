@@ -1,49 +1,24 @@
 // Сканы комплекта: где лежит файл (прикреплён к серверу, в папке сканов, полный путь) и его страницы.
-import { statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { extname, isAbsolute, join, resolve, win32 } from "node:path";
 import { PDFDocument } from "pdf-lib";
 import type { FileRef } from "@idk/shared/kit/request";
 import type { Db } from "../db.ts";
-import { getFile } from "../files/store.ts";
+import { locateScan, scanFolders, type ScanMime } from "../files/locate.ts";
 
-export type ScanMime = "application/pdf" | "image/jpeg" | "image/png";
+export type { ScanMime };
 export type Resolved = { ok: true; path: string; mime: ScanMime } | { ok: false; message: string };
 export interface ScanContext {
   db: Db;
   dataDir: string;
+  /** «Папка сканов» объекта; несколько — через «;». */
   scanFolder: string;
 }
 
-const MIME: Record<string, ScanMime> = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png" };
-const isFile = (p: string) => {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-};
-
-/** Находит файл скана. Ссылка на файл сервера (/api/files/N) важнее имени. */
+/** Находит файл скана на этом компьютере (0.46.9: по отпечатку, номеру с проверкой имени, имени в папках сканов). */
 export function resolveScan(ref: FileRef, ctx: ScanContext): Resolved {
-  const id = ref.link?.match(/\/api\/files\/(\d+)(?:[?#].*)?$/)?.[1];
-  if (id) {
-    const f = getFile(ctx.db, Number(id));
-    if (!f) return { ok: false, message: `Прикреплённый файл не найден на сервере: ${ref.name || ref.link}` };
-    const path = join(ctx.dataDir, "files", f.path);
-    if (!isFile(path)) return { ok: false, message: `Файл скана отсутствует на диске сервера: ${f.name}. Прикрепите его заново` };
-    return { ok: true, path, mime: f.mime as ScanMime };
-  }
-  const name = ref.name.trim();
-  if (!name) return { ok: false, message: "Нет скана: укажите файл в столбце «Скан»" };
-  const mime = MIME[extname(name).toLowerCase()];
-  if (!mime) return { ok: false, message: `Поддерживаются только PDF, JPG и PNG: ${name}` };
-  let path: string;
-  if (isAbsolute(name) || win32.isAbsolute(name)) path = name;
-  else if (!ctx.scanFolder.trim()) return { ok: false, message: `Укажите «Папка сканов» в «Объекте» или полный путь к файлу: ${name}` };
-  else path = resolve(ctx.scanFolder.trim(), name);
-  if (!isFile(path)) return { ok: false, message: `Файл не найден: ${path}` };
-  return { ok: true, path, mime };
+  const r = locateScan(ctx.db, ctx.dataDir, { link: ref.link, name: ref.name }, scanFolders(ctx.scanFolder));
+  if (!r.ok) return r;
+  return r.from === "store" ? { ok: true, path: r.abs, mime: r.file.mime as ScanMime } : { ok: true, path: r.path, mime: r.mime };
 }
 
 const A4: [number, number] = [595.28, 841.89];

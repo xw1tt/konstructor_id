@@ -35,7 +35,7 @@ const empty = () => ({
   sheets: "1",
   scan: null as File | null,
   /** Скан уже загружен при распознавании — второй раз не загружается. */
-  uploaded: null as { id: number; name: string } | null,
+  uploaded: null as { id: number; name: string; sha256?: string } | null,
   recog: null as Recognized | null,
   /** 0.29: другие материалы, к которым по скану относится документ (отмеченные — добавить вместе). */
   also: [] as string[],
@@ -75,7 +75,7 @@ export function MaterialExtras({ port, state, name }: { port: BookPort; state: B
         valid: form.validUntil,
         sheets: form.sheets,
         materials: [name, ...form.also],
-        scan: f ? { id: f.id, name: f.name } : null,
+        scan: f ? { id: f.id, name: f.name, sha256: f.sha256 } : null,
       });
       setForm(null);
     });
@@ -84,11 +84,11 @@ export function MaterialExtras({ port, state, name }: { port: BookPort; state: B
   const recognize = async (file: File, base = form ?? empty()) => {
     setError("");
     setReading(true);
-    let next = { ...base, scan: file, uploaded: null as { id: number; name: string } | null, recog: null as Recognized | null };
+    let next = { ...base, scan: file, uploaded: null as { id: number; name: string; sha256?: string } | null, recog: null as Recognized | null };
     setForm(next);
     try {
       const up = await apiUpload(file, file.name);
-      next = { ...next, uploaded: { id: up.id, name: up.name } };
+      next = { ...next, uploaded: { id: up.id, name: up.name, sha256: up.sha256 } };
       setForm(next);
       const mats = (state.book!.tables["Материалы"] ?? [])
         .map((m) => ({ name: cellText(m.v.name), mark: cellText(m.v.mark), article: cellText(m.v.article), manufacturer: cellText(m.v.manufacturer) }))

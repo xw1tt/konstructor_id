@@ -16,6 +16,7 @@ import { IssueIcon } from "./IssueTable.tsx";
 import { UserTemplateContext } from "./templateContext.ts";
 import { shortageText, statusText } from "./catalogApi.ts";
 import { todayIso } from "./today.ts";
+import { useRelink, RelinkNote } from "./relinkScans.tsx";
 
 const word = (n: number, one: string, few: string, many: string) => {
   const m10 = n % 10,
@@ -48,10 +49,14 @@ const docShort = (r: BookRow) => {
   return kind || name.split(/\s+/)[0] || "Документ";
 };
 
+/** Ключ скана реестра: номер файла и отпечаток («12?sha=…») — листы спрашиваются по нему. */
+const scanKey = (link: string | null | undefined) => /\/api\/files\/(\d+(?:\?sha=[0-9a-f]{64})?)/i.exec(link ?? "")?.[1];
+
 export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPort; state: BookState; kits: string[]; kit: string; setKit(k: string): void }) {
   const book = state.book!;
   const tpl = useContext(UserTemplateContext);
   const k = useKit(port, state, kit);
+  const relink = useRelink(port, state, () => k.fill());
   const [checkAll, setCheckAll] = useState(0);
   const [newKitBusy, setNewKitBusy] = useState(false);
   const [error, setError] = useState("");
@@ -86,7 +91,7 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
   const cur = info.find((x) => x.number === kit);
   const regIds = rows("РеестрИД")
     .filter((r) => cellText(r.v.kit) === kit)
-    .map((r) => /\/api\/files\/(\d+)/.exec(r.link.file ?? "")?.[1])
+    .map((r) => scanKey(r.link.file))
     .filter((x): x is string => !!x);
   useEffect(() => {
     const need = regIds.filter((id) => scanPages[id] === undefined);
@@ -94,7 +99,7 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
     let alive = true;
     void Promise.all(
       need.map((id) =>
-        fetch(`/api/files/${id}/pages`)
+        fetch(id.replace(/^(\d+)(\?.*)?$/, "/api/files/$1/pages$2"))
           .then((r) => (r.ok ? (r.json() as Promise<{ pages: number }>) : null))
           .then((j) => [id, j?.pages ?? 1] as const)
           .catch(() => [id, 1] as const),
@@ -117,7 +122,7 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
   let page = 1;
   let exact = true;
   const docs = registry.map((r, i) => {
-    const fileId = /\/api\/files\/(\d+)/.exec(r.link.file ?? "")?.[1];
+    const fileId = scanKey(r.link.file);
     const known = exactKit?.docs[i] ?? (fileId ? scanPages[fileId] : undefined);
     if (known === undefined) exact = false;
     const n = known ?? sheetsOf(r);
@@ -393,8 +398,17 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
                     <button className="btn" disabled={k.busy !== null} onClick={() => void k.fill()}>
                       {k.busy === "fill" ? "Сверяю…" : "⟳ Обновить из актов"}
                     </button>
+                    <button
+                      className="btn"
+                      disabled={relink.busy || k.busy !== null}
+                      onClick={() => void relink.run()}
+                      title="Книга с другого компьютера: найти сканы на этом компьютере (в «Папке сканов» с подпапками) и переписать ссылки"
+                    >
+                      {relink.busy ? "Ищу сканы…" : "Привязать сканы"}
+                    </button>
                   </span>
                 </header>
+                <RelinkNote port={port} relink={relink} />
                 {missingRegistryDocs(tpl.template).length > 0 && (
                   <p className="warn dl2-pad" role="status">
                     <IssueIcon level="warn" /> В шаблоне книги «{tpl.template.name}» нет {missingRegistryDocs(tpl.template).join(", ")} — в реестр они не

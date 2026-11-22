@@ -30,8 +30,12 @@ import { bundleFor, previewJob } from "./print.ts";
 import { point4Lines } from "@idk/shared/acts/rows";
 import { todayIso } from "./today.ts";
 import type { UserTemplate } from "@idk/shared/forms/template";
+import type { Book } from "@idk/shared/workbook/records";
+import { libKindOf } from "@idk/shared/library/model";
+import { libraryApi } from "./libraryApi.ts";
+import { sendToLibrary } from "./library.ts";
 
-type TabId = "toc" | "requisites" | "reps" | "acts" | "materials" | "schemes" | "cables" | "kits" | "ojr";
+type TabId = "toc" | "requisites" | "reps" | "acts" | "materials" | "schemes" | "volumes" | "cables" | "tests" | "kits" | "ojr";
 interface Tab {
   id: TabId;
   label: string;
@@ -44,7 +48,32 @@ const TABS: Tab[] = [
   { id: "acts", label: "Акты", tables: ["Акты"], sheet: "База актов" },
   { id: "materials", label: "Материалы", tables: ["Материалы"], sheet: "Материалы" },
   { id: "schemes", label: "Схемы", tables: ["Схемы"], sheet: "Исполнительные схемы" },
+  { id: "volumes", label: "Объёмы", tables: ["МатериалыАктов", "ВОР"], sheet: "Материалы в актах" },
   { id: "cables", label: "Кабельный журнал", tables: ["КабельныйЖурнал"], sheet: "Кабельный журнал" },
+  {
+    id: "tests",
+    label: "Испытания",
+    tables: [
+      "Протоколы",
+      "ПереченьОборудования",
+      "Электролаборатория",
+      "СредстваИзмерений",
+      "ИзмеренияМарок",
+      "ДокументыКабелей",
+      "ИспытанияКЛ",
+      "ЗамерыАвтоматов",
+      "ЗамерыУЗО",
+      "ЗамерыФазаНуль",
+      "ЗамерыМеталлосвязи",
+      "ЗамерыЗаземления",
+      "ОсмотрБарабанов",
+      "ПрогревБарабанов",
+      "ТрубныеПроводки",
+      "ЗамерыВолокон",
+      "ЗамерыСКС",
+    ],
+    sheet: "Протоколы и акты",
+  },
   { id: "kits", label: "Комплекты", tables: ["Комплекты", "АктыКомплектов", "РеестрИД"], sheet: "Комплекты" },
   { id: "ojr", label: "ОЖР", tables: ["ОЖР3", "ОЖР5"], sheet: "ОЖР Раздел 3" },
 ];
@@ -60,6 +89,25 @@ const TAB_OF: Partial<Record<TableName, TabId>> = {
   ДокументыКабелей: "cables",
   Протоколы: "acts",
   ПереченьОборудования: "acts",
+};
+
+/** Подписи таблиц вкладки «Испытания» (в карточках — заголовки групп). */
+const TABLE_LABEL: Partial<Record<TableName, string>> = {
+  ПереченьОборудования: "Перечень оборудования",
+  Электролаборатория: "Электролаборатория",
+  СредстваИзмерений: "Средства измерений",
+  ДокументыКабелей: "Документы кабелей",
+  ИспытанияКЛ: "Испытания КЛ",
+  ЗамерыАвтоматов: "Автоматы",
+  ЗамерыУЗО: "УЗО",
+  ЗамерыФазаНуль: "Фаза–нуль",
+  ЗамерыМеталлосвязи: "Металлосвязь",
+  ЗамерыЗаземления: "Заземление",
+  ОсмотрБарабанов: "Осмотр барабанов",
+  ПрогревБарабанов: "Прогрев барабанов",
+  ТрубныеПроводки: "Трубные проводки",
+  ЗамерыВолокон: "Волокна",
+  ЗамерыСКС: "СКС",
 };
 
 const GROUP: Partial<Record<TableName, string>> = {
@@ -734,6 +782,7 @@ export function BookScreen({
     setQuery("");
     if (!p) return setSel(null);
     if (p.table === "Объект") return setSel({ table: "Объект", row: 0 });
+    if (p.row !== null) setModeState("cards");
     setSel(p.row !== null ? { table: p.table, row: p.row } : null);
   };
   useEffect(() => {
@@ -1055,15 +1104,17 @@ export function BookScreen({
   };
 
   // ---------- 0.47: таблица (кабельный журнал, материалы) ----------
-  const gridTab = current && (current.id === "cables" || current.id === "materials") && !extra;
+  const gridTab = !!current && !["requisites", "kits", "ojr"].includes(current.id) && !extra;
   const modeKey = `idk.bookMode.${current?.id ?? ""}`;
+  // Акты, представители и схемы — по умолчанию карточками (там проверки и дополнения), остальное — таблицей.
+  const defaultMode: "table" | "cards" = current && ["acts", "reps", "schemes"].includes(current.id) ? "cards" : "table";
   const [mode, setModeState] = useState<"table" | "cards">("table");
   useEffect(() => {
     try {
       const v = localStorage.getItem(modeKey);
-      setModeState(v === "cards" ? "cards" : "table");
+      setModeState(v === "cards" || v === "table" ? v : defaultMode);
     } catch {
-      setModeState("table");
+      setModeState(defaultMode);
     }
   }, [modeKey]);
   const setMode = (m: "table" | "cards") => {
@@ -1085,6 +1136,11 @@ export function BookScreen({
     </span>
   ) : null;
   const [kjAct, setKjAct] = useState<string>("");
+  /** Таблица вкладки с несколькими таблицами («Объёмы», «Испытания») и фильтр по акту. */
+  const [gridTable, setGridTable] = useState<Partial<Record<TabId, TableName>>>({});
+  const pickedTable = current && gridTable[current.id];
+  const curSheet = (pickedTable && SHEETS.find((x) => x.tables.includes(pickedTable))?.name) || current?.sheet || "Реквизиты";
+  const [gridAct, setGridAct] = useState<Partial<Record<TableName, string>>>({});
   const gridView = () => {
     if (current?.id === "cables") {
       const acts = (book.tables["Акты"] ?? []).map((r) => t(r.v.baseNumber)).filter(Boolean);
@@ -1141,6 +1197,7 @@ export function BookScreen({
         </div>
       );
     }
+    if (current && current.id !== "materials") return genericGrid(current);
     const rows = rowsOf("Материалы");
     const cols = TABLES["Материалы"].columns.filter((c) => !c.service || c.type === "formula");
     return (
@@ -1164,6 +1221,82 @@ export function BookScreen({
           onOpenRow={(row) => {
             setMode("cards");
             setSel({ table: "Материалы", row });
+          }}
+        />
+        <details className="bk-grid-tools">
+          <summary>Инструменты раздела: сканы, спецификация, сверка</summary>
+          <ScanImport port={port} state={state} />
+          <SpecExtras port={port} state={state} />
+          <SpecMatchTool port={port} state={state} />
+        </details>
+      </div>
+    );
+  };
+  // Любая таблица вкладки: выбор таблицы (если их несколько) и акта (если у таблицы есть столбец «Акт»).
+  const genericGrid = (tabDef: Tab) => {
+    const many = tabDef.tables.length > 1;
+    const table = many ? (gridTable[tabDef.id] && tabDef.tables.includes(gridTable[tabDef.id]!) ? gridTable[tabDef.id]! : tabDef.tables[0]) : tabDef.tables[0];
+    const all = rowsOf(table);
+    const actCol = TABLES[table].columns.find((c) => c.type === "ref" && c.ref === "Акты" && c.key === "act");
+    const acts = (book.tables["Акты"] ?? []).map((r) => t(r.v.baseNumber)).filter(Boolean);
+    const act = actCol ? (gridAct[table] && (gridAct[table] === "*" || acts.includes(gridAct[table]!)) ? gridAct[table]! : "*") : "*";
+    const rows = all.filter((r) => act === "*" || t(r.v.act) === act);
+    const cols = TABLES[table].columns.filter((c) => c.type !== "file" && !(act !== "*" && c === actCol));
+    const sheetOf = (tb: TableName) => SHEETS.find((x) => x.tables.includes(tb))?.name ?? "";
+    const label = (tb: TableName) => GROUP[tb] ?? TABLE_LABEL[tb] ?? tb;
+    return (
+      <div className="bk-grid">
+        {many && (
+          <nav className="bk-grid-tables" aria-label="Таблица">
+            {[...new Set(tabDef.tables.map(sheetOf))].map((sh) => (
+              <span key={sh} className="bk-grid-sheet">
+                <span className="wn-cap">{sh}</span>
+                {tabDef.tables
+                  .filter((tb) => sheetOf(tb) === sh)
+                  .map((tb) => (
+                    <button key={tb} className={`chip${tb === table ? " chip-active" : ""}`} onClick={() => setGridTable((m) => ({ ...m, [tabDef.id]: tb }))}>
+                      {label(tb)} <span className="mono muted">{rowsOf(tb).length || ""}</span>
+                    </button>
+                  ))}
+              </span>
+            ))}
+          </nav>
+        )}
+        <header className="bk-grid-head">
+          {actCol && (
+            <label>
+              Акт{" "}
+              <select value={act} onChange={(e) => setGridAct((m) => ({ ...m, [table]: e.target.value }))}>
+                <option value="*">Все акты</option>
+                {acts.map((a) => (
+                  <option key={a} value={a}>
+                    {short.get(a) ?? a}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <strong>
+            {rows.length} {word(rows.length, "строка", "строки", "строк")}
+          </strong>
+          <span className="muted">
+            {many ? `${label(table)} · ` : ""}лист «{sheetOf(table)}»{act !== "*" ? " · новые строки — в этот акт" : ""}
+          </span>
+          {modeSwitch}
+        </header>
+        <TableGrid
+          key={`${table}:${act}`}
+          port={port}
+          state={state}
+          table={table}
+          rows={rows}
+          columns={cols}
+          storageKey={`${table}.${act === "*" ? "all" : "act"}`}
+          newRow={() => (act !== "*" && actCol ? { [actCol.header]: act } : {})}
+          onRowsAdded={onRowsAdded}
+          onOpenRow={(row) => {
+            setMode("cards");
+            setSel({ table, row });
           }}
         />
       </div>
@@ -1201,7 +1334,7 @@ export function BookScreen({
               <div key={table}>
                 {groups.length > 1 && (
                   <div className="bk-group">
-                    <span className="wn-cap">{GROUP[table] ?? table}</span>
+                    <span className="wn-cap">{GROUP[table] ?? TABLE_LABEL[table] ?? table}</span>
                     <span className="mono muted">{table === "Объект" ? `${(book.tables["Объект"] ?? []).length} полей` : rowsOf(table).length}</span>
                   </div>
                 )}
@@ -1400,6 +1533,7 @@ export function BookScreen({
               note="Синим — значения реквизитов: объект, организации, шифры. Организации подтягиваются из «Организаций»."
             />
           )}
+          {selected && view && libKindOf(selected.table) && <LibCard book={book} table={selected.table} row={view.row} />}
           {current.id === "requisites" && <WherePrinted book={book} />}
           {current.id === "schemes" && view && (
             <>
@@ -1439,7 +1573,7 @@ export function BookScreen({
   return (
     <div className="bk">
       <header className="bk-head">
-        <span className="wn-cap">Книга объекта{current ? ` · лист «${current.sheet}»` : ""}</span>
+        <span className="wn-cap">Книга объекта{current ? ` · лист «${curSheet}»` : ""}</span>
         <span className="bk-head-actions">
           <label className="switch-label">
             <span className="switch">
@@ -1453,7 +1587,7 @@ export function BookScreen({
               ✳ Важные столбцы
             </button>
           )}
-          <button className="btn" onClick={() => void port.activateSheet(current?.sheet ?? "Реквизиты")}>
+          <button className="btn" onClick={() => void port.activateSheet(curSheet)}>
             Лист в Excel ↗
           </button>
         </span>
@@ -1479,5 +1613,39 @@ export function BookScreen({
         </p>
       )}
     </div>
+  );
+}
+
+/** «В библиотеку» для строки в карточке (как «Функционал таблицы» панели). */
+function LibCard({ book, table, row }: { book: Book; table: TableName; row: number }) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    setNote("");
+    setError("");
+  }, [table, row]);
+  const send = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const r = await sendToLibrary(book, table, [row], libraryApi);
+      setNote(r.added ? "Добавлено в библиотеку компании." : r.updated ? "Обновлено в библиотеке компании." : "Пустая строка — нечего сохранять.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="bk-side-card">
+      <h3>Библиотека компании</h3>
+      <p className="muted">Сохранить строку, чтобы подставлять её в другие книги.</p>
+      <button className="btn" disabled={busy} onClick={() => void send()}>
+        {busy ? "Сохраняю…" : "В библиотеку"}
+      </button>
+      {note && <p className="muted">{note}</p>}
+      {error && <p className="error">{error}</p>}
+    </section>
   );
 }

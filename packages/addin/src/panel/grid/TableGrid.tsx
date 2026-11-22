@@ -10,6 +10,9 @@ import { addRows, deleteRows } from "@idk/shared/workbook/rowOps";
 import type { BookPort } from "../../book/bookPort.ts";
 import type { BookState } from "../useBook.ts";
 import { keysOf } from "../card/RowCard.tsx";
+import { libKindOf } from "@idk/shared/library/model";
+import { libraryApi } from "../libraryApi.ts";
+import { sendToLibrary } from "../library.ts";
 import { cellShown, editable, fillDownEdits, inRange, parseTsv, pasteEdits, rangeOf, rowWrites, toTsv, type CellEdit, type Pos } from "./gridModel.ts";
 
 export interface TableGridProps {
@@ -251,6 +254,22 @@ export function TableGrid(p: TableGridProps) {
   };
 
   const nSel = selectedRows().length;
+  // «В библиотеку» (как в панели): выделенные строки — в библиотеку компании.
+  const libKind = libKindOf(table);
+  const [libNote, setLibNote] = useState("");
+  const toLibrary = async () => {
+    if (!state.book) return;
+    setBusy(true);
+    setLibNote("");
+    try {
+      const r = await sendToLibrary(state.book, table, selectedRows(), libraryApi);
+      setLibNote(`В библиотеке: добавлено ${r.added}, обновлено ${r.updated}${r.empty ? `, пропущено пустых ${r.empty}` : ""}.`);
+    } catch (e) {
+      setErrors([{ r: 0, c: 0, message: (e as Error).message }]);
+    } finally {
+      setBusy(false);
+    }
+  };
   const cellError = (r: number, c: number) => errors.find((x) => x.r === r && x.c === c);
   return (
     <div className="grid-wrap">
@@ -269,6 +288,17 @@ export function TableGrid(p: TableGridProps) {
             Карточка строки
           </button>
         )}
+        {libKind && (
+          <button
+            className="btn"
+            disabled={busy || !nSel}
+            onClick={() => void toLibrary()}
+            title="Сохранить выделенные строки в библиотеку компании (документ — со сканом)"
+          >
+            В библиотеку{nSel > 1 ? ` (${nSel})` : ""}
+          </button>
+        )}
+        {libNote && <span className="muted">{libNote}</span>}
         <span className="grid-tools-gap" />
         <button className="btn btn-ghost" onClick={() => setPickCols((v) => !v)} aria-expanded={pickCols}>
           Столбцы ({cols.length} из {p.columns.length})

@@ -4538,3 +4538,34 @@ a.btn {
     grid-template-columns: 1fr;
   }
 }
+
+/* 0.48: таблицы всех разделов */
+.bk-sw-volumes {
+  background: #b58cd8;
+}
+.bk-sw-tests {
+  background: #d8a24a;
+}
+.bk-grid-tables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 4px 0 8px;
+}
+.bk-grid-sheet {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.bk-grid-sheet .wn-cap {
+  margin-right: 2px;
+}
+.bk-grid-tools {
+  margin-top: 10px;
+}
+.bk-grid-tools > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}

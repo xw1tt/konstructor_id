@@ -17,6 +17,7 @@ import { UserTemplateContext } from "./templateContext.ts";
 import { shortageText, statusText } from "./catalogApi.ts";
 import { todayIso } from "./today.ts";
 import { useRelink, RelinkNote } from "./relinkScans.tsx";
+import { KitComposer } from "./KitComposer.tsx";
 
 const word = (n: number, one: string, few: string, many: string) => {
   const m10 = n % 10,
@@ -59,6 +60,8 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
   const relink = useRelink(port, state, () => k.fill());
   const [checkAll, setCheckAll] = useState(0);
   const [newKitBusy, setNewKitBusy] = useState(false);
+  /** 0.47: «Состав комплекта» открыт (у нового и пустого комплекта — сразу). */
+  const [compose, setCompose] = useState(false);
   const [error, setError] = useState("");
   const [scanPages, setScanPages] = useState<Record<string, number>>({});
   const rows = (t: "Комплекты" | "АктыКомплектов" | "РеестрИД" | "Акты") => book.tables[t] ?? [];
@@ -147,6 +150,7 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
         },
       ]);
       setKit(next);
+      setCompose(true);
       state.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -258,8 +262,8 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
             <div className="dl2-loose">
               <span className="wn-cap">Без комплекта</span>
               <p>
-                {loose} {word(loose, "акт ещё не разложен", "акта ещё не разложены", "актов ещё не разложены")} по комплектам. Номер комплекта ставится на
-                экране «Акты» («В комплект…») или на листе «Акты комплектов».
+                {loose} {word(loose, "акт ещё не разложен", "акта ещё не разложены", "актов ещё не разложены")} по комплектам — отметьте их в «Составе
+                комплекта» справа.
               </p>
             </div>
           )}
@@ -270,7 +274,7 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
             <div className="dl2-empty">
               <h3>Комплектов пока нет</h3>
               <p className="muted">
-                Комплект — номер и акты, которые сдаются вместе. Добавьте комплект слева, затем отметьте акты на экране «Акты» → «В комплект…».
+                Комплект — номер и акты, которые сдаются вместе. Добавьте комплект слева — откроется «Состав комплекта», где отмечаются акты и их порядок.
               </p>
             </div>
           ) : (
@@ -288,6 +292,9 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
                   </span>
                 </div>
                 <div className="acts-head-actions">
+                  <button className={`btn${compose || !cur.acts ? " btn-on" : ""}`} onClick={() => setCompose((v) => !v)} aria-expanded={compose || !cur.acts}>
+                    {compose || !cur.acts ? "Скрыть состав" : "Состав комплекта…"}
+                  </button>
                   <button className="btn" onClick={() => k.check()}>
                     Проверить перед сдачей
                   </button>
@@ -296,6 +303,7 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
                   </button>
                 </div>
               </header>
+              {(compose || !cur.acts) && <KitComposer port={port} state={state} kit={cur.number} onSaved={() => k.fill()} />}
               <ol className="dl2-steps">
                 {steps.map((s, i) => (
                   <li key={s.title}>

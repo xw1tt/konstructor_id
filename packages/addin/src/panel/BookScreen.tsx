@@ -3,7 +3,8 @@
 import { docIssues } from "./docCheck.ts";
 import type { CellTarget } from "./cellNav.ts";
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { SHEETS, TABLES, isObjectFieldRequired, type TableName } from "@idk/shared/workbook/schema";
+import { SHEETS, TABLES, column, isObjectFieldRequired, type TableName } from "@idk/shared/workbook/schema";
+import { TableGrid } from "./grid/TableGrid.tsx";
 import type { TableData } from "@idk/shared/workbook/store";
 import { tableRows } from "@idk/shared/workbook/store";
 import { addRows, deleteRows, duplicateRow, moveRow } from "@idk/shared/workbook/rowOps";
@@ -1053,9 +1054,126 @@ export function BookScreen({
     );
   };
 
+  // ---------- 0.47: таблица (кабельный журнал, материалы) ----------
+  const gridTab = current && (current.id === "cables" || current.id === "materials") && !extra;
+  const modeKey = `idk.bookMode.${current?.id ?? ""}`;
+  const [mode, setModeState] = useState<"table" | "cards">("table");
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(modeKey);
+      setModeState(v === "cards" ? "cards" : "table");
+    } catch {
+      setModeState("table");
+    }
+  }, [modeKey]);
+  const setMode = (m: "table" | "cards") => {
+    setModeState(m);
+    try {
+      localStorage.setItem(modeKey, m);
+    } catch {
+      /* без памяти */
+    }
+  };
+  const modeSwitch = gridTab ? (
+    <span className="bk-mode" role="group" aria-label="Вид раздела">
+      <button className={mode === "table" ? "bk-mode-on" : undefined} onClick={() => setMode("table")}>
+        Таблица
+      </button>
+      <button className={mode === "cards" ? "bk-mode-on" : undefined} onClick={() => setMode("cards")}>
+        Карточки
+      </button>
+    </span>
+  ) : null;
+  const [kjAct, setKjAct] = useState<string>("");
+  const gridView = () => {
+    if (current?.id === "cables") {
+      const acts = (book.tables["Акты"] ?? []).map((r) => t(r.v.baseNumber)).filter(Boolean);
+      const withCables = new Set(rowsOf("КабельныйЖурнал").map((r) => t(r.v.act)));
+      const act = kjAct === "*" ? "*" : kjAct && acts.includes(kjAct) ? kjAct : (acts.find((a) => withCables.has(a)) ?? acts[0] ?? "*");
+      const rows = rowsOf("КабельныйЖурнал").filter((r) => act === "*" || t(r.v.act) === act);
+      const cols = TABLES["КабельныйЖурнал"].columns.filter((c) => !c.service && (act === "*" || c.key !== "act"));
+      const set = printOptions?.formSet ?? "sbd";
+      const KAM = ["group", "designation", "zku", "cabinet", "panel", "port", "outlet", "cableMark", "projectLength", "cableLength"];
+      const TI = ["group", "designation", "from", "to", "cableMark", "projectLength", "cableLength", "tray", "smoothPipe", "corrugatedPipe"];
+      const SBD = ["group", "designation", "from", "to", "direction", "cableMark", "cableLength", "pipeMark", "pipeLength", "note"];
+      const base = set === "kam" ? KAM : set === "ti" ? TI : SBD;
+      const last = rows[rows.length - 1];
+      return (
+        <div className="bk-grid">
+          <header className="bk-grid-head">
+            <label>
+              Акт{" "}
+              <select value={act} onChange={(e) => setKjAct(e.target.value)}>
+                {acts.map((a) => (
+                  <option key={a} value={a}>
+                    {short.get(a) ?? a}
+                    {withCables.has(a) ? ` — ${rowsOf("КабельныйЖурнал").filter((r) => t(r.v.act) === a).length} каб.` : ""}
+                  </option>
+                ))}
+                <option value="*">Все кабели</option>
+              </select>
+            </label>
+            <span className="muted">
+              {rows.length} {word(rows.length, "кабель", "кабеля", "кабелей")}
+              {act !== "*" && " · новые строки — в этот акт, с группой последней строки"}
+            </span>
+            {modeSwitch}
+          </header>
+          <TableGrid
+            key={`kj:${act}`}
+            port={port}
+            state={state}
+            table="КабельныйЖурнал"
+            rows={rows}
+            columns={cols}
+            defaultVisible={act === "*" ? ["act", ...base] : base}
+            storageKey={`kj.${set}.${act === "*" ? "all" : "act"}`}
+            newRow={() => ({
+              ...(act !== "*" ? { [column("КабельныйЖурнал", "act").header]: act } : {}),
+              ...(last && t(last.v.group) ? { [column("КабельныйЖурнал", "group").header]: t(last.v.group) } : {}),
+            })}
+            onRowsAdded={onRowsAdded}
+            onOpenRow={(row) => {
+              setMode("cards");
+              setSel({ table: "КабельныйЖурнал", row });
+            }}
+          />
+        </div>
+      );
+    }
+    const rows = rowsOf("Материалы");
+    const cols = TABLES["Материалы"].columns.filter((c) => !c.service || c.type === "formula");
+    return (
+      <div className="bk-grid">
+        <header className="bk-grid-head">
+          <strong>
+            {rows.length} {word(rows.length, "материал", "материала", "материалов")}
+          </strong>
+          <span className="muted">документы качества — столбцы «Док.N»; сканы прикрепляются в карточке строки</span>
+          {modeSwitch}
+        </header>
+        <TableGrid
+          port={port}
+          state={state}
+          table="Материалы"
+          rows={rows}
+          columns={cols}
+          defaultVisible={["name", "mark", "manufacturer", "unit", "quantity", "rest", "d1type", "d1number", "d1date", "d1valid", "d1sheets"]}
+          storageKey="materials"
+          onRowsAdded={onRowsAdded}
+          onOpenRow={(row) => {
+            setMode("cards");
+            setSel({ table: "Материалы", row });
+          }}
+        />
+      </div>
+    );
+  };
+
   // ---------- Вкладка раздела ----------
   const editor = () => {
     if (!current) return null;
+    if (gridTab && mode === "table") return gridView();
     const groups = tabTables;
     const view = selected && selected.table !== "Объект" ? rowsOf(selected.table).find((r) => r.row === selected.row) : null;
     const head = view ? rowView(selected!.table, view, short) : null;
@@ -1076,6 +1194,7 @@ export function BookScreen({
             </strong>
             <span className="muted"> · {current.sheet}</span>
             <input type="search" placeholder="Поиск…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск по строкам" />
+            {modeSwitch}
           </header>
           <div className="bk-rows">
             {groups.map((table) => (

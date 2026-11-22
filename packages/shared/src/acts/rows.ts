@@ -7,6 +7,12 @@ import type { FormSet } from "../templates.ts";
 
 export const MATERIALS_INLINE_LIMIT = 5;
 
+/**
+ * 0.46.14: реестр примененных материалов «Камчатки» составляется, только если материалов акта больше
+ * MATERIALS_INLINE_LIMIT; иначе материалы с документами перечислены в п.3 АОСР и реестр не нужен.
+ */
+export const rimNeeded = (set: string | undefined, materials: number) => set !== "kam" || materials > MATERIALS_INLINE_LIMIT;
+
 /** Подписи ролей в документах СБД. */
 export const SIGN_LABELS: Record<RoleCode, string> = {
   developer_control:

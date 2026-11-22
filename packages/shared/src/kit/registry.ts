@@ -1,4 +1,5 @@
 // Реестр ИД комплекта: строки «Заполнить из актов» (спецификация плана 7, §3.4) и запись их в книгу.
+import { rimNeeded } from "../acts/rows.ts";
 import { TABLES, keyColumn, column, docTypeFromBook, type RegistryKind, type TableName } from "../workbook/schema.ts";
 import { cellText, parseDateCell, parseNumberCell, splitRefs, type CellValue } from "../workbook/values.ts";
 import type { Book, BookRow } from "../workbook/records.ts";
@@ -190,6 +191,7 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
     for (const k of ["vor", "aosr", "rim", "rp", "vd"] as const satisfies readonly ActDocKind[]) {
       const def = ACT_DOC_DEFS[k];
       if (!inTpl(k) || (def.rowsFrom && !of(def.rowsFrom).length)) continue;
+      if (k === "rim" && !rimNeeded(set, of("МатериалыАктов").length)) continue;
       const number = k === "vor" ? "б/н" : k === "aosr" ? aosrNo : withNo(docNumberFor(n, k, set));
       add(def.registry, n, number, def.name(set, ctx), date, code);
     }

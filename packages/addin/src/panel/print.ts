@@ -1,4 +1,5 @@
 // Печать акта из книги: сборка пакета, проверка, задание печати на сервере, окно предпросмотра.
+import { rimNeeded, MATERIALS_INLINE_LIMIT } from "@idk/shared/acts/rows";
 import { TABLES, type TableName } from "@idk/shared/workbook/schema";
 import { ACT_DOC_DEFS, isActDocKind } from "@idk/shared/docs/defs";
 import type { PrintKind } from "@idk/shared/acts/schemas";
@@ -120,9 +121,24 @@ export function protoBundleFor(
 }
 
 /** Пакет для печати документа: протокол или акт плана 13, кабельный (КЖ, протокол изоляции) или пакет акта. */
+const actMaterialCount = (book: Book, act: string) => (book.tables["МатериалыАктов"] ?? []).filter((r) => cellText(r.v.act) === act).length;
+
 function printBundle(book: Book, where: { act?: string; kit?: string }, important: ImportantMap, doc: PrintKind | null, options?: PrintOptions) {
   if (isProtoKind(doc)) return protoBundleFor(book, doc, where, important);
   const act = where.act ?? "";
+  // «Камчатка»: материалов не больше 5 — они в п.3 АОСР, реестр примененных материалов не составляется.
+  if (doc === "rim" && !rimNeeded(options?.formSet, actMaterialCount(book, act)))
+    return {
+      bundle: null,
+      issues: [
+        {
+          table: "МатериалыАктов" as const,
+          row: null,
+          column: "Материал",
+          message: `Реестр примененных материалов не составляется: материалов акта не больше ${MATERIALS_INLINE_LIMIT} — они перечислены в п.3 АОСР`,
+        },
+      ],
+    };
   // Пакет по описанию документа (план 15): кабельный — КЖ и протокол изоляции.
   return doc && isActDocKind(doc) && ACT_DOC_DEFS[doc].bundle === "cable"
     ? buildCableBundle(book, act, important, doc as "kj" | "ip", { set: options?.formSet })
@@ -182,6 +198,7 @@ export function docState(
   options?: PrintOptions,
 ): { state: "ok" | "bad" | "absent"; issues: Issue[] } {
   if (!doc) return { state: "ok", issues: [] };
+  if (doc === "rim" && !rimNeeded(options?.formSet, actMaterialCount(book, act))) return { state: "absent", issues: [] };
   const { bundle, issues } = printBundle(book, { act }, important, doc, options);
   if (bundle) return { state: "ok", issues: [] };
   const absent = doc !== "aosr" && issues.length > 0 && issues.every((i) => i.row === null && (i.table === "КабельныйЖурнал" || i.table === "Протоколы"));

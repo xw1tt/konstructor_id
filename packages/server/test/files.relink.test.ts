@@ -48,3 +48,23 @@ test("привязка: чужой номер — по имени в подпа�
   });
   assert.equal(again.json.items[0].id, a.id);
 });
+
+test("0.49: список «Папки сканов» для помощника; файл по относительному пути кладётся в хранилище", async () => {
+  const s = await startTestServer();
+  const scans = tmpDir();
+  mkdirSync(join(scans, "Паспорта"), { recursive: true });
+  writeFileSync(join(scans, "Паспорта", "лоток 100.pdf"), await makePdf(1));
+  writeFileSync(join(scans, "кабель.pdf"), await makePdf(1));
+  writeFileSync(join(scans, "заметки.txt"), "не скан");
+  const all = await s.req("POST", "/api/files/folder", { scanFolder: scans });
+  assert.equal(all.status, 200);
+  assert.equal(all.json.total, 2, "только PDF/JPG/PNG");
+  const hit = await s.req("POST", "/api/files/folder", { scanFolder: scans, contains: "ЛОТОК" });
+  assert.deepEqual(
+    hit.json.files.map((f: { path: string }) => f.path),
+    [join("Паспорта", "лоток 100.pdf")],
+  );
+  const up = await s.req("POST", "/api/files/relink", { scanFolder: scans, items: [{ link: null, name: join("Паспорта", "лоток 100.pdf") }] });
+  assert.equal(up.json.items[0].ok, true);
+  assert.equal((await s.req("POST", "/api/files/folder", { scanFolder: "" })).json.total, 0);
+});

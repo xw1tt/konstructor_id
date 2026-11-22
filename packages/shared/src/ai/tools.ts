@@ -104,6 +104,8 @@ export type ExtraChange =
   /** План 21: несколько правок книги одним предложением (замена текста). */
   | { kind: "batch"; changes: BookChange[] }
   | { kind: "form"; token: string; templateId: string; choices: Record<string, string>; replacements: { text: string; field: string }[] }
+  /** 0.49: действие программы (комплект, реестр, ОЖР, следующий акт, сканы) — выполняется при применении. */
+  | { kind: "action"; action: string; args: Record<string, unknown> }
   /** Настройки печати и бланков шаблона. */
   | import("./templateTools.ts").TemplateChange;
 export interface Proposal {

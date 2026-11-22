@@ -72,6 +72,24 @@ export function toolLabel(c: ToolCall): string {
       return "Читаю приложенный файл";
     case "propose_form":
       return "Готовлю метки формы";
+    case "list_kits":
+      return "Смотрю комплекты";
+    case "list_act_documents":
+      return `Смотрю документы акта ${String(a.act ?? "")}`;
+    case "print_document":
+      return `Формирую ${String(a.doc ?? "документ")}${a.act ? ` акта ${String(a.act)}` : a.kit ? ` комплекта ${String(a.kit)}` : ""}`;
+    case "print_ojr":
+      return `Формирую ОЖР, раздел ${String(a.section ?? "")}`;
+    case "check_before_delivery":
+      return "Проверяю акты перед сдачей";
+    case "open_in_window":
+      return "Открываю в окне программы";
+    case "list_scan_folder":
+      return `Смотрю папку сканов${a.contains ? `: «${String(a.contains)}»` : ""}`;
+    case "identify_scan":
+      return `Распознаю скан «${String(a.file ?? "")}»`;
+    case "propose_action":
+      return `Готовлю действие: ${String(a.action ?? "")}`;
     default:
       return c.name;
   }

@@ -43,6 +43,8 @@ export interface SessionDeps {
   chatStream?(messages: ChatMessage[], tools: ToolDef[], hooks: StreamHooks, signal?: AbortSignal): Promise<ChatReply>;
   store: TableStore;
   kits?: ToolKit[];
+  /** 0.49: предел шагов за ответ (настройка помощника). */
+  maxSteps?: () => number;
 }
 
 export class AssistantSession {
@@ -68,6 +70,12 @@ export class AssistantSession {
     this.items = [];
     this.pending = [];
     this.applied = null;
+  }
+
+  /** 0.49: итог действия программы — в чат и в историю (модель видит, чем закончилось). */
+  report(text: string) {
+    this.items.push({ kind: "note", text });
+    this.note(text);
   }
 
   private note(text: string) {
@@ -127,22 +135,27 @@ export class AssistantSession {
       });
     };
     try {
-      const r = await runTurn(this.history, tools, {
-        send,
-        exec: async (call) => {
-          const own = execBookTool(ctx, call);
-          if (own !== null) return own;
-          for (const k of kits) {
-            const out = await k.exec(call, ctx);
-            if (out !== null) return out;
-          }
-          return JSON.stringify({ error: `Нет инструмента ${call.name}` });
+      const r = await runTurn(
+        this.history,
+        tools,
+        {
+          send,
+          exec: async (call) => {
+            const own = execBookTool(ctx, call);
+            if (own !== null) return own;
+            for (const k of kits) {
+              const out = await k.exec(call, ctx);
+              if (out !== null) return out;
+            }
+            return JSON.stringify({ error: `Нет инструмента ${call.name}` });
+          },
+          onTool: (call) => {
+            this.items.push({ kind: "tool", text: toolLabel(call) });
+            onUpdate();
+          },
         },
-        onTool: (call) => {
-          this.items.push({ kind: "tool", text: toolLabel(call) });
-          onUpdate();
-        },
-      });
+        this.deps.maxSteps?.(),
+      );
       this.history.push(...r.added);
       const text = r.text || (ctx.proposals.length ? "Предлагаю изменения ниже." : "…");
       // Последний ответ уже в чате (пришёл потоком) — заменяется итоговым текстом, а не дублируется.

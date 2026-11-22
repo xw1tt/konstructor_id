@@ -1,5 +1,6 @@
 // План 19: «Настройки» → «Нейросети» — подключения (добавить, изменить, проверить, сделать активным, удалить) и расход.
 import { useEffect, useState } from "react";
+import { maxSteps, setMaxSteps } from "./aiSteps.ts";
 import { AI_KINDS, AI_KIND_LABELS, AI_DEFAULTS, GIGACHAT_SCOPES, type AiKind, type ProviderPublic } from "@idk/shared/ai/model";
 import { aiApi, type UsageTotal } from "./aiApi.ts";
 
@@ -103,6 +104,23 @@ export function AiSettings() {
   return (
     <section className="ai-settings">
       <h3 className="tools-title">Нейросети</h3>
+      <label className="field ai-steps">
+        <span className="field-label">Шагов помощника за ответ</span>
+        <input
+          type="number"
+          min={5}
+          max={100}
+          defaultValue={maxSteps()}
+          onBlur={(e) => {
+            setMaxSteps(Number(e.target.value));
+            e.target.value = String(maxSteps());
+          }}
+        />
+        <span className="muted">
+          Один шаг — одно обращение к нейросети (чтение таблиц, проверка, предложение). Больше шагов — крупнее задачи, но дольше и дороже. 5–100, по умолчанию
+          30.
+        </span>
+      </label>
       {data && !data.providers.length && <p className="muted">Подключений нет. Добавьте нейросеть — она понадобится «Помощнику».</p>}
       <ul className="lib-list">
         {data?.providers.map((p) => (

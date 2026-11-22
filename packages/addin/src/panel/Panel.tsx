@@ -35,6 +35,8 @@ import { OverviewScreen } from "./OverviewScreen.tsx";
 import { BookScreen } from "./BookScreen.tsx";
 import { WizardScreen } from "./WizardScreen.tsx";
 import { AssistantSession } from "./assistant.ts";
+import { actionsKit } from "./actionsKit.ts";
+import { maxSteps } from "./aiSteps.ts";
 import { aiApi } from "./aiApi.ts";
 import { listTemplates, resolveTemplate, saveTemplateDocs, createTemplate, deleteTemplate } from "./templatesApi.ts";
 import { BUILTIN_SBD, type UserTemplate } from "@idk/shared/forms/template";
@@ -214,15 +216,35 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
       () => setListTick((n) => n + 1),
     ),
   );
-  const [assistant] = useState(
-    () =>
-      new AssistantSession({
-        store: port,
-        chat: aiApi.chat,
-        chatStream: aiApi.chatStream,
-        kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit, tplKit],
-      }),
-  );
+  // 0.49: действия программы для помощника — с текущими шаблоном, настройками печати и навигацией.
+  const live = useRef({ important: state.important, code: template, options, tpl: resolved.template, nav: cellNav, go: goScreen, refresh: state.refresh });
+  live.current = { important: state.important, code: template, options, tpl: resolved.template, nav: cellNav, go: goScreen, refresh: state.refresh };
+  const sessionRef = useRef<AssistantSession | null>(null);
+  const [assistant] = useState(() => {
+    const actions = actionsKit({
+      port,
+      important: () => live.current.important,
+      code: () => live.current.code,
+      options: () => live.current.options,
+      template: () => live.current.tpl,
+      open: (screen, at) => {
+        if (at && live.current.nav) return live.current.nav(at);
+        if (at) void port.selectCell(at.table, at.row, at.column).catch(() => undefined);
+        else live.current.go(screen);
+      },
+      report: (text) => sessionRef.current?.report(text),
+      refresh: () => live.current.refresh(),
+    });
+    const s = new AssistantSession({
+      store: port,
+      chat: aiApi.chat,
+      chatStream: aiApi.chatStream,
+      kits: [catalogKit(catalogApi, () => setListTick((n) => n + 1)), formKit, tplKit, actions],
+      maxSteps,
+    });
+    sessionRef.current = s;
+    return s;
+  });
   // «Только нужные листы» включено по умолчанию: листы — по документам шаблона книги.
   const [neededOn, setNeededOn] = useState(false);
   useEffect(() => {

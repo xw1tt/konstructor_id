@@ -4,7 +4,8 @@ import { join } from "node:path";
 import type { Db } from "../db.ts";
 import { Router, Reply, HttpError, notFound } from "../http/router.ts";
 import { saveFile, getFile, tooBig } from "../files/store.ts";
-import { fileBySha, locateScan, scanFolders } from "../files/locate.ts";
+import { fileBySha, folderFiles, locateScan, scanFolders } from "../files/locate.ts";
+import { relative } from "node:path";
 
 export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: number) {
   /**
@@ -41,6 +42,18 @@ export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: numb
       }
     }
     return { items: out };
+  });
+  /** 0.49: файлы «Папки сканов» (с подпапками) — для помощника: что лежит в папке, по части имени. */
+  r.post("/api/files/folder", async (c) => {
+    const body = await c.body(
+      z.object({ scanFolder: z.string().default(""), contains: z.string().default(""), limit: z.number().int().min(1).max(500).default(100) }),
+    );
+    const folders = scanFolders(body.scanFolder);
+    if (!folders.length) return { folders: [], total: 0, files: [] };
+    const q = body.contains.trim().toLowerCase();
+    const all = folders.flatMap((f) => folderFiles(f, true).map((e) => ({ name: e.name, path: relative(f, e.path), size: e.size })));
+    const hit = q ? all.filter((e) => e.path.toLowerCase().includes(q)) : all;
+    return { folders, total: hit.length, files: hit.slice(0, body.limit) };
   });
   r.post("/api/files", async (c) => {
     const mime = (c.req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();

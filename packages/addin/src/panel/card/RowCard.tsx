@@ -174,6 +174,7 @@ export function RowCard({
   at,
   title = true,
   layout,
+  extras = true,
 }: {
   port: BookPort;
   state: BookState;
@@ -182,6 +183,8 @@ export function RowCard({
   title?: boolean;
   /** 0.44: окно программы — поля группами по смыслу, остальные свёрнуты; адреса ячеек (первый столбец таблицы, строка листа). */
   layout?: { groups: boolean; origin: { col: number; row: number } | null };
+  /** Дополнения раздела (кнопки комплекта и т. п.); false — только поля (строка реестра на экране сдачи). */
+  extras?: boolean;
 }) {
   const guard = useGuard();
   const catalog = useContext(CatalogContext);
@@ -320,7 +323,7 @@ export function RowCard({
       {table === "Акты" && <ActExtras port={port} state={state} act={cellText(valueOf(colOf("Акты", "baseNumber").header))} />}
       {table === "КабельныйЖурнал" && <CableExtras port={port} state={state} act={cellText(valueOf(colOf("КабельныйЖурнал", "act").header))} />}
       {table === "ИзмеренияМарок" && <CableExtras port={port} state={state} act="" />}
-      {(table === "Комплекты" || table === "АктыКомплектов" || table === "РеестрИД") && (
+      {extras && (table === "Комплекты" || table === "АктыКомплектов" || table === "РеестрИД") && (
         <KitExtras port={port} state={state} kit={kitOfRow(table, t.headers, row)} />
       )}
     </section>

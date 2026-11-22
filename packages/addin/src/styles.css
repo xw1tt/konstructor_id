@@ -4569,3 +4569,13 @@ a.btn {
   font-weight: 600;
   padding: 4px 0;
 }
+
+/* 0.48: строка реестра карточкой */
+.dl2-table tr.dl2-row-on td {
+  background: rgba(37, 99, 235, 0.07);
+}
+.dl2-table tr.dl2-row-card > td {
+  padding: 12px 14px;
+  background: var(--card, #fff);
+  cursor: default;
+}

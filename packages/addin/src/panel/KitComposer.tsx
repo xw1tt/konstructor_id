@@ -15,7 +15,7 @@ import { todayIso } from "./today.ts";
 
 const KIT_FIELDS = ["volume", "part", "section", "building", "works", "city", "year"] as const;
 
-export function KitComposer({ port, state, kit, onSaved }: { port: BookPort; state: BookState; kit: string; onSaved(): Promise<unknown> }) {
+export function KitComposer({ port, state, kit, onSaved }: { port: BookPort; state: BookState; kit: string; onSaved(acts: string[]): void }) {
   const book = state.book!;
   const saved = useMemo(() => kitActs(book, kit).acts, [book, kit]);
   const [list, setList] = useState<string[]>(saved);
@@ -86,10 +86,10 @@ export function KitComposer({ port, state, kit, onSaved }: { port: BookPort; sta
           [...plan.remove].sort((a, b) => b - a),
         );
       state.refresh();
-      await onSaved();
+      onSaved(list);
       const n = list.length;
       const w = n % 10 === 1 && n % 100 !== 11 ? "акт" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "акта" : "актов";
-      setNote(`Состав комплекта ${kit} сохранён: ${n} ${w}; реестр сверен.`);
+      setNote(`Состав комплекта ${kit} сохранён: ${n} ${w}; реестр сверяется.`);
     } catch (e) {
       setError((e as Error).message);
     } finally {

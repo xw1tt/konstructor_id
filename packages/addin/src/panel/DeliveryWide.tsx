@@ -1,6 +1,6 @@
 // 0.41: «Печать и сдача» в окне программы по макету — комплекты слева, выбранный комплект: пять шагов сдачи,
 // «Так будет сшит PDF», реестр комплекта; журналы и реестры, акты без комплекта.
-import { useContext, useEffect, useMemo, useState } from "react";
+import { Fragment, useContext, useEffect, useMemo, useState } from "react";
 import { kitActs, missingRegistryDocs } from "@idk/shared/kit/registry";
 import { checkActs } from "@idk/shared/check/predelivery";
 import { shortNumbers } from "@idk/shared/acts/overview";
@@ -18,6 +18,8 @@ import { shortageText, statusText } from "./catalogApi.ts";
 import { todayIso } from "./today.ts";
 import { useRelink, RelinkNote } from "./relinkScans.tsx";
 import { KitComposer } from "./KitComposer.tsx";
+import { RowCard } from "./card/RowCard.tsx";
+import type { TableData } from "@idk/shared/workbook/store";
 
 const word = (n: number, one: string, few: string, many: string) => {
   const m10 = n % 10,
@@ -62,6 +64,28 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
   const [newKitBusy, setNewKitBusy] = useState(false);
   /** 0.47: «Состав комплекта» открыт (у нового и пустого комплекта — сразу). */
   const [compose, setCompose] = useState(false);
+  /** 0.48: строка реестра открывается карточкой прямо под собой (а не в Excel). */
+  const [openReg, setOpenReg] = useState<number | null>(null);
+  /** Сверка реестра после «Сохранить состав» — когда книга уже перечитана с новым составом. */
+  const [fillFor, setFillFor] = useState<{ kit: string; acts: string } | null>(null);
+  useEffect(() => {
+    if (!fillFor || fillFor.kit !== kit) return;
+    if (kitActs(book, kit).acts.join("\n") !== fillFor.acts) return;
+    setFillFor(null);
+    void k.fill();
+  }, [book, fillFor, kit]);
+  const [regData, setRegData] = useState<TableData | null>(null);
+  useEffect(() => {
+    if (openReg === null) return;
+    let alive = true;
+    void port
+      .readMany(["РеестрИД"])
+      .then((m) => alive && setRegData(m.get("РеестрИД") ?? null))
+      .catch(() => alive && setRegData(null));
+    return () => {
+      alive = false;
+    };
+  }, [openReg, book]);
   const [error, setError] = useState("");
   const [scanPages, setScanPages] = useState<Record<string, number>>({});
   const rows = (t: "Комплекты" | "АктыКомплектов" | "РеестрИД" | "Акты") => book.tables[t] ?? [];
@@ -303,7 +327,9 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
                   </button>
                 </div>
               </header>
-              {(compose || !cur.acts) && <KitComposer port={port} state={state} kit={cur.number} onSaved={() => k.fill()} />}
+              {(compose || !cur.acts) && (
+                <KitComposer port={port} state={state} kit={cur.number} onSaved={(acts) => setFillFor({ kit: cur.number, acts: acts.join("\n") })} />
+              )}
               <ol className="dl2-steps">
                 {steps.map((s, i) => (
                   <li key={s.title}>
@@ -437,14 +463,46 @@ export function DeliveryWide({ port, state, kits, kit, setKit }: { port: BookPor
                     </thead>
                     <tbody>
                       {docs.map((d, i) => (
-                        <tr key={i} onClick={() => void port.selectCell("РеестрИД", d.r.row, "Наименование")} title="Строка в «Реестре ИД» в Excel">
-                          <td className="mono muted">{i + 1}</td>
-                          <td>{cellText(d.r.v.name)}</td>
-                          <td className="mono">{cellText(d.r.v.number) ? `№ ${cellText(d.r.v.number).replace(/^№\s*/, "")}` : "—"}</td>
-                          <td className="mono">{ru(d.r.v.date)}</td>
-                          <td className="mono num">{d.n}</td>
-                          <td className="mono num">{d.pages}</td>
-                        </tr>
+                        <Fragment key={i}>
+                          <tr
+                            className={openReg === d.r.row ? "dl2-row-on" : undefined}
+                            onClick={() => setOpenReg((x) => (x === d.r.row ? null : d.r.row))}
+                            title="Открыть строку реестра карточкой"
+                          >
+                            <td className="mono muted">{i + 1}</td>
+                            <td>{cellText(d.r.v.name)}</td>
+                            <td className="mono">{cellText(d.r.v.number) ? `№ ${cellText(d.r.v.number).replace(/^№\s*/, "")}` : "—"}</td>
+                            <td className="mono">{ru(d.r.v.date)}</td>
+                            <td className="mono num">{d.n}</td>
+                            <td className="mono num">{d.pages}</td>
+                          </tr>
+                          {openReg === d.r.row && (
+                            <tr className="dl2-row-card">
+                              <td colSpan={6}>
+                                {regData ? (
+                                  <RowCard
+                                    port={port}
+                                    state={state}
+                                    at={{ data: regData, row: d.r.row }}
+                                    onRename={() => undefined}
+                                    title={false}
+                                    layout={{ groups: true, origin: null }}
+                                  />
+                                ) : (
+                                  <p className="muted">Загружаю…</p>
+                                )}
+                                <div className="row-actions">
+                                  <button className="btn" onClick={() => setOpenReg(null)}>
+                                    Свернуть
+                                  </button>
+                                  <button className="btn btn-link" onClick={() => void port.selectCell("РеестрИД", d.r.row, "Наименование")}>
+                                    Строка в Excel ↗
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>

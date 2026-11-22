@@ -1,6 +1,8 @@
 // Подстановка меток {Группа.Поле} в .docx: тело документа и колонтитулы. Word режет текст на куски <w:r>/<w:t>,
 // поэтому метки ищутся в склеенном тексте абзаца, а замена кладётся в первый кусок метки (с его форматированием).
 // Повтор: строка таблицы с {#Список} … {/Список} размножается по элементам списка.
+import { VALUE_END, VALUE_START, defaultSize, styleDocxPart, styleDocxStyles } from "./docxStyle.ts";
+import type { DocStyle } from "@idk/shared/docStyle";
 import type { FormData } from "@idk/shared/forms/fields";
 import { openZip, writeZip, ZipError } from "../zip/zip.ts";
 
@@ -109,7 +111,11 @@ function fillParagraphs(xml: string, lookup: Lookup): string {
   return mapElements(xml, "p", (p) => {
     const text = [...p.matchAll(TEXT)].map((m) => xmlUnescape(m[1] ?? "")).join("");
     const edits: [number, number, string][] = [];
-    for (const m of text.matchAll(LABEL)) edits.push([m.index!, m.index! + m[0].length, lookup(m[1].trim())]);
+    // 0.50: подставленное значение помечается (VALUE_START…VALUE_END) — для оформления значений; метки снимает styleDocxPart.
+    for (const m of text.matchAll(LABEL)) {
+      const v = lookup(m[1].trim());
+      edits.push([m.index!, m.index! + m[0].length, v ? VALUE_START + v + VALUE_END : ""]);
+    }
     return editParagraph(p, edits);
   });
 }
@@ -259,12 +265,15 @@ function openDocx(buf: Uint8Array): Map<string, () => Buffer> {
   }
 }
 
-export function fillDocx(buf: Uint8Array, data: FormData): { buf: Buffer; warnings: string[] } {
+export function fillDocx(buf: Uint8Array, data: FormData, style?: DocStyle): { buf: Buffer; warnings: string[] } {
   const files = openDocx(buf);
   const warnings = new Set<string>();
   const out: [string, Buffer | string][] = [];
+  const stylesXml = files.get("word/styles.xml")?.().toString("utf8");
+  const def = defaultSize(stylesXml);
   for (const [name, get] of files) {
-    if (PARTS.test(name)) out.push([name, fillPart(get().toString("utf8"), data, warnings)]);
+    if (PARTS.test(name)) out.push([name, styleDocxPart(fillPart(get().toString("utf8"), data, warnings), style, def)]);
+    else if (name === "word/styles.xml" && style?.font) out.push([name, styleDocxStyles(stylesXml!, style)]);
     else out.push([name, get()]);
   }
   return { buf: writeZip(out), warnings: [...warnings] };

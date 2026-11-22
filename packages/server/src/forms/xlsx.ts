@@ -4,6 +4,7 @@
 import type { FormData } from "@idk/shared/forms/fields";
 import { openZip, writeZip, ZipError } from "../zip/zip.ts";
 import { FormError, xmlEscape, xmlUnescape } from "./docx.ts";
+import type { DocStyle } from "@idk/shared/docStyle";
 
 export const ROW = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g;
 export const CELL = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
@@ -58,7 +59,7 @@ function shiftFormula(f: string, s: Shift, here?: { from: number; to: number }):
   );
 }
 
-export function fillXlsx(buf: Uint8Array, data: FormData): { buf: Buffer; warnings: string[] } {
+export function fillXlsx(buf: Uint8Array, data: FormData, style?: DocStyle): { buf: Buffer; warnings: string[] } {
   const files = openXlsx(buf);
   const warnings = new Set<string>();
   const shared = [...(files.get("xl/sharedStrings.xml")?.().toString("utf8") ?? "").matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => texts(m[1]));
@@ -194,7 +195,8 @@ export function fillXlsx(buf: Uint8Array, data: FormData): { buf: Buffer; warnin
     return map ? `<definedName${head}>${shiftRefs(body, map)}</definedName>` : whole;
   });
   for (const [name, get] of files) {
-    if (filled.has(name)) out.push([name, filled.get(name)!]);
+    if (filled.has(name)) out.push([name, style ? styleXlsxSheet(filled.get(name)!.toString(), style) : filled.get(name)!]);
+    else if (style && name === "xl/styles.xml") out.push([name, styleXlsxFonts(get().toString("utf8"), style)]);
     else if (drawings.has(name)) out.push([name, drawings.get(name)!]);
     else if (name === "xl/workbook.xml") out.push([name, wbOut]);
     else if (name === "xl/calcChain.xml")
@@ -216,4 +218,81 @@ export function fillXlsx(buf: Uint8Array, data: FormData): { buf: Buffer; warnin
     else out.push([name, get()]);
   }
   return { buf: writeZip(out), warnings: [...warnings] };
+}
+
+// 0.50: оформление своей формы Excel — шрифт всем шрифтам книги, размеры масштабируются от самого частого («Текст»),
+// поля и ориентация листа. Жирный/курсив значений, интервал и строки таблиц — как в форме.
+export function styleXlsxFonts(xml: string, style: DocStyle): string {
+  const sizes = [...xml.matchAll(/<font>[\s\S]*?<sz val="([\d.]+)"/g)].map((m) => Number(m[1]));
+  const base = sizes.sort((a, b) => sizes.filter((x) => x === b).length - sizes.filter((x) => x === a).length)[0];
+  return xml.replace(/<font>([\s\S]*?)<\/font>/g, (_w, inner: string) => {
+    let x = inner;
+    if (style.font)
+      x = /<name val="[^"]*"\/>/.test(x)
+        ? x.replace(/<name val="[^"]*"\/>/, `<name val="${xmlEscape(style.font)}"/>`)
+        : `${x}<name val="${xmlEscape(style.font)}"/>`;
+    if (style.size !== undefined && base)
+      x = x.replace(/<sz val="([\d.]+)"\/>/, (_m, v: string) => `<sz val="${Math.max(4, Math.round(((Number(v) * style.size!) / base) * 2) / 2)}"/>`);
+    return `<font>${x}</font>`;
+  });
+}
+
+export function styleXlsxSheet(xml: string, style: DocStyle): string {
+  const inch = (mm: number) => String(Math.round((mm / 25.4) * 1000) / 1000);
+  let out = xml;
+  const sides: [keyof DocStyle, string][] = [
+    ["marginTop", "top"],
+    ["marginRight", "right"],
+    ["marginBottom", "bottom"],
+    ["marginLeft", "left"],
+  ];
+  const set = sides.filter(([k]) => style[k] !== undefined);
+  if (set.length) {
+    const cur = /<pageMargins\b[^>]*\/>/.exec(out)?.[0];
+    let m = cur ?? '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>';
+    for (const [k, a] of set) m = m.replace(new RegExp(`\\b${a}="[^"]*"`), `${a}="${inch(style[k] as number)}"`);
+    if (cur) out = out.replace(cur, m);
+    else {
+      // Порядок элементов листа: pageMargins — перед pageSetup, колонтитулами, рисунками и т. д.
+      const from = out.indexOf("</sheetData>");
+      const next = [
+        "<pageSetup",
+        "<headerFooter",
+        "<rowBreaks",
+        "<colBreaks",
+        "<customProperties",
+        "<cellWatches",
+        "<ignoredErrors",
+        "<smartTags",
+        "<drawing",
+        "<legacyDrawing",
+        "<picture",
+        "<oleObjects",
+        "<controls",
+        "<webPublishItems",
+        "<tableParts",
+        "<extLst",
+        "</worksheet>",
+      ]
+        .map((t) => out.indexOf(t, from))
+        .filter((i) => i >= 0);
+      const at = Math.min(...next);
+      if (from >= 0 && Number.isFinite(at)) out = out.slice(0, at) + m + out.slice(at);
+    }
+  }
+  if (style.orientation) {
+    const ps = /<pageSetup\b[^>]*\/>/.exec(out)?.[0];
+    if (ps)
+      out = out.replace(
+        ps,
+        /\borientation="/.test(ps)
+          ? ps.replace(/\borientation="[^"]*"/, `orientation="${style.orientation}"`)
+          : ps.replace("<pageSetup", `<pageSetup orientation="${style.orientation}"`),
+      );
+    else {
+      const after = /<pageMargins\b[^>]*\/>/.exec(out)?.[0];
+      if (after) out = out.replace(after, `${after}<pageSetup orientation="${style.orientation}"/>`);
+    }
+  }
+  return out;
 }

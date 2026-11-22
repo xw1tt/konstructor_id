@@ -268,3 +268,52 @@ test("0.46.12: «Камчатка» — материалов не больше 5
   const name = few.materials.find((m) => m.id === few.actMaterials[0].materialId)!.name;
   assert.ok(p3.some((l) => l.startsWith(name)));
 });
+
+test("0.50: оформление Word «Камчатки» — шрифт, размер от основного, значения, поля, ориентация; без оформления — меток нет", async () => {
+  const { docFile } = await import("@idk/server/kit/xlsx");
+  const { openZip } = await import("@idk/server/zip/zip");
+  const b = await bundle();
+  const xml = (buf: Buffer) => openZip(buf).get("word/document.xml")!().toString("utf8");
+  const plain = xml(docFile(b, { kind: "aosr", form: null }, KAM, {}).buf);
+  assert.doesNotMatch(plain, /[]/, "метки значений сняты");
+  const { styleKeyFor } = await import("@idk/shared/docStyle");
+  const styled = {
+    ...KAM,
+    styles: {
+      [styleKeyFor("aosr", KAM)!]: { font: "Arial" as const, size: 12, valueBold: true, valueItalic: false, marginLeft: 30, orientation: "landscape" as const },
+    },
+  };
+  const out = docFile(b, { kind: "aosr", form: null }, styled, {});
+  const x = xml(out.buf);
+  assert.doesNotMatch(x, /[]/);
+  assert.match(x, /<w:rFonts w:ascii="Arial"/);
+  assert.match(x, /w:orient="landscape"/);
+  assert.match(x, /<w:pgMar\b[^>]*w:left="1701"/);
+  // Значение (номер акта) — жирным без курсива, отдельным прогоном.
+  const run = [...x.matchAll(/<w:r\b[^>]*>([\s\S]*?)<\/w:r>/g)].find((m) => m[1].includes(AOV1))![1];
+  assert.match(run, /<w:b\/>/);
+  assert.match(run, /<w:i w:val="0"\/>/);
+  // Порядок в w:rPr по схеме: rFonts раньше b, b раньше sz.
+  for (const r of x.matchAll(/<w:rPr>([\s\S]*?)<\/w:rPr>/g)) {
+    const at = (t: string) => r[1].search(new RegExp(`<w:${t}\\b`));
+    if (at("rFonts") >= 0 && at("b") >= 0) assert.ok(at("rFonts") < at("b"), r[1]);
+    if (at("b") >= 0 && at("sz") >= 0) assert.ok(at("b") < at("sz"), r[1]);
+  }
+  const { docxText } = await import("@idk/server/forms/docx");
+  assert.equal(docxText(out.buf), docxText(docFile(b, { kind: "aosr", form: null }, KAM, {}).buf), "текст тот же");
+});
+
+test("0.50: оформление своей формы Excel — шрифт, размер в пропорции, поля и ориентация листа", async () => {
+  const { styleXlsxFonts, styleXlsxSheet } = await import("@idk/server/forms/xlsx");
+  const fonts = '<fonts count="2"><font><sz val="10"/><name val="Calibri"/></font><font><b/><sz val="14"/><name val="Calibri"/></font></fonts>';
+  const f = styleXlsxFonts(fonts, { font: "Arial", size: 12 });
+  assert.match(f, /<sz val="12"\/><name val="Arial"\/>/);
+  assert.match(f, /<b\/><sz val="17"\/><name val="Arial"\/>/, "заголовок крупнее в той же пропорции");
+  const sheet =
+    '<worksheet><sheetData></sheetData><pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/><pageSetup paperSize="9"/></worksheet>';
+  const x = styleXlsxSheet(sheet, { marginLeft: 25.4, orientation: "landscape" });
+  assert.match(x, /left="1"/);
+  assert.match(x, /<pageSetup orientation="landscape" paperSize="9"\/>/);
+  const bare = styleXlsxSheet('<worksheet><sheetData></sheetData><drawing r:id="x"/></worksheet>', { marginTop: 10 });
+  assert.match(bare, /<\/sheetData><pageMargins [^>]*top="0\.394"[^>]*\/><drawing/);
+});

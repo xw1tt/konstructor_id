@@ -79,6 +79,10 @@ const SET_LABELS: Record<string, string> = { sbd: "СБД", ti: "ТИ", kam: "К
 /** Название документа для ключа оформления. */
 export function styleLabel(key: string): string {
   if (isProtoKind(key)) return PROTO_DEFS[key].code;
+  if (key.startsWith("form:")) {
+    const code = key.slice(5);
+    return `Своя форма ${isActDocKind(code) ? ACT_DOC_DEFS[code].label : code}`;
+  }
   const [kind, form] = key.split(":");
   const d = isActDocKind(kind) ? ACT_DOC_DEFS[kind] : null;
   return d ? `${d.label}${form ? ` (${SET_LABELS[form] ?? form})` : ""}` : key;
@@ -177,4 +181,10 @@ export function applyDocStyle(html: string, s: Partial<DocStyle> | null | undefi
   if (!css) return html;
   const i = html.lastIndexOf("</body>");
   return i >= 0 ? html.slice(0, i) + css + html.slice(i) : html + css;
+}
+
+/** 0.50: документ «Камчатки», который печатается через Word (свой файл Word вместо встроенной формы). */
+export function kamWordKind(kind: PrintKind | string, options: { formSet?: FormSet; forms?: Partial<Record<string, FormSet>> }): boolean {
+  if ((options.formSet ?? "sbd") !== "kam" || !isActDocKind(kind)) return false;
+  return kind === "aosr" || ((kind === "rim" || kind === "rp") && actDocFormFor(kind, options) === "kam");
 }

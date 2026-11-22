@@ -37,6 +37,8 @@ export const TemplateDoc = z.discriminatedUnion("kind", [
   }),
 ]);
 export type TemplateDoc = z.infer<typeof TemplateDoc>;
+/** 0.50: ключ оформления документа со своей формой Word/Excel в print.styles: «form:вид» или «form:код». */
+export const formStyleKey = (d: TemplateDoc) => `form:${d.kind === "builtin" ? d.doc : d.code}`;
 
 /** print — настройки печати встроенных документов шаблона (п.4 АОСР: «Исполнительная схема» перед каждой схемой). */
 export const UserTemplate = z.object({ id: z.string().min(1), name: z.string(), docs: z.array(TemplateDoc), print: PrintOptions.default({}) });

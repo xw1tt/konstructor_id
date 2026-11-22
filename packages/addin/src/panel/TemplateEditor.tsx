@@ -37,7 +37,8 @@ import { BlankEditor } from "./BlankEditor.tsx";
 import { StyleEditor } from "./StyleEditor.tsx";
 import { FormUpload } from "./FormUpload.tsx";
 import { base64File, FORM_ACCEPT, readFormFile } from "./formFile.ts";
-import { styleKeyFor } from "@idk/shared/docStyle";
+import { kamWordKind, styleKeyFor } from "@idk/shared/docStyle";
+import { formStyleKey } from "@idk/shared/forms/template";
 import { blankKeyFor } from "@idk/shared/blanks";
 import { bundleFor } from "./print.ts";
 import { CatalogContext } from "./catalogApi.ts";
@@ -402,9 +403,29 @@ export function TemplateEditor({ state, onChoose }: { state: BookState; onChoose
                     state={state}
                     template={template}
                     options={t.print}
+                    mode={kamWordKind(d.doc, t.print) ? "word" : "html"}
+                    label={kamWordKind(d.doc, t.print) ? `${BUILTIN_DOC_LABELS[d.doc]} («Камчатка», Word)` : undefined}
                     onSave={(v) => change((x) => withStyle(x, key, v))}
                   />
                 ) : null;
+              })()}
+            {d.form &&
+              (() => {
+                // 0.50: своя форма Word/Excel — шрифт, размер, значения, поля и ориентация поверх файла формы.
+                const key = formStyleKey(d);
+                return (
+                  <StyleEditor
+                    styleKey={key}
+                    doc={d.kind === "builtin" ? d.doc : null}
+                    value={t.print.styles?.[key] ?? null}
+                    state={state}
+                    template={template}
+                    options={t.print}
+                    mode={d.form.type === "docx" ? "word" : "excel"}
+                    form={{ templateId: t.id, key: d.kind === "builtin" ? d.doc : d.code }}
+                    onSave={(v) => change((x) => withStyle(x, key, v))}
+                  />
+                );
               })()}
             {d.kind === "builtin" && d.doc === "aosr" && (
               <fieldset className="setting" disabled={readOnly}>

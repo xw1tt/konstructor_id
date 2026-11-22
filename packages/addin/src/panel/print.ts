@@ -3,6 +3,7 @@ import { rimNeeded, MATERIALS_INLINE_LIMIT } from "@idk/shared/acts/rows";
 import { TABLES, type TableName } from "@idk/shared/workbook/schema";
 import { ACT_DOC_DEFS, isActDocKind } from "@idk/shared/docs/defs";
 import type { PrintKind } from "@idk/shared/acts/schemas";
+import type { DocStyle } from "@idk/shared/docStyle";
 import { buildBundle, type ActBundle, type Issue } from "@idk/shared/workbook/bundle";
 import { cellText } from "@idk/shared/workbook/values";
 import { PROTO_DEFS, isProtoKind, type ProtoKind } from "@idk/shared/protocols/defs";
@@ -215,10 +216,17 @@ export async function printForm(
   doc: PrintKind | null,
   where: { act?: string; kit?: string } = { act: actNumber },
   options?: PrintOptions,
+  /** 0.50: несохранённое оформление (кнопка «Показать на этом акте»). */
+  style?: DocStyle,
 ): Promise<{ issues: Issue[]; job?: { id: string; warnings: string[]; name: string } }> {
   const { bundle, issues } = printBundle(book, where, important, doc, options);
   if (!bundle) return { issues };
-  const job = await apiSend<{ id: string; warnings: string[]; name: string }>("POST", "/api/form-jobs", { bundle, template: templateId, doc: key });
+  const job = await apiSend<{ id: string; warnings: string[]; name: string }>("POST", "/api/form-jobs", {
+    bundle,
+    template: templateId,
+    doc: key,
+    ...(style ? { style } : {}),
+  });
   openPreview(previewFormUrl(job.id, location.origin));
   return { issues: [], job };
 }

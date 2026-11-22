@@ -3,7 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ActBundle } from "@idk/shared/workbook/bundle";
-import { docLabel, type TemplateDoc } from "@idk/shared/forms/template";
+import { docLabel, formStyleKey, type TemplateDoc } from "@idk/shared/forms/template";
+import { DocStyle } from "@idk/shared/docStyle";
 import { Router, Reply, HttpError } from "../http/router.ts";
 import type { TemplateStore } from "../forms/store.ts";
 import { renderForm, type OfficeRunner } from "../forms/convert.ts";
@@ -35,14 +36,20 @@ export function formJobRoutes(r: Router, store: TemplateStore, runner: OfficeRun
     return j;
   };
   r.post("/api/form-jobs", async (c) => {
-    const q = await c.body(z.object({ bundle: ActBundle, template: z.string(), doc: z.string() }), JSON_LIMIT);
+    const q = await c.body(z.object({ bundle: ActBundle, template: z.string(), doc: z.string(), style: DocStyle.optional() }), JSON_LIMIT);
     const t = store.get(q.template);
     const d = findDoc(t.docs, q.doc);
     if (!d) throw new HttpError(404, `Документа «${q.doc}» нет в шаблоне «${t.name}»`);
     if (!d.form) throw new HttpError(400, `У документа «${docLabel(d)}» нет своей формы — печать встроенной`);
     const code = docCode(d);
     const set = t.print.formSet;
-    const res = await renderForm(q.bundle, { ...d.form, buf: store.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set }, runner);
+    const res = await renderForm(
+      q.bundle,
+      { ...d.form, buf: store.form(t.id, d.form.file) },
+      { ...(code ? { code } : {}), set },
+      runner,
+      q.style ?? t.print.styles?.[formStyleKey(d)],
+    );
     const number = formData(q.bundle, { ...(code ? { code } : {}), set }).values["Акт.Номер документа"];
     const id = randomUUID();
     for (const [k, j] of jobs) if (now() - j.at > FORM_TTL_MS) jobs.delete(k);

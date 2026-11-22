@@ -103,6 +103,7 @@ export function FormUpload({
     patch(it.key, { res: r });
   };
 
+  const [drag, setDrag] = useState(false);
   const pick = async (list: FileList | null) => {
     const files = [...(list ?? [])];
     if (!files.length) return;
@@ -229,12 +230,28 @@ export function FormUpload({
   const dup = new Set(ready.filter((x, i) => x.kind && ready.findIndex((y) => y.kind === x.kind) !== i).map((x) => x.kind));
 
   return (
-    <div className="setting form-upload">
+    <div
+      className={`setting form-upload${drag ? " form-drop" : ""}`}
+      onDragOver={(e) => {
+        if (busy || !e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        setDrag(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDrag(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDrag(false);
+        if (!busy) void pick(e.dataTransfer.files);
+      }}
+    >
       <h3 className="tools-title">Загрузить формы заказчика</h3>
       <p className="muted" style={{ marginTop: 0 }}>
         Выберите заполненные документы заказчика — один или сразу несколько (Word или Excel, в том числе старые .doc/.xls). Программа сама поймёт, что это за
         документы и по какому акту они заполнены, поставит метки вместо значений и спросит только о спорных местах. Вёрстка ваших файлов не меняется: ширины
-        колонок, шрифты и рамки остаются как есть.
+        колонок, шрифты и рамки остаются как есть. Файлы можно просто перетащить сюда. Шрифт, размер и поля формы потом настраиваются кнопкой «Оформление» у
+        документа ниже.
       </p>
       <label className={`btn${busy ? " disabled" : ""}`}>
         {busy || "Выбрать файлы…"}

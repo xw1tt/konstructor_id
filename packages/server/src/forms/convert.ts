@@ -11,6 +11,7 @@ import type { FormRef } from "@idk/shared/forms/template";
 import { htmlToPdf } from "../print/browser.ts";
 import { formData } from "./fields.ts";
 import { fillDocx } from "./docx.ts";
+import type { DocStyle } from "@idk/shared/docStyle";
 import { fillXlsx } from "./xlsx.ts";
 import { docxToHtml, xlsxToHtml } from "./html.ts";
 
@@ -79,9 +80,10 @@ export function fillForm(
   b: ActBundle,
   form: FormRef & { buf: Buffer },
   doc: { code?: string; set?: FormSet } | undefined,
+  style?: DocStyle,
 ): { buf: Buffer; warnings: string[] } {
   const data = formData(b, doc);
-  return form.type === "docx" ? fillDocx(form.buf, data) : fillXlsx(form.buf, data);
+  return form.type === "docx" ? fillDocx(form.buf, data, style) : fillXlsx(form.buf, data, style);
 }
 
 export async function renderForm(
@@ -89,8 +91,9 @@ export async function renderForm(
   form: FormRef & { buf: Buffer },
   doc: { code?: string; set?: FormSet } | undefined,
   runner: OfficeRunner,
+  style?: DocStyle,
 ): Promise<RenderedForm> {
-  const filled = fillForm(b, form, doc);
+  const filled = fillForm(b, form, doc, style);
   const warnings = [...filled.warnings];
   const dir = mkdtempSync(join(tmpdir(), "idk-form-"));
   try {

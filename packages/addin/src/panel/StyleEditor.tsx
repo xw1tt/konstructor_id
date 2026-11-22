@@ -5,7 +5,7 @@ import { cleanStyle, describeStyle, DOC_FONTS, STYLE_PRESETS, styleLabel, type D
 import type { PrintKind } from "@idk/shared/acts/schemas";
 import type { PrintOptions, TemplateCode } from "@idk/shared/templates";
 import type { BookState } from "./useBook.ts";
-import { previewJob } from "./print.ts";
+import { previewJob, printAct, printForm } from "./print.ts";
 
 type Num = "size" | "tableSize" | "headerSize" | "titleSize" | "lineHeight" | "rowHeight" | "marginTop" | "marginRight" | "marginBottom" | "marginLeft";
 const NUMS: { key: Num; label: string; unit: string; step: number; min: number; max: number; hint: string }[] = [
@@ -34,9 +34,19 @@ export function StyleEditor({
   template,
   options,
   onSave,
+  mode = "html",
+  form,
+  label,
 }: {
   styleKey: string;
-  doc: PrintKind;
+  /** Документ встроенной печати (у своей формы — вид, если она заменяет встроенный, иначе null). */
+  doc: PrintKind | null;
+  /** 0.50: «html» — встроенная форма (живой предпросмотр); «word» — форма Word («Камчатка», своя); «excel» — своя форма Excel. */
+  mode?: "html" | "word" | "excel";
+  /** Своя форма шаблона: предпросмотр через задание формы. */
+  form?: { templateId: string; key: string };
+  /** Подпись документа вместо подписи по ключу. */
+  label?: string;
   value: DocStyle | null;
   disabled?: boolean;
   state: BookState;
@@ -69,14 +79,14 @@ export function StyleEditor({
   // Задание печати на выбранном акте — один раз на акт; оформление меняется в адресе предпросмотра.
   // Акт не печатается (не заполнен) — пробуются следующие, пока пользователь не выбрал акт сам.
   useEffect(() => {
-    if (!open || !chosen || !state.book || job?.act === chosen) return;
+    if (mode !== "html" || !doc || !open || !chosen || !state.book || job?.act === chosen) return;
     let alive = true;
     setNote("");
     (async () => {
       const order = act ? [act] : acts;
       let first = "";
       for (const a of order) {
-        const r = await previewJob(state.book!, a, state.important, doc, template, options);
+        const r = await previewJob(state.book!, a, state.important, doc!, template, options);
         if (!alive) return;
         if (r.id) {
           setJob({ id: r.id, act: a });
@@ -109,6 +119,33 @@ export function StyleEditor({
   }, [open, pageW, src]);
 
   const set = (p: Partial<DocStyle>) => setDraft({ ...draft, ...p });
+  const html = mode === "html";
+  const word = mode === "word";
+  // Формы Word и Excel: размер «Текст» масштабирует весь документ; графы, заголовки и выравнивание в таблицах — как в форме.
+  const nums = NUMS.filter((n) => html || n.key === "size" || (word && (n.key === "lineHeight" || n.key === "rowHeight")));
+  const [busy, setBusy] = useState(false);
+  /** Документ Word/Excel на выбранном акте с несохранённым оформлением — PDF в окне предпросмотра. */
+  const showOnAct = async () => {
+    if (!state.book || !chosen) return;
+    setBusy(true);
+    setNote("");
+    try {
+      if (form) {
+        const r = await printForm(state.book, chosen, state.important, form.templateId, form.key, doc, { act: chosen }, options, clean);
+        if (r.issues.length) setNote(`Акт ${chosen} не печатается: «${r.issues[0].column}» — ${r.issues[0].message}`);
+      } else if (doc) {
+        const issues = await printAct(state.book, chosen, state.important, doc, template, {
+          ...options,
+          styles: { ...(options.styles ?? {}), [styleKey]: clean },
+        });
+        if (issues.length) setNote(`Акт ${chosen} не печатается: «${issues[0].column}» — ${issues[0].message}`);
+      }
+    } catch (e) {
+      setNote((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const num = (k: Num) => (draft[k] === undefined ? "" : String(draft[k]));
   const setNum = (k: Num, s: string) => {
     const v = s.trim() === "" ? undefined : Number(s.replace(",", "."));
@@ -123,7 +160,7 @@ export function StyleEditor({
       </button>
       {open && (
         <fieldset className="setting" disabled={disabled}>
-          <legend>{styleLabel(styleKey)}: шрифт, размеры, поля</legend>
+          <legend>{label ?? styleLabel(styleKey)}: шрифт, размеры, поля</legend>
           <label className="setting-option">
             Набор{" "}
             <select
@@ -154,9 +191,9 @@ export function StyleEditor({
                 ))}
               </select>
             </label>
-            {NUMS.map((n) => (
+            {nums.map((n) => (
               <label key={n.key}>
-                {n.label}
+                {!html && n.key === "size" ? "Текст (весь документ)" : n.label}
                 {n.unit ? `, ${n.unit}` : ""}
                 <input
                   type="number"
@@ -170,30 +207,36 @@ export function StyleEditor({
                 />
               </label>
             ))}
-            <label>
-              Значения жирным
-              <select value={tri(draft.valueBold)} onChange={(e) => set({ valueBold: fromTri(e.target.value) })}>
-                <option value="">как в образце</option>
-                <option value="yes">да</option>
-                <option value="no">нет</option>
-              </select>
-            </label>
-            <label>
-              Значения курсивом
-              <select value={tri(draft.valueItalic)} onChange={(e) => set({ valueItalic: fromTri(e.target.value) })}>
-                <option value="">как в образце</option>
-                <option value="yes">да</option>
-                <option value="no">нет</option>
-              </select>
-            </label>
-            <label>
-              Текст в таблице
-              <select value={draft.tableAlign ?? ""} onChange={(e) => set({ tableAlign: (e.target.value || undefined) as DocStyle["tableAlign"] })}>
-                <option value="">как в образце</option>
-                <option value="left">влево</option>
-                <option value="center">по центру</option>
-              </select>
-            </label>
+            {mode !== "excel" && (
+              <>
+                <label>
+                  Значения жирным
+                  <select value={tri(draft.valueBold)} onChange={(e) => set({ valueBold: fromTri(e.target.value) })}>
+                    <option value="">как в образце</option>
+                    <option value="yes">да</option>
+                    <option value="no">нет</option>
+                  </select>
+                </label>
+                <label>
+                  Значения курсивом
+                  <select value={tri(draft.valueItalic)} onChange={(e) => set({ valueItalic: fromTri(e.target.value) })}>
+                    <option value="">как в образце</option>
+                    <option value="yes">да</option>
+                    <option value="no">нет</option>
+                  </select>
+                </label>
+              </>
+            )}
+            {html && (
+              <label>
+                Текст в таблице
+                <select value={draft.tableAlign ?? ""} onChange={(e) => set({ tableAlign: (e.target.value || undefined) as DocStyle["tableAlign"] })}>
+                  <option value="">как в образце</option>
+                  <option value="left">влево</option>
+                  <option value="center">по центру</option>
+                </select>
+              </label>
+            )}
             <label>
               Лист
               <select value={draft.orientation ?? ""} onChange={(e) => set({ orientation: (e.target.value || undefined) as DocStyle["orientation"] })}>
@@ -212,14 +255,18 @@ export function StyleEditor({
               </label>
             ))}
           </div>
-          <label className="setting-option">
-            <input type="checkbox" checked={!!draft.headerRotate} onChange={(e) => set({ headerRotate: e.target.checked || undefined })} /> Повернуть заголовки
-            узких граф (снизу вверх)
-          </label>
-          <label className="setting-option">
-            <input type="checkbox" checked={draft.textAlign === "justify"} onChange={(e) => set({ textAlign: e.target.checked ? "justify" : undefined })} />{" "}
-            Текст по ширине
-          </label>
+          {html && (
+            <label className="setting-option">
+              <input type="checkbox" checked={!!draft.headerRotate} onChange={(e) => set({ headerRotate: e.target.checked || undefined })} /> Повернуть
+              заголовки узких граф (снизу вверх)
+            </label>
+          )}
+          {mode !== "excel" && (
+            <label className="setting-option">
+              <input type="checkbox" checked={draft.textAlign === "justify"} onChange={(e) => set({ textAlign: e.target.checked ? "justify" : undefined })} />{" "}
+              Текст по ширине
+            </label>
+          )}
           {invalid && (
             <p className="error" role="alert">
               {invalid}
@@ -245,19 +292,37 @@ export function StyleEditor({
               ))}
             </select>
           </div>
+          {!html && (
+            <div className="row-actions">
+              <button className="btn" disabled={busy || !chosen || !!invalid} onClick={() => void showOnAct()}>
+                {busy ? "Готовлю…" : "Показать на этом акте"}
+              </button>
+              <span className="muted">
+                {word ? "PDF через Word — как при печати" : "PDF через Excel — как при печати"} (с этими настройками, ещё не сохранёнными)
+              </span>
+            </div>
+          )}
           {!acts.length && <p className="muted">Добавьте акт в «Базу актов», чтобы увидеть документ.</p>}
           {note && <p className="warn">{note}</p>}
-          <div className="style-preview" ref={box} style={{ height: Math.round((landscape ? 820 : 1160) * scale) }}>
-            {src && (
-              <iframe
-                title="Предпросмотр документа"
-                src={src}
-                sandbox="allow-same-origin allow-scripts"
-                style={{ width: pageW, height: landscape ? 820 : 1160, transform: `scale(${scale})`, transformOrigin: "0 0" }}
-              />
-            )}
-          </div>
-          <p className="muted">Действует на PDF и Excel всех актов книги с этим шаблоном (в Excel — шрифт, размер, поля и ориентация).</p>
+          {html && (
+            <div className="style-preview" ref={box} style={{ height: Math.round((landscape ? 820 : 1160) * scale) }}>
+              {src && (
+                <iframe
+                  title="Предпросмотр документа"
+                  src={src}
+                  sandbox="allow-same-origin allow-scripts"
+                  style={{ width: pageW, height: landscape ? 820 : 1160, transform: `scale(${scale})`, transformOrigin: "0 0" }}
+                />
+              )}
+            </div>
+          )}
+          <p className="muted">
+            {html
+              ? "Действует на PDF и Excel всех актов книги с этим шаблоном (в Excel — шрифт, размер, поля и ориентация)."
+              : word
+                ? "Действует на файл Word и PDF всех актов книги с этим шаблоном. Размер «Текст» — основной размер значений; заголовки и подписи меняются в той же пропорции."
+                : "Действует на файл Excel и PDF всех актов книги с этим шаблоном: шрифт, размер (в той же пропорции для всего листа), поля и ориентация."}
+          </p>
         </fieldset>
       )}
     </div>

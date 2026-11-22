@@ -4579,3 +4579,10 @@ a.btn {
   background: var(--card, #fff);
   cursor: default;
 }
+
+/* 0.50: перетаскивание форм заказчика */
+.form-upload.form-drop {
+  outline: 2px dashed #2563eb;
+  outline-offset: 4px;
+  background: rgba(37, 99, 235, 0.05);
+}

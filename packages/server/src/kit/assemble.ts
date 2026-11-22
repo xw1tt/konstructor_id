@@ -14,6 +14,7 @@ import type { Db } from "../db.ts";
 import type { TemplateStore } from "../forms/store.ts";
 import { renderForm, type OfficeRunner } from "../forms/convert.ts";
 import { findDoc, docCode } from "../routes/formJobs.ts";
+import { formStyleKey } from "@idk/shared/forms/template";
 
 export interface KitIssue {
   row: number | null;
@@ -112,8 +113,15 @@ export async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template
     const d = findDoc(t.docs, f.doc);
     if (!d?.form) throw new Error(`У документа «${f.doc}» нет своей формы в шаблоне «${t.name}»`);
     const code = docCode(d);
-    return (await renderForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set: t.print.formSet }, deps.runner))
-      .pdf;
+    return (
+      await renderForm(
+        b,
+        { ...d.form, buf: deps.templates.form(t.id, d.form.file) },
+        { ...(code ? { code } : {}), set: t.print.formSet },
+        deps.runner,
+        t.print.styles?.[formStyleKey(d)],
+      )
+    ).pdf;
   }
   return (await renderBundlePdf(b, row.doc!.kind!, template, q.options)).pdf;
 }

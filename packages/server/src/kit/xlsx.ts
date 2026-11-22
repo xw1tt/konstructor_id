@@ -7,7 +7,8 @@ import { writeZip } from "../zip/zip.ts";
 import { renderBundleXlsx } from "../routes/print.ts";
 import { fillForm } from "../forms/convert.ts";
 import { findDoc, docCode } from "../routes/formJobs.ts";
-import { docLabel } from "@idk/shared/forms/template";
+import { docLabel, formStyleKey } from "@idk/shared/forms/template";
+import { styleKeyFor } from "@idk/shared/docStyle";
 import type { KitDeps } from "./assemble.ts";
 import { actDocFileName } from "../print/docs.ts";
 import { kamDocx } from "../forms/kamForms.ts";
@@ -24,7 +25,12 @@ export function kamWordFile(b: ActBundle, kind: PrintKind, options: Partial<Prin
   if (kind !== "aosr" && actDocFormFor(kind, options ?? {}) !== "kam") return null;
   const form = kamDocx(kind);
   if (!form) return null;
-  const filled = fillForm(b, { file: "kam.docx", type: "docx", original: "", buf: form }, { set: "kam" });
+  const filled = fillForm(
+    b,
+    { file: "kam.docx", type: "docx", original: "", buf: form },
+    { set: "kam" },
+    options?.styles?.[styleKeyFor(kind, options ?? {}) ?? ""],
+  );
   return { name: actDocFileName(b, kind, "kam", actDocFormFor(kind, options ?? {})).replace(/\.pdf$/i, ".docx"), buf: filled.buf };
 }
 
@@ -42,7 +48,12 @@ export function docFile(
     const d = findDoc(t.docs, f.doc);
     if (!d?.form) throw new Error(`у документа «${f.doc}» нет своей формы в шаблоне «${t.name}»`);
     const code = docCode(d);
-    const filled = fillForm(b, { ...d.form, buf: deps.templates.form(t.id, d.form.file) }, { ...(code ? { code } : {}), set: t.print.formSet });
+    const filled = fillForm(
+      b,
+      { ...d.form, buf: deps.templates.form(t.id, d.form.file) },
+      { ...(code ? { code } : {}), set: t.print.formSet },
+      t.print.styles?.[formStyleKey(d)],
+    );
     return { name: `${safe(`${docLabel(d)} ${b.act.baseNumber}`)}.${d.form.type}`, buf: filled.buf };
   }
   if (!doc.kind) throw new Error("не указан документ");

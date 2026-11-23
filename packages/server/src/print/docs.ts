@@ -28,7 +28,9 @@ const cables = (b: ActBundle) => {
 };
 
 /** Номер КЖ «Камчатки»: шифр журнала из «ДокументыКабелей» (в образце — свой номер), иначе от номера акта. */
-export const kamKjNumber = (b: ActBundle) => b.cables?.doc?.journalCode?.trim() || docNumberFor(b.act.baseNumber, "kj", "kam");
+/** Номер КЖ: «Шифр журнала» из «Документов кабелей», без него — по номеру акта (0.50.2 — во всех шаблонах). */
+export const kjNumber = (b: ActBundle, set: FormSet = "kam") => b.cables?.doc?.journalCode?.trim() || docNumberFor(b.act.baseNumber, "kj", set);
+export const kamKjNumber = (b: ActBundle) => kjNumber(b, "kam");
 
 /** Встроенные формы документов по наборам (ключи — наборы из ACT_DOC_DEFS[kind].forms). */
 export const ACT_DOC_RENDER: Record<ActDocKind, Partial<Record<FormSet, Render>>> = {
@@ -51,7 +53,7 @@ export const ACT_DOC_RENDER: Record<ActDocKind, Partial<Record<FormSet, Render>>
       tiKjHtml(
         {
           header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date),
-          number: docNumberFor(b.act.baseNumber, "kj", set),
+          number: kjNumber(b, set),
           journal: tiJournal(cables(b).rows, o.kjReserve ?? 2, o.kjDecimals ?? null),
         },
         view("kj:ti", o),

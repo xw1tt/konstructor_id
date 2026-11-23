@@ -204,7 +204,7 @@ export function registryRows(book: Book, kit: string, template?: UserTemplate, c
       const doc = of("ДокументыКабелей")[0];
       const jc = doc ? txt(doc.v.journalCode) : "";
       if (inTpl("kj")) {
-        if (ti) add("КЖ", n, withNo(set === "kam" && jc ? jc : docNumberFor(n, "kj", set)), KJ_NAME, doc ? short(doc.v.journalDate) || date : date, code);
+        if (ti) add("КЖ", n, withNo(jc || docNumberFor(n, "kj", set)), KJ_NAME, doc ? short(doc.v.journalDate) || date : date, code);
         else add("КЖ", n, jc ? `№ ${jc}` : "", KJ_NAME, doc ? short(doc.v.journalDate) : "", code);
       }
       if (ti && inTpl("ip")) {

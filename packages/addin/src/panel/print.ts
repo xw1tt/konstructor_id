@@ -127,7 +127,7 @@ const actMaterialCount = (book: Book, act: string) => (book.tables["Матери
 function printBundle(book: Book, where: { act?: string; kit?: string }, important: ImportantMap, doc: PrintKind | null, options?: PrintOptions) {
   if (isProtoKind(doc)) return protoBundleFor(book, doc, where, important);
   const act = where.act ?? "";
-  // «Камчатка»: материалов не больше 5 — они в п.3 АОСР, реестр примененных материалов не составляется.
+  // Материалов не больше 5 — они в п.3 АОСР, реестр примененных материалов не составляется (все шаблоны).
   if (doc === "rim" && !rimNeeded(options?.formSet, actMaterialCount(book, act)))
     return {
       bundle: null,

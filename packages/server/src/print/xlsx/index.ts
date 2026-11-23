@@ -5,7 +5,7 @@ import type { ActDocKind } from "@idk/shared/docs/defs";
 import { HttpError } from "../../http/router.ts";
 import { writeBook } from "../../xlsx/book.ts";
 import type { Sheet } from "../../xlsx/book.ts";
-import { actDocFileName, actDocFormFor, view, kamKjNumber } from "../docs.ts";
+import { actDocFileName, actDocFormFor, view, kamKjNumber, kjNumber } from "../docs.ts";
 import { buildDocDataFromBundle } from "../fromBundle.ts";
 import { aosrSheet } from "./aosr.ts";
 import { rimSheet, vdSheet, vorSheet, avkSheet, ipSheet, kjSheet } from "./sbd.ts";
@@ -13,7 +13,6 @@ import { buildAvkData } from "../fromBundle.ts";
 import { cableDocData } from "../cableData.ts";
 import { tiVdSheet, tiRmSheet, tiRpSheet, tiKjSheet, kamRmSheet, kamRpSheet, kamKjSheet } from "./ti.ts";
 import { tiDocData, tiHeader } from "../tiData.ts";
-import { docNumberFor } from "@idk/shared/acts/format";
 import { tiJournal, kamJournal } from "@idk/shared/acts/cableDocs";
 import { applyLook } from "../../xlsx/look.ts";
 
@@ -45,7 +44,7 @@ export const ACT_DOC_XLSX: Record<ActDocKind, Partial<Record<FormSet, RenderXlsx
       tiKjSheet(
         {
           header: tiHeader(b, cables(b).doc?.journalDate ?? b.act.date),
-          number: docNumberFor(b.act.baseNumber, "kj", set),
+          number: kjNumber(b, set),
           journal: tiJournal(cables(b).rows, o.kjReserve ?? 2, o.kjDecimals ?? null),
         },
         view("kj:ti", o),

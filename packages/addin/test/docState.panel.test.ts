@@ -47,7 +47,7 @@ test("0.46.14: «Камчатка» — материалов не больше 5
   if (recs["ВОР"]) recs["ВОР"] = recs["ВОР"].filter((v: any) => kept.has(v["Материал"]));
   const few = await readBook(new MemoryWorkbook(recs));
   assert.equal(docState(few, AOV1, defaultImportant(), "rim", KAM).state, "absent");
-  assert.equal(docState(few, AOV1, defaultImportant(), "rim").state, "ok", "в «СБД» реестр составляется всегда");
+  assert.equal(docState(few, AOV1, defaultImportant(), "rim").state, "absent", "0.50.2: и в «СБД» тоже");
   const { kitRecords } = await import("../../shared/test/fixtures/kitBook.ts");
   const kit = kitRecords() as any;
   const act = kit["АктыКомплектов"][0]["Акт"];

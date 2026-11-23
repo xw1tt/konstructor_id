@@ -234,6 +234,43 @@ function pruneOptional(row: string, data: FormData): { row: string; last: boolea
   return { row: out, last };
 }
 
+/**
+ * 0.50.2: подписант не разрывается между страницами (как в формах «Камчатки», для всех форм Word): строки от подписи роли
+ * («Представитель …») до последней строки «(… подпись)» перед следующей ролью держатся вместе (keepNext у абзацев всех
+ * строк группы, кроме последней). Группа — только если в ней есть метка ФИО/подписи; не больше 10 строк.
+ */
+function keepSigners(tbl: string): string {
+  const spans = elements(tbl, "tr");
+  const texts = spans.map(({ start, end }) => paragraphText(withoutTables(tbl.slice(start, end))).trim());
+  const glue = new Set<number>();
+  for (let i = 0; i < spans.length; i++) {
+    if (!/^Представител/i.test(texts[i])) continue;
+    let last = -1;
+    let signer = false;
+    for (let j = i + 1; j < spans.length && j <= i + 10 && !/^Представител/i.test(texts[j]); j++) {
+      if (/\{[^{}]*\.(ФИО|Подпись)[^{}]*\}/.test(texts[j])) signer = true;
+      if (/^\(.*подпись.*\)$/is.test(texts[j])) last = j;
+    }
+    if (!signer || last < 0) continue;
+    for (let k = i; k < last; k++) glue.add(k);
+  }
+  if (!glue.size) return tbl;
+  let out = "";
+  let at = 0;
+  spans.forEach(({ start, end }, k) => {
+    out += tbl.slice(at, start) + (glue.has(k) ? mapElements(tbl.slice(start, end), "p", keepNext) : tbl.slice(start, end));
+    at = end;
+  });
+  return out + tbl.slice(at);
+}
+
+function keepNext(p: string): string {
+  if (/<w:keepNext\b/.test(p)) return p;
+  if (/<w:pPr\/>/.test(p)) return p.replace(/<w:pPr\/>/, "<w:pPr><w:keepNext/></w:pPr>");
+  if (/<w:pPr>/.test(p)) return p.replace(/<w:pPr>(\s*<w:pStyle\b[^>]*\/>)?/, (m) => `${m}<w:keepNext/>`);
+  return p.replace(/^<w:p\b[^>]*?>/, (m) => (m.endsWith("/>") ? m : `${m}<w:pPr><w:keepNext/></w:pPr>`));
+}
+
 /** Строка-подпись под линией: без меток, текст в скобках («(фамилия, инициалы, подпись)»). */
 function isCaption(row: string): boolean {
   const t = paragraphText(withoutTables(row)).trim();
@@ -313,7 +350,8 @@ function rowCopies(row: string, data: FormData, warnings: Set<string>, lines: Ma
   return out;
 }
 
-function fillPart(xml: string, data0: FormData, warnings: Set<string>): string {
+function fillPart(xml0: string, data0: FormData, warnings: Set<string>): string {
+  const xml = mapElements(xml0, "tbl", keepSigners);
   const lines = rowLines(xml, data0);
   // Вне таблиц копировать нечего — дополнительные строки уходят в последнюю переводами строк.
   const data: FormData = { ...data0, values: { ...data0.values, ...Object.fromEntries([...lines].map(([l, v]) => [l, v.join("\n")])) } };

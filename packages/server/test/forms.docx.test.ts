@@ -95,3 +95,23 @@ test("финальная проверка: таблица из одной стр
   assert.doesNotMatch(xml(out.buf), /<w:tbl>/);
   assert.equal(docxText(out.buf), "Конец");
 });
+
+test("0.50.2: своя форма Word — второй представитель без значения убирается с подписью; подписант не разрывается", () => {
+  const body = `<w:tbl>${tr("Представитель лица, выполнившего работы:")}${tr("{Выполнивший.ФИО 1}")}${tr("(фамилия, инициалы, подпись)")}${tr("{Выполнивший.ФИО 2}")}${tr("(фамилия, инициалы, подпись)")}${tr("Итого")}</w:tbl>`;
+  const fill = (second: string) => {
+    const d: FormData = { values: { "Выполнивший.ФИО 1": "Иванов И.И.", "Выполнивший.ФИО 2": second }, lists: {} };
+    const out = fillDocx(makeDocx(body), d);
+    return { text: docxText(out.buf), xml: openZip(out.buf).get("word/document.xml")!().toString("utf8") };
+  };
+  const one = fill("");
+  assert.equal((one.text.match(/\(фамилия/g) ?? []).length, 1);
+  assert.ok(one.text.includes("Иванов И.И.") && one.text.includes("Итого"));
+  const two = fill("Петров П.П.");
+  assert.equal((two.text.match(/\(фамилия/g) ?? []).length, 2);
+  // keepNext — у строк роли и ФИО до последней подписи, у «Итого» и последней подписи — нет.
+  const rows = [...two.xml.matchAll(/<w:tr>[\s\S]*?<\/w:tr>/g)].map((m) => m[0]);
+  assert.deepEqual(
+    rows.map((x) => x.includes("<w:keepNext/>")),
+    [true, true, true, true, false, false],
+  );
+});

@@ -87,7 +87,8 @@ test("два акта: поверки и документ качества — �
   const { rows, issues } = registryRows(book, "1");
   assert.deepEqual(issues, []);
   const a2 = rows.filter((r) => v(r, "Акт") === "А2").map((r) => v(r, "Вид"));
-  assert.deepEqual(a2, ["АОСР", "РИМ", "ВД", "КЖ", "Протокол", "АВК"]);
+  // 0.50.2: у второго акта один материал — он в п.3 АОСР, реестра примененных материалов нет.
+  assert.deepEqual(a2, ["АОСР", "ВД", "КЖ", "Протокол", "АВК"]);
   assert.equal(rows.filter((r) => v(r, "Вид") === "Поверка").length, 2);
   assert.equal(rows[4].values["Скан"], "схема1.pdf");
   assert.equal(rows.find((r) => v(r, "Вид") === "Документ качества")!.values["Дата / период"], "б/д");

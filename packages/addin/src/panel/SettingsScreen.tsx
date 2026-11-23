@@ -38,6 +38,7 @@ function VersionInfo() {
   );
 }
 import { AiSettings } from "./AiSettings.tsx";
+import { HubSettings } from "./hubSync.tsx";
 
 export function SettingsScreen({ state = null, assistant = null }: { state?: BookState | null; assistant?: AssistantSession | null } = {}) {
   const [dir, setDir] = useState("");
@@ -67,6 +68,7 @@ export function SettingsScreen({ state = null, assistant = null }: { state?: Boo
       <h2 className="app-title">Настройки</h2>
       <VersionInfo />
       <AiSettings />
+      <HubSettings />
       <h3 className="tools-title">Папка библиотеки компании</h3>
       <p className="muted">
         Чтобы у всех инженеров была одна библиотека, укажите общую сетевую папку, например

@@ -1,5 +1,6 @@
 // 0.38 / редизайн 0.40: главный экран окна программы — объект, готовность актов (квадрат на акт), «Требует внимания»
 // таблицей с местом в книге, справа — комплекты, документы качества и общий журнал работ.
+import { hubLine, useHubStatus } from "./hubSync.tsx";
 import { PrintOptionsContext, UserTemplateContext } from "./templateContext.ts";
 import { docIssues } from "./docCheck.ts";
 import { useContext, useEffect, useMemo, useState } from "react";
@@ -287,6 +288,7 @@ function ScanFolderBlock({ port, state }: { port: BookPort; state: BookState }) 
   const [error, setError] = useState("");
   useEffect(() => setValue(saved), [saved]);
   const relink = useRelink(port, state, async () => undefined);
+  const hub = useHubStatus();
   const save = async () => {
     setError("");
     if (value.trim() === saved) return;
@@ -314,6 +316,7 @@ function ScanFolderBlock({ port, state }: { port: BookPort; state: BookState }) 
         />
       </label>
       {error && <p className="error">{error}</p>}
+      {hubLine(hub) && <p className="muted">{hubLine(hub)}</p>}
       <div className="row-actions">
         <button
           className="btn"

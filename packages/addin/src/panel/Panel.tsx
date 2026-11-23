@@ -36,6 +36,7 @@ import { BookScreen } from "./BookScreen.tsx";
 import { WizardScreen } from "./WizardScreen.tsx";
 import { AssistantSession } from "./assistant.ts";
 import { actionsKit } from "./actionsKit.ts";
+import { useHubSync } from "./hubSync.tsx";
 import { maxSteps } from "./aiSteps.ts";
 import { aiApi } from "./aiApi.ts";
 import { listTemplates, resolveTemplate, saveTemplateDocs, createTemplate, deleteTemplate } from "./templatesApi.ts";
@@ -217,6 +218,7 @@ function Supported({ port, slots, shell }: { port: BookPort; slots: PanelSlots; 
     ),
   );
   // 0.49: действия программы для помощника — с текущими шаблоном, настройками печати и навигацией.
+  useHubSync(state.book);
   const live = useRef({ important: state.important, code: template, options, tpl: resolved.template, nav: cellNav, go: goScreen, refresh: state.refresh });
   live.current = { important: state.important, code: template, options, tpl: resolved.template, nav: cellNav, go: goScreen, refresh: state.refresh };
   const sessionRef = useRef<AssistantSession | null>(null);

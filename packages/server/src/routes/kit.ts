@@ -22,7 +22,7 @@ export const KIT_TTL_MS = 30 * 60_000;
 export const COMMON_JSON_LIMIT = 100 * 1024 * 1024;
 export const MAX_KITS = 5;
 
-export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDeps, "templates" | "runner"> = {}, now: () => number = Date.now) {
+export function kitRoutes(r: Router, db: Db, dataDir: string, forms: Pick<KitDeps, "templates" | "runner" | "hub"> = {}, now: () => number = Date.now) {
   const done = new Map<string, { pdf: Buffer; name: string; at: number; q: KitRequestT }>();
   r.post("/api/kit-jobs", async (c) => {
     const q = await c.body(KitRequest, KIT_JSON_LIMIT);

@@ -1,0 +1,15 @@
+[Unit]
+Description=Конструктор ИД — сервер сканов
+After=network-online.target
+
+[Service]
+User=konstruktor
+EnvironmentFile=/etc/konstruktor-hub.env
+Environment=IDK_DATA_DIR=/var/lib/konstruktor-hub
+Environment=IDK_PORT=3443
+ExecStart=/usr/bin/node /opt/konstruktor-hub/app/server.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,4 +1,6 @@
 import type { LegacyConverter } from "./forms/legacy.ts";
+import { HubClient } from "./hub/hub.ts";
+import { hubRoutes } from "./routes/hub.ts";
 import { setPrintOfficeRunner } from "./routes/print.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { logError } from "./diag/log.ts";
@@ -59,15 +61,19 @@ export interface AppOptions {
   bridgeTimeoutMs?: number;
   /** Папка копий отчётов «Сообщить о проблеме» (по умолчанию «Документы\Конструктор ИД — отчёты»). */
   reportsDir?: string;
+  /** 0.52: ключ доступа сервера сканов (на VPS); без него /api/hub/file и т. п. выключены. */
+  hubToken?: string;
 }
 
 export const defaultOrigins = (port = 3443) => [`https://localhost:${port}`, `https://127.0.0.1:${port}`];
 
 export function createApp(opts: AppOptions) {
   const api = new Router(opts.allowedOrigins ?? defaultOrigins());
+  const hub = new HubClient(opts.db, opts.dataDir, opts.fetchImpl);
+  hubRoutes(api, opts.db, opts.dataDir, hub, opts.hubToken);
   printRoutes(api);
   normRoutes(api, opts.db, { fetchImpl: opts.fetchImpl, sleep: opts.sleep });
-  fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT);
+  fileRoutes(api, opts.db, opts.dataDir, opts.uploadLimit ?? DEFAULT_UPLOAD_LIMIT, hub);
   ojrRoutes(api);
   rkcRoutes(api);
   const catalog = new CatalogStore(opts.dataDir);
@@ -77,7 +83,7 @@ export function createApp(opts: AppOptions) {
   const runner = opts.officeRunner ?? powershellRunner();
   setPrintOfficeRunner(runner);
   formJobRoutes(api, templates, runner);
-  kitRoutes(api, opts.db, opts.dataDir, { templates, runner });
+  kitRoutes(api, opts.db, opts.dataDir, { templates, runner, hub });
   const ai = new AiStore(opts.dataDir);
   aiRoutes(api, ai, { post: opts.aiPost, retry: opts.aiRetry });
   scanRoutes(api, opts.db, opts.dataDir, ai, { ocr: opts.ocrRunner, post: opts.aiPost });

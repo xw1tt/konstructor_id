@@ -39,7 +39,10 @@ try {
 setLogFile(join(cfg.dataDir, "logs", "server.log"));
 const db = openDb(join(cfg.dataDir, "db.sqlite"));
 const tls = ensureCerts(cfg.dataDir);
-const server = createServer({ key: tls.key, cert: tls.cert }, createApp({ db, dataDir: cfg.dataDir, addinDir, allowedOrigins: defaultOrigins(cfg.port) }));
+const server = createServer(
+  { key: tls.key, cert: tls.cert },
+  createApp({ db, dataDir: cfg.dataDir, addinDir, allowedOrigins: defaultOrigins(cfg.port), hubToken: process.env.IDK_HUB_TOKEN || undefined }),
+);
 
 installShutdown(db, server, process, closeBrowser);
 

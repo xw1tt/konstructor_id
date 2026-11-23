@@ -1,0 +1,16 @@
+# Наружу — только обмен сканами (/api/hub/*); остальное — 404. HTTPS-сертификат Caddy получает сам.
+{$HUB_HOST} {
+	request_body {
+		max_size 300MB
+	}
+	handle /api/hub/* {
+		reverse_proxy https://127.0.0.1:3443 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle {
+		respond 404
+	}
+}

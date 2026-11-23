@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { shasOf, type HubClient } from "../hub/hub.ts";
 import { createReadStream, statSync } from "node:fs";
 import { join } from "node:path";
 import type { Db } from "../db.ts";
@@ -7,7 +8,7 @@ import { saveFile, getFile, tooBig } from "../files/store.ts";
 import { fileBySha, folderFiles, locateScan, scanFolders } from "../files/locate.ts";
 import { relative } from "node:path";
 
-export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: number) {
+export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: number, hub?: HubClient) {
   /**
    * 0.46.9: «Привязать сканы» — книга с другого компьютера: для каждой ссылки «Скан» находит файл на этом компьютере
    * (по отпечатку, номеру с проверкой имени, имени в папках сканов с подпапками), найденный в папке — кладёт в хранилище.
@@ -22,6 +23,7 @@ export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: numb
       8 * 1024 * 1024,
     );
     const folders = scanFolders(body.scanFolder);
+    if (hub) await hub.ensure(shasOf(body.items.map((i) => i.link)));
     const out: ({ ok: true; id: number; sha256: string; name: string } | { ok: false; message: string })[] = [];
     for (const it of body.items) {
       const r = locateScan(db, dataDir, it, folders);
@@ -36,6 +38,7 @@ export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: numb
       try {
         const size = statSync(r.path).size;
         const f = await saveFile(db, dataDir, createReadStream(r.path), { name: r.name, mime: r.mime }, Math.max(size + 1, uploadLimit));
+        hub?.uploaded(f.sha256);
         out.push({ ok: true, id: f.id, sha256: f.sha256, name: r.name });
       } catch (e) {
         out.push({ ok: false, message: `${r.path}: ${(e as Error).message}` });
@@ -66,7 +69,9 @@ export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: numb
     const len = Number(c.req.headers["content-length"] ?? 0);
     try {
       if (len > uploadLimit) throw tooBig(uploadLimit);
-      return new Reply(201, await saveFile(db, dataDir, c.req, { name, mime }, uploadLimit));
+      const saved = await saveFile(db, dataDir, c.req, { name, mime }, uploadLimit);
+      hub?.uploaded(saved.sha256);
+      return new Reply(201, saved);
     } catch (e) {
       // Дочитать тело, чтобы клиент получил ответ, а не обрыв соединения.
       c.res.setHeader("connection", "close");
@@ -80,13 +85,21 @@ export function fileRoutes(r: Router, db: Db, dataDir: string, uploadLimit: numb
     const sha = c.query.get("sha");
     return (sha && /^[0-9a-f]{64}$/i.test(sha) ? fileBySha(db, sha.toLowerCase()) : undefined) ?? (sha ? undefined : getFile(db, c.id()));
   };
-  r.get("/api/files/:id/pages", (c) => {
+  // 0.52: скана нет на этом компьютере — сервер сканов (если настроен).
+  const fileOrHub = async (c: { id(): number; query: URLSearchParams }) => {
     const f = fileOf(c);
+    const sha = c.query.get("sha");
+    if (f || !hub || !sha) return f;
+    await hub.ensure([sha.toLowerCase()]);
+    return fileOf(c);
+  };
+  r.get("/api/files/:id/pages", async (c) => {
+    const f = await fileOrHub(c);
     if (!f) throw notFound("Файл");
     return { pages: f.pages && f.pages > 0 ? f.pages : 1 };
   });
-  r.get("/api/files/:id", (c) => {
-    const f = fileOf(c);
+  r.get("/api/files/:id", async (c) => {
+    const f = await fileOrHub(c);
     if (!f) throw new HttpError(404, "Скан не найден на этом компьютере. Нажмите «Привязать сканы» — программа найдёт файлы в «Папке сканов»");
     const abs = join(dataDir, "files", f.path);
     try {

@@ -1,4 +1,5 @@
 // Сборка комплекта в один PDF: титул → корешки → реестр → документы по порядку реестра (план 7, §4).
+import { shasOf, type HubClient } from "../hub/hub.ts";
 import { readFile } from "node:fs/promises";
 import { PDFDocument, StandardFonts, degrees, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import type { KitRequest, KitRow, FileRef } from "@idk/shared/kit/request";
@@ -97,6 +98,8 @@ export interface KitDeps {
   dataDir: string;
   templates?: TemplateStore;
   runner?: OfficeRunner;
+  /** 0.52: сервер сканов — недостающие сканы комплекта скачиваются перед сборкой. */
+  hub?: HubClient;
 }
 
 /** PDF документа строки: своя форма шаблона или встроенная печать. */
@@ -127,6 +130,7 @@ export async function rowPdf(q: KitRequest, row: KitRow, deps: KitDeps, template
 }
 
 export async function assembleKit(q: KitRequest, deps: KitDeps): Promise<KitResult> {
+  if (deps.hub) await deps.hub.ensure(shasOf(q.rows.map((r) => r.file?.link)));
   const ctx: ScanContext = { ...deps, scanFolder: q.scanFolder };
   const issues: KitIssue[] = [];
   const template = q.template || DEFAULT_TEMPLATE;

@@ -278,8 +278,19 @@ function checkOjr(ctx: ToolContext, a: Record<string, unknown>) {
       });
   } else {
     const H = (k: string) => column("ОЖР5", k).header;
-    const want = new Map(exp.s5.map((r) => [norm(r[H("name")]), r]));
-    const got = new Map(have.map((r) => [norm(r.v.name), r]));
+    // 0.50.3: одинаковые наименования (документы «б/н») — с порядковым номером, иначе сливаются в одну строку.
+    const ord = (names: string[]) => {
+      const seen = new Map<string, number>();
+      return names.map((n) => {
+        const k = (seen.get(n) ?? 0) + 1;
+        seen.set(n, k);
+        return k === 1 ? n : `${n} (${k})`;
+      });
+    };
+    const wantKeys = ord(exp.s5.map((r) => norm(r[H("name")])));
+    const gotKeys = ord(have.map((r) => norm(r.v.name)));
+    const want = new Map(exp.s5.map((r, i) => [wantKeys[i], r]));
+    const got = new Map(have.map((r, i) => [gotKeys[i], r]));
     out.missing = [...want.keys()].filter((n) => !got.has(n)).map((n) => n.slice(0, 200));
     out.extra = [...got.entries()].filter(([n]) => !want.has(n)).map(([n, r]) => `строка ${r.row + 1}: ${n.slice(0, 200)}`);
     out.different = [...want.entries()]

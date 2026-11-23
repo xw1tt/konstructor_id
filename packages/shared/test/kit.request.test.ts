@@ -127,3 +127,29 @@ test("0.46.1: в реестре только имя (или пусто), а у �
   const quality = request!.rows.filter((r) => r.kind === "Документ качества");
   assert.ok(quality.length > 3 && quality.every((r) => /\/api\/files\/1\d\d$/.test(r.file?.link ?? "")), "сканы документов качества");
 });
+
+test("0.50.3: скан «б/н» в реестре пуст, а подходящих паспортов «б/н» с разными сканами несколько — не угадывается", async () => {
+  const { BUILTIN_KAM } = await import("@idk/shared/forms/template");
+  const { PrintOptions } = await import("@idk/shared/templates");
+  const r = kitRecords();
+  const seen = new Set<string>();
+  const pick: any[] = [];
+  for (const d of r["ДокументыКачества"])
+    if (!seen.has(d["Материалы"]) && pick.length < 2) {
+      seen.add(d["Материалы"]);
+      pick.push(d);
+    }
+  pick.forEach((d, i) => Object.assign(d, { Тип: "Паспорт качества", Номер: "б/н", Дата: null, "Наименование для реестра": null, Скан: `паспорт${i}.pdf` }));
+  const book0 = await readBook(new MemoryWorkbook(r));
+  r["РеестрИД"] = registryRows(book0, "1", BUILTIN_KAM).rows.map((x) => x.values);
+  for (const x of r["РеестрИД"]) if (x["Номер документа"] === "б/н") x["Скан"] = null;
+  const book = await readBook(new MemoryWorkbook(r));
+  const { issues } = buildKitRequest(book, "1", defaultImportant(), "sbd", PrintOptions.parse(BUILTIN_KAM.print), NOW, BUILTIN_KAM);
+  const bn = (book.tables["РеестрИД"] ?? []).filter((x) => x.v.number === "б/н").map((x) => x.row);
+  assert.equal(bn.length, 2);
+  for (const row of bn)
+    assert.ok(
+      issues.some((i) => i.row === row && i.message.startsWith("Нет скана")),
+      `строка ${row}`,
+    );
+});

@@ -318,7 +318,9 @@ export async function syncRegistry(
   const cur = (book.tables["РеестрИД"] ?? []).filter((r) => txt(r.v.kit) === kit);
   const curKeys = ordinalKeys(cur.map((r) => regKey(Object.fromEntries(Object.entries(r.v).map(([k, v]) => [column("РеестрИД", k).header, v])))));
   const newKeys = ordinalKeys(rows.map((r) => regKey(r.values)));
-  const same = curKeys.length === newKeys.length && [...curKeys].sort().join("\n") === [...newKeys].sort().join("\n");
+  // 0.50.3: те же документы в том же порядке (с порядковыми номерами одинаковых — иначе одинаковые строки «б/н»
+  // сопоставлялись бы не с теми документами).
+  const same = curKeys.length === newKeys.length && curKeys.join("\n") === newKeys.join("\n");
   if (same) {
     // 0.46.1: документы те же, но сканы могли загрузить позже — ссылки из схем и документов качества переносятся
     // в «Скан» реестра (раньше реестр с теми же документами не трогался и новые сканы в него не попадали).

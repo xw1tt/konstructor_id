@@ -72,7 +72,8 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
     setLines([]);
     setNote(null);
     try {
-      const r = await sync(kit, state.book!);
+      // 0.50.3: книга читается заново — в state.book могут быть ещё не все последние правки.
+      const r = await sync(kit, await readBook(port));
       if (r.issues.length) await showIssues(r.issues);
       else setNote({ text: r.text || `Реестр комплекта ${kit} уже совпадает с актами: строк ${kitRegistryCount(state.book!, kit)}.` });
       if (r.text) state.refresh();
@@ -110,7 +111,7 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
     setNote(null);
     let synced: Awaited<ReturnType<typeof sync>>;
     try {
-      synced = await sync(kit, state.book!);
+      synced = await sync(kit, await readBook(port));
     } catch (e) {
       setNote({ text: (e as Error).message, error: true });
       setBusy(null);
@@ -136,9 +137,10 @@ export function useKit(port: BookPort, state: BookState, kit: string) {
     setBusy("common");
     setLines([]);
     setNote(null);
-    let book = state.book!;
+    let book: Book;
     let updated = 0;
     try {
+      book = await readBook(port);
       // Реестр собирается сам — сверяются все комплекты книги, в том числе ещё без строк реестра.
       for (const k of new Set((book.tables["Комплекты"] ?? []).map((r) => cellText(r.v.number)).filter(Boolean))) {
         const x = await sync(k, book);

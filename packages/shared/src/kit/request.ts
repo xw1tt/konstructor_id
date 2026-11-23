@@ -160,6 +160,10 @@ export function buildKitRequest(
       const day = issued.ok && issued.value ? formatDateShort(issued.value) : "";
       return (!type || name.startsWith(type) || name.includes(type)) && (!date || !day || date.includes(day));
     });
+    // 0.50.3: несколько подходящих документов с разными сканами (паспорта «б/н» разных материалов) — не угадываем:
+    // скан берётся из строки реестра (его ставит сверка реестра), иначе — «Нет скана».
+    const scans = new Set(fit.map((d) => d.link.file || txt(d.v.file)).filter(Boolean));
+    if (scans.size > 1) return undefined;
     return fit.find((d) => d.link.file) ?? fit[0];
   };
   const fallback = (kind: RegistryKind, r: BookRow): FileRef | null => {

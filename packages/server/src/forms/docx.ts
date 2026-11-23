@@ -121,7 +121,8 @@ function fillParagraphs(xml: string, lookup: Lookup): string {
 }
 
 function makeLookup(data: FormData, warnings: Set<string>, item?: Record<string, string>): Lookup {
-  return (label) => {
+  return (raw) => {
+    const label = raw.replace(/\?$/, "").trim();
     if (label.startsWith("#") || label.startsWith("/")) return "";
     if (item && label in item) return item[label];
     if (label in data.values) return data.values[label];
@@ -149,6 +150,23 @@ function fillTable(tbl: string, data: FormData, warnings: Set<string>, lines: Ma
   let out = "";
   for (let i = 0; i < rows.length;) {
     const mark = marks[i];
+    // 0.50.1: строка второго (третьего…) представителя без значения — не печатается вместе с подписью под ней.
+    if (!mark && optionalEmpty(rows[i], data)) {
+      const next = rows[i + 1];
+      i += next !== undefined && isCaption(next) ? 2 : 1;
+      continue;
+    }
+    // Строка второго представителя абзацем внутри строки таблицы (под подписью первого, «Камчатка»): абзац убирается;
+    // если он был последним — убирается и линия под ним (нижняя граница) и строка подписи «(фамилия…)» следом.
+    if (!mark) {
+      const pruned = pruneOptional(rows[i], data);
+      if (pruned) {
+        out += gap(i) + (rowCopies(pruned.row, data, warnings, lines) ?? pruned.row);
+        const next = rows[i + 1];
+        i += pruned.last && next !== undefined && isCaption(next) ? 2 : 1;
+        continue;
+      }
+    }
     if (!mark) {
       out += gap(i) + (rowCopies(rows[i], data, warnings, lines) ?? rows[i]);
       i++;
@@ -171,6 +189,55 @@ function fillTable(tbl: string, data: FormData, warnings: Set<string>, lines: Ma
   }
   if (!elements(out, "tr").length) return "";
   return tbl.slice(0, spans[0].start) + out + tbl.slice(spans[spans.length - 1].end);
+}
+
+/** Метка необязательной строки: представитель не первый ({Группа.ФИО 2}) или метка со знаком «?» в конце. */
+const OPTIONAL_LABEL = /\.ФИО [2-9]$|\?$/;
+
+/** Строка таблицы — только необязательные метки (и пробелы), и все их значения пусты. */
+function optionalEmpty(row: string, data: FormData): boolean {
+  const text = paragraphText(withoutTables(row));
+  const labels = [...text.matchAll(LABEL)].map((m) => m[1].trim());
+  if (!labels.length || text.replace(LABEL, "").trim()) return false;
+  return labels.every((l) => OPTIONAL_LABEL.test(l) && !(data.values[l.replace(/\?$/, "").trim()] ?? "").trim());
+}
+
+/** Абзацы строки только с пустыми необязательными метками — убрать (строка с другим содержимым). */
+function pruneOptional(row: string, data: FormData): { row: string; last: boolean } | null {
+  const ps = elements(row, "p");
+  const texts = ps.map(({ start, end }) => paragraphText(row.slice(start, end)));
+  const drop = texts.map((t) => {
+    const labels = [...t.matchAll(LABEL)].map((m) => m[1].trim());
+    return (
+      labels.length > 0 &&
+      !t.replace(LABEL, "").trim() &&
+      labels.every((l) => OPTIONAL_LABEL.test(l) && !(data.values[l.replace(/\?$/, "").trim()] ?? "").trim())
+    );
+  });
+  if (!drop.some(Boolean)) return null;
+  const lastText = texts.reduce((k, t, j) => (t.trim() ? j : k), -1);
+  const last = drop[lastText] === true;
+  let out = "";
+  let at = 0;
+  ps.forEach(({ start, end }, j) => {
+    out += row.slice(at, start) + (drop[j] ? "" : row.slice(start, end));
+    at = end;
+  });
+  out += row.slice(at);
+  if (last)
+    out = out.replace(
+      /<w:tcBorders>([\s\S]*?)<\/w:tcBorders>/g,
+      (_m, inner: string) => `<w:tcBorders>${inner.replace(/<w:bottom\b[^>]*\/>/g, "")}</w:tcBorders>`,
+    );
+  // Ячейка без абзацев — повреждённый файл для Word: пустой абзац.
+  out = mapElements(out, "tc", (tc) => (elements(tc, "p").length ? tc : tc.replace(/<\/w:tc>$/, "<w:p/></w:tc>")));
+  return { row: out, last };
+}
+
+/** Строка-подпись под линией: без меток, текст в скобках («(фамилия, инициалы, подпись)»). */
+function isCaption(row: string): boolean {
+  const t = paragraphText(withoutTables(row)).trim();
+  return !/\{[^{}]+\}/.test(t) && /^\(.*\)$/s.test(t);
 }
 
 /**

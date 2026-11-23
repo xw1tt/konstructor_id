@@ -317,3 +317,19 @@ test("0.50: оформление своей формы Excel — шрифт, р�
   const bare = styleXlsxSheet('<worksheet><sheetData></sheetData><drawing r:id="x"/></worksheet>', { marginTop: 10 });
   assert.match(bare, /<\/sheetData><pageMargins [^>]*top="0\.394"[^>]*\/><drawing/);
 });
+
+test("0.50.1: второй представитель не выбран — его строки подписи в АОСР, РПМ и РП «Камчатки» не печатаются", async () => {
+  const { docFile } = await import("@idk/server/kit/xlsx");
+  const { docxText } = await import("@idk/server/forms/docx");
+  const two = await bundle();
+  const perf = two.representatives.filter((r) => r.role === "performer");
+  assert.equal(perf.length, 2, "в образце двое выполнивших");
+  const one = { ...two, representatives: two.representatives.filter((r) => r !== perf[1]) };
+  const caps = (t: string) => (t.match(/\(фамилия, инициалы, подпись\)/g) ?? []).length;
+  for (const kind of ["aosr", "rim", "rp"] as const) {
+    const a = docxText(docFile(one, { kind, form: null }, KAM, {}).buf);
+    const b = docxText(docFile(two, { kind, form: null }, KAM, {}).buf);
+    assert.ok(b.includes(perf[1].fullName) && !a.includes(perf[1].fullName), kind);
+    assert.equal(caps(b) - caps(a), 1, `${kind}: строка второго представителя только когда он есть`);
+  }
+});

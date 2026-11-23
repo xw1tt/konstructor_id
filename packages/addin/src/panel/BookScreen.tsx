@@ -25,6 +25,7 @@ import { ScanImport } from "./extras/ScanImport.tsx";
 import { SpecExtras, SpecMatchTool } from "./extras/SpecExtras.tsx";
 import { OjrExtras } from "./extras/OjrExtras.tsx";
 import { PreDelivery } from "./extras/PreDelivery.tsx";
+import { BookHygiene } from "./extras/BookHygiene.tsx";
 import { PrintOptionsContext, TemplateContext, UserTemplateContext } from "./templateContext.ts";
 import { bundleFor, previewJob } from "./print.ts";
 import { point4Lines } from "@idk/shared/acts/rows";
@@ -1051,6 +1052,7 @@ export function BookScreen({
           </footer>
           {checkAll > 0 && (
             <div className="bk-pad">
+              <BookHygiene port={port} state={state} trigger={checkAll} />
               <PreDelivery port={port} state={state} acts={overview.map((a) => a.number)} what="все акты" trigger={checkAll} />
             </div>
           )}

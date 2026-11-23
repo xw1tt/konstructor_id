@@ -288,6 +288,19 @@ export async function fillRegistry(store: TableStore, book: Book, kit: string, t
 
 /** 0.32: ключ документа реестра — вид, акт, номер, наименование (сверка листа с актами). */
 const regKey = (v: Record<string, CellValue>) => [H("kind"), H("act"), H("number"), H("name")].map((h) => txt(v[h] ?? null).toLowerCase()).join("|");
+/**
+ * 0.50.3: одинаковые ключи (документы качества «б/н» с одним наименованием — «Паспорт качества» у разных материалов)
+ * различаются порядковым номером: k, k#2, k#3… Раньше все они сопоставлялись с одной строкой, и скан последнего
+ * документа уходил во все такие строки реестра.
+ */
+const ordinalKeys = (keys: string[]) => {
+  const seen = new Map<string, number>();
+  return keys.map((k) => {
+    const n = (seen.get(k) ?? 0) + 1;
+    seen.set(k, n);
+    return n === 1 ? k : `${k}#${n}`;
+  });
+};
 
 /**
  * 0.32: реестр комплекта собирается сам — перед сборкой комплекта сверяется с актами; если документы не те (добавили
@@ -303,8 +316,8 @@ export async function syncRegistry(
   const { rows, issues } = registryRows(book, kit, template);
   if (issues.length) return { changed: false, count: 0, added: 0, removed: 0, issues };
   const cur = (book.tables["РеестрИД"] ?? []).filter((r) => txt(r.v.kit) === kit);
-  const curKeys = cur.map((r) => regKey(Object.fromEntries(Object.entries(r.v).map(([k, v]) => [column("РеестрИД", k).header, v]))));
-  const newKeys = rows.map((r) => regKey(r.values));
+  const curKeys = ordinalKeys(cur.map((r) => regKey(Object.fromEntries(Object.entries(r.v).map(([k, v]) => [column("РеестрИД", k).header, v])))));
+  const newKeys = ordinalKeys(rows.map((r) => regKey(r.values)));
   const same = curKeys.length === newKeys.length && [...curKeys].sort().join("\n") === [...newKeys].sort().join("\n");
   if (same) {
     // 0.46.1: документы те же, но сканы могли загрузить позже — ссылки из схем и документов качества переносятся
@@ -313,7 +326,7 @@ export async function syncRegistry(
     let linked = 0;
     for (const [i, r] of cur.entries()) {
       const n = fresh.get(curKeys[i]);
-      if (!n?.link || n.link === r.link.file) continue;
+      if (!n?.link || (n.link === r.link.file && txt(r.v.file) === txt(n.values[H("file")] ?? null))) continue;
       await store.write("РеестрИД", r.row, { [H("file")]: n.values[H("file")] ?? null }, { [H("file")]: n.link });
       linked++;
     }

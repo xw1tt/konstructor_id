@@ -3,7 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readBook } from "@idk/shared/workbook/records";
 import { MemoryWorkbook } from "@idk/shared/workbook/memory";
-import { registryRows, fillRegistry, labCertificateParts } from "@idk/shared/kit/registry";
+import { registryRows, fillRegistry, labCertificateParts, kitActs } from "@idk/shared/kit/registry";
+import { cellText as txt } from "@idk/shared/workbook/values";
 import { AOV1 } from "./fixtures/aov1Book.ts";
 import { kitRecords } from "./fixtures/kitBook.ts";
 
@@ -145,4 +146,47 @@ test("fillRegistry: строки комплекта заменяются на м
   assert.equal(t.rows.at(-1)![name], "чужая после");
   assert.equal(t.rows[5][scan], "s.pdf");
   assert.equal(t.links[5][scan], "https://localhost:3443/api/files/5");
+});
+
+test("0.50.3: документы качества «б/н» с одним наименованием — у каждой строки реестра свой скан (и при повторной сверке)", async () => {
+  const { syncRegistry } = await import("../src/kit/registry.ts");
+  const { BUILTIN_KAM } = await import("../src/forms/template.ts");
+  const wb = new MemoryWorkbook(kitRecords());
+  const b0 = await readBook(wb);
+  const act = kitActs(b0, "1").acts[0];
+  const names = new Set((b0.tables["МатериалыАктов"] ?? []).filter((r) => txt(r.v.act) === act).map((r) => txt(r.v.material)));
+  // Документы качества трёх материалов акта — паспорта «б/н» без даты, у каждого свой скан.
+  const seen = new Set<string>();
+  const docs = (b0.tables["ДокументыКачества"] ?? []).filter((d) => {
+    const m = txt(d.v.materials);
+    if (!names.has(m) || seen.has(m)) return false;
+    seen.add(m);
+    return true;
+  });
+  const mats = docs.slice(0, 3);
+  assert.equal(mats.length, 3);
+  for (const [i, d] of mats.entries())
+    await wb.write(
+      "ДокументыКачества",
+      d.row,
+      { Тип: "Паспорт качества", Номер: "б/н", Дата: null, "Действует до": null, "Наименование для реестра": null, Скан: `паспорт${i}.pdf` },
+      { Скан: `https://localhost:3443/api/files/${100 + i}?sha=${String(i).repeat(64)}` },
+    );
+  const links = async () => {
+    const b = await readBook(wb);
+    return (b.tables["РеестрИД"] ?? []).filter((r) => txt(r.v.kit) === "1" && txt(r.v.number) === "б/н").map((r) => [txt(r.v.file), r.link.file]);
+  };
+  await syncRegistry(wb, await readBook(wb), "1", BUILTIN_KAM);
+  const first = await links();
+  assert.equal(first.length, mats.length);
+  assert.equal(new Set(first.map((x) => x[1])).size, mats.length, "сканы разные");
+  // Повторная сверка (реестр уже совпадает) — сканы не сливаются в один.
+  await syncRegistry(wb, await readBook(wb), "1", BUILTIN_KAM);
+  assert.deepEqual(await links(), first);
+  // Испорченный реестр (как у пользователя: всем «б/н» — скан последнего) чинится сверкой.
+  const b = await readBook(wb);
+  for (const r of (b.tables["РеестрИД"] ?? []).filter((x) => txt(x.v.number) === "б/н"))
+    await wb.write("РеестрИД", r.row, { Скан: first.at(-1)![0] }, { Скан: first.at(-1)![1] });
+  await syncRegistry(wb, await readBook(wb), "1", BUILTIN_KAM);
+  assert.deepEqual(await links(), first);
 });

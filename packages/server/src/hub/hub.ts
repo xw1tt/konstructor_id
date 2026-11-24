@@ -1,9 +1,12 @@
 // 0.52: «Сервер сканов» — сканы одни на всех компьютерах пользователя без ручного копирования. Сервер — та же программа
-// на арендованном VPS с ключом доступа (IDK_HUB_TOKEN); хранит файлы по отпечатку SHA-256. Компьютер с программой:
+// на арендованном VPS с ключом доступа (IDK_HUB_TOKEN); хранит файлы по отпечатку SHA-256.
+// 0.52.1: вместо сервера — общая папка (сетевая папка офиса \\server\…, доступная и через VPN): файлы лежат в ней по
+// отпечатку (<папка>\Конструктор ИД — сканы\ab\<sha>.pdf + .json с именем), программа на сервере не нужна. Компьютер с программой:
 // загруженные сканы отправляет на сервер, сканы книги, которых у него нет, скачивает (в фоне при открытии книги и сразу,
 // когда скан понадобился: предпросмотр, сборка комплекта).
-import { existsSync, mkdirSync, readFileSync, writeFileSync, createReadStream } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, createReadStream, copyFileSync, renameSync, rmSync, readdirSync, statSync } from "node:fs";
+import { join, isAbsolute, win32 } from "node:path";
+import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { timingSafeEqual } from "node:crypto";
 import type { Db } from "../db.ts";
@@ -12,9 +15,16 @@ import { saveFile } from "../files/store.ts";
 import { logError } from "../diag/log.ts";
 
 export interface HubConfig {
+  /** https://… — сервер сканов; иначе — путь к общей папке. */
   url: string;
   token: string;
 }
+
+/** Подпапка общей папки, где программа хранит сканы. */
+export const SHARE_DIR = "Конструктор ИД — сканы";
+const isUrl = (u: string) => /^https:\/\//i.test(u);
+const isPath = (u: string) => isAbsolute(u) || win32.isAbsolute(u) || u.startsWith("\\\\");
+const EXT: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png" };
 
 export interface HubStatus {
   configured: boolean;
@@ -68,8 +78,23 @@ export class HubClient {
     }
   }
 
-  config(): { url: string; hasToken: boolean } {
-    return { url: this.cfg?.url ?? "", hasToken: !!this.cfg?.token };
+  config(): { url: string; hasToken: boolean; kind: "server" | "folder" | "" } {
+    return { url: this.cfg?.url ?? "", hasToken: !!this.cfg?.token, kind: !this.cfg ? "" : isUrl(this.cfg.url) ? "server" : "folder" };
+  }
+
+  // --- общая папка
+  private get share() {
+    return this.cfg && !isUrl(this.cfg.url) ? join(this.cfg.url, SHARE_DIR) : null;
+  }
+  private shareFile(sha: string) {
+    return join(this.share!, sha.slice(0, 2), sha);
+  }
+  private shareMeta(sha: string): { name: string; mime: string } | null {
+    try {
+      return JSON.parse(readFileSync(`${this.shareFile(sha)}.json`, "utf8"));
+    } catch {
+      return null;
+    }
   }
 
   /** url пустой — сервер сканов выключен. token не передан — прежний. */
@@ -79,11 +104,23 @@ export class HubClient {
       this.cfg = null;
       writeFileSync(this.file, "{}");
     } else {
-      if (!/^https:\/\//i.test(u)) throw new Error("Адрес сервера сканов должен начинаться с https://");
-      const t = token?.trim() || this.cfg?.token || "";
-      if (!t) throw new Error("Укажите ключ доступа к серверу сканов");
-      if (!/^[\x21-\x7e]+$/.test(t)) throw new Error("Ключ доступа — латинские буквы, цифры и знаки, без пробелов");
-      this.cfg = { url: u, token: t };
+      if (isUrl(u)) {
+        const t = token?.trim() || (this.cfg && isUrl(this.cfg.url) ? this.cfg.token : "");
+        if (!t) throw new Error("Укажите ключ доступа к серверу сканов");
+        if (!/^[\x21-\x7e]+$/.test(t)) throw new Error("Ключ доступа — латинские буквы, цифры и знаки, без пробелов");
+        this.cfg = { url: u, token: t };
+      } else if (isPath(url.trim())) {
+        const dir = url.trim().replace(/[\\/]+$/, "");
+        try {
+          mkdirSync(join(dir, SHARE_DIR), { recursive: true });
+          const probe = join(dir, SHARE_DIR, `.probe-${randomUUID()}`);
+          writeFileSync(probe, "");
+          rmSync(probe, { force: true });
+        } catch (e) {
+          throw new Error(`Общая папка недоступна для записи: ${dir} (${(e as NodeJS.ErrnoException).code ?? (e as Error).message})`, { cause: e });
+        }
+        this.cfg = { url: dir, token: "" };
+      } else throw new Error("Укажите адрес сервера (https://…) или полный путь к общей папке (\\\\сервер\\папка или Z:\\папка)");
       mkdirSync(this.dataDir, { recursive: true });
       writeFileSync(this.file, JSON.stringify(this.cfg, null, 2));
     }
@@ -103,6 +140,16 @@ export class HubClient {
 
   async test(): Promise<{ ok: boolean; message: string; files?: number }> {
     if (!this.cfg) return { ok: false, message: "Сервер сканов не настроен" };
+    if (this.share)
+      try {
+        let n = 0;
+        for (const d of readdirSync(this.share)) if (/^[0-9a-f]{2}$/.test(d)) n += readdirSync(join(this.share, d)).filter((f) => f.endsWith(".json")).length;
+        this.status.online = true;
+        return { ok: true, message: `Общая папка доступна, сканов в ней: ${n}`, files: n };
+      } catch (e) {
+        this.status.online = false;
+        return { ok: false, message: `Общая папка недоступна (${(e as NodeJS.ErrnoException).code ?? (e as Error).message}) — проверьте сеть или VPN` };
+      }
     try {
       const r = await this.call("/api/hub/ping");
       if (!r.ok) throw new Error(`Сервер ответил ${r.status}`);
@@ -117,6 +164,11 @@ export class HubClient {
 
   private async have(shas: string[]): Promise<Set<string>> {
     const out = new Set<string>();
+    if (this.share) {
+      statSync(this.share); // нет папки (VPN выключен) — ошибка сверки, а не «ничего нет»
+      for (const s of shas) if (existsSync(`${this.shareFile(s)}.json`)) out.add(s);
+      return out;
+    }
     for (let i = 0; i < shas.length; i += 1000) {
       const r = await this.call("/api/hub/have", {
         method: "POST",
@@ -133,6 +185,13 @@ export class HubClient {
   async pull(sha: string): Promise<boolean> {
     if (!this.cfg || !SHA.test(sha)) return false;
     if (fileBySha(this.db, sha)) return true;
+    if (this.share) {
+      const m = this.shareMeta(sha);
+      if (!m) return false;
+      const f = await saveFile(this.db, this.dataDir, createReadStream(`${this.shareFile(sha)}.${EXT[m.mime] ?? "pdf"}`), m, HUB_LIMIT);
+      if (f.sha256 !== sha) throw new Error(`Скан «${m.name}» в общей папке повреждён (отпечаток не совпал)`);
+      return true;
+    }
     const r = await this.call(`/api/hub/file/${sha}`);
     if (r.status === 404) return false;
     if (!r.ok || !r.body) throw new Error(`Сервер сканов: ${r.status}`);
@@ -146,6 +205,16 @@ export class HubClient {
   private async push(sha: string): Promise<void> {
     const f = fileBySha(this.db, sha);
     if (!f) return;
+    if (this.share) {
+      // Файл — во временное имя и переименование; .json с именем — последним: он признак «файл есть».
+      const base = this.shareFile(sha);
+      mkdirSync(join(this.share, sha.slice(0, 2)), { recursive: true });
+      const tmp = `${base}.${randomUUID()}.tmp`;
+      copyFileSync(join(this.dataDir, "files", f.path), tmp);
+      renameSync(tmp, `${base}.${EXT[f.mime] ?? "pdf"}`);
+      writeFileSync(`${base}.json`, JSON.stringify({ name: f.name, mime: f.mime, size: f.size }));
+      return;
+    }
     const r = await this.call(`/api/hub/file/${sha}`, {
       method: "PUT",
       headers: { "content-type": f.mime, "x-file-name": encodeURIComponent(f.name), "content-length": String(f.size) },
@@ -186,9 +255,13 @@ export class HubClient {
   }
 
   private note(e: unknown) {
-    const m = (e as Error).message.includes("fetch failed") ? "Нет связи с сервером сканов" : (e as Error).message;
+    const code = (e as NodeJS.ErrnoException).code ?? "";
+    const offline =
+      (e as Error).message.includes("fetch failed") ||
+      ["ENOENT", "ENOTFOUND", "EHOSTUNREACH", "ENETUNREACH", "EACCES", "EPERM", "UNKNOWN", "EBUSY"].includes(code);
+    const m = offline ? (this.share ? "Общая папка недоступна — проверьте сеть или VPN" : "Нет связи с сервером сканов") : (e as Error).message;
     if (!this.status.errors.includes(m)) this.status.errors = [...this.status.errors, m].slice(-5);
-    if (m === "Нет связи с сервером сканов") this.status.online = false;
+    if (offline) this.status.online = false;
   }
 
   private async run() {

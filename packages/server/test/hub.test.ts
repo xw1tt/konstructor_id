@@ -61,5 +61,43 @@ test("сервер сканов: без ключа — отказ; без IDK_HU
   const plain = await startTestServer();
   assert.equal((await plain.raw("GET", "/api/hub/ping", { headers: { authorization: "Bearer k" } })).status, 404);
   assert.equal((await plain.req("PUT", "/api/hub/config", { url: "http://1.2.3.4", token: "k" })).status, 400);
-  assert.deepEqual((await plain.req("GET", "/api/hub/config")).json, { url: "", hasToken: false });
+  assert.deepEqual((await plain.req("GET", "/api/hub/config")).json, { url: "", hasToken: false, kind: "" });
+});
+
+test("0.52.1: общая папка вместо сервера — скан с компьютера А открывается на компьютере Б", async () => {
+  const { tmpDir } = await import("./helpers/tmp.ts");
+  const { existsSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const share = tmpDir();
+  const a = await startTestServer();
+  const b = await startTestServer();
+  for (const pc of [a, b]) {
+    const r = await pc.req("PUT", "/api/hub/config", { url: share });
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    assert.equal(r.json.kind, "folder");
+  }
+  assert.match((await a.req("POST", "/api/hub/test")).json.message, /Общая папка доступна/);
+  const pdf = Buffer.from(await makePdf(3));
+  const sha = createHash("sha256").update(pdf).digest("hex");
+  await a.raw("POST", "/api/files", { headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent("Сертификат.pdf") }, body: pdf });
+  await wait(async () => existsSync(join(share, "Конструктор ИД — сканы", sha.slice(0, 2), `${sha}.json`)));
+  const got = await b.raw("GET", `/api/files/7?sha=${sha}`);
+  assert.equal(got.status, 200);
+  assert.equal(
+    createHash("sha256")
+      .update(Buffer.from(await got.arrayBuffer()))
+      .digest("hex"),
+    sha,
+  );
+  assert.match(decodeURIComponent(got.headers.get("content-disposition") ?? ""), /Сертификат\.pdf/);
+  // Папка пропала (VPN выключен) — понятное сообщение, а не «нет файла».
+  const c = await startTestServer();
+  const gone = tmpDir();
+  await c.req("PUT", "/api/hub/config", { url: gone });
+  const { rmSync } = await import("node:fs");
+  rmSync(gone, { recursive: true, force: true });
+  const t = (await c.req("POST", "/api/hub/test")).json;
+  assert.equal(t.ok, false);
+  assert.match(t.message, /недоступна/);
+  assert.equal((await c.req("PUT", "/api/hub/config", { url: "папка" })).status, 400);
 });

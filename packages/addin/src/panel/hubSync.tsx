@@ -65,12 +65,11 @@ export function useHubStatus(): HubStatus | null {
 
 export function hubLine(s: HubStatus | null): string {
   if (!s?.configured) return "";
-  if (s.running) return `Сервер сканов: сверяю… скачано ${s.pulled}, отправлено ${s.pushed}`;
+  if (s.running) return `Общие сканы: сверяю… скачано ${s.pulled}, отправлено ${s.pushed}`;
   if (s.online === false)
-    return `Сервер сканов недоступен${s.errors.length ? `: ${s.errors.at(-1)}` : ""} — сканы с этого компьютера отправятся, когда связь появится`;
-  const parts = [`Сервер сканов: сканы совпадают`];
-  if (s.pulled || s.pushed) parts[0] = `Сервер сканов: скачано ${s.pulled}, отправлено ${s.pushed}`;
-  if (s.missing) parts.push(`нет ни здесь, ни на сервере: ${s.missing} — привяжите их из «Папки сканов» на компьютере, где они есть`);
+    return `Общие сканы недоступны${s.errors.length ? `: ${s.errors.at(-1)}` : ""} — сканы этого компьютера отправятся, когда связь появится`;
+  const parts = [s.pulled || s.pushed ? `Общие сканы: скачано ${s.pulled}, отправлено ${s.pushed}` : "Общие сканы: совпадают"];
+  if (s.missing) parts.push(`нет ни здесь, ни в общем хранилище: ${s.missing} — привяжите их из «Папки сканов» на компьютере, где они есть`);
   if (s.errors.length) parts.push(`ошибки: ${s.errors.join("; ")}`);
   return parts.join("; ");
 }
@@ -99,10 +98,10 @@ export function HubSettings() {
       const c = await apiSend<{ url: string; hasToken: boolean }>("PUT", "/api/hub/config", { url, ...(token ? { token } : {}) });
       setHasToken(c.hasToken);
       setToken("");
-      if (!c.url) return setNote("Сервер сканов выключен.");
+      if (!c.url) return setNote("Общий доступ к сканам выключен.");
       const t = await apiSend<{ ok: boolean; message: string }>("POST", "/api/hub/test", {});
       if (t.ok) {
-        setNote(`${t.message}. Сканы этого компьютера отправляются на сервер в фоне.`);
+        setNote(`${t.message}. Сканы этого компьютера отправляются туда в фоне.`);
         void apiSend("POST", "/api/hub/sync", { shas: [] }).catch(() => undefined);
       } else setError(t.message);
     } catch (e) {
@@ -113,26 +112,29 @@ export function HubSettings() {
   };
   return (
     <section className="setting">
-      <h3 className="tools-title">Сервер сканов</h3>
+      <h3 className="tools-title">Сканы на всех компьютерах</h3>
       <p className="muted">
-        Один сервер для ваших компьютеров (ноутбук, рабочий): сканы, загруженные на одном, сами появляются на другом — книгу .xlsx переносите как обычно, сотни
-        мегабайт сканов копировать не нужно. Адрес и ключ показывает установка сервера (архив konstruktor-hub.tar.gz, инструкция — в нём, README.md).
+        Сканы, загруженные на одном компьютере (рабочем, ноутбуке), сами появляются на другом — книгу .xlsx переносите как обычно, сотни мегабайт сканов
+        копировать не нужно. Укажите <b>общую папку</b> на рабочем сервере — путь вида \\сервер\Общая\ИД или папку на сетевом диске (ноутбук вне офиса видит её
+        через VPN) — или адрес своего сервера сканов (https://…, с ключом).
       </p>
       <label className="field">
-        <span className="field-label">Адрес</span>
-        <input className="mono" value={url} placeholder="https://сервер.пример.ru" onChange={(e) => setUrl(e.target.value)} />
+        <span className="field-label">Общая папка или адрес сервера</span>
+        <input className="mono" value={url} placeholder="\\server\Общая\ИД  или  https://сервер.пример.ru" onChange={(e) => setUrl(e.target.value)} />
       </label>
-      <label className="field">
-        <span className="field-label">Ключ доступа</span>
-        <input
-          type="password"
-          className="mono"
-          value={token}
-          placeholder={hasToken ? "сохранён — оставьте пустым" : ""}
-          onChange={(e) => setToken(e.target.value)}
-          autoComplete="off"
-        />
-      </label>
+      {/^https:/i.test(url.trim()) && (
+        <label className="field">
+          <span className="field-label">Ключ доступа</span>
+          <input
+            type="password"
+            className="mono"
+            value={token}
+            placeholder={hasToken ? "сохранён — оставьте пустым" : ""}
+            onChange={(e) => setToken(e.target.value)}
+            autoComplete="off"
+          />
+        </label>
+      )}
       <div className="row-actions">
         <button className="btn btn-primary" disabled={busy} onClick={() => void save()}>
           {busy ? "Проверяю…" : "Сохранить и проверить"}

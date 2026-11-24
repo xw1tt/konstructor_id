@@ -1,4 +1,5 @@
 // Дополнение карточки акта: сводка, переход к строкам акта на других листах, проверка и печать.
+import { ActKit } from "./ActKit.tsx";
 import { useContext, useState } from "react";
 import type { TableName } from "@idk/shared/workbook/schema";
 import type { PrintKind } from "@idk/shared/acts/schemas";
@@ -128,6 +129,7 @@ export function ActExtras({ port, state, act }: { port: BookPort; state: BookSta
   return (
     <div className="extras">
       <h3 className="tools-title">Акт {act}</h3>
+      <ActKit port={port} state={state} act={act} />
       <div className="row-actions">
         {LINKED.map((l) => (
           <button key={l.table} className="btn" onClick={() => void port.filterBy(l.table, "Акт", act)}>

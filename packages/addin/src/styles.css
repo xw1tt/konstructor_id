@@ -4586,3 +4586,15 @@ a.btn {
   outline-offset: 4px;
   background: rgba(37, 99, 235, 0.05);
 }
+
+/* 0.52.2: комплект в карточке акта */
+.act-kit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+.act-kit select {
+  min-width: 180px;
+}

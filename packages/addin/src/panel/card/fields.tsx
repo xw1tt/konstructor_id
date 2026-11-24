@@ -214,14 +214,18 @@ function MultiRef({ selected, options, onCommit }: { selected: string[]; options
 /** Выбор одного значения из другой таблицы с поиском: вводите часть наименования или марки — ниже список совпадений. */
 function SearchRef({ value, options, onCommit }: { value: string; options: string[]; onCommit: (v: string) => void }) {
   const [q, setQ] = useState<string | null>(null);
+  /** 0.52.2: пока не начали вводить — в поле прежнее значение (не пустое), в списке — все варианты. */
+  const [typed, setTyped] = useState(false);
+  const [moved, setMoved] = useState(false);
   const [hi, setHi] = useState(0);
   const open = q !== null;
-  const shown = open ? searchOptions(options, q, 50) : [];
+  const shown = open ? searchOptions(options, typed ? q : "", 50) : [];
   const pick = (v: string) => {
     setQ(null);
     if (v !== value) onCommit(v);
   };
-  const missing = !!value && !options.includes(value);
+  const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  const missing = !!value && !options.some((o) => norm(o) === norm(value));
   return (
     <div className="ref-search">
       <input
@@ -230,25 +234,34 @@ function SearchRef({ value, options, onCommit }: { value: string; options: strin
         placeholder="Начните вводить для поиска"
         className={missing ? "field-missing" : undefined}
         title={missing ? "Нет в списке" : undefined}
-        onFocus={() => {
-          setQ("");
-          setHi(0);
+        onFocus={(e) => {
+          setQ(value);
+          setTyped(false);
+          setMoved(false);
+          setHi(Math.max(0, searchOptions(options, "", 50).indexOf(value)));
+          e.target.select();
         }}
         onChange={(e) => {
           setQ(e.target.value);
+          setTyped(true);
           setHi(0);
         }}
-        onBlur={() => setQ(null)}
+        onBlur={() => {
+          setQ(null);
+          setTyped(false);
+        }}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") {
             e.preventDefault();
             setHi((h) => Math.min(h + 1, shown.length - 1));
+            setMoved(true);
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
             setHi((h) => Math.max(h - 1, 0));
+            setMoved(true);
           } else if (e.key === "Enter") {
             e.preventDefault();
-            if (shown[hi]) pick(shown[hi]);
+            if ((typed || moved) && shown[hi]) pick(shown[hi]);
             (e.target as HTMLInputElement).blur();
           } else if (e.key === "Escape") {
             setQ(null);

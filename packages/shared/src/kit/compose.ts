@@ -2,6 +2,8 @@
 // Строки этого комплекта переписываются по порядку; лишние — удаляются, недостающие — добавляются после последней.
 import type { Book } from "../workbook/records.ts";
 import { cellText } from "../workbook/values.ts";
+import { column } from "../workbook/schema.ts";
+import type { TableStore } from "../workbook/store.ts";
 
 export interface KitComposePlan {
   /** Перезаписать строки (индекс строки таблицы → акт). */
@@ -26,4 +28,29 @@ export function planKitActs(book: Book, kit: string, acts: string[]): KitCompose
     insert: extra.length ? { after: last, acts: extra } : null,
     remove: rows.slice(list.length).map((r) => r.row),
   };
+}
+
+/**
+ * 0.52.2: комплект акта (карточка акта): акт — в одном комплекте. Строка добавляется в конец состава комплекта kit,
+ * прежние строки акта убираются; kit пустой — акт выходит из комплектов.
+ */
+export async function setActKit(store: TableStore, book: Book, act: string, kit: string): Promise<void> {
+  const rows = book.tables["АктыКомплектов"] ?? [];
+  const own = rows.filter((r) => cellText(r.v.act) === act).map((r) => r.row);
+  if (kit) {
+    if (own.length === 1 && cellText(rows.find((r) => r.row === own[0])!.v.kit) === kit) return;
+    const last = rows.filter((r) => cellText(r.v.kit) === kit).at(-1)?.row;
+    const at = last === undefined ? rows.length : last + 1;
+    await store.insert("АктыКомплектов", at, [{ [column("АктыКомплектов", "kit").header]: kit, [column("АктыКомплектов", "act").header]: act }]);
+    const shifted = own.map((r) => (r >= at ? r + 1 : r));
+    if (shifted.length)
+      await store.remove(
+        "АктыКомплектов",
+        shifted.sort((x, y) => y - x),
+      );
+  } else if (own.length)
+    await store.remove(
+      "АктыКомплектов",
+      [...own].sort((x, y) => y - x),
+    );
 }

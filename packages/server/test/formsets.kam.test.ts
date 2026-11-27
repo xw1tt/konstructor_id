@@ -42,9 +42,13 @@ test("«Камчатка» — встроенный шаблон: АОСР, РП
 });
 
 test("АОСР «Камчатка»: номер — номер акта; п.3 и приложения — ссылкой на реестры; п.4 — нумерованный список схем", async () => {
+  const all = await bundle();
+  assert.ok(all.documents.length > 5);
+  assert.deepEqual(buildDocDataFromBundle(all, "aosr", KAM).p4, ["Согласно реестру приложений"], "0.52.3: больше 5 приложений — ссылкой на реестр");
   const b = await bundle((r) => {
     r["Схемы"][0]["Наименование"] = "Исполнительная схема монтажа телекоммуникационных шкафов СКС1";
   });
+  b.documents = b.documents.slice(0, 2);
   const d = buildDocDataFromBundle(b, "aosr", KAM);
   assert.equal(d.number, AOV1);
   assert.deepEqual(d.p3, ["Согласно реестра примененных материалов"]);

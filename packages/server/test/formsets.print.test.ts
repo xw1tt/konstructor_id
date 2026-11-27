@@ -1,4 +1,5 @@
 // План 14, задачи 3–4: формы набора «ТИ» — ВД, РМ, РП, КЖ; выбор формы по опциям печати.
+import { buildDocDataFromBundle } from "@idk/server/print/fromBundle";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { readBook } from "@idk/shared/workbook/records";
@@ -75,7 +76,10 @@ test("РП «ТИ»: документы качества акта с листа�
   assert.match(h, /документов, подтверждающих соответствие работ/);
   assert.match(h, new RegExp(`№${AOV1.replace(/\./g, "\\.")}\\.РП`));
   assert.equal((h.match(/<tr class="row">/g) ?? []).length, d.rp.length);
-  assert.ok(d.rp.length === b.qualityDocs.length);
+  // 0.52.3: ВД, исполнительные схемы и документы акта, затем документы качества (как у «Камчатки»).
+  assert.equal(d.rp.length, 1 + b.documents.length + b.qualityDocs.length);
+  assert.equal(d.rp[0].type, "Ведомость смонтированного электрооборудования и материалов");
+  assert.match(d.rp[1].type, /схема/i);
   assert.ok(h.includes(">Лист<"));
 });
 
@@ -141,4 +145,14 @@ test("РМ «ТИ»: несколько документов одного мат
       [["общий"], [1, 2]],
     ],
   );
+});
+
+test("0.52.3: АОСР «ТИ» — больше 5 приложений в п.4 ссылкой на реестр приложений, до 5 — списком", async () => {
+  const b = await bundle();
+  assert.ok(b.documents.length > 5);
+  assert.deepEqual(buildDocDataFromBundle(b, "aosr", TI).p4, ["Согласно реестру приложений"]);
+  const few = { ...b, documents: b.documents.slice(0, 3) };
+  const p4 = buildDocDataFromBundle(few, "aosr", TI).p4;
+  assert.equal(p4.length, 3);
+  assert.match(p4[0], /Исполнительная схема/);
 });

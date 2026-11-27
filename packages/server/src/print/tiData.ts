@@ -6,7 +6,7 @@ import { activeRepresentatives } from "@idk/shared/rules";
 import { docNumberFor, formatNumber, MONTHS_GEN, withNo } from "@idk/shared/acts/format";
 import { rimDocOrder, vorTotals, SIGN_LABELS } from "@idk/shared/acts/rows";
 import type { FormSet } from "@idk/shared/templates";
-import { KAM_NAMES } from "@idk/shared/docs/defs";
+import { KAM_NAMES, TI_NAMES } from "@idk/shared/docs/defs";
 
 /** Подписи ролей в формах «ТИ» (как в образцах). */
 export const TI_SIGN_LABELS: Partial<Record<RoleCode, string>> = {
@@ -116,13 +116,15 @@ export function tiDocData(b: ActBundle, set: FormSet = "ti"): TiData {
         return { n: ++n, name: mark && !name.includes(mark) ? `${name} ${mark}` : name };
       }),
     })),
+    // 0.52.3: в реестре приложений «ТИ» и «Камчатки» — ВД и исполнительные схемы, затем документы качества
+    // (было только у «Камчатки»).
     rp: [
-      ...(kam
+      ...(set !== "sbd"
         ? [
             ...(ordered.length
               ? [
                   {
-                    type: KAM_NAMES.vd,
+                    type: kam ? KAM_NAMES.vd : TI_NAMES.vd,
                     date: dmy(act.date),
                     number: withNo(docNumberFor(act.baseNumber, "vd", set)),
                     sheets: vdSheets(ordered.length) as number | null,

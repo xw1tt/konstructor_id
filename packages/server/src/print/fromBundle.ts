@@ -94,7 +94,8 @@ export function buildDocDataFromBundle<K extends DocKind>(b: ActBundle, kind: K,
             .join(""),
         // «Камчатка»: материалов больше 5 — ссылкой на реестр, иначе — материалы с документами (как в п.3 по 344/пр).
         p3: kam && actMats.length > MATERIALS_INLINE_LIMIT ? [KAM_P3] : point3Lines(actMats, mats, docsByMaterial, act.baseNumber, set),
-        p4: kam ? kamPoint4(b.documents) : point4Lines(b.documents, options),
+        // 0.52.3: «ТИ» и «Камчатка» — больше 5 приложений (схем и документов) — ссылкой на реестр приложений, как п.3.
+        p4: set !== "sbd" && b.documents.length > MATERIALS_INLINE_LIMIT ? [KAM_ATTACHMENTS] : kam ? kamPoint4(b.documents) : point4Lines(b.documents, options),
         dateStart: formatDateLong(act.dateStart),
         dateEnd: formatDateLong(act.dateEnd),
         normative: act.normative,
